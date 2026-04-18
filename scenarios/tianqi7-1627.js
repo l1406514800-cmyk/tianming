@@ -1241,7 +1241,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v37-2026.04.19-character-locations-audit';
+  var SCENARIO_VERSION = 'v38-2026.04.19-houjin-militarybreakdown-fix';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -4279,8 +4279,10 @@
         resources: '马·皮毛·人参·辽东铁·松嫩平原粮·关外珠',
         leaderInfo: { name: '皇太极', personality: '深沉·多谋·隐忍·野心', age: '35', gender: '男', belief: '萨满·读汉儒', learning: '读《三国演义》', ethnicity: '女真', bio: '努尔哈赤第八子·天命十一年继位。1636 将改元崇德国号清。1643 病逝。' },
         heirInfo: { name: '豪格(皇太极长子)', personality: '骁勇而短谋', age: '19', gender: '男', belief: '萨满', learning: '武勇', ethnicity: '女真', bio: '日后多尔衮竞位时黯然。' },
-        cohesion: { political: 75, military: 88, economic: 55, cultural: 60, ethnic: 70, loyalty: 80 },
-        militaryBreakdown: { standingArmy: 60000, militia: 40000, elite: 25000, fleet: 0 },
+        cohesion: { political: 75, military: 92, economic: 55, cultural: 60, ethnic: 78, loyalty: 82 },
+        // 《满文老档》《太宗实录》天聪元年(1627):八旗甲士6-8万+蒙汉归附3万+包衣16万=28万全员动员
+        // 对齐"清八旗"模板(standingArmy 30%+militia 60%+elite 10%+fleet<1%)
+        militaryBreakdown: { elite: 35000, standingArmy: 85000, militia: 160000, fleet: 500 },
         economicStructure: { agriculture: 35, trade: 20, handicraft: 15, tribute: 30 },
         succession: { rule: 'electiveClan', designatedHeir: '(未定)', stability: 65 },
         historicalEvents: [
@@ -4398,8 +4400,9 @@
       },
       '后金': {
         relations: { '明朝廷': -85, '察哈尔': -70, '朝鲜': -30, '蒙古科尔沁': 85, '郑氏海商': 10, '明降将集团': 50 },
-        population: { registered: 200000, actual: 500000, ethnicities: { '女真': 0.65, '蒙古': 0.15, '汉': 0.18, '朝鲜': 0.02 } },
-        techLevel: { overall: 55, agriculture: 45, military: 75, navigation: 25, metallurgy: 60, printing: 40, astronomy: 50 },
+        // 1627 实际可控人口: 女真本族约 45 万 + 蒙古归附 18 万 + 汉辽民 35 万 + 汉军户 6 万 + 朝鲜战俘 4 万 + 杂族 2 万
+        population: { registered: 450000, actual: 1100000, ethnicities: { '女真': 0.41, '蒙古': 0.16, '汉(辽民+军户)': 0.37, '朝鲜': 0.04, '达斡尔/索伦/鄂温克': 0.02 } },
+        techLevel: { overall: 62, agriculture: 48, military: 82, navigation: 25, metallurgy: 68, printing: 40, astronomy: 50 },
         cultureLevel: 55,
         warState: { active: ['与明辽东对峙'], recent: ['伐朝鲜成·江都盟', '宁远·宁锦两败于袁崇焕'] },
         economicPolicy: { taxation: 'tribute_conquest', trade: '以汉商为中介·马匹皮毛人参换银', currency: 'gold_silver·内部无铸币' },
@@ -4519,14 +4522,24 @@
           '朝鲜战俘/降附': 40000,
           '其他(达斡尔/索伦/鄂温克)': 20000
         },
+        // 编辑器 saveFaction·militaryBreakdown (4 字段·总计 280000 全员动员)
+        // 对齐 aiGenFac '游牧/清八旗': standingArmy 30% + militia 60% + elite 10% + fleet<1%
         militaryBreakdown: {
-          totalField: 110000,       // 1627 可野战兵力(战时动员)
-          regularCore: 80000,        // 八旗满洲甲士常备
-          mongolAux: 15000,          // 蒙古归附
-          hanArmy: 12000,            // 汉军(尚未正式编旗)
-          liaoDongSurrendered: 3000, // 辽东降军零散
-          logisticsAux: 160000,     // 辅兵·包衣·马夫(每甲士约2阿哈)
-          totalIncludingAux: 280000  // 总动员可达数
+          elite: 35000,         // 精锐·两黄旗(太极亲领)+正白旗精锐甲士+汗近卫·最能野战无敌
+          standingArmy: 85000,  // 常备军·八旗其他甲士(两红/两蓝/镶白)+汉军(佟养性·李永芳)+蒙古归附核心
+          militia: 160000,      // 民兵·全民皆兵式·包衣阿哈(阿哈每甲士约 2)·蒙古半游牧全丁·辽民军户
+          fleet: 500            // 水师·辽河/鸭绿江小舟·几乎无海军(清初始建)
+        },
+        // 辅助扩展(非编辑器·作为参考)
+        militaryExtended: {
+          totalField: 110000,          // 1627 可野战兵力(战时动员)
+          eightBannerArmored: 80000,   // 八旗满洲甲士总(含精锐与一般)
+          mongolAux: 15000,            // 蒙古归附
+          hanArmy: 12000,              // 汉军(尚未正式编旗)
+          liaoDongSurrendered: 3000,   // 辽东降军零散
+          logisticsAux: 160000,       // 辅兵·包衣·马夫(每甲士约 2 阿哈)
+          totalIncludingAux: 280500,   // 总动员数(4 子项之和)
+          note: '八旗"全民皆兵"制度下,男丁 15 岁以上皆可出征。甲士为披甲战士,包衣为无甲辅兵,民兵为役牧之丁。'
         },
         partyRelations:
           '内部: 四大贝勒(代善/阿敏/莽古尔泰/皇太极)并坐议政 — 皇太极隐忍削权(1629 起削两红旗，1630 囚阿敏，1632 莽古尔泰暴死)。\n' +
