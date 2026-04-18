@@ -1241,7 +1241,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v34-2026.04.19-vassal-title-system';
+  var SCENARIO_VERSION = 'v35-2026.04.19-schema-align-missing-fields';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -1949,23 +1949,46 @@
       // ──── 行政区划 ────
       adminHierarchy: buildAdminHierarchy(),
 
-      // ──── 时间轴（重大历史节点参考） ────
-      timeline: [
-        { turn: 2, date: '天启七年十月', title: '崔呈秀罢', note: '阉党五虎之首首罢官。魏忠贤震恐。', category: '阉党', isHistorical: true },
-        { turn: 3, date: '天启七年十一月', title: '魏忠贤贬凤阳守陵', note: '钱嘉徵劾十大罪。魏忠贤贬后于阜城自缢。', category: '阉党', isHistorical: true },
-        { turn: 4, date: '天启七年十二月', title: '客氏杖毙', note: '客氏死于浣衣局。阉党清算全面展开。', category: '阉党', isHistorical: true },
-        { turn: 5, date: '崇祯元年正月', title: '改元崇祯', note: '年号自天启改崇祯。内阁黄立极去，钱龙锡、李标、刘鸿训、周道登等依次入阁。', category: '政治', isHistorical: true },
-        { turn: 11, date: '崇祯元年七月', title: '平台召对', note: '袁崇焕召见于平台，君臣五年复辽之约。授督师蓟辽。', category: '辽东', isHistorical: true },
-        { turn: 14, date: '崇祯元年十月', title: '陕北王嘉胤起事', note: '府谷饥民大起。民变时代启。', category: '民变', isHistorical: true },
-        { turn: 22, date: '崇祯二年六月', title: '袁崇焕斩毛文龙', note: '双岛矫诏。东江镇次第哗变，刘兴祚等降后金。', category: '辽东', isHistorical: true },
-        { turn: 26, date: '崇祯二年十月', title: '己巳之变', note: '皇太极绕蒙古破长城，围京师。袁崇焕入援勤王。', category: '辽东', isHistorical: true },
-        { turn: 29, date: '崇祯三年八月', title: '袁崇焕磔死', note: '诏狱论死。关宁军心涣散。', category: '辽东', isHistorical: true },
-        { turn: 35, date: '崇祯五年', title: '温体仁入阁', note: '奸相之局开。', category: '政治', isHistorical: true },
-        { turn: 68, date: '崇祯十一年', title: '卢象升战死鹿庄', note: '杨嗣昌掣肘。', category: '军事', isHistorical: true },
-        { turn: 121, date: '崇祯十五年', title: '松锦之战', note: '洪承畴降清。明九边主力尽丧。', category: '军事', isHistorical: true },
-        { turn: 140, date: '崇祯十六年十月', title: '孙传庭战死潼关', note: '陕西总督最后的希望。"传庭死而明亡矣"。', category: '军事', isHistorical: true },
-        { turn: 146, date: '崇祯十七年三月', title: '煤山自缢', note: '李自成破京，帝自缢。明亡。', category: '亡国', isHistorical: true }
-      ],
+      // ──── 时间轴（编辑器 scriptData.timeline · {past:[], future:[]}） ────
+      timeline: {
+        past: [
+          { turn: -259, date: '洪武元年(1368)', title: '朱元璋建明于南京', note: '驱元北还。诏改元"洪武"。开大明 259 年。', category: '开国', isHistorical: true },
+          { turn: -205, date: '永乐元年(1403)', title: '永乐迁都北京(启动)', note: '成祖朱棣定都北京。永乐十八年(1420)紫禁城成。', category: '开国', isHistorical: true },
+          { turn: -172, date: '正统十四年(1449)', title: '土木之变', note: '英宗朱祁镇为瓦剌也先俘。于谦守北京。明由盛转衰端倪。', category: '边患', isHistorical: true },
+          { turn: -120, date: '弘治/正德交替(1505)', title: '刘瑾专政始', note: '正德初刘瑾八虎专政。宦官祸始现。', category: '阉祸', isHistorical: true },
+          { turn: -55, date: '万历元年(1572)', title: '张居正任首辅', note: '万历十年(1582)张居正卒。一条鞭法+考成法+整顿九边。万历中兴。', category: '改革', isHistorical: true },
+          { turn: -35, date: '万历二十年-二十六年(1592-1598)', title: '万历三大征', note: '宁夏哱拜/播州杨应龙/朝鲜抗倭。耗银 1200 万两。国本动。', category: '军事', isHistorical: true },
+          { turn: -23, date: '万历三十二年(1604)', title: '东林书院讲学', note: '顾宪成创无锡东林。"风声雨声读书声，家事国事天下事"。', category: '党争', isHistorical: true },
+          { turn: -9, date: '万历四十六年(1618)', title: '辽饷加派始', note: '努尔哈赤起兵。辽东战起。每亩加派九厘。', category: '财政·辽东', isHistorical: true },
+          { turn: -8, date: '万历四十七年(1619)', title: '萨尔浒之败', note: '杨镐四路进剿后金。三路败没。明辽东主动权尽失。', category: '辽东', isHistorical: true },
+          { turn: -7, date: '万历四十八年(1620)', title: '明光宗红丸案', note: '神宗崩。光宗登基一月崩于鸿胪寺丞李可灼红丸。三案始。', category: '三案', isHistorical: true },
+          { turn: -6, date: '天启元年(1621)', title: '熹宗登基·移宫案', note: '朱由校即位。驱李选侍出乾清宫。魏忠贤渐起。', category: '阉党', isHistorical: true },
+          { turn: -5, date: '天启二年(1622)', title: '魏忠贤掌司礼监', note: '熹宗拜魏忠贤为司礼监秉笔兼东厂提督。阉党雏形。', category: '阉党', isHistorical: true },
+          { turn: -3, date: '天启四年(1624)', title: '杨涟劾魏忠贤二十四罪', note: '疏呈遭留中。东林六君子噩运起。', category: '党争', isHistorical: true },
+          { turn: -3, date: '天启四年(1624)', title: '东林六君子死', note: '杨涟/左光斗/魏大中/袁化中/周朝瑞/顾大章次第死于诏狱。', category: '党争', isHistorical: true },
+          { turn: -2, date: '天启五年(1625)', title: '熊廷弼弃市·高攀龙自沉', note: '辽东经略熊廷弼以"封疆失事"弃市传首九边。东林高攀龙闻逮自沉无锡水中。', category: '党争·辽东', isHistorical: true },
+          { turn: -2, date: '天启五年(1625)', title: '矿税废罢·东林书院毁', note: '熹宗罢矿税。同时敕毁东林书院。党争钳制。', category: '财政·党争', isHistorical: true },
+          { turn: -1, date: '天启六年(1626)', title: '宁远大捷·生祠遍天下', note: '袁崇焕宁远败努尔哈赤(五月)。九月起魏忠贤生祠首建于浙江潘汝桢，一年余达数百处。', category: '辽东·阉党', isHistorical: true },
+          { turn: 0, date: '天启七年八月(1627-9)', title: '熹宗崩·朱由检入继', note: '八月廿二朱由校崩于乾清宫。廿四张皇后召信王入继大统。九月魏忠贤送客氏出宫。', category: '剧本起点', isHistorical: true }
+        ],
+        future: [
+          { turn: 2, date: '天启七年十月', title: '崔呈秀罢', note: '阉党五虎之首首罢官。魏忠贤震恐。', category: '阉党', isHistorical: true },
+          { turn: 3, date: '天启七年十一月', title: '魏忠贤贬凤阳守陵·自缢阜城', note: '钱嘉徵劾十大罪。魏忠贤贬后于阜城闻"五更曲骂九千岁"自缢。', category: '阉党', isHistorical: true },
+          { turn: 4, date: '天启七年十二月', title: '客氏杖毙', note: '客氏死于浣衣局。阉党清算全面展开。', category: '阉党', isHistorical: true },
+          { turn: 5, date: '崇祯元年正月', title: '改元崇祯', note: '年号自天启改崇祯。黄立极罢，钱龙锡/李标/刘鸿训/周道登等依次入阁。', category: '政治', isHistorical: true },
+          { turn: 11, date: '崇祯元年七月', title: '平台召对', note: '袁崇焕召见于平台，君臣"五年复辽"之约。授督师蓟辽。', category: '辽东', isHistorical: true },
+          { turn: 14, date: '崇祯元年十月', title: '陕北王嘉胤起事(白水王二同时)', note: '府谷饥民大起。民变时代启。', category: '民变', isHistorical: true },
+          { turn: 22, date: '崇祯二年六月', title: '袁崇焕斩毛文龙', note: '双岛矫诏。东江镇次第哗变，刘兴祚等降后金。', category: '辽东', isHistorical: true },
+          { turn: 26, date: '崇祯二年十月', title: '己巳之变', note: '皇太极绕蒙古破长城，围京师。袁崇焕入援勤王。', category: '辽东', isHistorical: true },
+          { turn: 29, date: '崇祯三年八月', title: '袁崇焕磔死', note: '诏狱论死。关宁军心涣散。', category: '辽东', isHistorical: true },
+          { turn: 35, date: '崇祯五年(1632)', title: '温体仁入阁·寻首辅', note: '奸相之局开。结党八年(至崇祯十年)。', category: '政治', isHistorical: true },
+          { turn: 50, date: '崇祯九年(1636)', title: '皇太极改国号清·称皇帝', note: '盛京登基。明失"后金"这个退让空间。', category: '后金·清', isHistorical: true },
+          { turn: 68, date: '崇祯十一年(1638)', title: '卢象升战死鹿庄', note: '杨嗣昌掣肘。内阁忌其功。', category: '军事', isHistorical: true },
+          { turn: 121, date: '崇祯十五年(1642)', title: '松锦之战', note: '洪承畴降清。明九边主力尽丧。', category: '军事', isHistorical: true },
+          { turn: 140, date: '崇祯十六年十月', title: '孙传庭战死潼关', note: '陕西总督最后的希望。"传庭死而明亡矣"。', category: '军事', isHistorical: true },
+          { turn: 146, date: '崇祯十七年三月(1644-4)', title: '煤山自缢·明亡', note: '李自成破京。帝自缢煤山。清兵入关。', category: '亡国', isHistorical: true }
+        ]
+      },
 
       // ──── 规则（编辑器 scriptData.rules · 4 段 AI 推演约束文本） ────
       rules: {
@@ -2002,15 +2025,7 @@
           '5. 对欧洲：葡人据澳门(嘉靖三十六年 1557 起)月租 500 两；荷人据台海(天启四年 1624 起)；西班牙据菲律宾与郑氏竞。\n' +
           '6. 土司体制：西南广西/云贵/四川边地土司百余家。"改土归流"为长期国策，奢安之乱刚平。'
       },
-      // 原"rules 数组"实为条件触发器，重命名至 conditionalRules（运行时引擎仍可读，不影响游戏）
-      conditionalRules: [
-        { name: '阉党处置失当激兵变', enabled: true, trigger: { type: 'threshold', variable: '阉党权势值', op: '<', value: 30, window: 3 }, effect: { narrative: '魏忠贤党羽闻风，崔呈秀、田尔耕等阉党武将密谋京营兵变。', varChg: { '皇威': -15, '皇权': -10 } } },
-        { name: '辽饷积欠过重引哗变', enabled: true, trigger: { type: 'threshold', variable: '辽饷积欠', op: '>', value: 300 }, effect: { narrative: '宁远/锦州戍卒索饷鼓噪。', varChg: { '辽东防线稳固度': -8, '民心': -3 } } },
-        { name: '小冰河凛冬引疫', enabled: true, trigger: { type: 'threshold', variable: '小冰河凛冬指数', op: '>', value: 80 }, effect: { narrative: '华北疫气大行。', varChg: { '人口': -200000, '西北灾荒怨气': +10 } } },
-        { name: '流民过百万引民变', enabled: true, trigger: { type: 'threshold', variable: '流民数量', op: '>', value: 1500000 }, effect: { narrative: '陕北山西流民啸聚，已成军镇规模。', varChg: { '民心': -8, '党争烈度': +5 } } },
-        { name: '国库空虚引弹劾', enabled: true, trigger: { type: 'threshold', variable: '国库资金', op: '<', value: 500000 }, effect: { narrative: '科道合疏弹劾户部尚书无能，实则党争借题。', varChg: { '党争烈度': +5 } } },
-        { name: '东林复起引新党争', enabled: true, trigger: { type: 'threshold', variable: '东林党复苏进度', op: '>', value: 60 }, effect: { narrative: '东林骨干重返朝堂，与浙党楚党齐党之间结怨渐深，门户之争迭起。', varChg: { '党争烈度': +8, '全局腐败': -3 } } }
-      ],
+      // 原"条件触发规则"已移入 rules.base 描述性文本; events.conditional 为空(用户决定)
       // ──── 建筑系统（编辑器 scriptData.buildingSystem · 明代典型建筑类型） ────
       buildingSystem: {
         enabled: true,
@@ -3266,30 +3281,59 @@
         { name: '九千岁金册', type: 'treasure', description: '天启六年熹宗赐魏忠贤"九千岁"荣号金册。日后清算之证据。', effect: '阉党荣誉·日后罪证', rarity: '珍贵', owner: '魏忠贤', value: 100000, quantity: 1, era: '天启六年' }
       ],
 
-      // ──── 科技/工艺树（P.techTree） ────
-      techTree: [
-        { name: '红衣大炮铸造术', desc: '葡制火炮技术。孙元化据徐光启译书改铸。', effect: '城守+25', era: '天启·崇祯', prereqs: [], unlocked: true },
-        { name: '《崇祯历书》编修', desc: '徐光启主持、邓玉函/汤若望/龙华民/罗雅谷参与。原史崇祯二年立局。', effect: '历法精度+40', era: '崇祯', prereqs: [], unlocked: false },
-        { name: '甘薯北传', desc: '福建引进甘薯（1593 陈振龙）。徐光启力主北传。', effect: '救荒+30', era: '万历·崇祯', prereqs: [], unlocked: false },
-        { name: '马铃薯试种', desc: '荷兰殖民者带入。徐光启倡试种北方。', effect: '救荒+20', era: '崇祯', prereqs: [], unlocked: false },
-        { name: '烟草传入', desc: '吕宋华侨传入。北方烟草自福建传入北京。', effect: '税源新增', era: '万历末', prereqs: [], unlocked: true },
-        { name: '活字印刷普及', desc: '木活字、铜活字。', effect: '书籍成本-30%', era: '明代', prereqs: [], unlocked: true },
-        { name: '福船造船术', desc: '郑氏海船甲亚洲。三桅十二帆。', effect: '海军+20', era: '明代', prereqs: [], unlocked: true },
-        { name: '红薯玉米推广', desc: '美洲作物引入。徐光启《农政全书》载录。', effect: '粮食+25', era: '崇祯', prereqs: [], unlocked: false }
-      ],
+      // ──── 科技/工艺树（编辑器 scriptData.techTree · {military:[], civil:[]}） ────
+      techTree: {
+        military: [
+          { name: '红衣大炮铸造术', desc: '葡制火炮技术。孙元化据徐光启译书改铸。', effect: '城守+25', era: '天启·崇祯', prereqs: [], unlocked: true },
+          { name: '福船造船术', desc: '郑氏海船甲亚洲。三桅十二帆。', effect: '海军+20', era: '明代', prereqs: [], unlocked: true },
+          { name: '火器·鸟铳量产', desc: '仿倭铳改造·戚继光军中普及。', effect: '步兵+15', era: '嘉靖以降', prereqs: [], unlocked: true },
+          { name: '三眼铳·骑铳', desc: '辽东关宁骑兵所用。三管连珠。', effect: '骑兵+10', era: '明末', prereqs: [], unlocked: true },
+          { name: '《武备志》', desc: '茅元仪天启元年成书。240 卷集古今兵法。', effect: '军事学+18', era: '天启', prereqs: [], unlocked: true },
+          { name: '戚家军长短相制', desc: '戚继光鸳鸯阵·车营阵。', effect: '野战+12', era: '嘉靖以降', prereqs: [], unlocked: true }
+        ],
+        civil: [
+          { name: '《崇祯历书》编修', desc: '徐光启主持、邓玉函/汤若望/龙华民/罗雅谷参与。原史崇祯二年立局。', effect: '历法精度+40', era: '崇祯', prereqs: [], unlocked: false },
+          { name: '甘薯北传', desc: '福建引进甘薯（1593 陈振龙）。徐光启力主北传。', effect: '救荒+30', era: '万历·崇祯', prereqs: [], unlocked: false },
+          { name: '马铃薯试种', desc: '荷兰殖民者带入。徐光启倡试种北方。', effect: '救荒+20', era: '崇祯', prereqs: [], unlocked: false },
+          { name: '红薯玉米推广', desc: '美洲作物引入。徐光启《农政全书》载录。', effect: '粮食+25', era: '崇祯', prereqs: [], unlocked: false },
+          { name: '烟草传入', desc: '吕宋华侨传入。北方烟草自福建传入北京。', effect: '税源新增', era: '万历末', prereqs: [], unlocked: true },
+          { name: '活字印刷普及', desc: '木活字、铜活字。', effect: '书籍成本-30%', era: '明代', prereqs: [], unlocked: true },
+          { name: '《农政全书》', desc: '徐光启编。60 卷。救荒/屯田/水利/甘薯。', effect: '农业+20', era: '天启·崇祯', prereqs: [], unlocked: false },
+          { name: '《天工开物》', desc: '宋应星著。工艺百科。原史崇祯十年刊。', effect: '工艺+15', era: '崇祯', prereqs: [], unlocked: false }
+        ]
+      },
 
-      // ──── 文化/制度（P.civicTree） ────
-      civicTree: [
-        { name: '东林书院讲学', desc: '顾宪成创无锡东林。清议之风。天启朝被禁毁，此时废墟。', effect: '士林风骨+15', era: '万历末·天启', prereqs: [], unlocked: false },
-        { name: '殿试廷推制', desc: '阁臣由廷推，尚书由会推。天启朝为阉党把持。', effect: '官员素质+10', era: '明代', prereqs: [], unlocked: true },
-        { name: '考成法', desc: '张居正创，万历末废。考课严密。', effect: '吏治+20', era: '万历', prereqs: [], unlocked: false },
-        { name: '一条鞭法', desc: '张居正推行。赋役归一，折银交纳。', effect: '税收+15，银荒-', era: '万历', prereqs: [], unlocked: true },
-        { name: '辽饷加派', desc: '万历四十六年起征。崇祯四年升至九厘银/亩。', effect: '国库+15，民心-10', era: '天启·崇祯', prereqs: [], unlocked: true },
-        { name: '矿税废罢', desc: '天启五年罢矿税。江南松一口气。', effect: '江南商税抵制-20', era: '天启末', prereqs: [], unlocked: true },
-        { name: '心学（阳明学）', desc: '王守仁创。至天启已成显学。东林、泰州派衍生。', effect: '士风活跃+20', era: '嘉靖以降', prereqs: [], unlocked: true },
-        { name: '天主教传入', desc: '利玛窦 1582 入华。徐光启等受洗。', effect: '西学+15', era: '万历·天启', prereqs: [], unlocked: true },
-        { name: '八股取士', desc: '明代科举定制。四书五经为本。', effect: '儒家正统+20, 思想僵化+10', era: '明代', prereqs: [], unlocked: true }
-      ],
+      // ──── 文化/制度（编辑器 scriptData.civicTree · {city:[], policy:[], resource:[], corruption:[]}） ────
+      civicTree: {
+        city: [
+          { name: '东林书院讲学', desc: '顾宪成创无锡东林。清议之风。天启朝被禁毁，此时废墟。', effect: '士林风骨+15', era: '万历末·天启', prereqs: [], unlocked: false },
+          { name: '首善书院', desc: '冯从吾/邹元标创于北京。天启朝被毁。', effect: '京师讲学+10', era: '天启', prereqs: [], unlocked: false },
+          { name: '心学（阳明学）', desc: '王守仁创。至天启已成显学。东林、泰州派衍生。', effect: '士风活跃+20', era: '嘉靖以降', prereqs: [], unlocked: true },
+          { name: '天主教传入', desc: '利玛窦 1582 入华。徐光启等受洗。', effect: '西学+15', era: '万历·天启', prereqs: [], unlocked: true },
+          { name: '江南市民文学', desc: '《金瓶梅》《三言二拍》盛行。刻书业繁荣。', effect: '市民文化+15', era: '万历末·天启', prereqs: [], unlocked: true }
+        ],
+        policy: [
+          { name: '殿试廷推制', desc: '阁臣由廷推，尚书由会推。天启朝为阉党把持。', effect: '官员素质+10', era: '明代', prereqs: [], unlocked: true },
+          { name: '考成法', desc: '张居正创，万历末废。考课严密。', effect: '吏治+20', era: '万历', prereqs: [], unlocked: false },
+          { name: '一条鞭法', desc: '张居正推行。赋役归一，折银交纳。', effect: '税收+15·银荒+', era: '万历', prereqs: [], unlocked: true },
+          { name: '辽饷加派', desc: '万历四十六年起征。崇祯四年升至九厘银/亩。', effect: '国库+15·民心-10', era: '天启·崇祯', prereqs: [], unlocked: true },
+          { name: '八股取士', desc: '明代科举定制。四书五经为本。', effect: '儒家正统+20·思想僵化+10', era: '明代', prereqs: [], unlocked: true },
+          { name: '京察外察', desc: '文官六年一察。天启朝成党争工具。', effect: '吏治整饬±10', era: '明代', prereqs: [], unlocked: true },
+          { name: '厂卫并立', desc: '东厂+锦衣卫监察百官。阉党利器。', effect: '皇权+15·清议-20', era: '明代', prereqs: [], unlocked: true }
+        ],
+        resource: [
+          { name: '矿税废罢', desc: '天启五年罢矿税。江南松一口气。', effect: '江南商税抵制-20', era: '天启末', prereqs: [], unlocked: true },
+          { name: '市舶司·月港开海', desc: '隆庆元年(1567)开海于月港。明末海外白银主要入口。', effect: '海关税+·银流入+', era: '隆庆以降', prereqs: [], unlocked: true },
+          { name: '漕运·起运存留', desc: '江南漕米四百万石岁输京师。明代财政命脉。', effect: '京粮保障', era: '明代', prereqs: [], unlocked: true },
+          { name: '盐引开中', desc: '商纳粮边地换盐引。成弘后渐废。', effect: '边粮补充', era: '明初', prereqs: [], unlocked: false }
+        ],
+        corruption: [
+          { name: '宦官监税', desc: '万历矿税中宦官四出。天启末废。', effect: '皇威+10·腐败+20·民怨+15', era: '万历', prereqs: [], unlocked: false },
+          { name: '生祠遍天下', desc: '天启六年起潘汝桢首建，一年余数百处。', effect: '阉党权+15·士林离心-20', era: '天启六-七年', prereqs: [], unlocked: true },
+          { name: '冒饷空额', desc: '卫所军官普遍冒饷侵屯田。明末虚额过半。', effect: '军饷消耗+·实战力-', era: '明中后期', prereqs: [], unlocked: true },
+          { name: '胥吏浮收', desc: '地方征税多征 20-30%入私。', effect: '民负+·国库不增', era: '明代', prereqs: [], unlocked: true }
+        ]
+      },
 
       // ──── 人物特质定义（剧本特色 trait，超出通用库） ────
       traitDefinitions: [
@@ -3749,6 +3793,240 @@
         ]
       },
 
+      // ──── 变量（编辑器 scriptData.variables · {base:[], other:[], formulas:[]}） ────
+      // 七大核心变量(帑廪/内帑/皇权/皇威/民心/腐败/环境/人口)由游戏系统自管理，base 为空
+      // 本剧本 26 项"专题变量"都在 other；formulas 为变量间关联
+      // 运行时 global.P.variables 通过下方 buildScenario _registerVars 自动注册
+      variables: {
+        base: [],
+        other: [
+          { name: '阉党权势值', value: 92, min: 0, max: 100, cat: '党派', desc: '魏忠贤集团的朝堂支配度。内阁、六部、都察院过半阉党或附阉者。', inversed: true },
+          { name: '东林党复苏进度', value: 4, min: 0, max: 100, cat: '党派', desc: '东林骨干多在籍或戍边，归朝尚需圣旨。' },
+          { name: '党争烈度', value: 58, min: 0, max: 100, cat: '党派', desc: '阉党打压东林尚未终结。东林反扑将爆发。', inversed: true },
+          { name: '宦官干政度', value: 85, min: 0, max: 100, cat: '皇权', desc: '司礼监批红直达天听，内外阁票拟形同虚设。', inversed: true },
+          { name: '士人风骨指数', value: 30, min: 0, max: 100, cat: '皇权', desc: '东林六君子诏狱血案后，士林多噤声。' },
+          { name: '辽饷积欠', value: 460, min: 0, max: 1000, unit: '万两', cat: '财政', desc: '辽东欠饷累计。袁崇焕去后更甚。宁远、锦州戍卒哗变警报不断。', inversed: true },
+          { name: '九边欠饷总数', value: 720, min: 0, max: 2000, unit: '万两', cat: '财政', desc: '九边总欠饷。超 1000 万引全面哗变。', inversed: true },
+          { name: '宗禄拖欠', value: 280, min: 0, max: 1000, unit: '万石', cat: '财政', desc: '宗室禄米历年拖欠。万历末宗室逾 20 万，岁禄理论 600 万石，实际拨发不足一半。', inversed: true },
+          { name: '太仓粮实存', value: 130, min: 0, max: 1000, unit: '万石', cat: '财政', desc: '太仓米粮实有。漕运岁运 400 万石，多虚报。京通仓存粮难支半年。', inversed: true },
+          { name: '银荒指数', value: 55, min: 0, max: 100, cat: '财政', desc: '白银流通紧张度。超 70 即钱贱谷贵民不聊生。', inversed: true },
+          { name: '宝泉局铸钱量', value: 40, min: 0, max: 100, cat: '财政', desc: '工部宝源局/户部宝泉局岁铸制钱数量。明末铸币减少，私铸盛行。' },
+          { name: '海贸银流入', value: 28, min: 0, max: 100, cat: '财政', desc: '马尼拉-月港-澳门海贸流入白银。天启七年荷西竞争影响流速。' },
+          { name: '江南商税抵制度', value: 75, min: 0, max: 100, cat: '经济', desc: '江南缙绅对商税/矿税的抵制程度。矿税于 1625 年罢。', inversed: true },
+          { name: '海商势力', value: 25, min: 0, max: 100, cat: '经济', desc: '郑芝龙为首的海商集团崛起程度。' },
+          { name: '漕运通畅度', value: 58, min: 0, max: 100, cat: '经济', desc: '京杭大运河江南至通州段。淤堵频发。' },
+          { name: '辽东防线稳固度', value: 42, min: 0, max: 100, cat: '军事', desc: '袁崇焕去后，辽东经略未定。王之臣老病。关宁锦防线核心未失。' },
+          { name: '流民数量', value: 900000, min: 0, max: 50000000, unit: '口', cat: '民生', desc: '北直隶/陕西/山东流民估数。三年连旱将加速。', inversed: true },
+          { name: '小冰河凛冬指数', value: 68, min: 0, max: 100, cat: '环境', desc: '1627 冬寒异常。未来三年将更严酷。', inversed: true },
+          { name: '西北灾荒怨气', value: 76, min: 0, max: 100, cat: '民生', desc: '陕北已三年大旱，观音土食尽，草根掘尽。民变在即。', inversed: true },
+          { name: '卫所虚额率', value: 62, min: 0, max: 100, cat: '军事', desc: '九边卫所"在册"与"实存"差距。>60 即战事无可用兵。', inversed: true },
+          { name: '官场冗员指数', value: 55, min: 0, max: 100, cat: '政治', desc: '超定员的闲散官。阉党"恩荫"泛滥，卖官鬻爵。', inversed: true },
+          { name: '言路通塞', value: 22, min: 0, max: 100, cat: '政治', desc: '科道敢言度。阉党时"讳言国事、谏者必诛"。高则言路畅，低则噤声。' },
+          { name: '科举选士质量', value: 45, min: 0, max: 100, cat: '政治', desc: '会试/殿试取中者之素质与独立性。阉党座主门生勾结严重。' },
+          { name: '诏狱案件积压', value: 78, min: 0, max: 100, cat: '政治', desc: '锦衣卫北镇抚司未决案件。天启朝诏狱杀人无数，积压亦重。', inversed: true },
+          { name: '黄河水利失修度', value: 68, min: 0, max: 100, cat: '环境', desc: '黄河淮河堤防失修。万历末至天启连年溃决，田卢漂没。', inversed: true },
+          { name: '宗族兼并度', value: 72, min: 0, max: 100, cat: '经济', desc: '宗藩/缙绅侵占民田之烈度。福王田 4 万顷即典型。', inversed: true },
+          { name: '天下文社数', value: 18, min: 0, max: 100, cat: '政治', desc: '文人社团（将孕育复社）。以士子议政、讲学、联属试卷为名。' }
+        ],
+        formulas: [
+          { name: '辽饷 × 民心', expression: '民心变化 = -(辽饷积欠/100) × 加派因子', relatedVars: ['辽饷积欠', '民心', '加派因子'], description: '辽饷每累积欠 100 万两，民心月降 1-2 点' },
+          { name: '小冰河 → 流民', expression: '月流民增量 = 小冰河凛冬指数 × 1.2 × 陕西饥荒系数', relatedVars: ['小冰河凛冬指数', '流民数量', '西北灾荒怨气'], description: '小冰河每升 10，流民月增 1.2 万' },
+          { name: '九边欠饷 → 哗变', expression: 'if (九边欠饷>1000 && 月>3) { 关宁军哗变概率 += 0.15 }', relatedVars: ['九边欠饷总数', '辽东防线稳固度'], description: '累欠 1000 万两+欠饷 3 月以上时必哗' },
+          { name: '宗禄拖欠 → 宗室离心', expression: '宗室满意度 = 100 - 宗禄拖欠/10', relatedVars: ['宗禄拖欠'], description: '拖欠 500 万石时宗室满意降至 50 以下' },
+          { name: '阉党权势 → 言路', expression: '言路通塞 = max(5, 100 - 阉党权势值)', relatedVars: ['阉党权势值', '言路通塞'], description: '阉党权势与言路成反比' }
+        ]
+      },
+
+      // ──── 关系（编辑器 scriptData.relations · 剧本初始关系数组） ────
+      relations: [
+        { name: '与后金战事强度', value: -85, min: -100, max: 100, description: '明与后金核心关系。-100=全面战争·85=稳固盟好' },
+        { name: '与察哈尔', value: 25, min: -100, max: 100, description: '林丹汗欲联明抗金。万历以来互市断续' },
+        { name: '与朝鲜', value: 70, min: -100, max: 100, description: '朝鲜最恭藩属。1627 春被后金迫定兄弟盟后略损' },
+        { name: '与琉球/安南/暹罗', value: 60, min: -100, max: 100, description: '朝贡藩属。" 贡-赐"体系稳定' },
+        { name: '与葡萄牙', value: 50, min: -100, max: 100, description: '1557 始据澳门。月租银+传教+铸炮。孙元化与耶稣会合作' },
+        { name: '与荷兰', value: -30, min: -100, max: 100, description: '1624 据台海(大员)。1625 料罗湾战败未罢' },
+        { name: '与西班牙·马尼拉', value: 10, min: -100, max: 100, description: '隔月港贸易。美洲银主来源' },
+        { name: '与日本·幕府', value: -5, min: -100, max: 100, description: '德川幕府 1635 始锁国。此时浙江福建沿海有日本漂民' },
+        { name: '与西南土司', value: 40, min: -100, max: 100, description: '奢安之乱刚平。改土归流为长期国策' }
+      ],
+
+      // ──── 势力间关系矩阵（编辑器 scriptData.factionRelations） ────
+      factionRelations: [
+        { from: '明朝廷', to: '后金', type: 'war', value: -95, desc: '全面战争·宁锦防线相持' },
+        { from: '明朝廷', to: '察哈尔', type: 'alliance', value: 25, desc: '林丹汗欲联明抗金·互市时开时闭' },
+        { from: '明朝廷', to: '朝鲜', type: 'suzerain', value: 75, desc: '朝鲜事明最恭·被迫兄弟盟于后金但仍名义事明' },
+        { from: '明朝廷', to: '播州土司·杨氏(余裔)', type: 'vassal', value: 50, desc: '主支已平·余裔敬而远之' },
+        { from: '明朝廷', to: '郑氏海商', type: 'neutral', value: 30, desc: '即将招抚·崇祯元年郑芝龙拜海防游击' },
+        { from: '明朝廷', to: '陕北饥民(将起)', type: 'hostile', value: -15, desc: '崇祯元年即起事' },
+        { from: '后金', to: '朝鲜', type: 'conquered', value: -45, desc: '1627 春兄弟之盟·强迫臣属' },
+        { from: '后金', to: '察哈尔', type: 'hostile', value: -50, desc: '蒙古争夺。天聪六年皇太极亲征察哈尔' },
+        { from: '后金', to: '科尔沁蒙古', type: 'alliance', value: 85, desc: '联姻盟·铁杆盟友' },
+        { from: '察哈尔', to: '科尔沁蒙古', type: 'hostile', value: -70, desc: '蒙古内讧' }
+      ],
+
+      // ──── 经济配置（编辑器 scriptData.economyConfig · 概览版·与 fiscalConfig 共存） ────
+      economyConfig: {
+        enabled: true,
+        currency: '两',  // 明代以银为大额货币
+        baseIncome: 8000000,  // 天下岁入额度·两
+        tributeRatio: 0.15,
+        tributeAdjustment: 0,
+        taxRate: 0.055,  // 明代田赋税率(夏秋合约 5.5%)
+        inflationRate: 0.03,  // 明末银贱物贵通胀加剧
+        economicCycle: 'declining',  // 下行·小冰河+三饷加派+隐户逃税
+        specialResources: '漕米·两淮盐·苏松丝棉·景德瓷·云南铜银·福建糖茶·西南木材马匹',
+        tradeSystem: '朝贡+月港开海+澳门市舶+海商私贸。隆庆元年(1567)开海。',
+        description: '明代经济：以小农自耕+一条鞭法为根基。商业以徽晋山陕四大商帮为主。白银从美洲/日本涌入抬高需求，但民间铜钱依赖未解。明末加派辽饷+剿饷+练饷三饷累加，至亡国时每年 2000 万两以上，远超正税。',
+        redistributionRate: 0.45,  // 南粮北运+宗禄+军饷再分配比
+        tradeBonus: 0.2,
+        agricultureMultiplier: 0.85,  // 小冰河打击
+        commerceMultiplier: 1.1   // 江南商贸发达
+      },
+
+      // ──── 目标（编辑器 scriptData.goals · 结构化胜负条件） ────
+      goals: [
+        {
+          name: '诛魏忠贤·平阉党',
+          type: 'milestone',
+          description: '3 个月内妥善处置魏忠贤与阉党核心(崔呈秀/田尔耕/许显纯等"五虎五彪"+"十狗十孩儿四十孙")，且不致京营兵变',
+          conditions: [
+            { type: 'variable_lte', variable: '阉党权势值', value: 20 },
+            { type: 'variable_gte', variable: '皇威', value: 55 },
+            { type: 'turn_before', value: 6 }
+          ]
+        },
+        {
+          name: '复起东林·重整朝堂',
+          type: 'milestone',
+          description: '召还韩爌/钱龙锡/孙承宗/袁崇焕/徐光启等东林老臣入阁理事',
+          conditions: [
+            { type: 'variable_gte', variable: '东林党复苏进度', value: 65 },
+            { type: 'turn_before', value: 14 }
+          ]
+        },
+        {
+          name: '辽东防线不失',
+          type: 'milestone',
+          description: '2 年内关宁锦防线完整·山海关不失守·东江镇不独立',
+          conditions: [
+            { type: 'variable_gte', variable: '辽东防线稳固度', value: 45 },
+            { type: 'turn_before', value: 24 }
+          ]
+        },
+        {
+          name: '陕北民变控制',
+          type: 'milestone',
+          description: '3 年内陕北民变控制在局部·不扩散至山西河南',
+          conditions: [
+            { type: 'variable_lte', variable: '流民数量', value: 1500000 },
+            { type: 'turn_before', value: 36 }
+          ]
+        },
+        {
+          name: '避免 1644 之亡',
+          type: 'win',
+          description: '17 年内避免李自成破京、帝自缢煤山的原史结局。关键里程碑: 国库不绝·辽东不失·陕北未破京师',
+          conditions: [
+            { type: 'variable_gte', variable: '国库资金', value: 500000 },
+            { type: 'turn_before', value: 200 }
+          ]
+        },
+        {
+          name: '京营兵变·新帝被弑',
+          type: 'lose',
+          description: '处置阉党失当，阉党以京营发动兵变，新帝被逼退位或遇害',
+          conditions: [
+            { type: 'variable_lte', variable: '皇威', value: 15 },
+            { type: 'variable_gte', variable: '阉党权势值', value: 70 }
+          ]
+        },
+        {
+          name: '山海关陷落',
+          type: 'lose',
+          description: '后金或皇太极大军破山海关入关。明亡前兆',
+          conditions: [
+            { type: 'variable_lte', variable: '辽东防线稳固度', value: 5 }
+          ]
+        },
+        {
+          name: '流寇破京',
+          type: 'lose',
+          description: '李自成/张献忠大军攻入京师。崇祯自缢煤山',
+          conditions: [
+            { type: 'variable_gte', variable: '流民数量', value: 20000000 }
+          ]
+        }
+      ],
+
+      // ──── 城市（编辑器 scriptData.cities · 代表性重要城池） ────
+      cities: [
+        { name: '北京', type: '京师', population: 800000, walls: '重城·外九内七', note: '紫禁城+皇城+内城+外城四重。永乐迁都所在' },
+        { name: '南京', type: '留都', population: 600000, walls: '世界最长城垣周 96 里', note: '朱元璋开国都。永乐后为留都·陪都' },
+        { name: '苏州', type: '财赋重地', population: 500000, walls: '砖城周 40 里', note: '江南第一大城。丝绸纺织中心。天启六年五人墓抗税事件处' },
+        { name: '杭州', type: '财赋重地', population: 450000, walls: '周 35 里', note: '浙江省会。丝绸/茶/纸/瓷集散' },
+        { name: '开封', type: '河南省会', population: 300000, walls: '城高池深', note: '福王朱常洵就国地。周围侵田 4 万顷' },
+        { name: '广州', type: '海贸枢纽', population: 250000, walls: '砖城', note: '市舶司+十三行。葡人澳门月租银此征' },
+        { name: '泉州', type: '海贸古镇', population: 120000, walls: '城', note: '宋元大港，明末衰落但仍为闽南海商根据地' },
+        { name: '景德镇', type: '工业市镇', population: 80000, walls: '无城', note: '御窑厂+民窑数百·瓷都' },
+        { name: '福州', type: '福建省会', population: 180000, walls: '城', note: '朱一冯巡抚驻' },
+        { name: '宁远', type: '边城', population: 25000, walls: '周五里·红衣炮台', note: '袁崇焕所筑·对后金前线' },
+        { name: '山海关', type: '关隘重镇', population: 35000, walls: '天下第一关', note: '辽西走廊东端·关宁锦防线东段' },
+        { name: '西安', type: '陕西省会', population: 200000, walls: '明代砖城周 40 里', note: '连年饥荒·饥民围城警报' },
+        { name: '成都', type: '四川省会', population: 150000, walls: '周 22 里', note: '天府之国省会。奢安之乱时曾被围' },
+        { name: '洛阳', type: '古都', population: 180000, walls: '周 15 里', note: '福王朱常洵就国地·将于崇祯十四年(1641)陷李自成' },
+        { name: '盛京·沈阳', type: '后金都城', population: 50000, walls: '后金 1625 迁都', note: '努尔哈赤天命十年迁都·皇太极扩建。位于明辽东都司境内沦陷地' }
+      ],
+
+      // ──── 文事配置（编辑器 scriptData.culturalConfig · 诗词曲小说生成） ────
+      culturalConfig: {
+        enabled: true,
+        dynastyFocus: 'ming_wen',  // 明代文学·以古文辞+小说戏曲为主
+        description: '明代文学：前中叶古文辞"前七子"(李梦阳等)+"后七子"(王世贞等)复古，晚明公安派"独抒性灵、不拘格套"(袁宏道)+竟陵派(钟惺/谭元春)。戏曲: 汤显祖临川四梦(牡丹亭/紫钗记/邯郸记/南柯记)。小说: 四大奇书(三国/水浒/西游/金瓶梅)。',
+        presetWorks: [
+          { title: '《金瓶梅》', author: '兰陵笑笑生', era: '万历末', type: '长篇世情小说', note: '中国第一部世情长篇小说' },
+          { title: '《三言二拍》', author: '冯梦龙/凌濛初', era: '天启末-崇祯初', type: '白话小说集' },
+          { title: '《牡丹亭》', author: '汤显祖', era: '万历二十六年(1598)', type: '昆曲剧本', note: '临川四梦之首' },
+          { title: '《徐霞客游记》', author: '徐弘祖', era: '编撰中·1613起', type: '地理游记' },
+          { title: '《武备志》', author: '茅元仪', era: '天启元年(1621)成', type: '兵书' },
+          { title: '《永乐大典》', author: '解缙等', era: '永乐六年(1408)', type: '类书', note: '22877 卷·今存南京文渊阁副本' },
+          { title: '《本草纲目》', author: '李时珍', era: '万历中(1578 成 1596 刊)', type: '医典' },
+          { title: '《农政全书》', author: '徐光启', era: '编撰中', type: '农学', note: '崇祯十二年陈子龙刊' },
+          { title: '《天工开物》', author: '宋应星', era: '酝酿中', type: '工艺百科', note: '崇祯十年(1637)刊' },
+          { title: '《五人墓碑记》', author: '张溥', era: '天启六年(1626)', type: '散文', note: '苏州抗税五义士传' }
+        ],
+        poetryStyles: ['复古派(古文辞)', '公安派(性灵)', '竟陵派(幽深)', '东林诗派(议政)'],
+        dramaStyles: ['昆曲(魏良辅/沈璟/汤显祖)', '弋阳腔(民间)', '海盐腔(南方)'],
+        notableLivingPoets: ['钟惺', '谭元春', '陈子龙(将起)', '钱谦益', '吴梅村(将起)', '冒襄(青年)']
+      },
+
+      // ──── 机制配置（编辑器 scriptData.mechanicsConfig · 本剧特殊机制） ────
+      mechanicsConfig: {
+        enabled: true,
+        specialMechanics: [
+          { id: 'yandangBalance', name: '阉党清算博弈', description: '处置魏忠贤的力度 × 时机 × 党羽连坐范围三维度判定京营兵变概率', relatedVars: ['阉党权势值', '皇威'] },
+          { id: 'liaoxiangVicious', name: '辽饷恶性循环', description: '辽饷加派→民心降→流民+→剿饷加派→更多流民', relatedVars: ['辽饷积欠', '流民数量', '民心'] },
+          { id: 'smallIceAge', name: '小冰河递进', description: '凛冬指数每年+3-5，至崇祯十四年峰值(1641)。影响 agriculture_output × 0.65 × climate', relatedVars: ['小冰河凛冬指数', '农业产出', '人口'] },
+          { id: 'factionRotation', name: '党争三步循环', description: '阉党倒→东林起→温体仁反扑→东林再倒·每轮 2-3 年', relatedVars: ['党争烈度', '东林党复苏进度'] },
+          { id: 'familyGeneralization', name: '将帅家丁化', description: '祖氏/毛文龙/吴三桂等部家丁化指数。会导致中央指挥失灵', relatedVars: ['辽东防线稳固度', '卫所虚额率'] },
+          { id: 'zongFanPressure', name: '宗藩禄米压力', description: '宗室每年繁衍 +3%，岁禄压户部', relatedVars: ['宗禄拖欠'] }
+        ]
+      },
+
+      // ──── 军事配置（编辑器 scriptData.militaryConfig · 军事机制） ────
+      militaryConfig: {
+        enabled: true,
+        moraleDecayPerArrearsMonth: 4,  // 每月欠饷士气降 4
+        desertionRateHigh: 0.15,  // 连欠 3 月以上逃兵率
+        mutinyThresholdMonths: 4,  // 欠饷 4 月以上哗变概率激增
+        familyGuardRatio: 0.03,  // 家丁占总兵力比
+        familyGuardCombatMultiplier: 3.5,  // 家丁战力倍数
+        fortressDefenseMultiplier: [1.0, 1.3, 1.7, 2.1, 2.6, 3.2],  // 城防等级
+        redCannonSiegeBonus: 1.6,
+        seasonModifier: { '春': 1.0, '夏': 0.95, '秋': 1.05, '冬': 0.80 },
+        reinforcementTurns: 2,  // 援军到达回合
+        description: '明末军事配置。关宁军家丁化、卫所虚额、欠饷引发哗变成常态。红衣大炮为城守利器(宁远大捷即依此)。'
+      },
+
       // ──── 剧本本体标签 ────
       // 注：scenario.tags 已在 § 1 元信息设定（6 项）。此处 sceneTags 补充更细项供检索/过滤
       sceneTags: ['明末', '天启', '崇祯即位', '魏忠贤', '阉党', '东林党', '小冰河', '辽东', '皇帝视角', '官方剧本', '史实', '大悲剧', '末世', '权阉倾覆', '后金', '陕北民变']
@@ -4140,6 +4418,65 @@
         strengths: ['兵员无限补充(饥民)', '机动', '知地利'],
         weaknesses: ['无军纪', '无根据地', '首脑不稳', '补给难'],
         strategy: '此时仅求食。若民变燎原则走"流寇"战略——不据一城，流动求活。'
+      },
+      {
+        name: '葡萄牙·澳门', leader: '(葡萄牙澳门总督，此时为 Don Francisco Mascarenhas)', color: '#8b4513',
+        type: '外国势力·欧洲', factionType: '海上殖民+贸易', territory: '澳门(半岛·1557起租借)+耶稣会学院',
+        prestige: 58, economy: 68, militaryStrength: 18,
+        description: '葡萄牙自嘉靖三十六年(1557)起租借澳门。月付租银 500 两(后增至 2 万)。以澳门为东亚中转港，对接卧亚(Goa)-果阿-马六甲-长崎(日本)航线。葡人与中国士大夫(徐光启/李之藻/孙元化)联系密切，红衣大炮即由葡人铸/引入。耶稣会利玛窦、罗明坚等传教先锋驻此。',
+        attitude: '互市', playerRelation: 40,
+        resources: '红衣大炮·铸炮匠·数学·天文·印欧商品·日本银',
+        culture: '罗马天主教·耶稣会·葡语·澳门混血社群',
+        goal: '维持澳门租借·保持中日贸易垄断·天主教传教',
+        mainstream: '天主教·巴洛克风格',
+        leaderInfo: '葡萄牙总督辖下澳门参议会(Loyal Senate)自治。',
+        leaderTitle: '澳门总督',
+        desc: '澳门葡人约 1 万(1627)，含数千混血"土生葡人"。军事存在极小仅 200 余人+数艘武装商船。以利玛窦之后为孙元化铸红衣炮、为徐光启协助历局为主要与明廷合作。',
+        enemies: ['荷兰'], allies: ['明朝廷(合作)'], neutrals: ['西班牙·马尼拉(竞争+合作)'],
+        strengths: ['中日中转贸易垄断', '耶稣会学术网络', '大炮铸造技术'],
+        weaknesses: ['军事极弱', '母国葡萄牙 1580-1640 为西班牙合并', '教区传教限制'],
+        strategy: '维护澳门现状。与明廷合作改善形象。与徐光启等明朝士大夫结盟抵制荷兰东进。',
+        foundYear: 1557
+      },
+      {
+        name: '荷兰·台海(东印度公司)', leader: 'Pieter Nuyts(大员台湾长官)', color: '#d2691e',
+        type: '外国势力·欧洲', factionType: '东印度公司+海上霸权',
+        territory: '大员/台湾(热兰遮城·1624起)+澎湖(1604-1624 被明水师逐·后让予台湾)+巴达维亚总部',
+        prestige: 45, economy: 60, militaryStrength: 55,
+        description: '荷兰东印度公司(VOC)1624 年被明福建水师击退后退据台湾西南大员(今安平)，建热兰遮城。以台湾为东亚中转港对接日本长崎与巴达维亚。与明朝关系紧张——1625 料罗湾战役即与福建水师合作剿海盗。目前与明朝维持半合作半对抗。',
+        attitude: '敌视', playerRelation: -30,
+        resources: '巨型武装商船 Galleon·火炮·日本银·东南亚香料·台湾鹿皮糖·巴达维亚中转',
+        culture: '加尔文派新教·荷兰语·新教商业伦理',
+        goal: '取代葡萄牙垄断东亚贸易·占台湾全岛·压郑氏',
+        mainstream: '新教·重商主义',
+        leaderInfo: 'Pieter Nuyts (1626-1629 在任) — 台湾长官。后被滨田弥兵卫事件所羁押换条约。',
+        leaderTitle: '大员台湾长官(Gouverneur)',
+        desc: '荷兰人约 1000-2000 在台湾+巴达维亚千余。Galleon 战舰 8-12 艘。火炮 200 余门。地理上据台湾西南，对福建沿海威胁大。',
+        enemies: ['葡萄牙', '郑氏海商(将决裂)', '明朝廷(部分)'], allies: ['部分原住民'], neutrals: ['西班牙·马尼拉'],
+        strengths: ['武装商船无敌', '加尔文派纪律', '母国荷兰 1581 独立于西班牙后海上崛起'],
+        weaknesses: ['台湾孤立·缺乏大陆立足', '原住民抵抗', '与郑氏竞争不利'],
+        strategy: '巩固台湾据点。进一步向福建/浙江沿海扩张。压郑氏海商。',
+        foundYear: 1624
+      },
+      {
+        name: '西班牙·马尼拉', leader: 'Juan Niño de Tabora(菲律宾总督·1626-1632 在任)', color: '#b8860b',
+        type: '外国势力·欧洲', factionType: '美洲银贸易中介',
+        territory: '菲律宾马尼拉+北吕宋(基隆)',
+        prestige: 48, economy: 72, militaryStrength: 32,
+        description: '西班牙帝国治下菲律宾总督辖区。1571 年建马尼拉后以"马尼拉大帆船"连结阿卡普尔科(墨西哥)—马尼拉，中介美洲银至东亚。1626 年建基隆城(Santísima Trinidad)抗荷。与月港(福建漳州)通过华商中介贸易，明末岁入白银数百万两自此流入。',
+        attitude: '中立', playerRelation: 5,
+        resources: '美洲白银·马尼拉大帆船·华商据点·基隆据点',
+        culture: '罗马天主教·西语·混血社会',
+        goal: '维持大帆船银路·在北吕宋立足·压荷兰',
+        mainstream: '天主教·重商',
+        leaderInfo: '菲律宾总督驻马尼拉。1580-1640 西葡联统下与澳门葡人为兄弟国关系。',
+        leaderTitle: '菲律宾总督',
+        desc: '马尼拉西班牙人数千+华商万余(朱姓/李姓等)+原住民。明末大量华商聚居马尼拉。1603、1639 曾有大规模屠华事件。',
+        enemies: ['荷兰'], allies: ['葡萄牙(同君连合)', '部分原住民'], neutrals: ['明朝廷·福建月港'],
+        strengths: ['美洲银源', '大帆船航线独占', '华商网络'],
+        weaknesses: ['远离母国·兵少', '北吕宋据点被荷兰围'],
+        strategy: '维持马尼拉-阿卡普尔科-月港银路。与澳门葡人协作。对华商提防。',
+        foundYear: 1571
       }
     ];
     // ═══ 势力·得罪阈值（对齐 classes offendThresholds 模式；势力级别得罪引发外交事件）═══
@@ -4174,6 +4511,17 @@
         { score: 20, description: '饥民成军', consequences: ['民变燎原前提·不可逆'] },
         { score: 50, description: '闯军/大西军形成', consequences: ['十年民变大循环'] },
         { score: 80, description: '破京', consequences: ['1644 煤山结局'] }
+      ],
+      '葡萄牙·澳门': [
+        { score: 25, description: '葡人疑虑', consequences: ['铸炮合作延缓', '传教士返澳'] },
+        { score: 55, description: '强徙澳门葡人', consequences: ['天主教传播断·徐光启辞'] }
+      ],
+      '荷兰·台海(东印度公司)': [
+        { score: 30, description: '荷兰激烈报复', consequences: ['截断月港贸易', '沿海骚扰'] },
+        { score: 60, description: '荷兰全面侵扰东南沿海', consequences: ['与郑氏海商结盟护海', '福建水师压力 +20'] }
+      ],
+      '西班牙·马尼拉': [
+        { score: 35, description: '马尼拉屠华', consequences: ['华商撤·白银流入骤减'] }
       ]
     };
 
@@ -5036,7 +5384,7 @@
       // ──── 阉党核心 ────
       {
         name: '魏忠贤', zi: '', haoName: '九千岁',
-        title: '司礼监掌印·东厂提督·上公', officialTitle: '司礼监掌印太监·提督东厂',
+        title: '司礼监秉笔·提督东厂·上公', officialTitle: '司礼监秉笔太监·提督东厂(王体乾掌印，魏实以上公号凌之)',
         role: '内廷首宦',
         alive: true, age: 59, gender: '男', birthYear: 1568, birthplace: '北直隶·肃宁',
         ethnicity: '汉', faith: '民间/自立生祠', culture: '汉',
