@@ -1241,7 +1241,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v39-2026.04.19-orphan-fields-cleanup';
+  var SCENARIO_VERSION = 'v40-2026.04.19-europe-deep+she-an-faction';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -1659,7 +1659,7 @@
           { name: '宗室·侵田集团', dept: 'imperial', strength: 78, years: 13, note: '万历四十二年福王朱常洵就国洛阳，侵田 4 万顷+岁米 2 万石；潞王/瑞王类之' },
           { name: '辽东军头', dept: 'military', strength: 62, years: 10, note: '祖氏三代辽东世将·家丁 3000 为私军；毛文龙东江桀骜' },
           { name: '江南缙绅·抗税网络', dept: 'fiscal', strength: 70, years: 40, note: '苏松常镇缙绅包揽里甲+荫户逃税+抗商税；天启六年苏州五人墓事件代表' },
-          { name: '西南土司残余', dept: 'provincial', strength: 45, years: 8, note: '奢安之乱刚平。水西安氏/播州杨氏余脉仍存异心' }
+          { name: '西南土司残余', dept: 'provincial', strength: 45, years: 8, note: '奢安之乱仍在进行(第七年)。水西安氏/播州杨氏余脉仍存异心' }
         ]
       },
 
@@ -1968,7 +1968,7 @@
           '3. 对蒙古：察哈尔林丹汗西迁归化，欲联明抗金；土默特部/喀尔喀诸部皆叛附不定。\n' +
           '4. 对后金：天启六-七年连战皆守势(宁远/宁锦)。后金尚未称帝国号(崇祯九年 1636 改清)。\n' +
           '5. 对欧洲：葡人据澳门(嘉靖三十六年 1557 起)月租 500 两；荷人据台海(天启四年 1624 起)；西班牙据菲律宾与郑氏竞。\n' +
-          '6. 土司体制：西南广西/云贵/四川边地土司百余家。"改土归流"为长期国策，奢安之乱刚平。'
+          '6. 土司体制：西南广西/云贵/四川边地土司百余家。"改土归流"为长期国策，奢安之乱仍在进行(第七年)。'
       },
       // 原"条件触发规则"已移入 rules.base 描述性文本; events.conditional 为空(用户决定)
       // ──── 建筑系统（编辑器 scriptData.buildingSystem · 明代典型建筑类型） ────
@@ -2075,7 +2075,7 @@
             tributeRate: 0.15, levyRate: 0.3, rebellionThreshold: 45,
             autonomyFields: ['民政', '司法', '征税', '土兵', '内部继承'],
             era: '唐·宋·明·清', relatedOfficials: ['云贵总督', '四川巡抚', '广西巡抚'], relatedTo: '',
-            historicalExamples: '石柱宣抚司(秦良玉)·水西安氏(奢安之乱刚平)·永宁奢氏(已剿)·播州杨氏(万历二十八年已平)·丽江木氏(云南)·凉山彝土司·广西狼兵土司诸家',
+            historicalExamples: '石柱宣抚司(秦良玉)·水西安氏(奢安之乱仍在进行(第七年))·永宁奢氏(已剿)·播州杨氏(万历二十八年已平)·丽江木氏(云南)·凉山彝土司·广西狼兵土司诸家',
             description: '明代土司制度。四川/云贵/广西/湖广土司约 400 余家。分宣慰司(从三品)/宣抚司(从四品)/安抚司(从五品)/长官司(正六品)四等。"改土归流"为长期国策——奢安之乱平定后即将推进。'
           },
           {
@@ -2123,7 +2123,7 @@
           { vassal: '安南', liege: '明朝廷', tributeRate: 0.05, vassalType: '朝贡藩国·一等', loyalty: 60 },
           { vassal: '暹罗', liege: '明朝廷', tributeRate: 0.04, vassalType: '朝贡藩国·一等', loyalty: 70 },
           { vassal: '石柱宣抚司', liege: '明朝廷', tributeRate: 0.15, vassalType: '西南土司', loyalty: 95, note: '秦良玉所部·忠义典范' },
-          { vassal: '水西安氏', liege: '明朝廷', tributeRate: 0.10, vassalType: '西南土司', loyalty: 35, note: '奢安之乱刚平' },
+          { vassal: '水西安氏', liege: '明朝廷', tributeRate: 0.10, vassalType: '西南土司', loyalty: 35, note: '奢安之乱仍在进行(第七年)' },
           { vassal: '丽江木氏', liege: '明朝廷', tributeRate: 0.20, vassalType: '西南土司', loyalty: 88 },
           { vassal: '福王朱常洵', liege: '明朝廷', tributeRate: 0.0, vassalType: '宗室亲王就国', loyalty: 60, note: '洛阳·侵田 4 万顷' },
           { vassal: '瑞王朱常浩', liege: '明朝廷', tributeRate: 0.0, vassalType: '宗室亲王就国', loyalty: 55, note: '汉中' },
@@ -2377,7 +2377,7 @@
         campaigns: [
           { name: '宁远大捷', type: '过往胜仗', description: '天启六年袁崇焕以红衣大炮退努尔哈赤，破老奴不败神话。' },
           { name: '宁锦大捷', type: '过往胜仗', description: '天启七年五月袁崇焕据宁锦退皇太极。然阉党论功偏袒王之臣。' },
-          { name: '奢安之乱', type: '土司叛乱', description: '天启元年四川永宁土司奢崇明联合贵州水西安邦彦反叛，至天启七年基本平定。' },
+          { name: '奢安之乱', type: '土司叛乱·进行中', description: '天启元年(1621)九月四川永宁宣抚使奢崇明于重庆起兵，天启二年(1622)二月贵州水西宣慰司同知安邦彦联反围贵阳。至天启七年(1627)已第七年——残部退水西 48 目山寨坚守。原史崇祯二年(1629)八月朱燮元秦良玉攻灭于永宁红崖大坝。波及川黔云桂四省。' },
           { name: '江都盟', type: '外敌条约', description: '天启七年春后金皇太极迫朝鲜仁祖定兄弟之盟。明失一东藩屏。' },
           { name: '宁夏哱拜之乱(1592)', type: '万历三大征·其一', description: '宁夏副总兵哱拜反叛。李如松统兵平之。半年而平。' },
           { name: '播州杨应龙之乱(1600)', type: '万历三大征·其二', description: '贵州播州宣慰使杨应龙叛。李化龙八路进剿，海龙囤覆。消耗二百余万两。' },
@@ -3312,7 +3312,7 @@
             composition: [ { type: '步兵(军户)', count: 1500 }, { type: '辅兵', count: 300 } ],
             salary: [ { resource: '钱', amount: 13000, unit: '两' }, { resource: '粮食', amount: 5000, unit: '石' } ],
             equipment: [ { name: '长矛', count: 1500, condition: '缺损' }, { name: '藤牌', count: 800, condition: '缺损' } ],
-            description: '奢安之乱刚平，贵阳卫元气未复。'
+            description: '奢安之乱仍在进行(第七年)，贵阳卫元气未复。'
           }
         ],
         // ─── 补充：武器库存/征兵/军政 ───
@@ -3949,7 +3949,8 @@
         { name: '与荷兰', value: -30, min: -100, max: 100, description: '1624 据台海(大员)。1625 料罗湾战败未罢' },
         { name: '与西班牙·马尼拉', value: 10, min: -100, max: 100, description: '隔月港贸易。美洲银主来源' },
         { name: '与日本·幕府', value: -5, min: -100, max: 100, description: '德川幕府 1635 始锁国。此时浙江福建沿海有日本漂民' },
-        { name: '与西南土司', value: 40, min: -100, max: 100, description: '奢安之乱刚平。改土归流为长期国策' }
+        { name: '与西南土司', value: 40, min: -100, max: 100, description: '奢安之乱仍在进行(第七年)。改土归流为长期国策' },
+        { name: '与奢安之乱联军', value: -95, min: -100, max: 100, description: '土司叛乱第七年。奢崇明+安邦彦据水西 48 目。原史 1629 八月朱燮元秦良玉攻灭于红崖大坝' }
       ],
 
       // ──── 势力间关系矩阵（编辑器 scriptData.factionRelations） ────
@@ -3960,10 +3961,19 @@
         { from: '明朝廷', to: '播州土司·杨氏(余裔)', type: 'vassal', value: 50, desc: '主支已平·余裔敬而远之' },
         { from: '明朝廷', to: '郑氏海商', type: 'neutral', value: 30, desc: '即将招抚·崇祯元年郑芝龙拜海防游击' },
         { from: '明朝廷', to: '陕北饥民(将起)', type: 'hostile', value: -15, desc: '崇祯元年即起事' },
+        { from: '明朝廷', to: '葡萄牙·澳门', type: 'friendly', value: 40, desc: '1557 起租借澳门·月租银·铸红衣炮·耶稣会合作' },
+        { from: '明朝廷', to: '荷兰·台海(东印度公司)', type: 'hostile', value: -30, desc: '1624 被驱退台湾·1625 料罗湾有限合作' },
+        { from: '明朝廷', to: '西班牙·马尼拉', type: 'neutral', value: 10, desc: '月港华商中介贸易·美洲银源自此' },
+        { from: '明朝廷', to: '奢安之乱联军', type: 'war', value: -95, desc: '土司叛乱第七年·已据水西山寨·原史 1629 八月平' },
         { from: '后金', to: '朝鲜', type: 'conquered', value: -45, desc: '1627 春兄弟之盟·强迫臣属' },
         { from: '后金', to: '察哈尔', type: 'hostile', value: -50, desc: '蒙古争夺。天聪六年皇太极亲征察哈尔' },
         { from: '后金', to: '科尔沁蒙古', type: 'alliance', value: 85, desc: '联姻盟·铁杆盟友' },
-        { from: '察哈尔', to: '科尔沁蒙古', type: 'hostile', value: -70, desc: '蒙古内讧' }
+        { from: '察哈尔', to: '科尔沁蒙古', type: 'hostile', value: -70, desc: '蒙古内讧' },
+        { from: '葡萄牙·澳门', to: '荷兰·台海(东印度公司)', type: 'war', value: -85, desc: '全球海上霸权战·1622 荷兰雷约兹攻澳门未下' },
+        { from: '葡萄牙·澳门', to: '西班牙·马尼拉', type: 'alliance', value: 60, desc: '1580-1640 西葡同君连合·兄弟港关系' },
+        { from: '荷兰·台海(东印度公司)', to: '西班牙·马尼拉', type: 'hostile', value: -75, desc: '基隆对峙·八十年战争延烧东亚' },
+        { from: '荷兰·台海(东印度公司)', to: '郑氏海商', type: 'rival', value: -65, desc: '台海贸易竞争·将于崇祯六年料罗湾决战' },
+        { from: '奢安之乱联军', to: '播州土司·杨氏(余裔)', type: 'alliance', value: 85, desc: '西南土司利益共同体·苗汉混合反抗改土归流' }
       ],
 
       // ──── 经济配置（编辑器 scriptData.economyConfig · 概览版·与 fiscalConfig 共存） ────
@@ -4392,6 +4402,58 @@
         victoryConditions: ['起事后生存到成军'],
         defeatConditions: ['被朝廷剿抚'],
         longTermStrategy: '由饥民变流寇·裹挟平民·流动作战·最终反明'
+      },
+      '葡萄牙·澳门': {
+        relations: { '明朝廷': 40, '荷兰·台海(东印度公司)': -85, '西班牙·马尼拉': 60, '郑氏海商': 5, '日本幕府(长崎)': 35, '耶稣会中国教区': 90 },
+        population: { registered: 10000, actual: 13000, ethnicities: { '葡萄牙白人': 0.15, '土生葡人(混血)': 0.30, '华人(澳门本地)': 0.45, '马六甲/果阿/非洲奴隶': 0.10 } },
+        techLevel: { overall: 78, agriculture: 30, military: 72, navigation: 92, medicine: 75, metallurgy: 85, printing: 80, astronomy: 90, mathematics: 88, cartography: 90 },
+        cultureLevel: 82,
+        warState: { active: ['与荷兰东印度公司全球海战'], recent: ['1622 抗击雷约兹入寇澳门'] },
+        economicPolicy: { taxation: 'trade_license·葡王 5%+香山县月租 500 两', trade: 'monopoly_japan·长崎贸易独享·对明丝银中转', currency: 'silver_peso·葡美洲银·日本丁银', labor: 'free_wage+mixed_slavery' },
+        publicOpinion: { amongPortuguese: 72, amongTuSheng: 85, amongChinese: 50, amongJesuits: 95 },
+        victoryConditions: ['维持澳门租借', '保持长崎独占', '促明葡军事同盟抗荷', '天主教入京被认可'],
+        defeatConditions: ['明廷收回澳门', '长崎贸易被荷兰夺', '教难罢教士'],
+        longTermStrategy: '铸炮助明→结盟徐光启等→推耶稣会入京→长崎贸易维持→抗荷台海',
+        knownSpies: { in_ming: 5, in_dutch_formosa: 3, in_spain_manila: 1 }
+      },
+      '荷兰·台海(东印度公司)': {
+        relations: { '明朝廷': -30, '葡萄牙·澳门': -85, '西班牙·马尼拉': -75, '郑氏海商': -65, '日本幕府(长崎)': 10, '朝鲜': -5 },
+        population: { registered: 1200, actual: 2500, ethnicities: { '荷兰白人': 0.35, '日本浪人/雇佣兵': 0.15, '马来/爪哇/印度雇佣兵': 0.30, '平埔族(合作社)': 0.20 } },
+        techLevel: { overall: 82, agriculture: 25, military: 82, navigation: 95, medicine: 72, metallurgy: 80, printing: 82, astronomy: 78, mathematics: 80, artillery: 88, shipbuilding: 95 },
+        cultureLevel: 76,
+        warState: { active: ['与葡萄牙东亚海战', '与西班牙欧洲+东亚战', '与郑氏海商对峙'], recent: ['1624 被南居益驱离澎湖退台湾', '1625 料罗湾战役(暂与明合作剿盗)'] },
+        economicPolicy: { taxation: 'voc_stockholder_dividend·股东分红制', trade: 'monopoly_spice_silver·香料+银+鹿皮垄断', currency: 'silver_guilder·多币结算', labor: 'mixed_european_asian_slave' },
+        publicOpinion: { amongDutch: 78, amongAsianMercenaries: 55, amongAboriginal: 40, amongChineseTraders: 30 },
+        victoryConditions: ['垄断东亚贸易', '占领台湾全岛', '取代葡萄牙长崎地位', '在福建沿海设据点'],
+        defeatConditions: ['被明水师+郑氏驱离台湾', '巴达维亚被攻', '母国本土战败(1648 三十年战争将结)'],
+        longTermStrategy: '固台湾→扩福建沿海→压郑氏→夺日本长崎独占→全球击溃葡萄牙',
+        knownSpies: { in_ming_fujian: 8, in_portugal_macao: 4, in_spain_manila: 3, in_japan: 2 }
+      },
+      '西班牙·马尼拉': {
+        relations: { '明朝廷': 10, '葡萄牙·澳门': 60, '荷兰·台海(东印度公司)': -75, '日本幕府': -20, '郑氏海商': 15, '棉兰老摩洛苏丹': -90 },
+        population: { registered: 28000, actual: 50000, ethnicities: { '西班牙白人': 0.05, '华商(Sangley)': 0.45, 'Mestizo混血': 0.15, '原住民(Indio)': 0.30, '奴隶(Cafre)': 0.05 } },
+        techLevel: { overall: 78, agriculture: 42, military: 80, navigation: 88, medicine: 70, metallurgy: 75, printing: 72, astronomy: 75, mathematics: 78, fortification: 85 },
+        cultureLevel: 74,
+        warState: { active: ['与荷兰东印度公司全球战(基隆对峙)', '与棉兰老摩洛苏丹(Moro Wars 长期)'], recent: ['1603 屠华(Dilao 之变) 2.5 万死'] },
+        economicPolicy: { taxation: 'royal_quinto·王室五分之一·对华贸易头税', trade: 'monopoly_galleon·马尼拉大帆船独占', currency: 'silver_peso·美洲波托西银', labor: 'encomienda+wage' },
+        publicOpinion: { amongSpanish: 68, amongMestizo: 70, amongSangley: 15, amongNatives: 50 },
+        victoryConditions: ['维持大帆船航线', '守基隆抗荷', '控制华商不叛'],
+        defeatConditions: ['荷兰破马尼拉', '华商大规模叛乱', '大帆船被断'],
+        longTermStrategy: '保基隆据点→协澳门葡人→压制华商勿过分→防摩洛苏丹→维持美亚银路',
+        knownSpies: { in_ming_fujian: 6, in_dutch_formosa: 4, in_japan: 2, in_moro: 3 }
+      },
+      '奢安之乱联军': {
+        relations: { '明朝廷': -95, '播州土司·杨氏(余裔)': 85, '水外六目': 60, '乌撒土司': 45, '乌蒙土司': 40, '石柱土司·秦良玉(白杆兵)': -90, '其他彝族支系': 30 },
+        population: { registered: 0, actual: 450000, ethnicities: { '彝族(罗罗·东爨)': 0.55, '苗族': 0.18, '仡佬族': 0.12, '汉族(军户/降卒)': 0.10, '布依族/水族': 0.05 } },
+        techLevel: { overall: 32, agriculture: 42, military: 55, navigation: 0, metallurgy: 45, printing: 15, astronomy: 20, mathematics: 15, mining: 60 },
+        cultureLevel: 48,
+        warState: { active: ['与明朝廷全面叛乱(第七年)', '与石柱白杆兵对峙', '与川黔明军山地拉锯'], recent: ['1621 重庆之变', '1622 围贵阳', '1624 贵阳解围(败)', '1625 奢寅战死', '1626 合兵退水西'] },
+        economicPolicy: { taxation: 'tusi_tribute·土司贡赋+劫掠', trade: '山货换明盐铁·大半断绝', currency: '实物·银·铜·海贝(边缘)', labor: '土司人身依附+苗汉奴役' },
+        publicOpinion: { amongLuoluo: 75, amongMiaoGelao: 45, amongHanMilitary: 20, amongLocalOfficials: -50 },
+        victoryConditions: ['明廷承认水西 48 目自治+复永宁宣抚司', '据水西独立为大梁国/罗甸国', '明因陕西民变分兵不能进剿'],
+        defeatConditions: ['朱燮元再督川贵军务大举进剿', '水西粮尽', '彝族内部分裂', '秦良玉白杆兵破水西(原史 1629 八月红崖)'],
+        longTermStrategy: '据水西 48 目山寨坚守→伺明内乱(陕北民变/阉党倒/辽东失利)反扑→争"恢复永宁"为让步底线→若朱燮元再起则必死战',
+        knownSpies: { in_ming_sichuan: 4, in_ming_guizhou: 6, in_bozhou_remnant: 3 }
       }
     };
 
@@ -4589,63 +4651,158 @@
         strategy: '此时仅求食。若民变燎原则走"流寇"战略——不据一城，流动求活。'
       },
       {
-        name: '葡萄牙·澳门', leader: '(葡萄牙澳门总督，此时为 Don Francisco Mascarenhas)', color: '#8b4513',
-        type: '外国势力·欧洲', factionType: '海上殖民+贸易', territory: '澳门(半岛·1557起租借)+耶稣会学院',
+        name: '葡萄牙·澳门', leader: 'Don Francisco Mascarenhas(澳门总督 1623-1626·继任 Dom Filipe Lobo da Silveira)', color: '#8b4513',
+        type: '外国势力·欧洲', factionType: '海上殖民+贸易', territory: '澳门半岛(1557 起租借·月租 500 两)+圣保禄学院+议事亭',
         prestige: 58, economy: 68, militaryStrength: 18,
-        description: '葡萄牙自嘉靖三十六年(1557)起租借澳门。月付租银 500 两(后增至 2 万)。以澳门为东亚中转港，对接卧亚(Goa)-果阿-马六甲-长崎(日本)航线。葡人与中国士大夫(徐光启/李之藻/孙元化)联系密切，红衣大炮即由葡人铸/引入。耶稣会利玛窦、罗明坚等传教先锋驻此。',
+        description: '葡萄牙自嘉靖三十六年(1557)起租借澳门。月付租银 500 两(后改岁输 2 万)。以澳门为东亚中转港，对接卧亚(Goa)-果阿-马六甲-长崎(日本)航线。葡人与中国士大夫(徐光启/李之藻/孙元化)联系密切，红衣大炮即由葡人铸/引入。耶稣会利玛窦、罗明坚等传教先锋驻此。1580-1640 葡属西班牙哈布斯堡王朝(同君连合)。',
         attitude: '互市', playerRelation: 40,
-        resources: '红衣大炮·铸炮匠·数学·天文·印欧商品·日本银',
-        culture: '罗马天主教·耶稣会·葡语·澳门混血社群',
-        goal: '维持澳门租借·保持中日贸易垄断·天主教传教',
-        mainstream: '天主教·巴洛克风格',
-        leaderInfo: '葡萄牙总督辖下澳门参议会(Loyal Senate)自治。',
-        leaderTitle: '澳门总督',
-        desc: '澳门葡人约 1 万(1627)，含数千混血"土生葡人"。军事存在极小仅 200 余人+数艘武装商船。以利玛窦之后为孙元化铸红衣炮、为徐光启协助历局为主要与明廷合作。',
-        enemies: ['荷兰'], allies: ['明朝廷(合作)'], neutrals: ['西班牙·马尼拉(竞争+合作)'],
-        strengths: ['中日中转贸易垄断', '耶稣会学术网络', '大炮铸造技术'],
-        weaknesses: ['军事极弱', '母国葡萄牙 1580-1640 为西班牙合并', '教区传教限制'],
-        strategy: '维护澳门现状。与明廷合作改善形象。与徐光启等明朝士大夫结盟抵制荷兰东进。',
-        foundYear: 1557
+        resources: '红衣大炮·铸炮匠(Bocarro 炮厂)·欧洲数学·天文·印欧商品·日本白银·生丝·瓷器中转',
+        culture: '罗马天主教·耶稣会·葡语·澳门混血"土生葡人(Filhos da terra)"社群',
+        goal: '维持澳门租借·保持中日贸易垄断·天主教传教·对抗荷兰',
+        mainstream: '天主教·巴洛克风格·耶稣会学术',
+        leaderTitle: '澳门总督(Capitão-mor)·议事会主席(Loyal Senate)',
+        desc: '澳门葡人约 1 万(1627)，含数千混血"土生葡人"。军事存在极小——驻军仅 200-300 人、武装商船 3-5 艘+Bocarro 炮厂。以利玛窦之后为孙元化铸红衣炮、为徐光启协助历局为主要与明廷合作。每年 7-8 艘"黑船"赴长崎。',
+        enemies: ['荷兰·台海(东印度公司)'], allies: ['明朝廷(半合作)', '西班牙·马尼拉(同君连合)', '耶稣会中国教区'], neutrals: ['郑氏海商'],
+        strengths: ['中日中转贸易垄断', '耶稣会学术网络', '红衣大炮铸造技术', '长崎贸易独享', '香山县衙不干预内政'],
+        weaknesses: ['军事极弱·仅能自卫', '母国与西班牙合并致荷英海上打击', '传教受地方禁忌', '粮食靠买自广东', '海路被荷兰截断则全断'],
+        strategy: '维护澳门现状。与明廷合作改善形象——铸炮、译历、传数学。与徐光启等明朝士大夫结盟抵制荷兰东进。若荷兰断海运则全力求与明廷结盟。',
+        foundYear: 1557,
+        leaderInfo: { name: 'Don Francisco Mascarenhas', personality: '务实·商贸派', age: '55', gender: '男', belief: '罗马天主教', learning: '葡萄牙贵族·海事', ethnicity: '葡萄牙', bio: '澳门总督 1623-1626 任内铸红衣炮输明。继任者 Dom Filipe Lobo da Silveira 1626-1630 继续对明合作政策。' },
+        heirInfo: { name: '议事会(Loyal Senate)', personality: '集体领导·商绅共治', age: '', gender: '合议', belief: '天主教', learning: '', ethnicity: '葡+土生葡人', bio: '议事会由 6 议员+主席构成，葡萄牙国王任命总督之外的实际治理单位。' },
+        cohesion: { political: 62, military: 35, economic: 78, cultural: 70, ethnic: 50, loyalty: 65 },
+        // 澳门驻军史料：《澳门记略》《The Portuguese Empire in Asia》Newitt
+        // 正规驻军+民兵+黑船水手+奴隶兵(Angolans/Malays)
+        militaryBreakdown: { standingArmy: 250, militia: 800, elite: 150, fleet: 5 },
+        economicStructure: { agriculture: 2, trade: 78, handicraft: 15, tribute: 5 },
+        succession: { rule: 'appointedByKing', designatedHeir: '里斯本任命', stability: 65 },
+        historicalEvents: [
+          { turn: -840, event: '瓦斯科·达伽马 1498 绕好望角', impact: '葡萄牙海上崛起之始' },
+          { turn: -70, event: '1557 租借澳门', impact: '欧洲首个对华据点' },
+          { turn: -50, event: '利玛窦入京 1601', impact: '耶稣会对华传教学术黄金期' },
+          { turn: -47, event: '1580 西葡合并同君连合', impact: '葡萄牙受西班牙拖累' },
+          { turn: -4, event: '1623 炸药库爆炸事件', impact: '澳门大半摧毁·重建' },
+          { turn: -1, event: '1626 宁远大捷·红衣炮发威', impact: '葡人铸炮声望至顶' },
+          { turn: 0, event: '1627 对明继续输炮', impact: '孙元化督红夷炮局' }
+        ],
+        internalParties: ['议事会(商绅派)', '耶稣会(传教派)', '总督府(军事派)']
       },
       {
-        name: '荷兰·台海(东印度公司)', leader: 'Pieter Nuyts(大员台湾长官)', color: '#d2691e',
-        type: '外国势力·欧洲', factionType: '东印度公司+海上霸权',
-        territory: '大员/台湾(热兰遮城·1624起)+澎湖(1604-1624 被明水师逐·后让予台湾)+巴达维亚总部',
-        prestige: 45, economy: 60, militaryStrength: 55,
-        description: '荷兰东印度公司(VOC)1624 年被明福建水师击退后退据台湾西南大员(今安平)，建热兰遮城。以台湾为东亚中转港对接日本长崎与巴达维亚。与明朝关系紧张——1625 料罗湾战役即与福建水师合作剿海盗。目前与明朝维持半合作半对抗。',
+        name: '荷兰·台海(东印度公司)', leader: 'Gerard Frederikszoon de With(大员台湾长官·1625-1627 在任·Pieter Nuyts 1627-1629 将继)', color: '#d2691e',
+        type: '外国势力·欧洲', factionType: '特许公司+海上霸权',
+        territory: '台湾大员热兰遮城(1624 起·Fort Zeelandia)+普罗文西亚城(赤崁·Fort Provintia 1625 起筑)+巴达维亚总部(1619 建于爪哇)',
+        prestige: 52, economy: 75, militaryStrength: 58,
+        description: '荷兰东印度公司(VOC)1624 年被明福建水师击退后退据台湾西南大员(今安平)，建热兰遮城。以台湾为东亚中转港对接日本长崎与巴达维亚。与明朝关系紧张——1625 料罗湾战役即与福建水师合作剿海盗。目前与明朝维持半合作半对抗。1602 建立的 VOC 为世界首家股份公司，拥有独立募兵铸币宣战权。',
         attitude: '敌视', playerRelation: -30,
-        resources: '巨型武装商船 Galleon·火炮·日本银·东南亚香料·台湾鹿皮糖·巴达维亚中转',
-        culture: '加尔文派新教·荷兰语·新教商业伦理',
-        goal: '取代葡萄牙垄断东亚贸易·占台湾全岛·压郑氏',
-        mainstream: '新教·重商主义',
-        leaderInfo: 'Pieter Nuyts (1626-1629 在任) — 台湾长官。后被滨田弥兵卫事件所羁押换条约。',
-        leaderTitle: '大员台湾长官(Gouverneur)',
-        desc: '荷兰人约 1000-2000 在台湾+巴达维亚千余。Galleon 战舰 8-12 艘。火炮 200 余门。地理上据台湾西南，对福建沿海威胁大。',
-        enemies: ['葡萄牙', '郑氏海商(将决裂)', '明朝廷(部分)'], allies: ['部分原住民'], neutrals: ['西班牙·马尼拉'],
-        strengths: ['武装商船无敌', '加尔文派纪律', '母国荷兰 1581 独立于西班牙后海上崛起'],
-        weaknesses: ['台湾孤立·缺乏大陆立足', '原住民抵抗', '与郑氏竞争不利'],
-        strategy: '巩固台湾据点。进一步向福建/浙江沿海扩张。压郑氏海商。',
-        foundYear: 1624
+        resources: '巨型武装商船 Fluyt/Galleon·铜炮 300 余门·日本白银(长崎独占)·东南亚香料(丁香胡椒)·台湾鹿皮糖·巴达维亚中转',
+        culture: '荷兰归正宗(加尔文派)·新教商业伦理·荷兰语/马来语·多族雇佣',
+        goal: '取代葡萄牙垄断东亚贸易·占台湾全岛·压郑氏·对日长崎独占',
+        mainstream: '加尔文派·重商主义·股份制',
+        leaderTitle: '大员台湾长官(Gouverneur van Formosa)·巴达维亚总督下辖',
+        desc: '荷兰人约 700-1200 在台湾(含军人商人)+巴达维亚数千+雇佣的马来/爪哇/原住民/日本浪人数千。Fluyt/Galleon 战舰在远东 15-20 艘。火炮 300 余门。地理上据台湾西南，对福建沿海威胁大。',
+        enemies: ['葡萄牙·澳门', '郑氏海商(将决裂)', '明朝廷(部分)', '西班牙·马尼拉(1626 后基隆纠纷)'], allies: ['部分平埔族(新港社等)'], neutrals: ['日本幕府(将因滨田弥兵卫事件紧张)'],
+        strengths: ['股份制融资(VOC资本数千万盾)', '武装商船技术领先', '加尔文派纪律严', '母国荷兰 1581 独立后海上崛起', 'Fluyt 舰低成本高载'],
+        weaknesses: ['台湾孤立·缺乏大陆立足', '原住民部分反抗(麻豆/萧垄社)', '与郑氏海商竞争不利', '基隆被西班牙卡住', '对明战败后声誉低'],
+        strategy: '巩固热兰遮/普罗文西亚据点。进一步向福建/浙江沿海扩张。压郑氏海商。与日本争长崎。',
+        foundYear: 1624,
+        leaderInfo: { name: 'Gerard Frederikszoon de With', personality: '商贸优先·避战', age: '50', gender: '男', belief: '加尔文派', learning: '阿姆斯特丹商学', ethnicity: '荷兰', bio: '1625-1627 大员长官。Pieter Nuyts 1627-1629 将继，日后因滨田弥兵卫事件被日方扣押。' },
+        heirInfo: { name: 'Pieter Nuyts', personality: '跋扈·外交无能', age: '29', gender: '男', belief: '加尔文派', learning: '莱顿大学法学博士', ethnicity: '荷兰', bio: '将于 1627 年继任大员长官。1628 与郑芝龙滨田弥兵卫冲突后被日方扣押 4 年。' },
+        cohesion: { political: 68, military: 75, economic: 88, cultural: 55, ethnic: 40, loyalty: 60 },
+        // VOC 东亚兵力史料：《The Dutch Seaborne Empire》Boxer·《VOC Archives》Hague
+        // 台湾驻军 200-400 人+巴达维亚派遣+亚洲雇佣兵(日本/爪哇/马来)+战舰水手
+        militaryBreakdown: { standingArmy: 1200, militia: 2500, elite: 400, fleet: 18 },
+        economicStructure: { agriculture: 5, trade: 72, handicraft: 8, tribute: 15 },
+        succession: { rule: 'appointedByVOC', designatedHeir: 'Pieter Nuyts', stability: 70 },
+        historicalEvents: [
+          { turn: -25, event: '1602 VOC 成立', impact: '世界首家股份公司·垄断东印度贸易' },
+          { turn: -23, event: '1604 韦麻郎犯澎湖', impact: '明沈有容驱荷·首次交手' },
+          { turn: -8, event: '1619 攻占雅加达建巴达维亚', impact: '确立东亚总部' },
+          { turn: -5, event: '1622 雷约兹攻澳门 1623 攻漳州失利', impact: '葡人守住澳门·明水师守住福建' },
+          { turn: -3, event: '1624 南居益驱荷退台湾', impact: '台湾殖民史起点' },
+          { turn: -2, event: '1625 建热兰遮城+普罗文西亚城', impact: '台湾防务体系建成' },
+          { turn: -2, event: '1625 料罗湾战役', impact: '荷+明联合剿海盗成功' },
+          { turn: 0, event: '1627 Nuyts 即将接任', impact: '日荷关系紧张起点' }
+        ],
+        internalParties: ['十七绅士(VOC 董事会)', '巴达维亚总督府', '台湾商务派', '海军扩张派']
       },
       {
         name: '西班牙·马尼拉', leader: 'Juan Niño de Tabora(菲律宾总督·1626-1632 在任)', color: '#b8860b',
-        type: '外国势力·欧洲', factionType: '美洲银贸易中介',
-        territory: '菲律宾马尼拉+北吕宋(基隆)',
-        prestige: 48, economy: 72, militaryStrength: 32,
-        description: '西班牙帝国治下菲律宾总督辖区。1571 年建马尼拉后以"马尼拉大帆船"连结阿卡普尔科(墨西哥)—马尼拉，中介美洲银至东亚。1626 年建基隆城(Santísima Trinidad)抗荷。与月港(福建漳州)通过华商中介贸易，明末岁入白银数百万两自此流入。',
-        attitude: '中立', playerRelation: 5,
-        resources: '美洲白银·马尼拉大帆船·华商据点·基隆据点',
-        culture: '罗马天主教·西语·混血社会',
-        goal: '维持大帆船银路·在北吕宋立足·压荷兰',
-        mainstream: '天主教·重商',
-        leaderInfo: '菲律宾总督驻马尼拉。1580-1640 西葡联统下与澳门葡人为兄弟国关系。',
-        leaderTitle: '菲律宾总督',
-        desc: '马尼拉西班牙人数千+华商万余(朱姓/李姓等)+原住民。明末大量华商聚居马尼拉。1603、1639 曾有大规模屠华事件。',
-        enemies: ['荷兰'], allies: ['葡萄牙(同君连合)', '部分原住民'], neutrals: ['明朝廷·福建月港'],
-        strengths: ['美洲银源', '大帆船航线独占', '华商网络'],
-        weaknesses: ['远离母国·兵少', '北吕宋据点被荷兰围'],
-        strategy: '维持马尼拉-阿卡普尔科-月港银路。与澳门葡人协作。对华商提防。',
-        foundYear: 1571
+        type: '外国势力·欧洲', factionType: '美洲银贸易中介·殖民帝国远东省',
+        territory: '菲律宾马尼拉(1571 建)+北吕宋基隆(1626 Santísima Trinidad)+宿务+棉兰老部分',
+        prestige: 54, economy: 76, militaryStrength: 42,
+        description: '西班牙帝国治下菲律宾总督辖区。1571 年建马尼拉后以"马尼拉大帆船(Manila Galleon)"连结阿卡普尔科(墨西哥)—马尼拉，中介美洲银至东亚。1626 年建基隆城(Santísima Trinidad)抗荷。与月港(福建漳州)通过华商中介贸易，明末岁入白银数百万两自此流入。1580-1640 西葡同君连合。',
+        attitude: '中立', playerRelation: 10,
+        resources: '美洲白银(年输入 200-500 万两)·马尼拉大帆船(Manila Galleon)·华商据点 Parian·基隆据点·菲律宾土产',
+        culture: '罗马天主教·西班牙语·多米尼克/方济会·混血"Mestizo"社会',
+        goal: '维持大帆船银路·在北吕宋立足·压荷兰·控制华商',
+        mainstream: '天主教·重商·拉丁美洲派生文化',
+        leaderTitle: '菲律宾总督兼 Audiencia 长官(Gobernador y Capitán General)',
+        desc: '马尼拉西班牙人 2-3 千+华商(Sangley)2-3 万聚居 Parian 区+原住民数十万+奴隶(Cafres)数千。明末大量华商聚居马尼拉。1603(Dilao 之变)、1639、1662 曾有大规模屠华事件——1603 事件屠华 2.5 万，1639 屠华 2.2 万。',
+        enemies: ['荷兰·台海(东印度公司)', '棉兰老摩洛苏丹(Moro Wars)'], allies: ['葡萄牙·澳门(同君连合)', '部分原住民酋长', '多米尼克传教士'], neutrals: ['明朝廷·福建月港', '日本幕府'],
+        strengths: ['美洲银源无限(波托西银矿)', '大帆船航线独占', '华商网络密集', '同君连合扩大葡资源', '马尼拉要塞坚固'],
+        weaknesses: ['远离母国(马德里)·兵少', '北吕宋据点被荷兰围', '华商叛乱风险', '穆斯林摩洛苏丹牵制南方', '大帆船常遭荷英海盗袭击'],
+        strategy: '维持马尼拉-阿卡普尔科-月港银路。与澳门葡人协作。对华商既用又防。守基隆抗荷。',
+        foundYear: 1571,
+        leaderInfo: { name: 'Juan Niño de Tabora', personality: '好战·扩张派·信天主教', age: '58', gender: '男', belief: '罗马天主教', learning: '西班牙军职晋升', ethnicity: '西班牙', bio: '菲律宾总督 1626-1632。任内建基隆城(1626)抗荷。1629 远征苏禄失败。1632 死于马尼拉任上。' },
+        heirInfo: { name: 'Audiencia Real(皇家法院)', personality: '临时合议', age: '', gender: '合议', belief: '天主教', learning: '', ethnicity: '西班牙', bio: '总督去职空缺期由 Audiencia 合议代理，直至马德里新任。' },
+        cohesion: { political: 58, military: 55, economic: 80, cultural: 65, ethnic: 45, loyalty: 62 },
+        // 西班牙菲律宾驻军：《Spanish Philippines》Phelan·《Archivo General de Indias》
+        // 马尼拉驻军+基隆据点+宿务要塞+美洲调兵+菲律宾土著 Tercio + Galleon 水手
+        militaryBreakdown: { standingArmy: 2500, militia: 5500, elite: 600, fleet: 8 },
+        economicStructure: { agriculture: 10, trade: 65, handicraft: 10, tribute: 15 },
+        succession: { rule: 'appointedByKing', designatedHeir: '马德里任命', stability: 68 },
+        historicalEvents: [
+          { turn: -135, event: '1492 哥伦布抵美·卡斯蒂利亚扩张', impact: '美洲殖民帝国雏形' },
+          { turn: -56, event: '1571 黎牙实比建马尼拉', impact: '东亚西班牙据点起点' },
+          { turn: -56, event: '1573 首艘马尼拉大帆船 San Pablo 号至阿卡普尔科', impact: '美亚白银航线开通' },
+          { turn: -47, event: '1580 西葡同君连合', impact: '马尼拉-澳门成兄弟港' },
+          { turn: -24, event: '1603 马尼拉屠华(Dilao 之变)', impact: '华商 2.5 万被杀·月港震动' },
+          { turn: -1, event: '1626 建基隆圣萨尔瓦多城', impact: '与荷兰争北台湾' },
+          { turn: 0, event: '1627 基隆据点初立', impact: '西荷摩擦升级' }
+        ],
+        internalParties: ['总督军事派', '多米尼克会传教派', '华商(Sangley)中介派', 'Audiencia 法理派']
+      },
+      // ═══ 奢安之乱联军(1621-1629)·此时天启七年九月处战争中期 ═══
+      {
+        name: '奢安之乱联军', leader: '奢崇明(四川永宁)·安邦彦(贵州水西)', color: '#8b0000',
+        type: '叛乱势力·土司', factionType: '西南土司叛乱联盟',
+        territory: '四川永宁宣抚司(今叙永·落红)+贵州水西宣慰司(今大方黔西·48 目则溪)+水外六目+播州余部+乌撒乌蒙呼应',
+        prestige: 35, economy: 22, militaryStrength: 48,
+        description: '天启元年(1621 年)九月奢崇明于重庆起事(川事)，天启二年(1622 年)二月安邦彦起兵围贵阳(黔事)。合兵后称"奢安之乱"(贵州别称"安酋之乱")。彝族六祖罗甸旧部为核心，以"明廷加派辽饷激民"为由反叛，自称国号"大梁"(奢氏)+"罗甸"(安氏)。波及川黔云桂四省，死伤百余万。天启七年(1627)九月本开局时期处战争第七年，主力已退水西山区坚守，残部约 3-4 万。将于崇祯二年(1629)八月在永宁红崖大坝被朱燮元、秦良玉攻灭。',
+        attitude: '敌对', playerRelation: -80,
+        resources: '水西山地农(粟米·荞麦·马铃薯)·朱砂汞矿·山货药材·毕节金银矿·土兵弩箭·苗汉混合人力',
+        culture: '彝族罗罗文化·毕摩(祭司)信仰·土司等级(土官/头目/十把/百姓)·六祖分支(慕俄勾/慕齐齐等)',
+        goal: '维持水西 48 目自治·争取明廷让步废改土归流·最大目标复四川永宁并图大梁国独立',
+        mainstream: '彝族罗罗(东爨)文化·毕摩教',
+        leaderTitle: '大梁国王(奢崇明自称)·罗甸王(安邦彦自称)',
+        desc: '兵力约 3-4 万(1627 残部)·彝族六祖嫡系罗罗兵 1.5 万·苗仡佬仆从 1.5 万·汉军降卒 5 千。据水西山寨坚守。火器极少·以刀盾弓弩为主·山地战无敌。粮米靠山地梯田维生·与外界隔绝。',
+        enemies: ['明朝廷', '石柱土司·秦良玉(白杆兵)', '播州汉化土司'], allies: ['播州土司·杨氏(余裔)', '乌撒土司', '乌蒙土司', '部分水外六目'], neutrals: ['其他西南彝族支系'],
+        strengths: ['山地游击战无敌', '民族认同强(罗罗)', '土司私兵纪律严于明军', '土司旧有号召力', '水西地险·48 目互保'],
+        weaknesses: ['火器极少', '粮源窄', '孤立无外援', '明主帅朱燮元(天启三年起督川贵)持久战略', '秦良玉白杆兵为天克', '残部已折大半'],
+        strategy: '据水西山区坚守·伺明内乱分兵(阉党倒/陕西民变)反扑·若明廷和谈则争"恢复永宁宣抚司"为底线·若朱燮元再起督军则必死战',
+        foundYear: 1621,
+        leaderInfo: { name: '奢崇明', personality: '彪悍·阴沉·有野心', age: '67', gender: '男', belief: '彝族毕摩教+部分汉儒', learning: '土司世袭·通汉文', ethnicity: '彝族(罗罗·东爨)', bio: '四川永宁宣抚使(从四品)。万历四十八年(1620)请增兵 2 万以"援辽"为名调重庆，与子奢寅及女婿樊龙密谋于天启元年(1621)九月起事，杀巡抚徐可求等 20 余人，围成都 102 日。于 1629 年战死红崖。' },
+        heirInfo: { name: '安邦彦·奢寅(已 1625 战殁)·奢崇辉', personality: '安邦彦：深沉多智·持重；奢寅：骁勇善战(已战死)', age: '安邦彦约 60', gender: '男', belief: '彝族毕摩教', learning: '土司世袭·通汉文', ethnicity: '彝族', bio: '安邦彦：贵州水西宣慰使同知·名义上辅佐其侄安位。天启二年(1622)二月围贵阳 10 月。日后 1629 与奢崇明同战死红崖。奢寅：天启五年(1625)已在川南遇伏战死，其妻安氏自杀。奢崇辉：奢崇明次子，名义继承人。' },
+        cohesion: { political: 48, military: 72, economic: 28, cultural: 82, ethnic: 88, loyalty: 70 },
+        // 兵力史料：《明史·朱燮元传》《黔记》《叙州府志》《水西安氏本末》
+        // 起事 10 万 → 天启三年攻成都失败折 2 万 → 天启四年贵阳解围折 2 万 → 天启五-六年川南大战折 2 万 → 1627 残部 3-4 万
+        // 按"西南土司叛乱"模板：精锐(罗罗土兵本族)+常备(土司私兵)+民兵(苗仡佬仆从)+无水师
+        militaryBreakdown: { elite: 8000, standingArmy: 15000, militia: 12000, fleet: 0 },
+        economicStructure: { agriculture: 60, trade: 8, handicraft: 12, tribute: 20 },
+        succession: { rule: 'clanHereditary(彝族父子叔侄)', designatedHeir: '安位(水西名义宣慰使·安邦彦侄)·奢崇辉(奢崇明次子)', stability: 30 },
+        historicalEvents: [
+          { turn: -260, event: '洪武年间明廷册封奢氏永宁宣抚使·安氏水西宣慰使', impact: '土司体制确立' },
+          { turn: -27, event: '1600 播州之役·杨应龙败亡', impact: '西南土司震惊·奢安警醒改土归流' },
+          { turn: -7, event: '1620 奢崇明请调 2 万援辽', impact: '暗藏起事密谋' },
+          { turn: -6, event: '1621 九月重庆之变·奢崇明起兵', impact: '杀巡抚徐可求等 20 余人·川事起' },
+          { turn: -6, event: '1621 十月-1622 正月围成都 102 日', impact: '朱燮元坚守·不破' },
+          { turn: -5, event: '1622 二月安邦彦起兵围贵阳', impact: '黔事起·围城 10 月' },
+          { turn: -4, event: '1623 朱燮元任总督川贵云贵军务', impact: '明廷战略主动' },
+          { turn: -3, event: '1624 春贵阳解围', impact: '安邦彦退水西' },
+          { turn: -2, event: '1625 奢寅战死·奢氏主力折半', impact: '川事大势定' },
+          { turn: -1, event: '1626 奢安合兵退水西 48 目', impact: '进入对峙期' },
+          { turn: 0, event: '1627 九月坚守中·熹宗崩·待明廷变局', impact: '本开局时期' }
+        ],
+        internalParties: ['奢氏川派(永宁本族)', '安氏黔派(水西 48 目)', '樊龙派(汉军降卒)', '播州余部', '乌撒乌蒙呼应派']
       }
     ];
     // ═══ 势力·得罪阈值（对齐 classes offendThresholds 模式；势力级别得罪引发外交事件）═══
@@ -4691,6 +4848,11 @@
       ],
       '西班牙·马尼拉': [
         { score: 35, description: '马尼拉屠华', consequences: ['华商撤·白银流入骤减'] }
+      ],
+      '奢安之乱联军': [
+        { score: 25, description: '水西山寨告警', consequences: ['土司增兵·粮价涨'] },
+        { score: 55, description: '奢安全面反扑', consequences: ['川黔震动·朱燮元被迫再起督军', '军费 +50 万两/年'] },
+        { score: 85, description: '奢安联合播州余部+乌撒乌蒙全西南大叛', consequences: ['改土归流崩溃', '秦良玉白杆兵苦战', '川黔云四省糜烂'] }
       ]
     };
 
@@ -6471,7 +6633,7 @@
           { name: '广东左布政使', rank: '从二品', holder: '', establishedCount: 1, vacancyCount: 0, bindingHint: 'region', duties: '掌广东民政钱粮·市舶司税银。澳门葡人月租银。', publicTreasuryInit: { money: 160000, grain: 180000, cloth: 40000 } },
           { name: '广西左布政使', rank: '从二品', holder: '', establishedCount: 1, vacancyCount: 0, bindingHint: 'region', duties: '掌广西民政钱粮·土司贡赋经此。', publicTreasuryInit: { money: 40000, grain: 100000, cloth: 12000 } },
           { name: '云南左布政使', rank: '从二品', holder: '', establishedCount: 1, vacancyCount: 0, bindingHint: 'region', duties: '掌云南民政钱粮·铜银矿课+沐府供给。', publicTreasuryInit: { money: 35000, grain: 90000, cloth: 10000 } },
-          { name: '贵州左布政使', rank: '从二品', holder: '', establishedCount: 1, vacancyCount: 0, bindingHint: 'region', duties: '掌贵州民政钱粮·水西播州奢安之乱刚平，库银紧。', publicTreasuryInit: { money: 18000, grain: 50000, cloth: 5000 } }
+          { name: '贵州左布政使', rank: '从二品', holder: '', establishedCount: 1, vacancyCount: 0, bindingHint: 'region', duties: '掌贵州民政钱粮·水西播州奢安之乱仍在进行(第七年)，库银紧。', publicTreasuryInit: { money: 18000, grain: 50000, cloth: 5000 } }
         ],
         subs: []
       },
@@ -6923,7 +7085,7 @@
           }),
           division({
             name: '贵州布政使司', level: 'province', officialPosition: '贵州巡抚', governor: '王瑊',
-            description: '黔中山地。下辖贵阳/思南/镇远/思州/石阡/铜仁/都匀/平越/黎平/安顺等府 + 水西安氏、播州杨氏（1600年被平）、永宁奢氏（1621起事）等大土司。奢安之乱刚平定。《万历会计录》在籍 29 万（汉民为主），然苗彝布依诸族多未入籍，实际约 110-130 万。',
+            description: '黔中山地。下辖贵阳/思南/镇远/思州/石阡/铜仁/都匀/平越/黎平/安顺等府 + 水西安氏、播州杨氏（1600年被平）、永宁奢氏（1621起事）等大土司。奢安之乱仍在进行(第七年)定。《万历会计录》在籍 29 万（汉民为主），然苗彝布依诸族多未入籍，实际约 110-130 万。',
             populationDetail: { mouths: 1150000, fugitives: 70000, hiddenCount: 280000 },
             terrain: '山地', specialResources: '汞·铅·朱砂·马·木材', taxLevel: '轻',
             publicTreasuryInit: { money: 30000, grain: 80000, cloth: 8000 },
