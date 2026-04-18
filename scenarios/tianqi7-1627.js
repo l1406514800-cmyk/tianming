@@ -1241,7 +1241,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v22-2026.04.19-fac-description-attitude-offend';
+  var SCENARIO_VERSION = 'v23-2026.04.19-party-deep-editor-align';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -2702,7 +2702,201 @@
         foundYear: 1610
       }
     ];
-    parties.forEach(function (p) { p.sid = SID; p.id = _uid('pty_'); global.P.parties.push(p); });
+    // ═══ 党派·编辑器字段深化对齐（openPartyModal 完整字段）═══
+    var _PARTY_DEEP = {
+      '阉党': {
+        influenceDesc: '司礼监批红权+东厂缇骑+京营兵权+锦衣卫诏狱，当朝第一大势力，系于魏忠贤一人存亡',
+        base: '阉党义子义孙·宦官体系·京营亲信·投靠文官',
+        org: '高度集权·党魁独裁·五虎(文)五彪(武)十狗十孩儿四十孙',
+        longGoal: '永固司礼监批红权·文武分治·皇权虚置',
+        rivalParty: '东林党',
+        policyStance: ['拥阉', '排东林', '加派敛财', '生祠崇拜', '罗织诏狱', '压士林'],
+        splinterFrom: '',
+        mergedWith: '',
+        officePositions: ['司礼监掌印太监', '东厂提督', '内阁首辅', '内阁次辅', '都察院左都御史', '锦衣卫指挥使', '京营总督', '吏部尚书', '兵部尚书'],
+        agenda_history: [
+          { turn: -16, agenda: '扳倒东林六君子', outcome: '天启四年杨涟等六人死于诏狱' },
+          { turn: -10, agenda: '诛高攀龙', outcome: '天启六年高攀龙自沉以免诏狱' },
+          { turn: -6, agenda: '广建生祠', outcome: '生祠遍天下，但士林痛恨' },
+          { turn: -3, agenda: '封魏良卿为肃宁侯', outcome: '宗族封爵达历朝宦者顶峰' },
+          { turn: 0, agenda: '稳住新帝以自存', outcome: '新帝即位，倾巢可危' }
+        ],
+        focal_disputes: [
+          { topic: '是否清算阉党', rival: '东林党', stakes: '党派存亡·魏忠贤性命' },
+          { topic: '司礼监批红权存废', rival: '内阁', stakes: '朝政主导权' },
+          { topic: '生祠拆除', rival: '士林', stakes: '党派象征与声誉' },
+          { topic: '京营兵权', rival: '勋贵', stakes: '京师武备控制' }
+        ],
+        offendThresholds: [
+          { score: 30, description: '魏忠贤加紧反扑', consequences: ['东厂四出罗织', '六部再被清洗'] },
+          { score: 60, description: '阉党谋京营兵变', consequences: ['宫廷剧变风险', '权力真空'] },
+          { score: 90, description: '阉党末路', consequences: ['魏忠贤阜城自缢', '崔呈秀自刎', '五虎五彪下狱', '生祠尽毁'] }
+        ]
+      },
+      '东林党': {
+        influenceDesc: '当下式微（领袖死绝），但士林舆论与科举门生网络尚在，可借新帝之势复起',
+        base: '江南士绅·书院讲学士人·反矿税商人',
+        org: '松散·以书院为纽带·以师生同年年谊为骨干',
+        longGoal: '重立万历初吏治·澄清天下·书院讲学常驻·彻底铲除阉祸',
+        rivalParty: '阉党',
+        policyStance: ['反阉', '反矿税', '重吏治', '清议讽政', '保本心', '开海禁(部分)'],
+        splinterFrom: '',
+        mergedWith: '',
+        officePositions: ['(待起复)内阁首辅-韩爌', '(待复)礼部尚书-钱龙锡', '(待复)礼部侍郎-成基命', '(待复)礼部侍郎-刘鸿训', '(待复)户部侍郎-毕自严'],
+        agenda_history: [
+          { turn: -276, agenda: '顾宪成创无锡东林书院', outcome: '一时东南士林纷赴' },
+          { turn: -84, agenda: '万历三十二年京察', outcome: '与浙楚昆齐诸党党争起' },
+          { turn: -84, agenda: '三案辩立(梃击红丸移宫)', outcome: '东林主导辩立' },
+          { turn: -60, agenda: '抗击阉党弹魏忠贤', outcome: '天启四年杨涟二十四罪本下' },
+          { turn: -48, agenda: '六君子遇害', outcome: '杨涟左光斗等六人死诏狱' },
+          { turn: -12, agenda: '高攀龙自沉', outcome: '东林书院被毁' },
+          { turn: 0, agenda: '伺机复起', outcome: '新帝即位，转机在望' }
+        ],
+        focal_disputes: [
+          { topic: '清算阉党', rival: '阉党', stakes: '六君子冤案昭雪' },
+          { topic: '召还老臣入阁', rival: '浙党', stakes: '内阁席位' },
+          { topic: '追赃辽饷', rival: '阉党残余', stakes: '国库重建·辽饷补缺' },
+          { topic: '毁生祠建忠贤祠', rival: '阉党残余', stakes: '政治翻案' },
+          { topic: '开海禁·重市舶', rival: '保守派', stakes: '江南商贸利益' }
+        ],
+        offendThresholds: [
+          { score: 25, description: '东林士林离心', consequences: ['科道弹章转向', '江南缙绅观望'] },
+          { score: 55, description: '东林再遭压制', consequences: ['士林死气·民心-10', '清议绝响'] },
+          { score: 85, description: '东林党覆灭', consequences: ['复社承接·但大势已去', '明朝士大夫再无监督朝政之力'] }
+        ]
+      },
+      '浙党': {
+        influenceDesc: '附阉党中势，阁内有三席（黄立极·施凤来·冯铨）；转舵迅速将成崇祯朝温体仁时代之主党',
+        base: '浙江(嘉湖宁绍杭)同乡京官·江南富商·漕运相关商号',
+        org: '中度·以同乡为纽带·内不完全统一·新旧两代交替',
+        longGoal: '以温体仁为新盟主；取代东林成士大夫领袖；维持江南本位',
+        rivalParty: '东林党',
+        policyStance: ['温和阉附(即将转舵)', '反东林', '江南本位', '稳健维持', '反开海(既得利益)'],
+        splinterFrom: '',
+        mergedWith: '',
+        officePositions: ['内阁(黄立极·施凤来·冯铨)', '礼部侍郎-温体仁(将升阁)', '吏部侍郎-来宗道', '(将起)内阁-周延儒'],
+        agenda_history: [
+          { turn: -324, agenda: '沈一贯入阁为浙党首', outcome: '浙党势成·与东林抗衡' },
+          { turn: -156, agenda: '万历三十三年京察', outcome: '党争激化' },
+          { turn: -180, agenda: '方从哲继沈后掌浙党', outcome: '万历末年主政' },
+          { turn: -48, agenda: '附阉党', outcome: '冯铨·施凤来入阁' },
+          { turn: 0, agenda: '转舵新帝·保存势力', outcome: '以柔佞待崇祯' }
+        ],
+        focal_disputes: [
+          { topic: '阉党覆灭后的内阁重组', rival: '东林党', stakes: '内阁主导权' },
+          { topic: '温体仁 vs 韩爌', rival: '东林党', stakes: '士林领袖位' },
+          { topic: '漕运掌控', rival: '齐党', stakes: '江南财源' }
+        ],
+        offendThresholds: [
+          { score: 30, description: '江南士绅反感', consequences: ['温体仁失门径', '冯铨受牵连'] },
+          { score: 60, description: '浙党全倒', consequences: ['失阁臣席位', '江南财源断·漕运阻'] }
+        ]
+      },
+      '楚党': {
+        influenceDesc: '熊廷弼死后大衰，党势残破；官应震勉力支撑，多数楚人归阉或退隐',
+        base: '湖广(今湖北湖南)同乡官员·楚地缙绅',
+        org: '松散·分化严重·无核心领袖',
+        longGoal: '借新帝之势重凝湖广子弟',
+        rivalParty: '东林党',
+        policyStance: ['同乡自保', '中性观望', '为熊廷弼翻案'],
+        splinterFrom: '',
+        mergedWith: '',
+        officePositions: ['户部侍郎-官应震', '都察院-吴亮嗣(边缘)', '(将起)礼部-贺逢圣'],
+        agenda_history: [
+          { turn: -200, agenda: '官应震·吴亮嗣称楚党', outcome: '万历末党势渐成' },
+          { turn: -60, agenda: '熊廷弼辽东经略被阉党诬陷', outcome: '天启二年系狱' },
+          { turn: -24, agenda: '熊廷弼弃市', outcome: '传首九边·楚党骨干被牵连' },
+          { turn: 0, agenda: '残存自保', outcome: '多数归阉或退隐，待机' }
+        ],
+        focal_disputes: [
+          { topic: '熊廷弼平反', rival: '阉党', stakes: '楚党声誉与道统' },
+          { topic: '湖广漕粮减免', rival: '户部', stakes: '楚地民生' }
+        ],
+        offendThresholds: [
+          { score: 40, description: '楚党全散', consequences: ['官应震退隐', '湖广失去政治代言'] }
+        ]
+      },
+      '齐党': {
+        influenceDesc: '式微附阉；领袖多已贬斥；仅李精白(山东巡抚)在地方残存',
+        base: '山东同乡官员·齐鲁缙绅',
+        org: '分散·无重臣·以地方官为核心',
+        longGoal: '保存齐党骨干·待机再起',
+        rivalParty: '东林党',
+        policyStance: ['附阉', '反东林', '同乡互助', '齐鲁本位'],
+        splinterFrom: '',
+        mergedWith: '',
+        officePositions: ['山东巡抚-李精白', '(已罢)礼部尚书-韩敬', '(已罢)吏部侍郎-亓诗教'],
+        agenda_history: [
+          { turn: -132, agenda: '亓诗教领齐党', outcome: '党势初成' },
+          { turn: -60, agenda: '齐党附阉', outcome: '李精白任山东巡抚' },
+          { turn: -12, agenda: '亓诗教被罢', outcome: '党势大衰' },
+          { turn: 0, agenda: '伺机再起', outcome: '多已退隐·李精白独存' }
+        ],
+        focal_disputes: [
+          { topic: '齐鲁漕运利益', rival: '浙党', stakes: '地方财源' },
+          { topic: '李精白去留', rival: '东林党', stakes: '齐党最后一根支柱' }
+        ],
+        offendThresholds: [
+          { score: 35, description: '齐党断源', consequences: ['李精白罢', '失山东代言'] }
+        ]
+      },
+      '宣党': {
+        influenceDesc: '弱小残存；汤宾尹殁后仅门生依附他党；已近瓦解',
+        base: '宣城(今安徽宣州)同乡·汤门弟子',
+        org: '极为松散·无实际组织',
+        longGoal: '合流他党或归隐',
+        rivalParty: '东林党',
+        policyStance: ['反东林', '附阉', '地缘乡党'],
+        splinterFrom: '',
+        mergedWith: '阉党(事实依附)',
+        officePositions: ['(已罢)礼部-韩敬', '地方官-金维枋'],
+        agenda_history: [
+          { turn: -384, agenda: '汤宾尹中会元', outcome: '门生众多·声名鹊起' },
+          { turn: -204, agenda: '万历三十八年京察', outcome: '被东林斥罢·党势大落' },
+          { turn: 0, agenda: '门生求存', outcome: '寄阉党或自归隐' }
+        ],
+        focal_disputes: [
+          { topic: '汤宾尹正名', rival: '东林党', stakes: '党派正统性' }
+        ],
+        offendThresholds: [
+          { score: 30, description: '宣党散尽', consequences: ['门生归东林复社', '地缘政治符号终结'] }
+        ]
+      },
+      '昆党': {
+        influenceDesc: '微小夹缝求存；地缘近东林而关系若即若离',
+        base: '昆山(今江苏)同乡·富绅',
+        org: '小而紧凑·以乡党为纽带',
+        longGoal: '借东林复起之势重新立足',
+        rivalParty: '',
+        policyStance: ['亲东林(有限)', '乡党', '自保', '江南本位'],
+        splinterFrom: '',
+        mergedWith: '',
+        officePositions: ['礼部-顾天峻(边缘)', '(将起)礼部-钱士升'],
+        agenda_history: [
+          { turn: -204, agenda: '同乡顾宪成立东林', outcome: '昆党顾天峻等自立' },
+          { turn: -48, agenda: '天启阉祸波及', outcome: '党势维持' },
+          { turn: 0, agenda: '借东林复起', outcome: '待机' }
+        ],
+        focal_disputes: [
+          { topic: '与东林合并与否', rival: '东林党', stakes: '昆党独立性' }
+        ],
+        offendThresholds: [
+          { score: 30, description: '昆党归东林', consequences: ['失独立但延续香火'] }
+        ]
+      }
+    };
+    parties.forEach(function (p) {
+      p.sid = SID; p.id = _uid('pty_');
+      // 字段名对齐编辑器：desc → description（编辑器用 description 存储并渲染）
+      if (p.desc && !p.description) p.description = p.desc;
+      // 编辑器 openPartyModal 完整字段合并（influenceDesc/base/org/longGoal/rivalParty/policyStance/splinterFrom/mergedWith/officePositions/agenda_history/focal_disputes/offendThresholds）
+      if (_PARTY_DEEP[p.name]) {
+        Object.keys(_PARTY_DEEP[p.name]).forEach(function(k){
+          if (p[k] === undefined || p[k] === null || (Array.isArray(p[k]) && p[k].length === 0) || p[k] === '') p[k] = _PARTY_DEEP[p.name][k];
+        });
+      }
+      global.P.parties.push(p);
+    });
 
     // ═══════════════════════════════════════════════════════════════════
     // § 5. 阶层
