@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能地图编辑器 - 天命</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        #app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 左侧工具栏 */
+        #toolbar {
+            width: 300px;
+            background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .toolbar-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            border-bottom: 2px solid #ffd700;
+        }
+
+        .toolbar-header h1 {
+            font-size: 20px;
+            color: #ffd700;
+            margin-bottom: 8px;
+        }
+
+        .toolbar-header p {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .toolbar-section {
+            padding: 16px;
+            border-bottom: 1px solid #222;
+        }
+
+        .toolbar-section h3 {
+            color: #ffd700;
+            font-size: 13px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+            border: 1px solid #444;
+            color: #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
+            border-color: #ffd700;
+            transform: translateX(3px);
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.2);
+        }
+
+        .btn.primary {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #1a1a1a;
+            border-color: #ffd700;
+            font-weight: 600;
+        }
+
+        .btn.primary:hover {
+            background: linear-gradient(135deg, #ffed4e 0%, #ffd700 100%);
+            box-shadow: 0 4px 12px rgba(255, 215, 0, 0.4);
+        }
+
+        .btn-icon {
+            font-size: 16px;
+        }
+
+        /* 地图容器 */
+        #map-container {
+            flex: 1;
+            position: relative;
+            background: #0a0a0a;
+        }
+
+        #map-canvas {
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            image-rendering: pixelated;
+        }
+
+        /* 右侧属性面板 */
+        #properties {
+            width: 350px;
+            background: linear-gradient(180deg, #1a1a1a 0%, #0f0f0f 100%);
+            border-left: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .properties-header {
+            padding: 20px;
+            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+            border-bottom: 2px solid #ffd700;
+        }
+
+        .properties-header h2 {
+            font-size: 16px;
+            color: #ffd700;
+        }
+
+        #properties-content {
+            padding: 16px;
+        }
+
+        .property-section {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 8px;
+            border: 1px solid #222;
+        }
+
+        .property-section h4 {
+            color: #ffd700;
+            font-size: 13px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 11px;
+            color: #aaa;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .input-group input,
+        .input-group select,
+        .input-group textarea {
+            width: 100%;
+            padding: 10px;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #ffd700;
+            box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.1);
+        }
+
+        /* 顶部工具栏 */
+        #top-toolbar {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26, 26, 26, 0.95);
+            padding: 12px 20px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            z-index: 1000;
+            display: flex;
+            gap: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .tool-btn {
+            padding: 8px 16px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover {
+            background: #3a3a3a;
+            border-color: #ffd700;
+        }
+
+        .tool-btn.active {
+            background: #ffd700;
+            color: #1a1a1a;
+            border-color: #ffd700;
+        }
+
+        /* 状态栏 */
+        #status-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26, 26, 26, 0.95);
+            padding: 10px 24px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            z-index: 1000;
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            backdrop-filter: blur(10px);
+        }
+
+        #status-bar span {
+            color: #aaa;
+        }
+
+        #status-bar strong {
+            color: #ffd700;
+        }
+
+        /* 小地图 */
+        #minimap {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            width: 200px;
+            height: 150px;
+            background: rgba(26, 26, 26, 0.95);
+            border: 1px solid #444;
+            border-radius: 8px;
+            overflow: hidden;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        #minimap canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* 右键菜单 */
+        #context-menu {
+            position: absolute;
+            background: rgba(26, 26, 26, 0.98);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 8px 0;
+            min-width: 180px;
+            z-index: 10000;
+            display: none;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        }
+
+        .context-menu-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #e0e0e0;
+            transition: all 0.2s;
+        }
+
+        .context-menu-item:hover {
+            background: #2a2a2a;
+            color: #ffd700;
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background: #333;
+            margin: 4px 0;
+        }
+
+        /* 加载动画 */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 滚动条 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #444;
+        }
+
+        /* 地形选择器 */
+        .terrain-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .terrain-btn {
+            padding: 10px;
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .terrain-btn:hover {
+            border-color: #ffd700;
+            background: #2a2a2a;
+        }
+
+        .terrain-btn.selected {
+            border-color: #ffd700;
+            background: #2a2a2a;
+            box-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+        }
+
+        .terrain-icon {
+            font-size: 24px;
+            margin-bottom: 4px;
+        }
+
+        /* 识别选项面板 */
+        .recognition-options {
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .recognition-options h4 {
+            color: #ffd700;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        /* 缩放控制 */
+        #zoom-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 1000;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(26, 26, 26, 0.95);
+            border: 1px solid #444;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+        }
+
+        .zoom-btn:hover {
+            background: #2a2a2a;
+            border-color: #ffd700;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 左侧工具栏 -->
+        <div id="toolbar">
+            <div class="toolbar-header">
+                <h1>🗺️ 智能地图编辑器</h1>
+                <p>自动识别地块 · EU4级别操作</p>
+            </div>
+
+            <div class="toolbar-section">
+                <h3>📥 导入地图</h3>
+                <div class="btn-group">
+                    <button class="btn primary" onclick="smartLoadMap()">
+                        <span class="btn-icon">🤖</span>
+                        <span>智能识别地图</span>
+                    </button>
+                    <button class="btn" onclick="loadPresetMap('china')">
+                        <span class="btn-icon">🇨🇳</span>
+                        <span>中国地图</span>
+                    </button>
+                    <button class="btn" onclick="loadPresetMap('asia')">
+                        <span class="btn-icon">🏯</span>
+                        <span>Asia历史地图</span>
+                    </button>
+                    <button class="btn" onclick="loadPresetMap('world1')">
+                        <span class="btn-icon">🌍</span>
+                        <span>世界地图 1</span>
+                    </button>
+                    <button class="btn" onclick="loadPresetMap('world2')">
+                        <span class="btn-icon">🌎</span>
+                        <span>世界地图 2</span>
+                    </button>
+                </div>
+
+                <div class="recognition-options" style="margin-top: 16px;">
+                    <h4>识别选项</h4>
+                    <div class="input-group">
+                        <label>识别模式</label>
+                        <select id="recognition-mode">
+                            <option value="eu4">EU4颜色识别（推荐）</option>
+                            <option value="borders">边界线识别</option>
+                            <option value="color">颜色分割识别</option>
+                            <option value="auto">自动选择</option>
+                        </select>
+                        <p style="font-size: 11px; color: #888; margin-top: 4px;">EU4模式：每个省份使用唯一颜色</p>
+                    </div>
+                    <div class="input-group" id="border-options">
+                        <label>边界线阈值 (0-255)</label>
+                        <input type="range" id="border-threshold" min="0" max="255" value="100" oninput="document.getElementById('border-threshold-value').textContent = this.value">
+                        <span id="border-threshold-value" style="color: #ffd700; font-size: 12px;">100</span>
+                        <p style="font-size: 11px; color: #888; margin-top: 4px;">越小越严格（只识别纯黑线）</p>
+                    </div>
+                    <div class="input-group" id="color-options" style="display: none;">
+                        <label>颜色容差 (0-50)</label>
+                        <input type="range" id="tolerance" min="0" max="50" value="10" oninput="document.getElementById('tolerance-value').textContent = this.value">
+                        <span id="tolerance-value" style="color: #ffd700; font-size: 12px;">10</span>
+                    </div>
+                    <div class="input-group">
+                        <label>最小区域面积</label>
+                        <input type="number" id="min-area" value="500" min="100" max="10000" step="100">
+                    </div>
+                    <div class="input-group">
+                        <label>
+                            <input type="checkbox" id="fill-gaps" checked>
+                            填充边界线间隙
+                        </label>
+                    </div>
+                    <div class="input-group" style="display: none;">
+                        <label>
+                            <input type="checkbox" id="simplify-boundary" checked>
+                            简化边界
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <h3>🛠️ 编辑工具</h3>
+                <div class="btn-group">
+                    <button class="btn" onclick="setTool('select')">
+                        <span class="btn-icon">👆</span>
+                        <span>选择工具 (V)</span>
+                    </button>
+                    <button class="btn" onclick="setTool('pan')">
+                        <span class="btn-icon">✋</span>
+                        <span>平移工具 (H)</span>
+                    </button>
+                    <button class="btn" onclick="setTool('edit')">
+                        <span class="btn-icon">✏️</span>
+                        <span>编辑边界 (E)</span>
+                    </button>
+                    <button class="btn" onclick="setTool('split')">
+                        <span class="btn-icon">✂️</span>
+                        <span>分割地块 (S)</span>
+                    </button>
+                    <button class="btn" onclick="setTool('merge')">
+                        <span class="btn-icon">🔗</span>
+                        <span>合并地块 (M)</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <h3>⚙️ 地图操作</h3>
+                <div class="btn-group">
+                    <button class="btn" onclick="calculateNeighbors()">计算邻接关系</button>
+                    <button class="btn" onclick="batchEdit()">批量编辑</button>
+                    <button class="btn" onclick="validateMap()">验证地图</button>
+                    <button class="btn" onclick="exportMap()">导出地图 (Ctrl+S)</button>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <h3>🎨 显示选项</h3>
+                <div class="input-group">
+                    <label>
+                        <input type="checkbox" id="show-labels" onchange="toggleLabels()" checked>
+                        显示省份名称
+                    </label>
+                </div>
+                <div class="input-group">
+                    <label>
+                        <input type="checkbox" id="show-borders" onchange="toggleBorders()" checked>
+                        显示边界线
+                    </label>
+                </div>
+                <div class="input-group">
+                    <label>背景透明度</label>
+                    <input type="range" id="bg-opacity" min="0" max="100" value="50" oninput="updateBgOpacity(this.value)">
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <h3>🤖 AI 智能生成</h3>
+                <div class="btn-group">
+                    <button class="btn" onclick="aiGenerateProvinceData()">
+                        <span class="btn-icon">✨</span>
+                        <span>AI 生成省份数据</span>
+                    </button>
+                    <button class="btn" onclick="aiGenerateCustomFields()">
+                        <span class="btn-icon">🔧</span>
+                        <span>AI 建议自定义字段</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <h3>➕ 自定义字段</h3>
+                <div class="btn-group">
+                    <button class="btn" onclick="addCustomField()">
+                        <span class="btn-icon">➕</span>
+                        <span>添加自定义字段</span>
+                    </button>
+                </div>
+                <div id="custom-fields-list" style="margin-top: 12px;">
+                    <!-- 自定义字段列表 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 中间地图区域 -->
+        <div id="map-container">
+            <canvas id="map-canvas"></canvas>
+
+            <!-- 顶部工具栏 -->
+            <div id="top-toolbar">
+                <button class="tool-btn" onclick="undo()" title="撤销 (Ctrl+Z)">↶ 撤销</button>
+                <button class="tool-btn" onclick="redo()" title="重做 (Ctrl+Y)">↷ 重做</button>
+                <span style="color: #444;">|</span>
+                <button class="tool-btn" onclick="zoomIn()">🔍+ 放大</button>
+                <button class="tool-btn" onclick="zoomOut()">🔍- 缩小</button>
+                <button class="tool-btn" onclick="resetView()">⊙ 重置</button>
+            </div>
+
+            <!-- 缩放控制 -->
+            <div id="zoom-controls">
+                <button class="zoom-btn" onclick="zoomIn()">+</button>
+                <button class="zoom-btn" onclick="zoomOut()">−</button>
+                <button class="zoom-btn" onclick="resetView()" title="重置视图">⊙</button>
+            </div>
+
+            <!-- 状态栏 -->
+            <div id="status-bar">
+                <span>地块数: <strong id="region-count">0</strong></span>
+                <span>已选择: <strong id="selected-count">0</strong></span>
+                <span>缩放: <strong id="zoom-level">100%</strong></span>
+                <span>工具: <strong id="current-tool">选择</strong></span>
+            </div>
+
+            <!-- 小地图 -->
+            <div id="minimap">
+                <canvas id="minimap-canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- 右侧属性面板 -->
+        <div id="properties">
+            <div class="properties-header">
+                <h2>📋 地块属性</h2>
+            </div>
+            <div id="properties-content">
+                <div class="property-section">
+                    <h4>基本信息</h4>
+                    <div id="region-properties">
+                        <p style="color: #888; font-size: 13px;">选择一个地块以编辑属性</p>
+                    </div>
+                </div>
+
+                <div class="property-section">
+                    <h4>地形类型</h4>
+                    <div class="terrain-grid" id="terrain-selector">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+
+                <div class="property-section">
+                    <h4>统计信息</h4>
+                    <div style="font-size: 12px; line-height: 2;">
+                        <div>总地块数: <strong id="stats-total" style="color: #ffd700;">0</strong></div>
+                        <div>平原: <strong id="stats-plains" style="color: #90EE90;">0</strong></div>
+                        <div>山地: <strong id="stats-mountains" style="color: #8B4513;">0</strong></div>
+                        <div>森林: <strong id="stats-forest" style="color: #228B22;">0</strong></div>
+                        <div>沙漠: <strong id="stats-desert" style="color: #F4A460;">0</strong></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右键菜单 -->
+    <div id="context-menu">
+        <div class="context-menu-item" onclick="editRegionName()">✏️ 重命名</div>
+        <div class="context-menu-item" onclick="setRegionOwner()">👑 设置所属</div>
+        <div class="context-menu-item" onclick="editRegionResources()">💎 编辑资源</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" onclick="splitRegion()">✂️ 分割地块</div>
+        <div class="context-menu-item" onclick="mergeRegions()">🔗 合并地块</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" onclick="deleteRegion()" style="color: #e74c3c;">🗑️ 删除地块</div>
+    </div>
+
+    <script src="map-recognition.js"></script>
+    <script src="map-recognition-borders.js"></script>
+    <script src="map-recognition-fast.js"></script>
+    <script src="map-recognition-improved.js"></script>
+    <script src="map-recognition-eu4.js"></script>
+    <script src="map-editor-smart.js"></script>
+    <script>
+        // 识别模式切换
+        document.getElementById('recognition-mode').addEventListener('change', function() {
+            const mode = this.value;
+            const borderOptions = document.getElementById('border-options');
+            const colorOptions = document.getElementById('color-options');
+
+            if (mode === 'eu4') {
+                borderOptions.style.display = 'none';
+                colorOptions.style.display = 'none';
+            } else if (mode === 'borders') {
+                borderOptions.style.display = 'block';
+                colorOptions.style.display = 'none';
+            } else if (mode === 'color') {
+                borderOptions.style.display = 'none';
+                colorOptions.style.display = 'block';
+            } else {
+                borderOptions.style.display = 'block';
+                colorOptions.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>

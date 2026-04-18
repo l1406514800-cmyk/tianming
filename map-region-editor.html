@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地图地块编辑器</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: #1a1a1a;
+            color: #fff;
+            overflow: hidden;
+        }
+        #container {
+            display: flex;
+            height: 100vh;
+        }
+        #sidebar {
+            width: 300px;
+            background: #2a2a2a;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 2px solid #444;
+        }
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #1a1a1a;
+        }
+        canvas {
+            position: absolute;
+            cursor: crosshair;
+        }
+        h2 {
+            margin-bottom: 15px;
+            color: #4CAF50;
+            font-size: 18px;
+        }
+        .section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #444;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            margin: 5px 0;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button.secondary {
+            background: #2196F3;
+        }
+        button.secondary:hover {
+            background: #0b7dda;
+        }
+        button.danger {
+            background: #f44336;
+        }
+        button.danger:hover {
+            background: #da190b;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 4px;
+        }
+        label {
+            display: block;
+            margin-top: 10px;
+            color: #aaa;
+            font-size: 13px;
+        }
+        #region-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #333;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .region-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: #444;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .region-item:hover {
+            background: #555;
+        }
+        .region-item.selected {
+            background: #4CAF50;
+        }
+        .region-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            border: 1px solid #666;
+        }
+        #status {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #4CAF50;
+        }
+        .tool-group {
+            display: flex;
+            gap: 5px;
+        }
+        .tool-group button {
+            flex: 1;
+        }
+        #zoom-info {
+            text-align: center;
+            color: #aaa;
+            font-size: 12px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="sidebar">
+            <h2>🗺️ 地块编辑器</h2>
+
+            <div class="section">
+                <h2>文件操作</h2>
+                <button onclick="loadMap()">📂 加载地图JSON</button>
+                <button onclick="loadImage()">🖼️ 加载背景图片</button>
+                <button class="secondary" onclick="saveMap()">💾 保存地图</button>
+                <button class="secondary" onclick="exportMap()">📥 导出JSON</button>
+            </div>
+
+            <div class="section">
+                <h2>绘制工具</h2>
+                <div class="tool-group">
+                    <button onclick="setMode('draw')" id="btn-draw">✏️ 绘制</button>
+                    <button onclick="setMode('edit')" id="btn-edit">🔧 编辑</button>
+                </div>
+                <div class="tool-group">
+                    <button onclick="setMode('select')" id="btn-select">👆 选择</button>
+                    <button onclick="setMode('pan')" id="btn-pan">🤚 平移</button>
+                </div>
+                <button class="danger" onclick="clearCurrentRegion()">🗑️ 清除当前绘制</button>
+                <button class="danger" onclick="deleteSelectedRegion()">❌ 删除选中地块</button>
+            </div>
+
+            <div class="section">
+                <h2>当前地块属性</h2>
+                <label>名称</label>
+                <input type="text" id="region-name" placeholder="地块名称">
+
+                <label>颜色</label>
+                <input type="color" id="region-color" value="#64c896">
+
+                <label>地形</label>
+                <select id="region-terrain">
+                    <option value="plains">平原</option>
+                    <option value="mountain">山地</option>
+                    <option value="desert">沙漠</option>
+                    <option value="forest">森林</option>
+                    <option value="water">水域</option>
+                </select>
+
+                <button onclick="applyRegionProperties()">✅ 应用属性</button>
+                <button class="secondary" onclick="finishRegion()">✔️ 完成地块</button>
+            </div>
+
+            <div class="section">
+                <h2>地块列表 (<span id="region-count">0</span>)</h2>
+                <div id="region-list"></div>
+            </div>
+
+            <div class="section">
+                <h2>视图控制</h2>
+                <div id="zoom-info">缩放: 100%</div>
+                <div class="tool-group">
+                    <button onclick="zoomIn()">🔍+ 放大</button>
+                    <button onclick="zoomOut()">🔍- 缩小</button>
+                </div>
+                <button onclick="resetView()">🎯 重置视图</button>
+                <button onclick="toggleGrid()">📐 切换网格</button>
+            </div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="bg-canvas"></canvas>
+            <canvas id="region-canvas"></canvas>
+            <canvas id="draw-canvas"></canvas>
+            <div id="status">就绪</div>
+        </div>
+    </div>
+
+    <script src="map-region-editor.js"></script>
+</body>
+</html>

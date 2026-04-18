@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>专业地图编辑器 - 天命</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        #app {
+            display: flex;
+            height: 100vh;
+        }
+
+        /* 左侧工具栏 */
+        #toolbar {
+            width: 280px;
+            background: linear-gradient(180deg, #2a2a2a 0%, #1f1f1f 100%);
+            border-right: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .toolbar-section {
+            padding: 16px;
+            border-bottom: 1px solid #333;
+        }
+
+        .toolbar-section h3 {
+            color: #ffd700;
+            font-size: 14px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 10px 14px;
+            background: #3a3a3a;
+            border: 1px solid #555;
+            color: #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .btn:hover {
+            background: #4a4a4a;
+            border-color: #ffd700;
+            transform: translateX(2px);
+        }
+
+        .btn.active {
+            background: #ffd700;
+            color: #1a1a1a;
+            border-color: #ffd700;
+            font-weight: 600;
+        }
+
+        .input-group {
+            margin-bottom: 12px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            color: #aaa;
+            margin-bottom: 6px;
+        }
+
+        .input-group input,
+        .input-group select,
+        .input-group textarea {
+            width: 100%;
+            padding: 8px;
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .input-group textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        /* 地图容器 */
+        #map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            background: #1a1a1a;
+        }
+
+        /* 右侧属性面板 */
+        #properties {
+            width: 320px;
+            background: linear-gradient(180deg, #2a2a2a 0%, #1f1f1f 100%);
+            border-left: 1px solid #444;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        #properties-content {
+            padding: 16px;
+        }
+
+        .property-section {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        .property-section h4 {
+            color: #ffd700;
+            font-size: 13px;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+        }
+
+        /* 顶部状态栏 */
+        #status-bar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26, 26, 26, 0.95);
+            padding: 12px 24px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            z-index: 1000;
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            backdrop-filter: blur(10px);
+        }
+
+        #status-bar span {
+            color: #aaa;
+        }
+
+        #status-bar strong {
+            color: #ffd700;
+        }
+
+        /* 快捷键提示 */
+        #shortcuts-hint {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(26, 26, 26, 0.95);
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            z-index: 1000;
+            font-size: 11px;
+            color: #888;
+            backdrop-filter: blur(10px);
+        }
+
+        /* Leaflet 自定义样式 */
+        .leaflet-container {
+            background: #1a1a1a;
+        }
+
+        .leaflet-popup-content-wrapper {
+            background: #2a2a2a;
+            color: #e0e0e0;
+            border: 1px solid #444;
+        }
+
+        .leaflet-popup-tip {
+            background: #2a2a2a;
+        }
+
+        /* 省份标签样式 */
+        .province-label {
+            background: rgba(26, 26, 26, 0.8);
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 4px 8px;
+            font-size: 11px;
+            color: #ffd700;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        /* 加载动画 */
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 26, 26, 0.95);
+            padding: 24px 32px;
+            border-radius: 8px;
+            border: 1px solid #444;
+            z-index: 2000;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #333;
+            border-top-color: #ffd700;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* 滚动条样式 */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* 颜色选择器 */
+        input[type="color"] {
+            width: 100%;
+            height: 36px;
+            border: 1px solid #444;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        /* 地形图标 */
+        .terrain-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+        }
+
+        .terrain-btn {
+            padding: 8px;
+            background: #3a3a3a;
+            border: 2px solid #555;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .terrain-btn:hover {
+            border-color: #ffd700;
+        }
+
+        .terrain-btn.selected {
+            border-color: #ffd700;
+            background: #4a4a4a;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 左侧工具栏 -->
+        <div id="toolbar">
+            <div class="toolbar-section">
+                <h3>🗺️ 地图操作</h3>
+                <div class="btn-group">
+                    <button class="btn" onclick="newMap()">新建地图</button>
+                    <button class="btn" onclick="loadBackgroundImage()">加载背景图</button>
+                    <button class="btn" onclick="loadPresetMap()">加载预设地图</button>
+                    <button class="btn" onclick="importGeoJSON()">导入 GeoJSON</button>
+                    <button class="btn" onclick="exportGeoJSON()">导出 GeoJSON</button>
+                    <button class="btn" onclick="exportToGame()">导出到游戏格式</button>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <h3>🔧 高级工具</h3>
+                <div class="btn-group">
+                    <button class="btn" onclick="calculateNeighbors()">计算邻接关系</button>
+                    <button class="btn" onclick="batchEdit()">批量编辑</button>
+                    <button class="btn" onclick="searchProvince()">搜索省份 (Ctrl+F)</button>
+                    <button class="btn" onclick="validateMap()">验证地图</button>
+                    <button class="btn" onclick="generateHistoricalMap()">AI 历史地图生成</button>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <h3>✏️ 绘制工具</h3>
+                <div class="btn-group">
+                    <button class="btn" id="draw-polygon" onclick="startDrawPolygon()">绘制省份 (P)</button>
+                    <button class="btn" id="draw-rectangle" onclick="startDrawRectangle()">绘制矩形 (R)</button>
+                    <button class="btn" id="edit-mode" onclick="toggleEditMode()">编辑模式 (E)</button>
+                    <button class="btn" id="delete-mode" onclick="toggleDeleteMode()">删除模式 (D)</button>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <h3>🎨 显示选项</h3>
+                <div class="input-group">
+                    <label>
+                        <input type="checkbox" id="show-labels" onchange="toggleLabels()" checked>
+                        显示省份名称
+                    </label>
+                </div>
+                <div class="input-group">
+                    <label>
+                        <input type="checkbox" id="show-borders" onchange="toggleBorders()" checked>
+                        显示边界线
+                    </label>
+                </div>
+                <div class="input-group">
+                    <label>背景图透明度</label>
+                    <input type="range" id="bg-opacity" min="0" max="100" value="50" oninput="updateBgOpacity(this.value)">
+                </div>
+                <div class="input-group">
+                    <label>显示模式</label>
+                    <select id="display-mode" onchange="updateDisplayMode()">
+                        <option value="normal">正常</option>
+                        <option value="terrain">地形</option>
+                        <option value="owner">所属势力</option>
+                        <option value="development">发展度</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="toolbar-section">
+                <h3>⚙️ 地图设置</h3>
+                <div class="input-group">
+                    <label>地图名称</label>
+                    <input type="text" id="map-name" value="新地图" oninput="updateMapName()">
+                </div>
+                <div class="input-group">
+                    <label>地图宽度</label>
+                    <input type="number" id="map-width" value="1200" min="800" max="4000" step="100">
+                </div>
+                <div class="input-group">
+                    <label>地图高度</label>
+                    <input type="number" id="map-height" value="800" min="600" max="3000" step="100">
+                </div>
+            </div>
+        </div>
+
+        <!-- 中间地图区域 -->
+        <div id="map-container">
+            <div id="map"></div>
+
+            <!-- 状态栏 -->
+            <div id="status-bar">
+                <span>省份数: <strong id="province-count">0</strong></span>
+                <span>已选择: <strong id="selected-count">0</strong></span>
+                <span>模式: <strong id="current-mode">查看</strong></span>
+            </div>
+
+            <!-- 快捷键提示 -->
+            <div id="shortcuts-hint">
+                P: 绘制 | R: 矩形 | E: 编辑 | D: 删除 | Del: 删除选中 | Ctrl+S: 保存 | Ctrl+F: 搜索
+            </div>
+        </div>
+
+        <!-- 右侧属性面板 -->
+        <div id="properties">
+            <div id="properties-content">
+                <div class="property-section">
+                    <h4>📍 省份属性</h4>
+                    <div id="province-properties">
+                        <p style="color: #888; font-size: 13px;">选择一个省份以编辑属性</p>
+                    </div>
+                </div>
+
+                <div class="property-section">
+                    <h4>🎨 地形类型</h4>
+                    <div class="terrain-grid" id="terrain-selector">
+                        <!-- 动态生成 -->
+                    </div>
+                </div>
+
+                <div class="property-section">
+                    <h4>📊 统计信息</h4>
+                    <div style="font-size: 12px; line-height: 1.8;">
+                        <div>总省份数: <strong id="stats-total">0</strong></div>
+                        <div>平原: <strong id="stats-plains">0</strong></div>
+                        <div>山地: <strong id="stats-mountains">0</strong></div>
+                        <div>森林: <strong id="stats-forest">0</strong></div>
+                        <div>沙漠: <strong id="stats-desert">0</strong></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+    <script src="map-converter.js"></script>
+    <script src="map-editor-pro.js"></script>
+</body>
+</html>

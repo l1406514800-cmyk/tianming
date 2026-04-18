@@ -1,0 +1,26 @@
+# 操作系统 / IDE 垃圾
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+*~
+
+# 依赖（此项目应该无需）
+node_modules/
+
+# 构建产物 / 本地测试
+dist/
+build/
+.cache/
+
+# 本地存档 / 用户私有
+*.save.json
+localStorage-backup/
+
+# API 密钥（以防万一）
+.env
+.env.local
+*.key
+secrets.json
