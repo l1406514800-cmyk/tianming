@@ -1241,7 +1241,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v31-2026.04.19-corruption-fiscal-initial';
+  var SCENARIO_VERSION = 'v32-2026.04.19-harem-palace-full';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -1767,16 +1767,86 @@
       palaceSystem: {
         enabled: true,
         capitalName: '紫禁城',
-        capitalDescription: '明永乐十八年（1420）建成。南北长 961 米，东西宽 753 米。外朝三大殿（皇极/中极/建极，清改称太和/中和/保和）+ 内廷三宫（乾清/交泰/坤宁）+ 东西六宫。',
+        capitalDescription:
+          '明永乐十八年(1420)永乐帝迁都北京竣工。南北长 961 米，东西宽 753 米，占地 72 万平米。外朝三大殿(皇极/中极/建极)+ 内廷三宫(乾清/交泰/坤宁)+ 东六宫(景仁/承乾/钟粹/延禧/永和/景阳)+ 西六宫(永寿/翊坤/储秀/启祥/长春/咸福)+ 外东路(宁寿宫)+ 外西路(慈宁宫/咸安宫/英华殿)+ 御花园。四门: 午门(南)/神武门(北)/东华门(东)/西华门(西)。总宫殿 80 余座、房间 9999 半(古语)。',
         palaces: [
-          { id: 'huangji', name: '皇极殿', type: '外朝·正殿', function: '大朝会·登极·册立·颁诏', description: '外朝三大殿之首，清改称太和殿。仅重大典礼开放。', location: '紫禁城中轴·前', capacity: 2000, subHalls: [], status: '完好', builtYear: 1420, isHistorical: true, level: 1 },
-          { id: 'zhongji', name: '中极殿', type: '外朝·中殿', function: '皇帝休憩·召见近臣', description: '皇极殿后，规模稍小。清改中和殿。', location: '紫禁城中轴·中前', capacity: 100, subHalls: [], status: '完好', builtYear: 1420, isHistorical: true, level: 2 },
-          { id: 'jianji', name: '建极殿', type: '外朝·后殿', function: '殿试·赐宴', description: '外朝最后一殿。清改保和殿。', location: '紫禁城中轴·中', capacity: 500, subHalls: [], status: '完好', builtYear: 1420, isHistorical: true, level: 2 },
-          { id: 'qianqing', name: '乾清宫', type: '内廷·正殿', function: '皇帝日常起居·批阅奏疏·召见重臣', description: '明代帝寝所在。崇祯即位后移此居住理政。', location: '紫禁城中轴·中后', capacity: 50, subHalls: [{ id: 'nuange', name: '暖阁', role: 'main', capacity: 10, occupants: ['朱由检'], rankRestriction: ['皇帝'] }], status: '完好', builtYear: 1420, isHistorical: true, level: 1 },
-          { id: 'jiaotai', name: '交泰殿', type: '内廷·中殿', function: '存二十五玺·册封命妇', description: '乾清/坤宁之间。', location: '紫禁城中轴·后中', capacity: 30, subHalls: [], status: '完好', builtYear: 1420, isHistorical: true, level: 3 },
-          { id: 'kunning', name: '坤宁宫', type: '内廷·后殿', function: '皇后正寝', description: '周皇后居此。', location: '紫禁城中轴·后', capacity: 30, subHalls: [], status: '完好', builtYear: 1420, isHistorical: true, level: 1, occupants: ['周皇后'] },
-          { id: 'cining', name: '慈宁宫', type: '内廷·太后宫', function: '太后/太妃居所', description: '此时张懿安皇后居此。', location: '紫禁城西路', capacity: 80, subHalls: [], status: '完好', builtYear: 1536, isHistorical: true, level: 2, occupants: ['张懿安'] },
-          { id: 'wenyuange', name: '文渊阁', type: '外朝·附属', function: '内阁办公·藏书', description: '内阁大学士票拟之地。', location: '紫禁城东路', capacity: 40, subHalls: [], status: '完好', builtYear: 1420, isHistorical: true, level: 2 }
+          // ═══ 外朝三大殿 (type=main_hall) ═══
+          { id: 'huangji', name: '皇极殿', type: 'main_hall', function: '大朝会·登极·册立皇太子·颁诏', description: '外朝三大殿之首。永乐建，嘉靖改称皇极殿(清改太和殿)。殿高 35 米。仅重大典礼开放。朱由检即位大典即在此举行。', location: '紫禁城中轴·前', maintainCost: 5000, builtYear: 1420, level: 1, status: 'intact', subHalls: [], isHistorical: true },
+          { id: 'zhongji', name: '中极殿', type: 'main_hall', function: '皇帝休憩·召见近臣·典礼预备', description: '外朝中殿，清改中和殿。大典礼时帝于此预备更衣。', location: '紫禁城中轴·中前', maintainCost: 1500, builtYear: 1420, level: 2, status: 'intact', subHalls: [], isHistorical: true },
+          { id: 'jianji', name: '建极殿', type: 'main_hall', function: '殿试·赐宴·翰林讲经', description: '外朝后殿(清改保和殿)。殿试前排次之所，崇祯朝日后殿试多于此。', location: '紫禁城中轴·中', maintainCost: 2000, builtYear: 1420, level: 2, status: 'intact', subHalls: [], isHistorical: true },
+          // ═══ 辅殿 (type=official/administration) ═══
+          { id: 'wuying', name: '武英殿', type: 'administration', function: '皇帝斋居·赐宴·刻书处(武英殿本)', description: '外朝西路。崇祯日后于此接见辅臣经筵。清代为武英殿修书处。', location: '紫禁城西路·外朝', maintainCost: 1200, builtYear: 1420, level: 2, status: 'intact', subHalls: [], isHistorical: true },
+          { id: 'wenhua', name: '文华殿', type: 'administration', function: '皇帝经筵·皇太子读书处', description: '外朝东路。皇帝举行经筵大典之所。明初曾为皇太子居所。', location: '紫禁城东路·外朝', maintainCost: 1200, builtYear: 1420, level: 2, status: 'intact', subHalls: [], isHistorical: true },
+          { id: 'wenyuange', name: '文渊阁', type: 'library', function: '内阁办公·藏《永乐大典》正本·票拟大政', description: '文华殿后。明代内阁大学士(黄立极/施凤来/张瑞图/李国{木普})票拟之地。藏书十万卷。', location: '紫禁城东路', maintainCost: 1000, builtYear: 1420, level: 2, status: 'intact', subHalls: [], isHistorical: true },
+          // ═══ 内廷三宫 ═══
+          { id: 'qianqing', name: '乾清宫', type: 'main_hall', function: '皇帝日常起居+批阅奏疏+召见重臣+斋宿', description: '内廷正殿·明代帝寝所在。朱由检即位后居此，夜不敢食御膳，怀麦饼防鸩。殿内有"敬天法祖"匾。', location: '紫禁城中轴·中后', maintainCost: 3500, builtYear: 1420, level: 1, status: 'intact', subHalls: [
+              { id: 'nuange', name: '东暖阁', role: 'main', capacity: 10, occupants: ['朱由检'], rankRestriction: ['皇帝'] },
+              { id: 'xinuange', name: '西暖阁', role: 'side', capacity: 8, occupants: [], rankRestriction: ['皇帝', '内阁大学士'] },
+              { id: 'hongde', name: '弘德殿', role: 'attached', capacity: 6, occupants: [], rankRestriction: ['皇帝读书'] },
+              { id: 'zhaoren', name: '昭仁殿', role: 'attached', capacity: 6, occupants: [], rankRestriction: [] }
+            ], isHistorical: true },
+          { id: 'jiaotai', name: '交泰殿', type: 'ceremonial', function: '存二十五玺·册封命妇·皇后圣寿节庆贺', description: '乾清/坤宁之间。乾隆朝始定"交泰殿"名，明代已有。内藏皇帝之宝等二十五方宝玺。', location: '紫禁城中轴·后中', maintainCost: 800, builtYear: 1420, level: 3, status: 'intact', subHalls: [], isHistorical: true },
+          { id: 'kunning', name: '坤宁宫', type: 'residence', function: '皇后正寝', description: '内廷后殿。周皇后居此。明代皇后正位。崇祯十七年三月周皇后于此自缢殉国。', location: '紫禁城中轴·后', maintainCost: 2500, builtYear: 1420, level: 1, status: 'intact', subHalls: [
+              { id: 'kunningZheng', name: '坤宁宫正殿', role: 'main', capacity: 8, occupants: ['周皇后'], rankRestriction: ['皇后'] }
+            ], isHistorical: true },
+          // ═══ 东六宫 (type=concubine) ═══
+          { id: 'jingren', name: '景仁宫', type: 'concubine', function: '东六宫之一·妃嫔居所', description: '东六宫最北宫。清代后续人出生于此。此时为嫔妃合居之所。', location: '紫禁城内廷·东六宫最北', maintainCost: 1200, builtYear: 1420, level: 3, status: 'intact', subHalls: [
+              { id: 'jingrenZheng', name: '景仁宫正殿', role: 'main', capacity: 4, occupants: [], rankRestriction: ['妃', '嫔'] }
+            ], isHistorical: true },
+          { id: 'chengqian', name: '承乾宫', type: 'concubine', function: '东六宫·贵妃居所', description: '东六宫·袁贵妃居此。日后田贵妃(崇祯元年入宫后)亦居。', location: '紫禁城内廷·东六宫', maintainCost: 1500, builtYear: 1420, level: 2, status: 'intact', subHalls: [
+              { id: 'chengqianZheng', name: '承乾宫正殿', role: 'main', capacity: 4, occupants: ['袁贵妃'], rankRestriction: ['贵妃', '皇贵妃'] }
+            ], isHistorical: true },
+          { id: 'zhongcui', name: '钟粹宫', type: 'concubine', function: '东六宫·妃嫔居所', description: '东六宫中宫之一。明代为太子居所(如朱由校幼时居此)。', location: '紫禁城内廷·东六宫', maintainCost: 1200, builtYear: 1420, level: 3, status: 'intact', subHalls: [
+              { id: 'zhongcuiZheng', name: '钟粹宫正殿', role: 'main', capacity: 4, occupants: [], rankRestriction: ['妃', '嫔'] }
+            ], isHistorical: true },
+          { id: 'yanxi', name: '延禧宫', type: 'concubine', function: '东六宫·妃嫔居所', description: '东六宫最东南。此时空闲。', location: '紫禁城内廷·东六宫', maintainCost: 1000, builtYear: 1420, level: 3, status: 'intact', subHalls: [
+              { id: 'yanxiZheng', name: '延禧宫正殿', role: 'main', capacity: 4, occupants: [], rankRestriction: ['妃', '嫔'] }
+            ], isHistorical: true },
+          { id: 'yonghe', name: '永和宫', type: 'concubine', function: '东六宫·妃嫔居所', description: '东六宫。崇祯田贵妃曾居此(崇祯元年初)。', location: '紫禁城内廷·东六宫', maintainCost: 1200, builtYear: 1420, level: 3, status: 'intact', subHalls: [
+              { id: 'yongheZheng', name: '永和宫正殿', role: 'main', capacity: 4, occupants: [], rankRestriction: ['妃', '嫔'] }
+            ], isHistorical: true },
+          { id: 'jingyang', name: '景阳宫', type: 'concubine', function: '东六宫·妃嫔居所', description: '东六宫最东北。此时空闲。', location: '紫禁城内廷·东六宫', maintainCost: 1000, builtYear: 1420, level: 3, status: 'intact', subHalls: [
+              { id: 'jingyangZheng', name: '景阳宫正殿', role: 'main', capacity: 4, occupants: [], rankRestriction: ['妃', '嫔'] }
+            ], isHistorical: true },
+          // ═══ 西六宫 ═══
+          { id: 'yongshou', name: '永寿宫', type: 'concubine', function: '西六宫·妃嫔居所', description: '西六宫最南宫。万历郑贵妃曾居。此时空闲。', location: '紫禁城内廷·西六宫', maintainCost: 1300, builtYear: 1420, level: 3, status: 'intact', subHalls: [
+              { id: 'yongshouZheng', name: '永寿宫正殿', role: 'main', capacity: 4, occupants: [], rankRestriction: ['贵妃', '妃'] }
+            ], isHistorical: true },
+          { id: 'yikun', name: '翊坤宫', type: 'concubine', function: '西六宫·妃嫔居所', description: '西六宫。万历末期为神宗郑贵妃居所之一。', location: '紫禁城内廷·西六宫', maintainCost: 1300, builtYear: 1420, level: 3, status: 'intact', subHalls: [
+              { id: 'yikunZheng', name: '翊坤宫正殿', role: 'main', capacity: 4, occupants: [], rankRestriction: ['妃', '嫔'] }
+            ], isHistorical: true },
+          { id: 'chuxiu', name: '储秀宫', type: 'concubine', function: '西六宫·妃嫔居所', description: '西六宫。此时空闲。清晚慈禧居此。', location: '紫禁城内廷·西六宫', maintainCost: 1200, builtYear: 1420, level: 3, status: 'intact', subHalls: [
+              { id: 'chuxiuZheng', name: '储秀宫正殿', role: 'main', capacity: 4, occupants: [], rankRestriction: ['妃', '嫔'] }
+            ], isHistorical: true },
+          { id: 'qixiang', name: '启祥宫', type: 'concubine', function: '西六宫·妃嫔居所', description: '西六宫。嘉靖帝生母蒋太后曾居。嘉靖朝改称"启祥宫"。', location: '紫禁城内廷·西六宫', maintainCost: 1200, builtYear: 1420, level: 3, status: 'intact', subHalls: [
+              { id: 'qixiangZheng', name: '启祥宫正殿', role: 'main', capacity: 4, occupants: [], rankRestriction: ['妃', '嫔'] }
+            ], isHistorical: true },
+          { id: 'changchun', name: '长春宫', type: 'concubine', function: '西六宫·妃嫔居所', description: '西六宫。嘉靖朝为"万春宫"。崇祯朝改回"长春宫"。', location: '紫禁城内廷·西六宫', maintainCost: 1200, builtYear: 1420, level: 3, status: 'intact', subHalls: [
+              { id: 'changchunZheng', name: '长春宫正殿', role: 'main', capacity: 4, occupants: [], rankRestriction: ['妃', '嫔'] }
+            ], isHistorical: true },
+          { id: 'xianfu', name: '咸福宫', type: 'concubine', function: '西六宫·妃嫔居所', description: '西六宫最北宫。此时空闲。', location: '紫禁城内廷·西六宫', maintainCost: 1100, builtYear: 1420, level: 3, status: 'intact', subHalls: [
+              { id: 'xianfuZheng', name: '咸福宫正殿', role: 'main', capacity: 4, occupants: [], rankRestriction: ['妃', '嫔'] }
+            ], isHistorical: true },
+          // ═══ 太后·太妃宫 ═══
+          { id: 'cining', name: '慈宁宫', type: 'dowager', function: '太后/太妃居所·受帝朝拜', description: '外西路。嘉靖十五年为母蒋太后建。张懿安皇嫂(熹宗皇后)居此。', location: '紫禁城外西路', maintainCost: 2800, builtYear: 1536, level: 2, status: 'intact', subHalls: [
+              { id: 'ciningZheng', name: '慈宁宫正殿', role: 'main', capacity: 12, occupants: ['张懿安'], rankRestriction: ['太后', '太皇太后', '皇嫂'] }
+            ], isHistorical: true },
+          { id: 'xianan', name: '咸安宫', type: 'dowager', function: '太妃居所·废黜妃嫔禁处', description: '外西路。嘉靖朝曾幽禁废后于此。此时无主。', location: '紫禁城外西路', maintainCost: 1500, builtYear: 1420, level: 3, status: 'intact', subHalls: [], isHistorical: true },
+          { id: 'yinghua', name: '英华殿', type: 'religious', function: '太后礼佛·供佛像经卷', description: '外西路。供奉佛像。太后太妃日常礼佛之所。', location: '紫禁城外西路·北', maintainCost: 800, builtYear: 1420, level: 3, status: 'intact', subHalls: [], isHistorical: true },
+          // ═══ 御花园 ═══
+          { id: 'yuhuayuan', name: '御花园', type: 'garden', function: '皇家园林·四时游赏', description: '坤宁宫后。古柏假山亭台。钦安殿居园正中。', location: '紫禁城中轴·最北', maintainCost: 2000, builtYear: 1420, level: 2, status: 'intact', subHalls: [
+              { id: 'qinan', name: '钦安殿', role: 'main', capacity: 6, occupants: [], rankRestriction: [] },
+              { id: 'wanchunting', name: '万春亭', role: 'attached', capacity: 4, occupants: [], rankRestriction: [] },
+              { id: 'qianqiuting', name: '千秋亭', role: 'attached', capacity: 4, occupants: [], rankRestriction: [] }
+            ], isHistorical: true },
+          // ═══ 皇城主要衙门(属皇城内但紫禁城外) ═══
+          { id: 'silijian', name: '司礼监·值房', type: 'office', function: '宦官首衙·批红+东厂', description: '紫禁城内设值房；外廷宦官二十四衙门之首。魏忠贤权力中心。王体乾掌印。', location: '紫禁城内·乾清门西', maintainCost: 1500, builtYear: 1420, level: 2, status: 'intact', subHalls: [], isHistorical: true },
+          { id: 'shangbaoSi', name: '尚宝司', type: 'office', function: '掌二十五宝玺', description: '交泰殿之下属衙门，监管皇帝之宝/制诰之宝/敕命之宝等。', location: '紫禁城内·交泰殿侧', maintainCost: 500, builtYear: 1420, level: 4, status: 'intact', subHalls: [], isHistorical: true },
+          { id: 'zongrenfu', name: '宗人府', type: 'official', function: '管理皇族宗室·修玉牒', description: '皇城内·端门东。宗人令(空缺)总之。经历司掌档案。', location: '皇城·端门东', maintainCost: 1500, builtYear: 1420, level: 3, status: 'intact', subHalls: [], isHistorical: true },
+          { id: 'taimiao', name: '太庙', type: 'ceremonial', function: '皇室宗庙·祀列祖列宗', description: '端门东南。永乐迁都始建。神主洪武至熹宗祧庙。岁时致祭。', location: '皇城·端门东南', maintainCost: 3000, builtYear: 1420, level: 1, status: 'intact', subHalls: [], isHistorical: true },
+          { id: 'shejiTan', name: '社稷坛', type: 'ceremonial', function: '祀社(土神)稷(谷神)', description: '端门西南。五色土坛。春秋仲月致祭。', location: '皇城·端门西南', maintainCost: 2000, builtYear: 1420, level: 2, status: 'intact', subHalls: [], isHistorical: true },
+          // ═══ 其他(部分损坏) ═══
+          { id: 'huangshicheng', name: '皇史宬', type: 'library', function: '存《明实录》副本·历朝宝训', description: '嘉靖十三年建。铜皮石箱藏实录。明天启四年以来实录正在编撰中。', location: '皇城·东华门外', maintainCost: 600, builtYear: 1536, level: 2, status: 'intact', subHalls: [], isHistorical: true }
         ]
       },
 
@@ -3103,17 +3173,143 @@
       ],
 
       // ──── 后宫体系 ────
-      harem: {
-        enabled: true,
-        rankOrder: ['皇后', '皇贵妃', '贵妃', '妃', '嫔', '贵人', '常在', '答应'],
-        consorts: [
-          { name: '周皇后', rank: '皇后', palace: '坤宁宫', favor: 85, children: 0, note: '正宫。贤淑节俭。' },
-          { name: '袁贵妃', rank: '贵妃', palace: '承乾宫', favor: 70, children: 0, note: '温顺体弱。' }
-          // 田贵妃将于崇祯元年后入宫
+      // ──── 后宫配置（编辑器 scriptData.haremConfig · 对齐 editor-game-systems.js _haremRankModal） ────
+      haremConfig: {
+        succession: 'eldest_legitimate',  // 明代嫡长子继承制
+        successionNote: '《皇明祖训》明定：有嫡立嫡，无嫡立长。但"争国本"万历朝已乱此制；光宗泰昌+熹宗天启+思宗崇祯皆非严格嫡出',
+        haremDescription:
+          '明代后宫制度相对清代简朴。不设常在/答应等低位，以"皇后-皇贵妃-贵妃-妃-嫔-昭仪/婕妤/美人/才人-选侍-淑女/宫女子"为纲。' +
+          '皇贵妃乃永乐朝新设。嘉靖朝定"贵妃"冠字。神宗万历朝郑贵妃专宠以致"争国本"风波。' +
+          '宫中设六局一司(尚宫/尚仪/尚服/尚食/尚寝/尚功局+宫正司)管理宫务，皆宫女任职无宦官。' +
+          '天启末熹宗无嗣，由信邸朱由检入继；其时周、袁二位妃嫔随同入宫。',
+        motherClanSystem:
+          '明代"外戚之祸"较唐汉为轻。后妃母族原则不封爵重职、不得干政。然神宗母李太后之父李伟封武清伯、熹宗乳母客氏父封侯，皆破例。' +
+          '帝岳家可荫子入锦衣卫世袭指挥使(正三品)。然不得入阁、不得任尚书。宗人府+内阁+礼部联合管束。',
+        rankSystem: [
+          {
+            id: 'huanghou', name: '皇后', level: 1, maxCount: 1, icon: '👑',
+            alias: ['皇后娘娘', '国母', '中宫'], selfAddress: '本宫/哀家(丧帝后)',
+            creationDynasty: '先秦至今', canBearHeir: true,
+            stipend: { silver: 1000, rice: 100, cloth: 50 }, servantCount: 300,
+            dressCode: '凤冠霞帔·九龙四凤冠·织金大红鞠衣·祎衣',
+            residenceLevel: 'main', motherClanInfluence: 0.6,
+            privileges: ['中宫统摄六宫', '与帝并册天地', '册封母族(父封伯/兄弟荫锦衣卫)', '祀先蚕坛', '册立太子盖宝'],
+            rituals: ['元旦朝贺', '帝后郊祀随行', '亲蚕礼', '受百官朝贺'],
+            note: '周皇后居此位。'
+          },
+          {
+            id: 'huangguifei', name: '皇贵妃', level: 2, maxCount: 1, icon: '🌸',
+            alias: ['皇贵妃娘娘'], selfAddress: '本宫',
+            creationDynasty: '明·永乐', canBearHeir: true,
+            stipend: { silver: 800, rice: 72, cloth: 40 }, servantCount: 80,
+            dressCode: '金龙凤冠·织金翟衣',
+            residenceLevel: 'main', motherClanInfluence: 0.5,
+            privileges: ['副后·摄六宫事', '仅次于皇后', '子女有继承权', '母族赐恩'],
+            rituals: ['元旦朝贺', '册封时百官朝贺'],
+            note: '当前空缺。明代永乐朝首设。崇祯朝田妃后进至此位(崇祯八年晋皇贵妃)。'
+          },
+          {
+            id: 'guifei', name: '贵妃', level: 3, maxCount: 4, icon: '🌺',
+            alias: ['贵妃娘娘'], selfAddress: '本宫',
+            creationDynasty: '南北朝始·明沿用', canBearHeir: true,
+            stipend: { silver: 500, rice: 48, cloth: 30 }, servantCount: 50,
+            dressCode: '金凤冠·鞠衣',
+            residenceLevel: 'main', motherClanInfluence: 0.4,
+            privileges: ['独居一宫', '子女可入继', '嘉靖朝始许加"贵"字于妃号'],
+            rituals: ['元旦朝贺', '册封受礼'],
+            note: '袁贵妃居此位。明代可有多位贵妃。万历郑贵妃为专宠之例。'
+          },
+          {
+            id: 'fei', name: '妃', level: 4, maxCount: 12, icon: '🌷',
+            alias: ['X妃娘娘(冠号)'], selfAddress: '本宫',
+            creationDynasty: '先秦', canBearHeir: true,
+            stipend: { silver: 300, rice: 36, cloth: 20 }, servantCount: 30,
+            dressCode: '银凤冠·鞠衣',
+            residenceLevel: 'main', motherClanInfluence: 0.35,
+            privileges: ['独居一宫或与嫔合居', '子女可入继', '自封号前冠字如"贤/端/惠"等'],
+            rituals: ['元旦朝贺'],
+            note: '东西六宫之主。每宫一妃。'
+          },
+          {
+            id: 'pin', name: '嫔', level: 5, maxCount: 9, icon: '🍀',
+            alias: ['X嫔'], selfAddress: '嫔妾',
+            creationDynasty: '先秦', canBearHeir: true,
+            stipend: { silver: 200, rice: 24, cloth: 15 }, servantCount: 16,
+            dressCode: '翟衣·无凤冠·戴珠翠',
+            residenceLevel: 'side', motherClanInfluence: 0.25,
+            privileges: ['侧殿居住', '子女有继承权(稀少)'],
+            rituals: ['元旦随皇后朝贺'],
+            note: '嫔位多合居一宫。清代嫔定制 9 人，明实不拘。'
+          },
+          {
+            id: 'zhaoyi', name: '昭仪/婕妤/美人/才人', level: 6, maxCount: 20, icon: '🌼',
+            alias: ['昭仪', '婕妤', '美人', '才人'], selfAddress: '妾',
+            creationDynasty: '汉·唐沿用·明并行', canBearHeir: true,
+            stipend: { silver: 150, rice: 18, cloth: 10 }, servantCount: 8,
+            dressCode: '常服·珠翠不及嫔',
+            residenceLevel: 'shared', motherClanInfluence: 0.15,
+            privileges: ['合居殿宇', '子女登基可追封母'],
+            rituals: ['元旦随皇后朝贺'],
+            note: '明代几种并列。昭仪本汉制，明偶用。"美人"最常用，"才人"亦有。'
+          },
+          {
+            id: 'guiren', name: '贵人', level: 7, maxCount: 999, icon: '🌱',
+            alias: ['贵人'], selfAddress: '妾',
+            creationDynasty: '东汉', canBearHeir: true,
+            stipend: { silver: 80, rice: 12, cloth: 6 }, servantCount: 4,
+            dressCode: '常服',
+            residenceLevel: 'shared', motherClanInfluence: 0.08,
+            privileges: ['合居'],
+            rituals: [],
+            note: '低位嫔御。数量不定。明代实际使用较清朝少。'
+          },
+          {
+            id: 'xuanshi', name: '选侍/淑女', level: 8, maxCount: 999, icon: '🌾',
+            alias: ['选侍', '淑女'], selfAddress: '奴婢/妾',
+            creationDynasty: '明', canBearHeir: true,
+            stipend: { silver: 30, rice: 6, cloth: 3 }, servantCount: 2,
+            dressCode: '简朴宫衣',
+            residenceLevel: 'shared', motherClanInfluence: 0.05,
+            privileges: ['合居', '受宠可进位'],
+            rituals: [],
+            note: '光宗遗李选侍即此位。"移宫案"主角。'
+          },
+          {
+            id: 'gongnuzi', name: '宫人/宫女子', level: 9, maxCount: 9999, icon: '🕊',
+            alias: ['宫人', '宫女'], selfAddress: '奴婢',
+            creationDynasty: '先秦', canBearHeir: true,
+            stipend: { silver: 12, rice: 3, cloth: 1 }, servantCount: 0,
+            dressCode: '宫婢衣',
+            residenceLevel: 'shared', motherClanInfluence: 0.02,
+            privileges: [],
+            rituals: [],
+            note: '宫中使女。受幸或生子者升位。客氏即原熹宗乳母。'
+          }
         ],
-        _pendingEntries: [
-          { turn: 8, name: '田贵妃', rank: '贵妃', note: '扬州人，崇祯元年入宫。精琴棋书画，后为崇祯最宠。原史崇祯十五年病卒。' }
-        ]
+        // 六局一司（明代宫务管理体系·宫女任职）
+        sixBureaus: [
+          { name: '尚宫局', leader: '尚宫', rank: '正五品', staff: '司记/司言/司簿/司闱等', duties: '宣令·奏启·关防·出入' },
+          { name: '尚仪局', leader: '尚仪', rank: '正五品', staff: '司籍/司乐/司宾/司赞等', duties: '礼仪·乐舞·宾客·奏章' },
+          { name: '尚服局', leader: '尚服', rank: '正五品', staff: '司宝/司衣/司饰/司仗等', duties: '宝玺·衣服·珠翠·仪仗' },
+          { name: '尚食局', leader: '尚食', rank: '正五品', staff: '司膳/司酝/司药/司饎等', duties: '膳食·酒酿·医药·斋醮' },
+          { name: '尚寝局', leader: '尚寝', rank: '正五品', staff: '司设/司舆/司苑/司灯等', duties: '床帐·车舆·园苑·灯烛' },
+          { name: '尚功局', leader: '尚功', rank: '正五品', staff: '司制/司珍/司彩/司计等', duties: '衣工·金玉·彩帛·赏赐' },
+          { name: '宫正司', leader: '宫正', rank: '正五品', staff: '司正/典正/女史', duties: '宫人罪罚·戒令·纠察' }
+        ],
+        // 当前在世的妃嫔（开局状态）
+        initialConsorts: [
+          { name: '周皇后', rank: 'huanghou', rankName: '皇后', palace: '坤宁宫', favor: 85, children: 0, age: 16, motherClan: '周奎(嘉定伯·已封)', note: '正宫。苏州人。贤淑节俭。崇祯十七年三月自缢殉国。' },
+          { name: '袁贵妃', rank: 'guifei', rankName: '贵妃', palace: '承乾宫(承乾宫·东六宫)', favor: 70, children: 0, age: 17, note: '随朱由检自信邸入宫。温顺体弱。崇祯十七年兵陷自缢未死后不知所终。' }
+        ],
+        pendingEntries: [
+          { turn: 8, name: '田贵妃', rank: 'guifei', rankName: '贵妃', note: '扬州人，崇祯元年入宫。精琴棋书画，父田弘遇。崇祯朝最宠，累进至皇贵妃(崇祯八年)。崇祯十五年病卒。' },
+          { turn: 12, name: '张嫔', rank: 'pin', rankName: '嫔', note: '崇祯二年入宫，生皇长子朱慈烺(将立太子)。' }
+        ],
+        eunuchSystem: {
+          totalCount: 9000,  // 明末宦官数(万历朝峰值 2 万)
+          topSupervisors: '司礼监(魏忠贤)·御马监(涂文辅)·内官监·东厂',
+          note: '明宦官分十二监(司礼/御马/内官/司设/尚衣/尚膳/神宫/尚宝/印绶/直殿/都知/内承运库)+四司+八局(二十四衙门)。女宫六局一司独立不受宦官辖。'
+        }
       },
 
       // ──── 驿站系统 ────
