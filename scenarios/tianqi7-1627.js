@@ -599,7 +599,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v12-2026.04.19-divisions';
+  var SCENARIO_VERSION = 'v13-2026.04.19-military';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -980,19 +980,88 @@
           { name: '宁锦大捷', type: '过往胜仗', description: '天启七年五月袁崇焕据宁锦退皇太极。然阉党论功偏袒王之臣。' },
           { name: '奢安之乱', type: '土司叛乱', description: '天启元年四川永宁土司奢崇明联合贵州水西安邦彦反叛，至天启七年基本平定。' },
           { name: '江都盟', type: '外敌条约', description: '天启七年春后金皇太极迫朝鲜仁祖定兄弟之盟。明失一东藩屏。' },
-          { name: '万历三大征', type: '远代战绩', description: '宁夏哱拜之乱、播州杨应龙之乱、朝鲜抗倭（援朝）。三役皆胜，然财政益竭。' }
+          { name: '宁夏哱拜之乱(1592)', type: '万历三大征·其一', description: '宁夏副总兵哱拜反叛。李如松统兵平之。半年而平。' },
+          { name: '播州杨应龙之乱(1600)', type: '万历三大征·其二', description: '贵州播州宣慰使杨应龙叛。李化龙八路进剿，海龙囤覆。消耗二百余万两。' },
+          { name: '援朝抗倭(1592-1598)', type: '万历三大征·其三·最烈', description: '丰臣秀吉两次侵朝。明军七年救援，耗银 800 万两。李如松、麻贵、陈璘并名。' },
+          { name: '抚顺陷落(1618)', type: '后金崛起', description: '努尔哈赤七大恨誓师。抚顺总兵李永芳降。广宁/开原/铁岭相继失守。' },
+          { name: '萨尔浒之败(1619)', type: '辽东灾难', description: '杨镐四路进剿，三路败没。刘綎战死。明失辽东主动。' },
+          { name: '广宁之变(1622)', type: '辽东再败', description: '王化贞弃广宁四十卫所退关内。熊廷弼受连累。' },
+          { name: '奢安之乱(1621-1629)', type: '土司叛乱·未竟', description: '永宁土司奢崇明+水西安邦彦联叛。川贵震动。耗千万两。将于崇祯二年平。' },
+          { name: '柳河之败(1625)', type: '辽东小败', description: '孙承宗部马世龙误渡柳河遇伏败。孙督师被阉党排挤下台。' },
+          { name: '徐鸿儒白莲教叛(1622)', type: '民变·已平', description: '山东郓城徐鸿儒以白莲教名义聚众数万。不久被剿。' },
+          { name: '江都盟(1627 春)', type: '外敌条约·新', description: '后金皇太极迫朝鲜仁祖定兄弟之盟。明失一东藩屏。' }
         ],
         armies: [
-          { name: '京营·五军营', commander: '(督京营)崔呈秀', size: 60000, type: '步骑混合', morale: 48, supply: 60, location: '京师', equipment: ['鸟铳', '长矛', '纸甲'], desc: '名员 12 万实 6 万，多老弱空额。' },
-          { name: '关宁军主力', commander: '(经略)王之臣', size: 80000, type: '骑兵为主', morale: 65, supply: 52, location: '宁远-锦州', equipment: ['红衣大炮', '鸟铳', '明盔', '棉甲'], desc: '辽东精锐。孙承宗所筑防线核心。' },
-          { name: '宁远卫', commander: '满桂', size: 15000, type: '骑兵', morale: 72, supply: 55, location: '宁远', equipment: ['鸟铳', '长矛', '佛朗机', '铁甲'] },
-          { name: '山海关军', commander: '赵率教', size: 20000, type: '步骑混合', morale: 70, supply: 60, location: '山海关', equipment: ['红衣大炮', '鸟铳', '棉甲'] },
-          { name: '东江镇军', commander: '毛文龙', size: 30000, type: '步兵·海岛', morale: 55, supply: 35, location: '皮岛', equipment: ['鸟铳', '藤牌', '长矛'], desc: '冒饷严重。实兵约三万，报十万。' },
-          { name: '宣府镇军', commander: '(宣府总兵)侯世禄', size: 28000, type: '步兵·城守', morale: 55, supply: 50, location: '宣府', equipment: ['鸟铳', '长矛'] },
-          { name: '大同镇军', commander: '(大同总兵)渠家祯', size: 35000, type: '步骑混合', morale: 54, supply: 48, location: '大同', equipment: ['鸟铳', '长矛'] },
-          { name: '延绥镇军', commander: '(延绥总兵)吴自勉', size: 25000, type: '骑兵', morale: 50, supply: 40, location: '延绥', equipment: ['弓矢', '长矛'] },
-          { name: '蓟州镇军', commander: '(蓟州总兵)朱梅', size: 28000, type: '步兵', morale: 52, supply: 50, location: '蓟州', equipment: ['鸟铳', '长矛'] }
-        ]
+          // ─── 京营 ───
+          { name: '京营·五军营', commander: '(督京营)崔呈秀', size: 60000, type: '步骑混合', morale: 48, supply: 60, location: '京师', equipment: ['鸟铳', '长矛', '纸甲', '佛朗机'], desc: '名员 12 万实 6 万，多老弱空额。阉党把持。', units: ['五军营·中军', '五军营·左军', '五军营·右军', '五军营·前军', '五军营·后军'], combatRecord: '久未实战' },
+          { name: '京营·三千营', commander: '(与五军营同督)', size: 8000, type: '骑兵·侍卫', morale: 52, supply: 65, location: '京师', equipment: ['弓矢', '长矛', '铁甲'], desc: '侍卫骑兵。扈驾兼缉察。' },
+          { name: '京营·神机营', commander: '', size: 12000, type: '火器·炮兵', morale: 55, supply: 62, location: '京师', equipment: ['神机炮', '火铳', '三眼铳', '佛朗机'], desc: '火器精锐。守九门。' },
+          // ─── 关宁 ───
+          { name: '关宁军主力', commander: '(经略)王之臣', size: 80000, type: '骑兵为主', morale: 65, supply: 52, location: '宁远-锦州', equipment: ['红衣大炮', '鸟铳', '明盔', '棉甲', '三眼铳'], desc: '辽东精锐。孙承宗所筑防线核心。', units: ['宁远卫', '锦州卫', '松山卫', '塔山卫', '杏山卫', '大凌河卫', '小凌河卫'], combatRecord: '1626 宁远大捷击退努尔哈赤·1627 宁锦大捷击退皇太极' },
+          { name: '宁远卫·满桂部', commander: '满桂', size: 15000, type: '骑兵·蒙古裔', morale: 72, supply: 55, location: '宁远', equipment: ['鸟铳', '长矛', '佛朗机', '铁甲', '蒙古马'], combatRecord: '宁远大战亲督城头' },
+          { name: '宁远副总兵·祖氏家丁', commander: '祖大寿', size: 3000, type: '家丁精锐·骑兵', morale: 88, supply: 80, location: '宁远', equipment: ['上等棉甲', '明盔', '强弓', '宝剑'], desc: '祖氏三代辽东世将。战力冠三军。', combatRecord: '宁远/宁锦皆骨干' },
+          { name: '山海关军', commander: '赵率教', size: 20000, type: '步骑混合', morale: 70, supply: 60, location: '山海关', equipment: ['红衣大炮', '鸟铳', '棉甲'], units: ['前屯卫', '中前所', '中后所'], combatRecord: '天下第一关守军' },
+          // ─── 东江 ───
+          { name: '东江镇军', commander: '毛文龙', size: 30000, type: '步兵·海岛游击', morale: 55, supply: 35, location: '皮岛', equipment: ['鸟铳', '藤牌', '长矛'], desc: '冒饷严重。实兵约三万，报十万。与朝鲜边境接壤。', units: ['皮岛本营', '鹿岛', '身弥岛', '云从岛'], combatRecord: '袭扰后金后方屡奏功，但亦屡假功' },
+          { name: '东江水师', commander: '(毛文龙节制)', size: 4000, type: '水军', morale: 50, supply: 40, location: '皮岛', equipment: ['福船', '沙船', '红夷炮'], desc: '辽海与朝鲜间小股水师。' },
+          // ─── 九边 ───
+          { name: '宣府镇军', commander: '侯世禄', size: 28000, type: '步兵·城守', morale: 55, supply: 50, location: '宣府', equipment: ['鸟铳', '长矛'], units: ['宣府本镇', '怀来卫', '万全都司'], combatRecord: '防蒙古' },
+          { name: '大同镇军', commander: '渠家祯', size: 35000, type: '步骑混合', morale: 54, supply: 48, location: '大同', equipment: ['鸟铳', '长矛', '铁甲'], combatRecord: '俺答汗和议后防蒙古' },
+          { name: '山西镇军', commander: '(空缺·将补)', size: 22000, type: '步兵', morale: 50, supply: 45, location: '太原', equipment: ['鸟铳', '长矛'] },
+          { name: '延绥镇军', commander: '吴自勉', size: 25000, type: '骑兵', morale: 50, supply: 40, location: '榆林', equipment: ['弓矢', '长矛', '棉甲'], desc: '控河套。兵马多陕北之人，日后民变即出其营。' },
+          { name: '宁夏镇军', commander: '(空缺)', size: 22000, type: '骑兵', morale: 48, supply: 42, location: '宁夏', equipment: ['弓矢', '长矛'] },
+          { name: '甘肃镇军', commander: '(空缺)', size: 22000, type: '骑兵', morale: 52, supply: 45, location: '甘州', equipment: ['弓矢', '长矛'] },
+          { name: '固原镇军', commander: '(三边总督武之望直辖)', size: 20000, type: '步骑混合', morale: 53, supply: 46, location: '固原', equipment: ['鸟铳', '长矛'] },
+          { name: '蓟州镇军', commander: '朱梅', size: 28000, type: '步兵', morale: 52, supply: 50, location: '蓟州', equipment: ['鸟铳', '长矛'], units: ['蓟镇本部', '昌平卫', '密云卫', '遵化卫'] },
+          // ─── 地方 ───
+          { name: '四川白杆兵', commander: '秦良玉', size: 6000, type: '土司兵·长杆步兵', morale: 78, supply: 65, location: '四川石柱·征援陕西', equipment: ['白杆长矛', '藤牌', '弓箭'], desc: '石柱宣抚使秦良玉(女将)所统。参万历三大征、奢安之乱、勤王。朝廷忠义典范。', combatRecord: '奢安之乱中屡破土司军' },
+          { name: '广西狼兵', commander: '(各土司首领)', size: 8000, type: '土司兵·山地步兵', morale: 70, supply: 55, location: '广西·援四川', equipment: ['藤牌', '鸟铳', '钩镰枪'], desc: '广西土司壮丁。山地骁勇。' },
+          // ─── 水师 ───
+          { name: '福建水师', commander: '(俞咨皋)', size: 5000, type: '水军', morale: 58, supply: 55, location: '福建沿海', equipment: ['福船', '苍山船', '海沧船', '红夷炮'], desc: '明末水师主力之一。防倭防荷。', combatRecord: '1625 料罗湾战荷兰(有限胜)' },
+          { name: '广东水师', commander: '', size: 3500, type: '水军', morale: 52, supply: 55, location: '广东沿海', equipment: ['广船', '鸟铳'], desc: '防倭防荷防海盗。' },
+          { name: '郑芝龙所部(将归附)', commander: '郑芝龙', size: 20000, type: '海商+海盗', morale: 75, supply: 80, location: '福建沿海·台海', equipment: ['福船', '红夷炮', '鸟铳', '佛朗机'], desc: '崇祯元年即将受抚为海防游击。战力远超福建官军水师。', combatRecord: '1624 助荷取澎湖逐退红夷·1627 击败许心素等诸海盗' },
+          // ─── 边外羁縻 ───
+          { name: '辽东土官·女真归附部', commander: '(各酋)', size: 2000, type: '骑兵·羁縻', morale: 55, supply: 40, location: '辽东·辽西诸卫', equipment: ['弓矢', '马'], desc: '海西/建州残部未归附后金者。现摇摆。' }
+        ],
+        // ─── 补充：武器库存/征兵/军政 ───
+        weaponArsenal: {
+          redWesternCannon: 80,  // 红衣大炮
+          foLangJi: 520,          // 佛朗机(铜铸小炮)
+          niaoChong: 85000,       // 鸟铳
+          sanYanChong: 18000,     // 三眼铳
+          shenJiChong: 3000,      // 神机铳
+          heavyArtillery: 12,     // 大将军炮
+          crossbow: 42000,        // 弩
+          bow: 320000,            // 弓
+          ironArmor: 58000,       // 铁甲
+          cottonArmor: 240000,    // 棉甲
+          paperArmor: 180000,     // 纸甲
+          halberd: 80000,         // 戟/戈
+          sword: 420000,          // 刀剑
+          lance: 980000,          // 长矛枪
+          warHorse: 120000,       // 战马
+          shipFu: 240,            // 福船
+          shipShaXiaCang: 180     // 沙船+苍山+海沧等小船
+        },
+        conscriptionSystem: {
+          primary: '卫所世袭',
+          secondary: '募兵',
+          tertiary: '征调土司',
+          note: '明中叶后卫所虚化，实依募兵。募兵由京营/九边地方招募，年饷约 18 两银。'
+        },
+        militaryPolicies: {
+          currentDoctrine: '守长城/堡垒·倚红衣炮·骑兵机动反击',
+          supplyDoctrine: '漕粮+屯田+开中(盐引换粮)',
+          commandStructure: '文臣节制武将(总督/巡抚节制总兵)·宦官监军',
+          strategicIntent: '守关宁锦防线；经东江镇扰后金后方；联察哈尔；抚蒙古诸部'
+        },
+        totalForces: {
+          onPaper: 800000,
+          actuallyAvailable: 380000,
+          eliteCore: 65000,   // 家丁+关宁铁骑+戚家军遗部+白杆兵
+          noShow: 420000,     // 虚额/老弱/逃兵
+          avgArrearsMonths: 7 // 平均欠饷月数
+        }
       },
 
       // ──── 历史文物/重器（P.items） ────
