@@ -544,6 +544,87 @@
     if (!Array.isArray(c.skills)) c.skills = [];
     if (!Array.isArray(c.dialogues)) c.dialogues = [];
     if (!Array.isArray(c.rels)) c.rels = [];
+
+    // ─── 真实历史人物标记（本剧本全部 46 角色皆史实，非虚构）───
+    if (c.isHistorical === undefined) c.isHistorical = true;
+    if (c.type === undefined || c.type === '') c.type = 'historical';  // 对齐编辑器默认
+
+    // ─── persona 字段（编辑器用 persona 键；我用 aiPersonaText。镜像同步）───
+    if (!c.persona && c.aiPersonaText) c.persona = c.aiPersonaText;
+
+    // ─── 生辰（birthTime 空则从 birthYear 推）───
+    if (!c.birthTime && c.birthYear) c.birthTime = String(c.birthYear) + '年';
+
+    // ─── occupation 从 officialTitle 或 role 补 ───
+    if (!c.occupation) {
+      if (c.isPlayer || c.isRoyal) c.occupation = '皇室';
+      else if ((c.officialTitle||'').match(/尚书|大学士|侍郎|御史|知府|知州|知县/)) c.occupation = '文官';
+      else if ((c.officialTitle||'').match(/总兵|都督|将军|经略|督师|总督/)) c.occupation = '武官';
+      else if ((c.officialTitle||'').match(/太监/)) c.occupation = '宦官';
+      else if ((c.officialTitle||'').match(/皇后|贵妃|选侍/)) c.occupation = '后妃';
+      else if ((c.family||'').indexOf('爱新觉罗') >= 0) c.occupation = '后金贵族';
+      else if ((c.faction||'') === '陕北饥民') c.occupation = '饥民/逃卒';
+      else if ((c.faction||'') === '郑氏海商') c.occupation = '海商';
+      else c.occupation = '';
+    }
+
+    // ─── class（社会阶层）映射 ───
+    if (!c.class) {
+      if (c.isRoyal || (c.family||'').indexOf('朱氏') >= 0 || (c.family||'').indexOf('爱新觉罗') >= 0) c.class = '宗室';
+      else if ((c.officialTitle||'').match(/尚书|大学士|侍郎|御史|翰林|主事|知府|知州|知县|巡抚|总督/)) c.class = '士大夫';
+      else if ((c.officialTitle||'').match(/总兵|都督|参将|游击|副总兵/) || (c.faction||'') === '后金' && (c.occupation||'') === '后金贵族') c.class = '军户';
+      else if ((c.officialTitle||'').match(/太监/)) c.class = '士大夫';  // 宦官归士大夫(位同)
+      else if ((c.faction||'') === '郑氏海商') c.class = '商人';
+      else if ((c.faction||'') === '陕北饥民') c.class = '佃农与流民';
+      else c.class = '';
+    }
+
+    // ─── partyRank/partyInfluence 补 ───
+    if (c.party && !c.partyRank) {
+      if (c.name === '魏忠贤') c.partyRank = '党魁';
+      else if (c.name === '韩爌') c.partyRank = '党魁';
+      else if ((c.traitIds||[]).indexOf('east_lin_core') >= 0) c.partyRank = '骨干';
+      else if ((c.traitIds||[]).indexOf('yan_accomplice') >= 0) c.partyRank = '附党';
+      else c.partyRank = '成员';
+    }
+    if (c.party && c.partyInfluence == null) {
+      c.partyInfluence = c.name === '魏忠贤' ? 95
+                      : c.name === '崔呈秀' ? 82
+                      : c.name === '韩爌' ? 78
+                      : c.name === '黄立极' ? 65
+                      : 30;
+    }
+
+    // ─── familyStatus 镜像 familyTier → {门第/郡望/声望} ───
+    if (!c.familyStatus) {
+      var _menDi = {imperial:'皇族', noble:'世家', gentry:'士族', common:'寒门'}[c.familyTier] || '寒门';
+      c.familyStatus = { '门第': _menDi, '郡望': (c.family||'').split('·')[1] || '', '声望': c.clanPrestige || 50 };
+    }
+
+    // ─── 父母推断（若 familyMembers 里有 relation:父/母 则提取） ───
+    if (!c.father && Array.isArray(c.familyMembers)) {
+      var _f = c.familyMembers.find(function(m){ return m.relation === '父' || m.relation === '父亲' || (m.relation||'').indexOf('父') === 0; });
+      if (_f) c.father = _f.name;
+    }
+    if (!c.mother && Array.isArray(c.familyMembers)) {
+      var _m = c.familyMembers.find(function(m){ return m.relation === '母' || m.relation === '母亲' || (m.relation||'').indexOf('母') === 0; });
+      if (_m) c.mother = _m.name;
+    }
+
+    // ─── 后妃专项：spouseRank ───
+    if (c.isRoyal && c.gender === '女' && !c.spouseRank) {
+      if ((c.title||'').indexOf('皇后') >= 0) c.spouseRank = 'empress';
+      else if ((c.title||'').indexOf('贵妃') >= 0) c.spouseRank = 'consort_noble';
+      else if ((c.title||'').indexOf('妃') >= 0) c.spouseRank = 'consort';
+      else if ((c.title||'').indexOf('嫔') >= 0) c.spouseRank = 'concubine';
+      else c.spouseRank = '';
+    }
+
+    // ─── wuchangOverride 兜空 ───
+    if (!c.wuchangOverride) c.wuchangOverride = { '仁': null, '义': null, '礼': null, '智': null, '信': null };
+
+    // ─── portrait 兜空字符串 ───
+    if (!c.portrait) c.portrait = '';
     // 籍贯/民族/信仰/门第
     if (!c.ethnicity) c.ethnicity = (c.faction === '后金') ? '女真' : (c.faction === '察哈尔' ? '蒙古' : (c.faction === '朝鲜' ? '朝鲜' : '汉'));
     if (!c.faith) c.faith = (c.faction === '后金' ? '萨满' : (c.faction === '察哈尔' ? '藏传佛教' : (c.faction === '朝鲜' ? '儒教' : '儒')));
@@ -599,7 +680,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v17-2026.04.19-fac-class-editor';
+  var SCENARIO_VERSION = 'v18-2026.04.19-char-historical';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
