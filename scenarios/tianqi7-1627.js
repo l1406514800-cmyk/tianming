@@ -1241,7 +1241,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v35-2026.04.19-schema-align-missing-fields';
+  var SCENARIO_VERSION = 'v36-2026.04.19-houjin-strengthen-military-realism';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -2527,17 +2527,19 @@
           // ═══ 关宁军 ═══
           {
             name: '关宁军主力', armyType: '边军', soldiers: 80000, garrison: '宁远-锦州',
-            quality: '精锐', morale: 65, training: 72, loyalty: 62, control: 78,
+            quality: '精锐(实战兵 3 万·其余辅民)', morale: 65, training: 62, loyalty: 62, control: 78,
             commander: '阎鸣泰', commanderTitle: '辽东经略',
             ethnicity: '汉·蒙古降丁·辽民',
             activity: '边防·守宁锦防线·对后金',
-            equipmentCondition: '优良',
+            equipmentCondition: '优良(战兵)·简陋(辅兵)',
             composition: [
-              { type: '关宁铁骑', count: 10000 },
-              { type: '步兵', count: 48000 },
-              { type: '炮兵', count: 4000 },
-              { type: '家丁亲兵', count: 6000 },
-              { type: '辅兵·工兵', count: 12000 }
+              { type: '关宁铁骑(精锐)', count: 8000 },
+              { type: '战兵·步兵(营兵)', count: 15000 },
+              { type: '炮兵', count: 3000 },
+              { type: '家丁亲兵(将帅私兵)', count: 4500 },
+              { type: '守兵·城戍(半战半屯)', count: 14000 },
+              { type: '辅兵·工兵·马夫', count: 20000 },
+              { type: '民夫·粮丁·杂役', count: 15500 }
             ],
             salary: [
               { resource: '钱', amount: 3000000, unit: '两' },
@@ -2552,7 +2554,8 @@
               { name: '棉甲', count: 45000, condition: '一般' },
               { name: '战马', count: 16000, condition: '一般' }
             ],
-            description: '辽东精锐。孙承宗所筑防线核心，袁崇焕曾倚此。1626 宁远大捷击退努尔哈赤，1627 宁锦大捷击退皇太极。辖宁远/锦州/松山/塔山/杏山/大凌河/小凌河诸卫。年饷约 300 万两，为九边之首。'
+            description:
+              '辽东账面主力 8 万。《明史·袁崇焕传》/《三朝辽事实录》载: 实战兵约 3-3.5 万(关宁铁骑+精锐营兵+家丁)，其余为守兵+辅兵+民夫。孙承宗所筑防线核心，袁崇焕曾倚此。1626 宁远大捷击退努尔哈赤，1627 宁锦大捷击退皇太极。辖宁远/锦州/松山/塔山/杏山/大凌河/小凌河诸卫。年饷约 300 万两，为九边之首。'
           },
           {
             name: '宁远卫·满桂部', armyType: '边军', soldiers: 15000, garrison: '宁远',
@@ -2635,16 +2638,18 @@
           // ═══ 东江 ═══
           {
             name: '东江镇军', armyType: '边军', soldiers: 30000, garrison: '皮岛',
-            quality: '普通', morale: 55, training: 45, loyalty: 50, control: 30,
+            quality: '普通(账面数+冒饷)', morale: 55, training: 40, loyalty: 50, control: 30,
             commander: '毛文龙', commanderTitle: '前军都督·东江总兵',
             ethnicity: '汉·辽民·朝鲜归附',
-            activity: '海岛游击·袭扰后金后方',
+            activity: '海岛游击·袭扰后金后方·冒饷',
             equipmentCondition: '简陋',
             composition: [
-              { type: '步兵', count: 18000 },
-              { type: '水兵', count: 5000 },
-              { type: '游击骑兵', count: 2000 },
-              { type: '辅兵', count: 5000 }
+              { type: '战兵·步兵(实员)', count: 8000 },
+              { type: '水兵', count: 4000 },
+              { type: '游击骑兵', count: 1000 },
+              { type: '家丁', count: 1500 },
+              { type: '辅兵·辽民壮丁', count: 6000 },
+              { type: '民夫·家属·流民(挂名食饷)', count: 9500 }
             ],
             salary: [
               { resource: '钱', amount: 600000, unit: '两' },
@@ -2656,7 +2661,8 @@
               { name: '藤牌', count: 8000, condition: '一般' },
               { name: '长矛', count: 15000, condition: '一般' }
             ],
-            description: '冒饷严重。实兵约 3 万，报十万。驻皮岛(鹿岛/身弥岛/云从岛)，与朝鲜边境接壤。control 仅 30，桀骜独立。'
+            description:
+              '《三朝辽事实录》《崇祯长编》载毛文龙"报十万，实不及三万"。账面 10 万，实发饷之员 3 万，真正战兵约 1-1.5 万。大量辽民/流民挂名食饷。驻皮岛(鹿岛/身弥岛/云从岛)，与朝鲜边境接壤。control 仅 30，桀骜独立。崇祯二年六月袁崇焕矫诏斩于双岛。'
           },
           {
             name: '东江水师', armyType: '水师', soldiers: 4000, garrison: '皮岛',
@@ -2992,7 +2998,178 @@
             ],
             description: '海西/建州残部未归附后金者。现摇摆。朝廷以岁赐+官衔笼络之。'
           },
-          // ═══ 各省卫所（世袭军户·战力低下·仗屯田济饷·长期虚额）═══
+          // ═══ 后金·八旗满洲（《满文老档》《太宗实录》天聪元年 1627 实数）═══
+          // 每旗甲士约 7500(牛录 25×每牛录 300)，加包衣辅兵/家属口约十倍。
+          // 四大贝勒并坐制: 代善(两红)·阿敏(镶蓝)·莽古尔泰(正蓝)·皇太极(两黄)。两白旗此时为杜度/多铎领，多尔衮(14岁)正白旗摄。
+          {
+            name: '后金·两黄旗(汗亲领)', armyType: '自定义', soldiers: 30000, garrison: '沈阳·盛京',
+            quality: '精锐', morale: 92, training: 88, loyalty: 95, control: 95,
+            commander: '皇太极', commanderTitle: '天聪汗·自领两黄旗',
+            ethnicity: '女真(建州·海西)·少数蒙古·汉匠',
+            activity: '盛京宿卫·征伐主力·皇太极亲军',
+            equipmentCondition: '优良',
+            composition: [
+              { type: '甲士·马甲(骑)', count: 9000 },
+              { type: '甲士·步甲', count: 6000 },
+              { type: '包衣·阿哈(辅兵·马夫·火兵)', count: 12000 },
+              { type: '家属·老幼·杂丁', count: 3000 }
+            ],
+            salary: [
+              { resource: '分地·份牛录', amount: 300, unit: '牛录(每牛录三百丁·共 150万亩)' },
+              { resource: '抢掠·贡赋补给', amount: 0, unit: '按功分配' }
+            ],
+            equipment: [
+              { name: '女真弓(强弓)', count: 15000, condition: '优良' },
+              { name: '棉铁复合重甲', count: 14000, condition: '优良' },
+              { name: '镶铁皮盾', count: 12000, condition: '优良' },
+              { name: '长柄钩刀·双刃斧·撒袋', count: 13000, condition: '优良' },
+              { name: '战马(女真蒙古马)', count: 22000, condition: '优良' },
+              { name: '三眼铳·鸟铳(缴获明军)', count: 800, condition: '一般' },
+              { name: '红夷炮(缴获宁远·锦州/1631 始自铸)', count: 8, condition: '一般' }
+            ],
+            description:
+              '天聪元年皇太极亲领两黄旗为后金头号主力。正黄+镶黄合计 15000 甲士。后金最精锐野战骑兵+少数步甲。五十步外箭如暴雨，入阵则长柄钩刀横扫。宁远败前努尔哈赤亲统两黄旗攻城而败(红衣炮教训)。'
+          },
+          {
+            name: '后金·两红旗(代善领)', armyType: '自定义', soldiers: 28000, garrison: '辽阳·沈阳以南',
+            quality: '精锐', morale: 88, training: 85, loyalty: 85, control: 80,
+            commander: '代善', commanderTitle: '大贝勒·礼亲王·正红旗主',
+            ethnicity: '女真', activity: '与两黄共为后金核心战力·1627宁锦之役主攻',
+            equipmentCondition: '优良',
+            composition: [
+              { type: '甲士·马甲', count: 8000 },
+              { type: '甲士·步甲', count: 6000 },
+              { type: '包衣·阿哈', count: 11000 },
+              { type: '家属·老幼', count: 3000 }
+            ],
+            salary: [
+              { resource: '分地·份牛录', amount: 280, unit: '牛录' }
+            ],
+            equipment: [
+              { name: '女真弓', count: 14000, condition: '优良' },
+              { name: '棉铁重甲', count: 13000, condition: '优良' },
+              { name: '长柄钩刀', count: 12000, condition: '优良' },
+              { name: '战马', count: 20000, condition: '优良' }
+            ],
+            description:
+              '代善(努尔哈赤次子)大贝勒四大并坐之首。正红+镶红约 14000 甲士。代善性稳重谨慎，1616 辞让汗位；1627 宁锦之役率两红为主攻锦州。'
+          },
+          {
+            name: '后金·两白旗(多尔衮兄弟·摄)', armyType: '自定义', soldiers: 26000, garrison: '沈阳·铁岭',
+            quality: '精锐', morale: 85, training: 80, loyalty: 80, control: 75,
+            commander: '杜度·多铎·多尔衮(阿巴泰摄)', commanderTitle: '正白旗·镶白旗主',
+            ethnicity: '女真', activity: '沈阳卫戍',
+            equipmentCondition: '优良',
+            composition: [
+              { type: '甲士·马甲', count: 7500 },
+              { type: '甲士·步甲', count: 5500 },
+              { type: '包衣·阿哈', count: 10000 },
+              { type: '家属·老幼', count: 3000 }
+            ],
+            salary: [ { resource: '分地·份牛录', amount: 250, unit: '牛录' } ],
+            equipment: [
+              { name: '女真弓', count: 13000, condition: '优良' },
+              { name: '棉铁重甲', count: 12000, condition: '优良' },
+              { name: '战马', count: 18000, condition: '优良' }
+            ],
+            description:
+              '两白旗此时由阿巴泰(努尔哈赤七子)+杜度(代善长子)暂摄·多尔衮 14 岁多铎 13 岁尚幼。1635 太极改授多尔衮/多铎·皇权渐固。两白旗将成清初最强战斗旗系。'
+          },
+          {
+            name: '后金·两蓝旗(莽古尔泰·阿敏领)', armyType: '自定义', soldiers: 27000, garrison: '辽阳·凤凰城',
+            quality: '精锐', morale: 82, training: 80, loyalty: 70, control: 65,
+            commander: '莽古尔泰·阿敏', commanderTitle: '三贝勒(莽)·二贝勒(阿)·两蓝旗主',
+            ethnicity: '女真', activity: '1627 征朝鲜主力(阿敏率)',
+            equipmentCondition: '优良',
+            composition: [
+              { type: '甲士·马甲', count: 7500 },
+              { type: '甲士·步甲', count: 6000 },
+              { type: '包衣·阿哈', count: 10500 },
+              { type: '家属·老幼', count: 3000 }
+            ],
+            salary: [ { resource: '分地·份牛录', amount: 260, unit: '牛录' } ],
+            equipment: [
+              { name: '女真弓', count: 13500, condition: '优良' },
+              { name: '棉铁重甲', count: 12500, condition: '优良' },
+              { name: '战马', count: 19000, condition: '优良' }
+            ],
+            description:
+              '1627 正月阿敏率两蓝旗东征朝鲜(丁卯之役)，迫朝鲜仁祖定江都兄弟盟。莽古尔泰(努尔哈赤第五子)性刚躁·1630 被太极削爵·1632 暴死。阿敏 1630 因永平失守被囚死。两蓝旗战功显赫但皇权集中下遭清洗。loyalty 70 反映其不完全服从太极。'
+          },
+          {
+            name: '后金·蒙古归附军', armyType: '自定义', soldiers: 15000, garrison: '科尔沁·沈阳',
+            quality: '精锐', morale: 78, training: 75, loyalty: 80, control: 70,
+            commander: '奥巴(科尔沁首领)·吴克善', commanderTitle: '科尔沁台吉(土谢图汗)',
+            ethnicity: '蒙古(科尔沁·喀喇沁·扎鲁特等)', activity: '与后金联姻结盟·1627 东征朝鲜协力·天聪九年始正式编旗',
+            equipmentCondition: '一般',
+            composition: [
+              { type: '骑兵·精锐', count: 5000 },
+              { type: '骑兵·寻常', count: 7000 },
+              { type: '阿哈辅兵', count: 3000 }
+            ],
+            salary: [
+              { resource: '抢掠分', amount: 0, unit: '按征战所得' },
+              { resource: '后金赏银', amount: 30000, unit: '两/年' }
+            ],
+            equipment: [
+              { name: '蒙古角弓', count: 12000, condition: '一般' },
+              { name: '皮甲·少量铁甲', count: 10000, condition: '一般' },
+              { name: '蒙古马', count: 14000, condition: '优良' }
+            ],
+            description:
+              '天命十一年(1626)科尔沁奥巴台吉归附。皇太极与科尔沁联姻——娶其女哲哲(孝端文皇后)/海兰珠/布木布泰(孝庄)。至天聪九年(1635)始正式编八旗蒙古(此时尚未正规化)。'
+          },
+          {
+            name: '后金·汉军(八旗汉军雏形)', armyType: '自定义', soldiers: 12000, garrison: '沈阳·辽阳',
+            quality: '普通', morale: 62, training: 55, loyalty: 55, control: 70,
+            commander: '佟养性·李永芳(已殁 1634)', commanderTitle: '汉军·天聪五年始编一旗',
+            ethnicity: '汉(辽东降军)', activity: '修城·铸炮·守辽东各城',
+            equipmentCondition: '一般',
+            composition: [
+              { type: '步兵·降明军', count: 6000 },
+              { type: '火器兵', count: 2000 },
+              { type: '炮手·匠人', count: 1500 },
+              { type: '辅兵·民夫', count: 2500 }
+            ],
+            salary: [
+              { resource: '汗库银', amount: 60000, unit: '两' },
+              { resource: '屯田粮', amount: 80000, unit: '石' }
+            ],
+            equipment: [
+              { name: '鸟铳', count: 3500, condition: '一般' },
+              { name: '长矛', count: 5000, condition: '一般' },
+              { name: '棉甲', count: 4500, condition: '一般' },
+              { name: '缴获红夷炮(天聪五年始铸)', count: 3, condition: '一般' }
+            ],
+            description:
+              '以抚顺降将李永芳(天命三年 1618)+辽阳沈阳降兵为核心。佟养性(辽东佟氏)铸炮主管。天聪五年(1631)始编"乌真超哈"(旧汉军)一旗；崇德二年(1637)扩为二旗；崇德七年(1642)扩为八旗汉军。此时仅为雏形零散部队。皇太极视为"以汉治汉"之关键。'
+          },
+          // ═══ 明代卫所总览·虚额实况（《明史·兵志》《明实录》天启七年黄册） ═══
+          {
+            name: '全国卫所军·总览', armyType: '地方守备', soldiers: 1300000, garrison: '全国 329 卫+358 千户所',
+            quality: '新兵(实战 15-20 万·其余虚额)', morale: 32, training: 25, loyalty: 60, control: 72,
+            commander: '五军都督府+各省都指挥使司', commanderTitle: '总节制·实权空心',
+            ethnicity: '汉(军户世袭)', activity: '世守·屯田·京军轮班·实际战力极弱',
+            equipmentCondition: '简陋',
+            composition: [
+              { type: '在册军户(名义·含已逃)', count: 1300000 },
+              { type: '实有军户丁壮(能应调)', count: 600000 },
+              { type: '能战者(战兵)', count: 180000 },
+              { type: '留守(守兵)', count: 220000 },
+              { type: '辅兵·屯丁', count: 200000 }
+            ],
+            salary: [
+              { resource: '钱', amount: 3200000, unit: '两(军户年饷合计)' },
+              { resource: '粮食', amount: 9600000, unit: '石(含屯田自给)' }
+            ],
+            equipment: [
+              { name: '长矛', count: 700000, condition: '缺损' },
+              { name: '纸甲', count: 450000, condition: '缺损' },
+              { name: '鸟铳', count: 80000, condition: '缺损' }
+            ],
+            description:
+              '《明史·兵志》载明初洪武二十六年(1393)军户 198 万; 万历末册籍 100-120 万; 天启末实额约 60 万。此条为全国卫所综合数据(除已独立列出的 18 处代表卫所+关宁+边军+京营)。《满文老档》《三朝辽事实录》载卫所"额者半皆虚影，实者半皆老弱"。辅兵/屯丁承担屯田+营造+杂役。战力极低。主要用途为"看仓库、巡夜、运粮"。明末大多已无战力——张献忠破武昌即由武昌卫向城外招降而入。'
+          },
           // 明代全国约 493 卫 + 359 千户所，下为代表性 18 处。每卫名额 5600 人，实额约 1500-3000，多老弱。
           {
             name: '通州卫(北直)', armyType: '地方守备', soldiers: 2800, garrison: '北直·通州',
@@ -4307,22 +4484,105 @@
       },
       {
         name: '后金', leader: '皇太极', color: '#6a4c93',
-        strength: 58, militaryStrength: 72, economy: 32,
-        courtInfluence: 10, popularInfluence: 18,
-        territory: '辽东沈阳·赫图阿拉·辽西诸卫·朝鲜西北', capital: '沈阳（盛京）',
-        ideology: '萨满·汗权·八旗·以汉治汉',
-        desc: '努尔哈赤称汗于天命元年（1616）。皇太极继位改革政制，结纳蒙汉，将成大患。明史称为"奴酋""虏"，然自号"大金"追宋金之续。',
-        traits: ['八旗劲旅', '渔猎游牧', '多民族', '骑兵为主', '善长火器'],
-        members: '皇太极(汗)·代善(大贝勒)·阿敏·莽古尔泰·多尔衮·多铎·范文程(汉臣)·宁完我·孔有德(将叛明)',
-        leadership: { ruler: '皇太极', regent: '代善', general: '多尔衮/阿济格', chancellor: '范文程', spy: '(借明朝边镇将领)' },
-        attitude: { self: '女真正统·后金汗业', enemies: '大明/察哈尔/朝鲜(初)', allies: '科尔沁蒙古/朝鲜(已迫盟)', neutrals: '其他蒙古' },
-        mainResources: '马·皮毛·人参·辽东铁·辽河谷平原粮',
-        treasury: { money: 300000, grain: 800000, cloth: 50000, note: '八旗共有制。汗库受限。' },
-        partyRelations: '内部四大贝勒并坐之议——皇太极隐忍削权；外与察哈尔竞蒙古霸；与朝鲜定江都盟。',
-        history: '努尔哈赤 1583 起兵 → 1616 称汗建金 → 1619 萨尔浒破明 → 1621 取沈阳辽阳 → 1626 宁远伤殁 → 1626 皇太极继位 → 1627 征朝鲜。',
-        strengths: ['八旗军纪', '骑射无敌', '皇太极雄才', '汉臣谋主', '内部凝聚'],
-        weaknesses: ['人口不足百万', '攻城不精', '朝鲜未完全臣服', '察哈尔西翼'],
-        strategy: '短期：休养+结蒙古；中期：绕蒙古破长城；长期：取明入主中原。'
+        strength: 82, militaryStrength: 92, economy: 48,   // militaryStrength 72→92·strength 58→82(精锐力度实远超明战力)
+        courtInfluence: 15, popularInfluence: 28,
+        territory: '辽东沈阳·赫图阿拉·辽阳·广宁以东·铁岭·开原·朝鲜西北·蒙古东部羁縻地', capital: '沈阳（盛京·1625 努尔哈赤自辽阳迁都）',
+        ideology: '萨满·汗权·八旗共治·以汉治汉·军政合一',
+        desc:
+          '努尔哈赤天命元年(1616)建金。1619 萨尔浒四路大败明军·辽东主动权尽失。1621 占沈阳辽阳。1625 迁都沈阳。1626 宁远败·努尔哈赤伤殁。天命十一年(1626)九月皇太极继汗位。\n' +
+          '天聪元年(1627)春已完成三大事: 正月东征朝鲜定江都兄弟盟; 五月宁锦战平退; 八月熹宗崩明朝廷剧变。军政两盛，虎视辽西。',
+        traits: ['八旗劲旅', '全民皆兵', '骑射无敌', '围城打援', '以汉治汉', '火器·红夷炮铸仿', '多民族融合', '军政合一'],
+        members: '皇太极(汗)·代善(大贝勒·礼亲王)·阿敏(二贝勒·镶蓝旗)·莽古尔泰(三贝勒·正蓝旗)·多尔衮(14岁·正白旗)·多铎(13岁·镶白旗)·阿济格·豪格(太极长子)·范文程·宁完我·鲍承先·李永芳(降将)·佟养性(汉军)',
+        leadership: {
+          ruler: '皇太极·天聪汗',
+          regent: '代善(大贝勒·四大贝勒并列议政)',
+          general: '代善·阿敏·莽古尔泰·阿济格·多尔衮',
+          chancellor: '范文程(汉臣谋主)',
+          spy: '借明朝辽东降将/走私商/蒙古归附部提供情报'
+        },
+        attitude: '敌对',
+        attitudeDetail: { self: '女真正统·大金汗业·承宋金天命', enemies: '大明/察哈尔/朝鲜(初)', allies: '科尔沁蒙古/喀喇沁/扎鲁特/朝鲜(已迫兄弟盟)', neutrals: '其他蒙古·乌思藏' },
+        mainResources: '战马(年产3万匹以上)·皮毛(貂狐豹)·人参·辽东铁(抚顺煤铁)·辽河粮·铜矿·盐(海盐辽东)·辽阳-沈阳汉匠工业',
+        treasury: {
+          money: 600000,   // 原 300000 上调。八旗共富+抚顺辽阳沈阳缴获+蒙古贡马银
+          grain: 1800000,  // 原 800000 上调。辽东屯田+朝鲜征粮+沈阳辽阳积储
+          cloth: 120000,
+          horses: 80000,   // 新增战马库存
+          note: '八旗共有制基础上，汗库(内帑) + 各旗旗库 + 个人家产。天聪朝皇太极逐步中央集权。1627年整体资源远超明辽东可支。'
+        },
+        population: 1100000,   // 原注"不足百万"上调·含汉人辽民+蒙古归附+女真本族+朝鲜西北战俘
+        populationBreakdown: {
+          '女真本族(八旗满洲)': 450000,
+          '蒙古归附(八旗蒙古雏形)': 180000,
+          '汉人·沈辽辽民': 350000,
+          '汉人军户(八旗汉军雏形)': 60000,
+          '朝鲜战俘/降附': 40000,
+          '其他(达斡尔/索伦/鄂温克)': 20000
+        },
+        militaryBreakdown: {
+          totalField: 110000,       // 1627 可野战兵力(战时动员)
+          regularCore: 80000,        // 八旗满洲甲士常备
+          mongolAux: 15000,          // 蒙古归附
+          hanArmy: 12000,            // 汉军(尚未正式编旗)
+          liaoDongSurrendered: 3000, // 辽东降军零散
+          logisticsAux: 160000,     // 辅兵·包衣·马夫(每甲士约2阿哈)
+          totalIncludingAux: 280000  // 总动员可达数
+        },
+        partyRelations:
+          '内部: 四大贝勒(代善/阿敏/莽古尔泰/皇太极)并坐议政 — 皇太极隐忍削权(1629 起削两红旗，1630 囚阿敏，1632 莽古尔泰暴死)。\n' +
+          '外部: 与察哈尔争蒙古大汗名分。与朝鲜 1627 春定江都兄弟盟。与明为核心敌手。',
+        history:
+          '天命元年(1616)努尔哈赤起兵·称金汗·都赫图阿拉\n' +
+          '天命三年(1618)"七大恨"伐明·取抚顺(李永芳降)\n' +
+          '天命四年(1619)萨尔浒大捷·四路明军三路败没(刘綎战死)\n' +
+          '天命六年(1621)取沈阳辽阳\n' +
+          '天命七年(1622)广宁之变(王化贞弃辽西)\n' +
+          '天命十年(1625)迁都沈阳·改称盛京\n' +
+          '天命十一年(1626)宁远之败·努尔哈赤伤殁·皇太极即汗位于九月\n' +
+          '天聪元年(1627)正月丁卯之役东伐朝鲜·定江都盟\n' +
+          '天聪元年(1627)五月宁锦之役攻锦州宁远失利\n' +
+          '天聪元年(1627)八月明熹宗崩·朱由检继位\n' +
+          '天聪三年(1629)十月己巳之变·绕蒙古破长城围京师',
+        strengths: [
+          '八旗军纪森严·临阵不退',
+          '骑射无敌·骑兵机动性冠冷兵器时代',
+          '皇太极雄才大略·政治军事两高',
+          '汉臣谋主·范文程献"取明以招降明将为上策"',
+          '内部凝聚·汗权强化',
+          '红夷炮仿铸(1631 天聪五年佟养性督造)',
+          '蒙古盟好·铁杆科尔沁',
+          '全民皆兵·动员率高',
+          '辽沈汉匠工业基础·铁木皮毛自给'
+        ],
+        weaknesses: [
+          '人口仅百万(相对明朝1.5亿)',
+          '攻城法尚需练(宁远宁锦教训)·缺重炮',
+          '朝鲜未完全臣服(丙子前仍首鼠)',
+          '察哈尔林丹汗西翼威胁',
+          '四大贝勒制内部张力(皇太极尚未完全集权)',
+          '远离中原补给·冬季劣势'
+        ],
+        strategy:
+          '1627 年已定大略: (1) 先击朝鲜固后方 ✓(已成) (2) 整肃蒙古·结盟科尔沁压察哈尔 (3) 练红衣炮补攻城短板 (4) 取明循两路——绕蒙古破长城/从辽西硬啃 — 皇太极选定前者 (5) 长期招降明将蚕食朝廷。',
+        militaryDoctrine: {
+          mainForce: '八旗·满洲为核心·蒙古汉军为翼',
+          tactics: '围城打援(萨尔浒/广宁/锦州皆用)·机动骑射·坚壁野战',
+          sustainability: '屯田+抢掠+贡赋+互市',
+          siegeCraft: '此时仍弱·约 1631 后铸红衣炮始能攻坚'
+        },
+        eightBanners: {
+          '正黄旗(皇太极亲领)': { bannerMen: 7500, population: 75000, elite: '禁军+汗近侍' },
+          '镶黄旗(皇太极亲领)': { bannerMen: 7500, population: 68000 },
+          '正红旗(代善领)': { bannerMen: 7500, population: 62000, note: '大贝勒主力' },
+          '镶红旗(代善岳托·萨哈廉)': { bannerMen: 7500, population: 58000 },
+          '正白旗(皇太极长子豪格·摄)': { bannerMen: 7500, population: 56000, note: '豪格此时 19 岁·皇太极子嗣未壮' },
+          '镶白旗(杜度→多铎)': { bannerMen: 7500, population: 55000 },
+          '正蓝旗(莽古尔泰领)': { bannerMen: 7500, population: 52000, note: '三贝勒' },
+          '镶蓝旗(阿敏领)': { bannerMen: 7500, population: 50000, note: '二贝勒·后 1630 囚死' }
+        },
+        foundYear: 1616,
+        peakYear: 1644,
+        note: '按《满文老档》《太宗实录》1627 年天聪汗皇太极初掌汗位，八旗总甲士约 6 万+包衣 12 万，加上蒙古汉军归附可动员 11 万野战、28 万全部动员。此为明军所不及——关宁精锐 3-5 万家丁骑战兵虽能守却难野战破之。'
       },
       {
         name: '察哈尔', leader: '林丹汗', color: '#8b4513',
