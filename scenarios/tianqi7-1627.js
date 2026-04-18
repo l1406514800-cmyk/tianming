@@ -46,8 +46,213 @@
   //  · learning 误用为数字时保留，另加 _academicScore 兼容；若未设则按科举出身默认
   //  · traits ↔ traitIds 双向兼容
   // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════
+  //  _DEEP_CHARS — 核心史实人物深化数据字典
+  //  通过姓名映射直接覆盖/补齐：字/号/籍贯/外貌/辞令/内心/压力源/仕途/家族
+  //  数据来源：《明史》本传、《崇祯长编》、《明实录》、《国榷》、各人本传志铭
+  // ═══════════════════════════════════════════════════════════════════
+  var _DEEP_CHARS = {
+    '魏忠贤': { /* 已在主数据直接写入，此处略 */ },
+    '朱由检': { /* 同上 */ },
+    '周皇后': {
+      zi: '', haoName: '', birthplace: '南直隶·苏州(实为开封周奎之女生于苏州寄籍)', ethnicity: '汉', faith: '儒',
+      appearance: '姿色端丽，体态修长；衣饰节俭，常亲操针黹。', diction: '温婉有礼，偶露刚烈。',
+      innerThought: '入信邸时家贫父鬻薪，一夕骤尊后位。深知外朝阉党林立，内宫客氏余威未散。惟愿陛下内能安，外能胜。',
+      personalGoal: '为帝生嗣、辅政安宫、守节殉国。',
+      stressSources: ['阉党余党', '后宫妃嫔争宠', '本家周奎贫而贪', '帝夜不成寐'],
+      career: [ { year: 1624, title: '信王妃', note: '天启四年十五岁册立。' }, { year: 1627, title: '皇后', note: '崇祯元年正月改封。' }, { year: 1644, title: '殉国', note: '崇祯十七年三月自缢坤宁宫。' } ],
+      familyMembers: [ { name: '朱由检', relation: '夫' }, { name: '周奎', relation: '父·嘉定伯' }, { name: '周世显', relation: '兄', note: '驸马袁顺附孙' } ]
+    },
+    '张懿安': {
+      zi: '', birthplace: '河南·祥符', learning: '《女诫》《列女传》',
+      appearance: '体态丰润，端凝有威仪。', diction: '严正有礼，不妄言笑。',
+      innerThought: '熹宗一生被客魏所蔽，死不瞑目。新帝必除此二凶；若过冬不决，吾亦不得安。',
+      stressSources: ['夫殁无后', '客氏诅咒阴魂', '阉党余威', '信邸叔嫂分际'],
+      career: [ { year: 1621, title: '皇后', note: '天启元年十五岁册立。' }, { year: 1627, title: '懿安皇后', note: '熹宗崩后尊号。' }, { year: 1644, title: '殉国', note: '京师破时自尽。' } ]
+    },
+    '崔呈秀': {
+      zi: '国之', birthplace: '北直隶·蓟州', learning: '进士',
+      innerThought: '客氏既出宫，吾必首罹其难。然兵部尚书在手，京营戎政在手，或可一搏——然魏公已去浙江生祠，朝中人心离散，吾独木难支。',
+      stressSources: ['科道连章劾奏', '新帝冷目', '京营兵将心乱'],
+      career: [ { year: 1613, title: '进士', note: '万历四十一年。' }, { year: 1624, title: '投靠魏忠贤', note: '为"五虎"首。' }, { year: 1627, title: '罢官自缢', note: '原史十一月。' } ]
+    },
+    '田尔耕': {
+      zi: '茂东', birthplace: '陕西·三原', learning: '武荫袭职',
+      innerThought: '锦衣卫在手，九千岁若令变，吾虽愿效死——然田氏列祖以来世袭此职，岂可一朝灰灭？',
+      career: [ { year: 1620, title: '锦衣卫指挥使', note: '袭职。' }, { year: 1624, title: '阉党五彪之首' }, { year: 1628, title: '弃市', note: '原史崇祯元年伏诛。' } ]
+    },
+    '黄立极': {
+      zi: '石笥', haoName: '中五', birthplace: '北直隶·元氏', learning: '进士',
+      innerThought: '老夫入阁三年，何曾有一日安寝？魏公之势虽盛然必衰，东林归朝吾辈必为其所噬。唯乞骸骨以全晚节。',
+      stressSources: ['票拟尽秉九千岁意', '东林将返', '年老体衰'],
+      career: [ { year: 1604, title: '进士', note: '万历三十二年。' }, { year: 1626, title: '入阁', note: '天启六年。' }, { year: 1628, title: '致仕归里', note: '原史崇祯元年罢。' } ]
+    },
+    '韩爌': {
+      zi: '虞臣', haoName: '象云', birthplace: '山西·蒲州', learning: '进士(翰林)',
+      appearance: '清癯长髯，步履沉稳。', diction: '言少而中肯。',
+      innerThought: '六君子血犹在诏狱梁上——他们为东林而死，吾苟活三年于蒲州。新帝若召我，是救我，是用我，亦是付我以血债复仇之责。',
+      personalGoal: '复东林正气、追究阉党、重整吏治。',
+      stressSources: ['东林血债未偿', '浙党楚党掣肘', '帝年少急躁'],
+      career: [ { year: 1592, title: '进士', note: '万历二十年榜眼。' }, { year: 1615, title: '礼部侍郎·东阁大学士' }, { year: 1624, title: '罢归', note: '天启四年被阉党构陷。' }, { year: 1628, title: '召还首辅', note: '原史崇祯元年。' } ],
+      familyMembers: [ { name: '韩霖', relation: '子', note: '天主教徒，徐光启门生' } ]
+    },
+    '钱龙锡': {
+      zi: '稚文', haoName: '机山', birthplace: '南直隶·松江华亭', learning: '进士(翰林)',
+      innerThought: '阉祸初平，东林方可喘息。然袁崇焕之事在怀——当年我一手举荐，日后若辽事误国，吾必受连坐。',
+      stressSources: ['东林党重振任务', '袁崇焕前途未卜', '浙党温体仁虎视'],
+      career: [ { year: 1607, title: '进士', note: '万历三十五年。' }, { year: 1625, title: '贬归', note: '天启五年被阉党排挤。' }, { year: 1628, title: '召还入阁', note: '原史崇祯元年。' }, { year: 1631, title: '戍边', note: '崇祯三年因袁崇焕案连坐。' } ]
+    },
+    '毕自严': {
+      zi: '景曾', haoName: '白阳', birthplace: '山东·淄川', learning: '进士',
+      appearance: '清瘦短小，颐下长须。', diction: '言理财数目必核三遍。',
+      innerThought: '太仓账册吾熟之如掌——名目二百万实可调九十万，辽饷岁需四百万何从出？唯有加派。然加派则激民变。此等死局，吾何以解之？',
+      personalGoal: '开源节流、整顿度支、救此财政危局。',
+      stressSources: ['太仓空虚', '宗禄拖欠', '辽饷逼饷如潮', '江南抗税'],
+      career: [ { year: 1592, title: '进士', note: '万历二十年。' }, { year: 1620, title: '太仆少卿', note: '万历末。' }, { year: 1625, title: '南京户部尚书' }, { year: 1628, title: '户部尚书', note: '原史崇祯元年召入。' }, { year: 1633, title: '病卒任上', note: '崇祯六年。' } ]
+    },
+    '徐光启': {
+      zi: '子先', haoName: '玄扈', birthplace: '南直隶·松江上海', learning: '进士(翰林)', faith: '天主教',
+      appearance: '长须清癯，常服儒巾；执事时戴"十字巾"（天主教徒识认）。',
+      diction: '说话有条理，好用"格物""穷理"等新名词。',
+      innerThought: '利玛窦老友已卒十六年，西学未竟。陕西大饥——吾所著《农政全书》若不传世，此身真白来世一遭。',
+      personalGoal: '推行甘薯马铃薯以救荒、精修历法、翻译几何；中兴大明须借西器西术。',
+      stressSources: ['利玛窦旧友不存', '天主教士被猜忌', '告归而无进退', '弟子孙元化在兵部势弱'],
+      career: [ { year: 1604, title: '进士', note: '万历三十二年。' }, { year: 1604, title: '入翰林', note: '同年。' }, { year: 1607, title: '受洗入教', note: '与利玛窦合作。' }, { year: 1620, title: '《几何原本》译成' }, { year: 1627, title: '告归养病', note: '以礼部左侍郎告归。' }, { year: 1628, title: '召还', note: '原史崇祯元年礼部尚书。' }, { year: 1632, title: '入阁', note: '崇祯五年。' }, { year: 1633, title: '卒', note: '崇祯六年十月。' } ]
+    },
+    '温体仁': {
+      zi: '长卿', haoName: '员峤', birthplace: '浙江·乌程(湖州)', learning: '进士',
+      appearance: '中等身量，面白无须。言笑从容，然眉间常结。', diction: '柔佞含蓄，不激言直事。',
+      innerThought: '东林归朝，吾居其间必为所逼。当先附新帝之意、挑东林内争，以浙党之名结一大党。此时当隐忍，待十年后执牛耳。',
+      personalGoal: '入阁为首辅；以柔克刚破东林。',
+      stressSources: ['东林复起', '浙党势弱'],
+      career: [ { year: 1598, title: '进士', note: '万历二十六年。' }, { year: 1627, title: '礼部左侍郎' }, { year: 1629, title: '入阁', note: '崇祯二年。' }, { year: 1630, title: '首辅', note: '崇祯三年。' }, { year: 1637, title: '罢归', note: '崇祯十年。' } ]
+    },
+    '周延儒': {
+      zi: '玉绳', haoName: '挹斋', birthplace: '南直隶·常州宜兴', learning: '进士(状元)',
+      appearance: '英俊少年老成，目光机敏。', diction: '才辩滔滔，好用典故。',
+      innerThought: '万历四十一年状元，吾才名满天下。然十余年徘徊翰林，唯新君可引我入阁台。',
+      stressSources: ['翰林清贫', '温体仁同榜将为敌'],
+      career: [ { year: 1613, title: '状元', note: '万历四十一年。' }, { year: 1629, title: '入阁', note: '崇祯二年。' }, { year: 1630, title: '首辅', note: '崇祯三年。' }, { year: 1633, title: '罢归' }, { year: 1641, title: '再首辅' }, { year: 1643, title: '赐死', note: '崇祯十六年。' } ]
+    },
+    '袁崇焕': {
+      zi: '元素', haoName: '自如', birthplace: '广东·东莞(籍广西藤县)', learning: '进士',
+      appearance: '中等身量，黎黑多须，目射精光。', diction: '雄辩豪语，言"五年复辽"立见胸次。',
+      innerThought: '宁远一炮退老奴，宁锦再退黄台吉——然吾功不录，被阉党逼走！新帝召我，我当效先秦范雎申包胥之忠，五年清辽东！然辽镇皆旧部，毛文龙据皮岛不听约束——斩之乎？',
+      personalGoal: '五年复辽东，封侯赐剑，平北虏。',
+      stressSources: ['阉党余孽谗于帝', '毛文龙不听节制', '辽饷不继', '辽将人心'],
+      career: [ { year: 1619, title: '进士', note: '万历四十七年。' }, { year: 1622, title: '兵部职方司主事', note: '单骑出关。' }, { year: 1626, title: '宁远大捷' }, { year: 1627, title: '宁锦大捷' }, { year: 1627, title: '丁忧归乡', note: '七月告归。' }, { year: 1628, title: '督师蓟辽', note: '平台召见，五年复辽之约。' }, { year: 1630, title: '磔死', note: '崇祯三年八月。' } ],
+      familyMembers: [ { name: '袁文炳', relation: '父', note: '贡生' } ]
+    },
+    '孙承宗': {
+      zi: '稚绳', haoName: '恺阳', birthplace: '北直隶·高阳', learning: '进士(榜眼)',
+      appearance: '身长七尺，须髯如戟，方面广颡。', diction: '言必有据，教人如对圣贤。',
+      innerThought: '老夫六十五，筋骨犹健。辽东筑宁远锦州是吾心血——袁崇焕守之，大敌难越。然毛文龙尾大不掉，祖大寿骄悍，皇太极隐忍谋我。老夫若不再起，五年复辽恐是空言。',
+      personalGoal: '守关宁不失；训帝以尧舜之道。',
+      stressSources: ['年老', '帝性急', '阉党余党或反扑', '辽东将领不齐心'],
+      career: [ { year: 1604, title: '榜眼', note: '万历三十二年。' }, { year: 1620, title: '詹事府少詹事', note: '熹宗师傅。' }, { year: 1622, title: '兵部尚书·辽东督师' }, { year: 1625, title: '罢归', note: '被阉党排挤。' }, { year: 1629, title: '再督辽', note: '崇祯二年。' }, { year: 1638, title: '战死高阳', note: '清军攻城，阖门殉国。' } ],
+      familyMembers: [ { name: '孙鉁', relation: '长子', note: '战死高阳' } ]
+    },
+    '毛文龙': {
+      zi: '振南', haoName: '镇东', birthplace: '浙江·仁和(杭州)', learning: '武举',
+      appearance: '身短而壮，面黑如墨，左眼有疤。', diction: '豪言自夸，不避粗话。',
+      innerThought: '皮岛孤悬海外，朝廷视我如弃子。然我手握东江十余万人，朝廷不敢不给饷。袁崇焕来督师，必欲夺我兵。',
+      stressSources: ['袁崇焕欲节制', '朝廷疑其冒饷', '后金离间'],
+      career: [ { year: 1605, title: '武举', note: '后从军辽东。' }, { year: 1621, title: '袭据镇江', note: '天启元年。' }, { year: 1622, title: '开东江镇' }, { year: 1629, title: '被斩于双岛', note: '崇祯二年六月袁崇焕矫诏。' } ]
+    },
+    '洪承畴': {
+      zi: '彦演', haoName: '亨九', birthplace: '福建·泉州南安', learning: '进士',
+      innerThought: '陕西旱象日深，流民星火足以燎原。吾本文人，将任兵事——若不铁腕剿平，匪势成则国难起。',
+      stressSources: ['陕西饥民激增', '总督武之望老病', '剿饷无着'],
+      career: [ { year: 1616, title: '进士', note: '万历四十四年。' }, { year: 1627, title: '陕西参政' }, { year: 1629, title: '延绥巡抚', note: '崇祯二年。' }, { year: 1631, title: '三边总督' }, { year: 1642, title: '松锦战败降清', note: '崇祯十五年。' } ]
+    },
+    '卢象升': {
+      zi: '建斗', haoName: '九台', birthplace: '南直隶·常州宜兴', learning: '进士',
+      appearance: '身长七尺，瘦骨嶙峋，然能挽八石之弓。', diction: '慷慨激昂，自誓以死报国。',
+      innerThought: '大名府地僻事繁，吾练兵千人号"天雄军"——虽无饷亦当用死士之心相付。',
+      personalGoal: '殉国报君。',
+      stressSources: ['大名府财政拮据', '京师遥远闻报不及'],
+      career: [ { year: 1622, title: '进士', note: '天启二年。' }, { year: 1627, title: '大名知府' }, { year: 1629, title: '起兵入卫', note: '崇祯二年。' }, { year: 1637, title: '宣大总督·兵部尚书' }, { year: 1638, title: '战死鹿庄', note: '崇祯十一年十二月。' } ]
+    },
+    '孙传庭': {
+      zi: '伯雅', haoName: '白谷', birthplace: '山西·代州', learning: '进士',
+      innerThought: '读书十年，观今朝之事，乃知古人云"兵者不祥"非虚。然国事至此，非兵不可。',
+      career: [ { year: 1619, title: '进士', note: '万历四十七年。' }, { year: 1635, title: '陕西巡抚', note: '崇祯八年。' }, { year: 1636, title: '擒高迎祥' }, { year: 1643, title: '战死潼关', note: '崇祯十六年十月。"传庭死而明亡矣"' } ]
+    },
+    '孙元化': {
+      zi: '火东', haoName: '初阳', birthplace: '南直隶·嘉定', learning: '举人(精西学)', faith: '天主教',
+      innerThought: '徐夫子传吾几何与火器之法，吾于兵部职方司司职方图。红夷大炮之用，此身愿以证之。',
+      career: [ { year: 1612, title: '举人' }, { year: 1624, title: '宁远战后受袁崇焕赏识' }, { year: 1630, title: '登莱巡抚', note: '崇祯三年。' }, { year: 1632, title: '为孔有德叛兵所执', note: '崇祯五年。' } ]
+    },
+    '皇太极': {
+      zi: '', haoName: '', birthplace: '辽东·赫图阿拉(努尔哈赤兴起之地)', ethnicity: '女真', faith: '萨满·兼礼汉儒',
+      appearance: '身长面圆，双目炯炯；身着蟒袍戴盔，左右不离宝剑。',
+      diction: '汉语流利，书信多用汉文，好读《三国演义》。',
+      innerThought: '明之新帝年少，阉党将倾，正我国机会。然二兄阿敏三兄莽古尔泰犹在，四大贝勒共坐南面之制不可久。范章京劝我改汗称帝——当待时机。先破朝鲜(已成)，再图宁锦，绕蒙古破塞亦未尝不可。',
+      personalGoal: '取代大明，入主中原。',
+      stressSources: ['内部四大贝勒牵制', '明新帝动向未定', '察哈尔林丹汗威胁', '东江毛文龙扰后方'],
+      career: [ { year: 1592, title: '出生', note: '万历二十年。' }, { year: 1616, title: '贝勒', note: '父汗努尔哈赤建国。' }, { year: 1626, title: '继汗位', note: '天命十一年。' }, { year: 1627, title: '伐朝鲜', note: '天聪元年春。' }, { year: 1636, title: '称帝', note: '改元崇德，国号清。' }, { year: 1643, title: '病逝', note: '崇德八年八月。' } ],
+      familyMembers: [ { name: '努尔哈赤', relation: '父', note: '后金太祖(殁)' }, { name: '代善', relation: '兄·礼亲王' }, { name: '多尔衮', relation: '异母弟' }, { name: '福临', relation: '子', note: '1638生,后为顺治帝' } ]
+    },
+    '代善': {
+      zi: '', birthplace: '辽东·赫图阿拉', ethnicity: '女真', faith: '萨满',
+      innerThought: '天命汗父崩，四子共议，吾本居长当立。然让于老八，是吾让之、或势使之让之？今皇太极威柄日重，吾当保身。',
+      career: [ { year: 1583, title: '出生' }, { year: 1616, title: '大贝勒·两红旗旗主' }, { year: 1626, title: '礼亲王(与皇太极共议国政)' } ]
+    },
+    '多尔衮': {
+      zi: '', birthplace: '辽东·赫图阿拉', ethnicity: '女真', faith: '萨满',
+      innerThought: '父汗最疼爱我，然临崩时我仅十五岁。母亲大福晋被逼殉葬，我不能救。皇太极虽为兄，然吾心非全服。',
+      career: [ { year: 1612, title: '出生' }, { year: 1626, title: '贝勒', note: '父殁时十五岁。' }, { year: 1636, title: '睿亲王', note: '清崇德元年。' }, { year: 1644, title: '入关摄政' }, { year: 1650, title: '死于塞外' } ]
+    },
+    '范文程': {
+      zi: '宪斗', haoName: '辉岳', birthplace: '沈阳(宋范仲淹十七世孙,祖居江西)', ethnicity: '汉', faith: '儒',
+      innerThought: '吾为范文正公后裔，不愿为八旗苞苴。然天命九年沈阳陷，吾祖孙三代入后金。努尔哈赤卒，皇太极立——此君非池中物，或当赞襄王业以光大汉统。',
+      career: [ { year: 1597, title: '出生' }, { year: 1618, title: '秀才' }, { year: 1625, title: '入后金汉军', note: '天命九年后归附。' }, { year: 1629, title: '文馆大学士' }, { year: 1644, title: '佐多尔衮入关' }, { year: 1666, title: '卒', note: '清康熙五年。' } ]
+    },
+    '林丹汗': {
+      zi: '', birthplace: '察哈尔·浩齐特', ethnicity: '蒙古', faith: '藏传佛教',
+      innerThought: '吾为元裔，天命之主。然努尔哈赤之子皇太极已收服科尔沁、喀喇沁诸部，吾逃向归化——须借明力以抗后金。',
+      career: [ { year: 1592, title: '出生' }, { year: 1604, title: '继察哈尔汗' }, { year: 1627, title: '西迁归化' }, { year: 1634, title: '死于青海', note: '崇祯七年。' } ]
+    },
+    '仁祖李倧': {
+      zi: '和伯', birthplace: '朝鲜·汉城', ethnicity: '朝鲜', faith: '儒教(事大)',
+      innerThought: '光海君乃被吾推翻，君位不稳。后金逼定兄弟之盟，吾既不愿又不敢违——事大明以正统。',
+      career: [ { year: 1595, title: '出生' }, { year: 1623, title: '反正即位', note: '废光海君。' }, { year: 1627, title: '江都盟', note: '天聪元年春被后金所逼。' }, { year: 1637, title: '丙子胡乱降清' }, { year: 1649, title: '卒' } ]
+    },
+    '郑芝龙': {
+      zi: '曰甲', haoName: '飞黄', birthplace: '福建·泉州南安', ethnicity: '汉', faith: '天主教·兼佛', learning: '海商出身',
+      appearance: '海上风霜染面，然举止不失文雅。通日语、葡语、荷兰语。',
+      innerThought: '吾为海上豪杰，明廷视我如海寇——然朝廷水师不及我十一。若受抚为游击，进可剿荷兰海寇，退可保全基业。',
+      career: [ { year: 1604, title: '出生' }, { year: 1621, title: '赴日本平户' }, { year: 1624, title: '助荷兰据台' }, { year: 1628, title: '受明招抚为海防游击', note: '原史崇祯元年。' }, { year: 1645, title: '福建总兵' }, { year: 1661, title: '被清杀于北京' } ],
+      familyMembers: [ { name: '郑成功', relation: '子', note: '1624生(日本平户)。日后抗清复台。' }, { name: '田川松', relation: '妻', note: '日本妇人。' } ]
+    },
+    '李自成': {
+      zi: '鸿基', birthplace: '陕西·米脂', ethnicity: '汉', faith: '民间',
+      appearance: '额方面阔，目深口阔，善骑射。',
+      innerThought: '父母皆饿死于前年大旱，吾为驿卒月俸一两。朝廷若停驿站，吾与弟侄无业——饥寒在前，束手待毙乎？',
+      career: [ { year: 1606, title: '出生' }, { year: 1620, title: '为驿卒', note: '银川驿。' }, { year: 1629, title: '驿站被裁起事', note: '崇祯二年。' }, { year: 1636, title: '继高迎祥为闯王', note: '崇祯九年。' }, { year: 1644, title: '破京称大顺帝' }, { year: 1645, title: '死于九宫山' } ]
+    },
+    '张献忠': {
+      zi: '秉吾', haoName: '敬轩', birthplace: '陕西·延安定边', ethnicity: '汉',
+      appearance: '黄面虬须，目光凶悍。',
+      innerThought: '当兵吃粮本求活命，今上官克扣、饷银无着。米脂十八寨皆欲起事，吾宁为王，不为虏卒。',
+      career: [ { year: 1606, title: '出生' }, { year: 1630, title: '米脂十八寨起事', note: '崇祯三年。' }, { year: 1643, title: '据武昌称大西王' }, { year: 1646, title: '死于四川西充' } ]
+    }
+  };
+
   function _normalizeChar(c) {
     if (!c) return c;
+    // 深化字典覆盖
+    if (_DEEP_CHARS[c.name]) {
+      var dd = _DEEP_CHARS[c.name];
+      Object.keys(dd).forEach(function(k) {
+        if (c[k] === undefined || c[k] === null || c[k] === '') c[k] = dd[k];
+        else if (k === 'career' || k === 'familyMembers') { // 数组：合并
+          if (!Array.isArray(c[k]) || c[k].length === 0) c[k] = dd[k];
+        } else if (k === 'stressSources') {
+          if (!Array.isArray(c[k]) || c[k].length === 0) c[k] = dd[k];
+        }
+      });
+    }
     // 籍贯/民族/信仰/门第
     if (!c.ethnicity) c.ethnicity = (c.faction === '后金') ? '女真' : (c.faction === '察哈尔' ? '蒙古' : (c.faction === '朝鲜' ? '朝鲜' : '汉'));
     if (!c.faith) c.faith = (c.faction === '后金' ? '萨满' : (c.faction === '察哈尔' ? '藏传佛教' : (c.faction === '朝鲜' ? '儒教' : '儒')));
@@ -338,9 +543,110 @@
         { id: 'rh_keshiDie', triggerTurn: 4, name: '客氏杖毙', trigger: '魏忠贤已死', historical: true, narrative: '杖毙于浣衣局，尸被分。' }
       ],
 
-      civicTree: [],
-      techTree: []
+      // ──── 军事体系（P.military 载 troops/facilities/organization/campaigns/armies） ────
+      military: {
+        systemDesc: '明代军制以卫所为骨架，中叶募兵补之。九边（辽东/蓟州/宣府/大同/山西/延绥/宁夏/固原/甘肃）常备兵约 80 万，实额不及半。京营三大营（五军/三千/神机）荒废日久，万历末改"京营十二团"。嘉靖以降倚家丁精锐，将帅私兵化。',
+        supplyDesc: '漕运：南粮北运，江南至通州岁 400 万石。屯田：军户自耕（九边屯田 89 万顷，然侵占甚重实收不足三成）。开中：盐商运粮换盐引。饷银：户部岁拨，时欠时发。',
+        battleDesc: '明军四大作战原则：守险（长城）、守堡（卫所）、守城（诸府县）、车营与红衣大炮。宁远大捷开红衣炮战先河。',
+        troops: [
+          { name: '京营', type: '中央军', description: '五军营/三千营/神机营。名义员额 12 万，实不足 6 万且多老弱。' },
+          { name: '关宁军', type: '边军', description: '辽东精锐。孙承宗所练，袁崇焕所倚。以骑兵与红衣炮著名。' },
+          { name: '宣大三镇军', type: '边军', description: '宣府/大同/山西三镇。防蒙古。' },
+          { name: '延绥三边军', type: '边军', description: '延绥/宁夏/甘肃/固原。防河套。' },
+          { name: '东江镇军', type: '海岛边军', description: '毛文龙皮岛。以山东济州/朝鲜义州为后勤。冒饷严重。' },
+          { name: '各省卫所军', type: '地方军', description: '内地戍守。长期空额。' },
+          { name: '土兵·狼兵', type: '特殊兵', description: '西南土司兵。广西狼兵、四川白杆兵、湖广苗兵。' },
+          { name: '漕运兵', type: '后勤', description: '运河沿线十二万运军。' }
+        ],
+        facilities: [
+          { name: '长城·九边', type: '防御工事', description: '东起山海关，西至嘉峪关。宣镇/大同/蓟州/辽东四镇最险。' },
+          { name: '宁锦防线', type: '堡垒带', description: '山海关—宁远—锦州—大凌河，孙承宗筑。' },
+          { name: '京通十三仓', type: '粮仓', description: '通州十三仓储京师半年粮。' },
+          { name: '御马监·神机库', type: '军器库', description: '京师中央军器库。' },
+          { name: '南京军器局', type: '军器制造', description: '为南方卫所制器。' },
+          { name: '福建水寨', type: '水军基地', description: '厦门/铜山等抗倭旧寨。' }
+        ],
+        organization: [
+          { name: '卫所制', type: '世袭军户', description: '卫(5600人)-千户所-百户所。官有世袭。' },
+          { name: '募兵制', type: '招募', description: '战兵应募，银饷。精锐多由此出。' },
+          { name: '家丁制', type: '将帅私兵', description: '总兵自募，忠于主将。战力最强，然独立。' },
+          { name: '九边总兵制', type: '边防指挥', description: '每镇总兵一员，加都督衔。' },
+          { name: '监军太监', type: '内廷派遣', description: '东厂/司礼监派内侍监察边镇。' }
+        ],
+        campaigns: [
+          { name: '宁远大捷', type: '过往胜仗', description: '天启六年袁崇焕以红衣大炮退努尔哈赤，破老奴不败神话。' },
+          { name: '宁锦大捷', type: '过往胜仗', description: '天启七年五月袁崇焕据宁锦退皇太极。然阉党论功偏袒王之臣。' },
+          { name: '奢安之乱', type: '土司叛乱', description: '天启元年四川永宁土司奢崇明联合贵州水西安邦彦反叛，至天启七年基本平定。' },
+          { name: '江都盟', type: '外敌条约', description: '天启七年春后金皇太极迫朝鲜仁祖定兄弟之盟。明失一东藩屏。' },
+          { name: '万历三大征', type: '远代战绩', description: '宁夏哱拜之乱、播州杨应龙之乱、朝鲜抗倭（援朝）。三役皆胜，然财政益竭。' }
+        ],
+        armies: [
+          { name: '京营·五军营', commander: '(督京营)崔呈秀', size: 60000, type: '步骑混合', morale: 48, supply: 60, location: '京师', equipment: ['鸟铳', '长矛', '纸甲'], desc: '名员 12 万实 6 万，多老弱空额。' },
+          { name: '关宁军主力', commander: '(经略)王之臣', size: 80000, type: '骑兵为主', morale: 65, supply: 52, location: '宁远-锦州', equipment: ['红衣大炮', '鸟铳', '明盔', '棉甲'], desc: '辽东精锐。孙承宗所筑防线核心。' },
+          { name: '宁远卫', commander: '满桂', size: 15000, type: '骑兵', morale: 72, supply: 55, location: '宁远', equipment: ['鸟铳', '长矛', '佛朗机', '铁甲'] },
+          { name: '山海关军', commander: '赵率教', size: 20000, type: '步骑混合', morale: 70, supply: 60, location: '山海关', equipment: ['红衣大炮', '鸟铳', '棉甲'] },
+          { name: '东江镇军', commander: '毛文龙', size: 30000, type: '步兵·海岛', morale: 55, supply: 35, location: '皮岛', equipment: ['鸟铳', '藤牌', '长矛'], desc: '冒饷严重。实兵约三万，报十万。' },
+          { name: '宣府镇军', commander: '(宣府总兵)侯世禄', size: 28000, type: '步兵·城守', morale: 55, supply: 50, location: '宣府', equipment: ['鸟铳', '长矛'] },
+          { name: '大同镇军', commander: '(大同总兵)渠家祯', size: 35000, type: '步骑混合', morale: 54, supply: 48, location: '大同', equipment: ['鸟铳', '长矛'] },
+          { name: '延绥镇军', commander: '(延绥总兵)吴自勉', size: 25000, type: '骑兵', morale: 50, supply: 40, location: '延绥', equipment: ['弓矢', '长矛'] },
+          { name: '蓟州镇军', commander: '(蓟州总兵)朱梅', size: 28000, type: '步兵', morale: 52, supply: 50, location: '蓟州', equipment: ['鸟铳', '长矛'] }
+        ]
+      },
+
+      // ──── 历史文物/重器（P.items） ────
+      items: [
+        { name: '玉玺·制诰之宝', type: 'treasure', desc: '大明传国玉玺之一。发诰命、敕书所钤。', effect: '皇帝下诰敕之凭信', rarity: 'legendary', quantity: 1 },
+        { name: '金吾牌·银符', type: 'token', desc: '锦衣卫缉察之凭。', effect: '锦衣卫持之可通行诸门', rarity: 'rare', quantity: 50 },
+        { name: '尚方剑', type: 'weapon', desc: '皇帝赐臣下专断之剑。袁崇焕日后持此斩毛文龙。', effect: '持有者可先斩后奏', rarity: 'epic', quantity: 3 },
+        { name: '红衣大炮', type: 'weapon', desc: '葡制仿铸大炮。宁远一役威震辽东。孙元化精此。', effect: '城守利器，射程 3 里', rarity: 'rare', quantity: 40 },
+        { name: '鸟铳', type: 'weapon', desc: '单人火绳枪。从倭铳仿制。', effect: '步兵远射', rarity: 'common', quantity: 80000 },
+        { name: '《永乐大典》副本', type: 'book', desc: '存南京文渊阁。近万册大典。', effect: '学识+10', rarity: 'legendary', quantity: 1 },
+        { name: '《农政全书》稿', type: 'book', desc: '徐光启主编。论救荒、屯田、水利。此时在编。', effect: '农业+20', rarity: 'epic', quantity: 1 },
+        { name: '《本草纲目》', type: 'book', desc: '李时珍著。万历中刻成。', effect: '医学+15', rarity: 'rare', quantity: 100 },
+        { name: '《天工开物》', type: 'book', desc: '宋应星正撰（原史崇祯十年刊）。此时初稿。', effect: '工艺+15', rarity: 'rare', quantity: 1 },
+        { name: '永乐大钟', type: 'treasure', desc: '大钟寺存大钟，刻《金刚经》二十余万字。', effect: '镇国之器', rarity: 'epic', quantity: 1 },
+        { name: '《几何原本》前六卷', type: 'book', desc: '利玛窦、徐光启合译（1607）。欧氏几何入中国。', effect: '西学+20', rarity: 'epic', quantity: 200 },
+        { name: '九龙盔甲', type: 'armor', desc: '明帝御用盔甲。', effect: '防御极强', rarity: 'epic', quantity: 1 }
+      ],
+
+      // ──── 科技/工艺树（P.techTree） ────
+      techTree: [
+        { name: '红衣大炮铸造术', desc: '葡制火炮技术。孙元化据徐光启译书改铸。', effect: '城守+25', era: '天启·崇祯', prereqs: [], unlocked: true },
+        { name: '《崇祯历书》编修', desc: '徐光启主持、邓玉函/汤若望/龙华民/罗雅谷参与。原史崇祯二年立局。', effect: '历法精度+40', era: '崇祯', prereqs: [], unlocked: false },
+        { name: '甘薯北传', desc: '福建引进甘薯（1593 陈振龙）。徐光启力主北传。', effect: '救荒+30', era: '万历·崇祯', prereqs: [], unlocked: false },
+        { name: '马铃薯试种', desc: '荷兰殖民者带入。徐光启倡试种北方。', effect: '救荒+20', era: '崇祯', prereqs: [], unlocked: false },
+        { name: '烟草传入', desc: '吕宋华侨传入。北方烟草自福建传入北京。', effect: '税源新增', era: '万历末', prereqs: [], unlocked: true },
+        { name: '活字印刷普及', desc: '木活字、铜活字。', effect: '书籍成本-30%', era: '明代', prereqs: [], unlocked: true },
+        { name: '福船造船术', desc: '郑氏海船甲亚洲。三桅十二帆。', effect: '海军+20', era: '明代', prereqs: [], unlocked: true },
+        { name: '红薯玉米推广', desc: '美洲作物引入。徐光启《农政全书》载录。', effect: '粮食+25', era: '崇祯', prereqs: [], unlocked: false }
+      ],
+
+      // ──── 文化/制度（P.civicTree） ────
+      civicTree: [
+        { name: '东林书院讲学', desc: '顾宪成创无锡东林。清议之风。天启朝被禁毁，此时废墟。', effect: '士林风骨+15', era: '万历末·天启', prereqs: [], unlocked: false },
+        { name: '殿试廷推制', desc: '阁臣由廷推，尚书由会推。天启朝为阉党把持。', effect: '官员素质+10', era: '明代', prereqs: [], unlocked: true },
+        { name: '考成法', desc: '张居正创，万历末废。考课严密。', effect: '吏治+20', era: '万历', prereqs: [], unlocked: false },
+        { name: '一条鞭法', desc: '张居正推行。赋役归一，折银交纳。', effect: '税收+15，银荒-', era: '万历', prereqs: [], unlocked: true },
+        { name: '辽饷加派', desc: '万历四十六年起征。崇祯四年升至九厘银/亩。', effect: '国库+15，民心-10', era: '天启·崇祯', prereqs: [], unlocked: true },
+        { name: '矿税废罢', desc: '天启五年罢矿税。江南松一口气。', effect: '江南商税抵制-20', era: '天启末', prereqs: [], unlocked: true },
+        { name: '心学（阳明学）', desc: '王守仁创。至天启已成显学。东林、泰州派衍生。', effect: '士风活跃+20', era: '嘉靖以降', prereqs: [], unlocked: true },
+        { name: '天主教传入', desc: '利玛窦 1582 入华。徐光启等受洗。', effect: '西学+15', era: '万历·天启', prereqs: [], unlocked: true },
+        { name: '八股取士', desc: '明代科举定制。四书五经为本。', effect: '儒家正统+20, 思想僵化+10', era: '明代', prereqs: [], unlocked: true }
+      ]
     };
+
+    // 为 armies / items 打 sid（以便 GM filter-by-sid 能捕获）
+    if (scenario.military && Array.isArray(scenario.military.armies)) {
+      scenario.military.armies.forEach(function(a) { a.sid = SID; a.id = _uid('army_'); });
+    }
+    if (Array.isArray(scenario.items)) {
+      // items 需单独推入 P.items（非 P.military.items）
+      if (!Array.isArray(global.P.items)) global.P.items = [];
+      scenario.items.forEach(function(it) {
+        it.sid = SID; it.id = _uid('item_');
+        global.P.items.push(it);
+      });
+    }
 
     global.P.scenarios.push(scenario);
 
@@ -1382,88 +1688,185 @@
       return d;
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // 顶级行政区划 · 两京十三布政使司 + 辽东都指挥使司
+    // 人口口数参考：《明实录》天启六年黄册 + 经济重心南移修正。
+    // 每省俱含：户口三元/族群/信仰/保甲/承载力/财政/公库/民心·腐败，
+    // 本剧本按用户要求"只生成最高一级"，子级府县由推演 AI 按需生成。
+    // ═══════════════════════════════════════════════════════════════════
     return {
       player: {
         factionId: 'fac-ming',
         factionName: '明朝廷',
         divisions: [
+          // ═══ 两京 ═══
           division({
             name: '北直隶', level: 'province', officialPosition: '顺天巡抚', governor: '刘诏',
-            description: '京师所在，天下首善。下辖顺天/保定/河间/真定/大名/永平/顺德/广平/宣府 八府一镇。',
-            populationDetail: { mouths: 8200000, households: 0, ding: 0, fugitives: 180000, hiddenCount: 200000 },
-            terrain: '平原', specialResources: '漕运·煤·铁', taxLevel: '重',
+            description: '京师所在，天下首善。下辖顺天/保定/河间/真定/大名/永平/顺德/广平八府 + 延庆/保安两州 + 宣府镇。宣府为九边第一。',
+            populationDetail: { mouths: 8200000, fugitives: 180000, hiddenCount: 200000 },
+            terrain: '平原', specialResources: '漕运·煤·铁·海盐(长芦)', taxLevel: '重',
             publicTreasuryInit: { money: 400000, grain: 800000, cloth: 60000 },
-            minxinLocal: 48, corruptionLocal: 72,
-            children: [
-              division({ name: '顺天府', level: 'prefecture', officialPosition: '顺天府尹',
-                description: '京师。含大兴、宛平等县。', populationDetail: { mouths: 1500000 }, terrain: '平原' }),
-              division({ name: '保定府', level: 'prefecture', populationDetail: { mouths: 900000 }, terrain: '平原' }),
-              division({ name: '永平府', level: 'prefecture', populationDetail: { mouths: 450000 },
-                description: '榆关所在，山海关节度于此。', terrain: '沿海' }),
-              division({ name: '大名府', level: 'prefecture', officialPosition: '大名知府', governor: '卢象升',
-                description: '北直隶南门户。漳河冲积平原。', populationDetail: { mouths: 600000 }, terrain: '平原' }),
-              division({ name: '宣府镇', level: 'prefecture', regionType: 'normal',
-                description: '九边之一，控蒙古。', populationDetail: { mouths: 300000 }, terrain: '山地',
-                publicTreasuryInit: { money: 200000, grain: 400000, cloth: 30000 } })
-            ]
+            minxinLocal: 46, corruptionLocal: 74,
+            byFaith: { '儒': 0.40, '佛': 0.18, '道': 0.14, '民间': 0.25, '伊斯兰': 0.03 }
           }),
           division({
             name: '南直隶', level: 'province', officialPosition: '应天巡抚', governor: '毛一鹭',
-            description: '留都所在。财赋半天下。下辖应天/苏州/松江/常州/镇江/扬州/淮安/凤阳/徐州等十四府。',
-            populationDetail: { mouths: 16500000, fugitives: 150000, hiddenCount: 500000 },
-            terrain: '平原', specialResources: '丝绸·棉布·茶·漕米', taxLevel: '重',
+            description: '留都应天府所在，财赋半天下。下辖应天/凤阳/庐州/淮安/扬州/徐州/苏州/松江/常州/镇江/太平/宁国/池州/安庆十四府。苏松赋甲天下。',
+            populationDetail: { mouths: 16500000, fugitives: 150000, hiddenCount: 550000 },
+            terrain: '平原', specialResources: '丝绸·棉布·茶·漕米·盐(两淮)', taxLevel: '重',
             publicTreasuryInit: { money: 800000, grain: 1500000, cloth: 200000 },
-            minxinLocal: 55, corruptionLocal: 65,
-            children: [
-              division({ name: '应天府', level: 'prefecture', officialPosition: '应天府尹',
-                description: '南京。留都。', populationDetail: { mouths: 2100000 } }),
-              division({ name: '苏州府', level: 'prefecture',
-                description: '天下首府，赋最重。', populationDetail: { mouths: 2000000 }, specialResources: '丝绸·米', taxLevel: '重' }),
-              division({ name: '松江府', level: 'prefecture',
-                description: '东南布帛重镇，"衣被天下"。徐光启故里。', populationDetail: { mouths: 1100000 }, specialResources: '棉布' }),
-              division({ name: '扬州府', level: 'prefecture',
-                description: '盐运总司驻地。', populationDetail: { mouths: 900000 }, specialResources: '盐' }),
-              division({ name: '凤阳府', level: 'prefecture',
-                description: '中都。太祖龙兴之地。皇陵所在。', populationDetail: { mouths: 700000 }, terrain: '平原', taxLevel: '轻' })
-            ]
+            minxinLocal: 55, corruptionLocal: 66,
+            byFaith: { '儒': 0.45, '佛': 0.22, '道': 0.15, '民间': 0.14, '天主教': 0.02, '伊斯兰': 0.02 }
+          }),
+          // ═══ 十三布政使司 ═══
+          division({
+            name: '浙江布政使司', level: 'province', officialPosition: '浙江巡抚', governor: '潘汝桢',
+            description: '东南形胜。下辖杭/嘉/湖/宁/绍/台/金华/衢/严/温/处十一府。杭州为东南财赋中枢，宁波通日本朝鲜；潘汝桢附阉党首建生祠。',
+            populationDetail: { mouths: 7800000, fugitives: 80000, hiddenCount: 250000 },
+            terrain: '丘陵', specialResources: '丝绸·茶·纸·瓷·海贸', taxLevel: '重',
+            publicTreasuryInit: { money: 500000, grain: 900000, cloth: 180000 },
+            minxinLocal: 58, corruptionLocal: 68,
+            byFaith: { '儒': 0.42, '佛': 0.26, '道': 0.18, '民间': 0.13, '天主教': 0.01 }
+          }),
+          division({
+            name: '江西布政使司', level: 'province', officialPosition: '江西巡抚', governor: '解经邦',
+            description: '文献之邦。下辖南昌/饶州/广信/南康/九江/建昌/抚州/临江/吉安/瑞州/袁州/赣州/南安十三府。景德镇御窑所在。',
+            populationDetail: { mouths: 6800000, fugitives: 60000, hiddenCount: 200000 },
+            terrain: '丘陵', specialResources: '瓷(景德镇)·纸·米·茶', taxLevel: '中',
+            publicTreasuryInit: { money: 260000, grain: 620000, cloth: 90000 },
+            minxinLocal: 52, corruptionLocal: 62,
+            byFaith: { '儒': 0.48, '佛': 0.22, '道': 0.20, '民间': 0.10 }
+          }),
+          division({
+            name: '湖广布政使司', level: 'province', officialPosition: '湖广巡抚', governor: '姚宗文',
+            description: '楚地广大。下辖武昌/汉阳/黄州/承天/德安/岳州/荆州/襄阳/郧阳/长沙/宝庆/衡州/常德/辰州/永州十五府 + 靖州等。"湖广熟、天下足"。',
+            populationDetail: { mouths: 6200000, fugitives: 100000, hiddenCount: 180000 },
+            terrain: '平原', specialResources: '稻米·茶·桐油·湘水军器', taxLevel: '中',
+            publicTreasuryInit: { money: 200000, grain: 720000, cloth: 65000 },
+            minxinLocal: 50, corruptionLocal: 60,
+            byFaith: { '儒': 0.40, '佛': 0.22, '道': 0.25, '民间': 0.13 }
+          }),
+          division({
+            name: '福建布政使司', level: 'province', officialPosition: '福建巡抚', governor: '朱一冯',
+            description: '沿海省份。下辖福州/兴化/泉州/漳州/延平/建宁/邵武/汀州八府 + 福宁州。海禁时松时紧；郑芝龙等海商据闽南。',
+            populationDetail: { mouths: 4800000, fugitives: 70000, hiddenCount: 300000 },
+            terrain: '沿海', specialResources: '海贸·茶·糖·木材·海船', taxLevel: '中',
+            publicTreasuryInit: { money: 180000, grain: 340000, cloth: 45000 },
+            minxinLocal: 54, corruptionLocal: 63,
+            byFaith: { '儒': 0.40, '佛': 0.28, '道': 0.18, '民间': 0.12, '天主教': 0.02 }
+          }),
+          division({
+            name: '山东布政使司', level: 'province', officialPosition: '山东巡抚', governor: '李精白',
+            description: '孔孟之乡。下辖济南/兖州/东昌/青州/莱州/登州六府 + 辽海卫属。登州为对辽前哨，孙元化日后所驻。',
+            populationDetail: { mouths: 5400000, fugitives: 95000, hiddenCount: 150000 },
+            terrain: '平原', specialResources: '盐(长芦下延)·麦·棉·铁·海鲜', taxLevel: '中',
+            publicTreasuryInit: { money: 240000, grain: 580000, cloth: 70000 },
+            minxinLocal: 44, corruptionLocal: 65,
+            byFaith: { '儒': 0.52, '佛': 0.16, '道': 0.16, '民间': 0.14, '伊斯兰': 0.02 }
+          }),
+          division({
+            name: '山西布政使司', level: 'province', officialPosition: '山西巡抚', governor: '牟志夔',
+            description: '表里山河。下辖太原/平阳/潞安/汾州/大同/泽州/辽州/沁州等。北有大同九边，南有平阳盐池；晋商巨贾。',
+            populationDetail: { mouths: 5200000, fugitives: 120000, hiddenCount: 140000 },
+            terrain: '山地', specialResources: '煤·铁·盐(运城)·马·晋商', taxLevel: '中',
+            publicTreasuryInit: { money: 220000, grain: 480000, cloth: 40000 },
+            minxinLocal: 40, corruptionLocal: 68,
+            byFaith: { '儒': 0.42, '佛': 0.20, '道': 0.22, '民间': 0.15, '伊斯兰': 0.01 },
+            carryingCapacity: { arable: 4800000, water: 4200000, climate: 0.82, historicalCap: 5500000, currentLoad: 0.98, carryingRegime: 'strained' }
+          }),
+          division({
+            name: '河南布政使司', level: 'province', officialPosition: '河南巡抚', governor: '郭增光',
+            description: '中州古地。下辖开封/归德/河南/怀庆/彰德/卫辉/南阳/汝宁八府。福王就国洛阳，侵吞大量民田。黄河频溃。',
+            populationDetail: { mouths: 5600000, fugitives: 160000, hiddenCount: 180000 },
+            terrain: '平原', specialResources: '麦·棉·豆·药材', taxLevel: '重',
+            publicTreasuryInit: { money: 180000, grain: 520000, cloth: 55000 },
+            minxinLocal: 38, corruptionLocal: 72,
+            carryingCapacity: { arable: 5200000, water: 4600000, climate: 0.78, historicalCap: 6000000, currentLoad: 1.05, carryingRegime: 'strained' }
           }),
           division({
             name: '陕西布政使司', level: 'province', officialPosition: '陕西巡抚', governor: '胡廷宴',
-            description: '三边总督武之望节制。秦地饥馑，民变之薪积。',
-            populationDetail: { mouths: 5800000, fugitives: 350000, hiddenCount: 200000 },
-            terrain: '山地', specialResources: '棉·盐·铁', taxLevel: '重',
+            description: '秦地饥馑之乡。下辖西安/凤翔/汉中/平凉/巩昌/临洮六府 + 延安/庆阳/榆林镇 + 宁夏/甘肃/固原/延绥四镇。三边总督武之望节制。连年大旱，民变之薪积。',
+            populationDetail: { mouths: 5800000, fugitives: 420000, hiddenCount: 220000 },
+            terrain: '山地', specialResources: '棉·盐·铁·马·边塞', taxLevel: '重',
             publicTreasuryInit: { money: 60000, grain: 80000, cloth: 10000 },
-            minxinLocal: 22, corruptionLocal: 75,
-            carryingCapacity: { arable: 6000000, water: 5500000, climate: 0.7, historicalCap: 7000000, currentLoad: 1.1, carryingRegime: 'famine' },
-            children: [
-              division({ name: '西安府', level: 'prefecture', populationDetail: { mouths: 1800000 }, terrain: '平原' }),
-              division({ name: '延安府', level: 'prefecture',
-                description: '旱魃三年，民食草根。', populationDetail: { mouths: 700000, fugitives: 120000 },
-                terrain: '山地', minxinLocal: 12, taxLevel: '重',
-                carryingCapacity: { arable: 600000, water: 400000, climate: 0.55, historicalCap: 800000, currentLoad: 1.3, carryingRegime: 'famine' } }),
-              division({ name: '榆林镇', level: 'prefecture', regionType: 'normal',
-                description: '九边之一。逃兵饥民最多。', populationDetail: { mouths: 250000, fugitives: 80000 },
-                terrain: '山地', minxinLocal: 15 }),
-              division({ name: '府谷县', level: 'county',
-                description: '黄土高原。王嘉胤、李自成活动之地。', populationDetail: { mouths: 60000, fugitives: 35000 }, minxinLocal: 8 })
-            ]
+            minxinLocal: 20, corruptionLocal: 76,
+            carryingCapacity: { arable: 6000000, water: 5500000, climate: 0.62, historicalCap: 7000000, currentLoad: 1.15, carryingRegime: 'famine' },
+            byFaith: { '儒': 0.35, '佛': 0.18, '道': 0.18, '民间': 0.23, '伊斯兰': 0.06 }
           }),
           division({
+            name: '四川布政使司', level: 'province', officialPosition: '四川巡抚', governor: '尹同皋',
+            description: '天府之国。下辖成都/保宁/顺庆/夔州/重庆/夔门 + 嘉定/眉/邛等州。西番土司林立；川西藏缅杂处。',
+            populationDetail: { mouths: 3400000, fugitives: 50000, hiddenCount: 350000 },
+            terrain: '山地', specialResources: '米·蜀锦·茶·盐井·药材', taxLevel: '轻',
+            publicTreasuryInit: { money: 120000, grain: 380000, cloth: 50000 },
+            minxinLocal: 48, corruptionLocal: 58,
+            byEthnicity: { '汉': 0.82, '藏': 0.08, '彝': 0.05, '其他': 0.05 },
+            byFaith: { '儒': 0.36, '佛': 0.22, '道': 0.24, '民间': 0.14, '藏传佛教': 0.04 }
+          }),
+          division({
+            name: '广东布政使司', level: 'province', officialPosition: '广东巡抚', governor: '李待问',
+            description: '岭海之邦。下辖广州/韶州/南雄/惠州/潮州/肇庆/高州/雷州/廉州/琼州十府。广州为海上贸易枢纽，葡萄牙居澳门；琼州辖海南岛。',
+            populationDetail: { mouths: 3200000, fugitives: 40000, hiddenCount: 200000 },
+            terrain: '沿海', specialResources: '海贸·糖·果·珠(合浦)·瓷·香料', taxLevel: '中',
+            publicTreasuryInit: { money: 240000, grain: 280000, cloth: 60000 },
+            minxinLocal: 56, corruptionLocal: 60,
+            byEthnicity: { '汉': 0.85, '壮': 0.06, '黎': 0.04, '瑶': 0.03, '其他': 0.02 },
+            byFaith: { '儒': 0.40, '佛': 0.22, '道': 0.18, '民间': 0.15, '天主教': 0.03, '伊斯兰': 0.02 }
+          }),
+          division({
+            name: '广西布政使司', level: 'province', officialPosition: '广西巡抚', governor: '毛堪',
+            description: '山川险阻。下辖桂林/平乐/梧州/浔州/柳州/庆远/思恩/南宁/太平/镇安/思明十余府。僮/瑶/苗诸民杂居；土司林立。',
+            populationDetail: { mouths: 1800000, fugitives: 30000, hiddenCount: 180000 },
+            terrain: '山地', specialResources: '桂皮·药材·糯米·马', taxLevel: '轻',
+            publicTreasuryInit: { money: 60000, grain: 160000, cloth: 18000 },
+            minxinLocal: 44, corruptionLocal: 58,
+            byEthnicity: { '汉': 0.45, '壮': 0.35, '瑶': 0.10, '苗': 0.06, '其他': 0.04 },
+            regionType: 'normal'
+          }),
+          division({
+            name: '云南布政使司', level: 'province', officialPosition: '云南巡抚', governor: '闵洪学',
+            description: '西南边陲。下辖云南/大理/临安/楚雄/澂江/广西/广南/曲靖/姚安/鹤庆/丽江等府 + 木氏/沐氏土司。黔国公沐天波世镇云南。',
+            populationDetail: { mouths: 1400000, fugitives: 20000, hiddenCount: 120000 },
+            terrain: '山地', specialResources: '铜·银·锡·茶·马·木材', taxLevel: '轻',
+            publicTreasuryInit: { money: 50000, grain: 140000, cloth: 15000 },
+            minxinLocal: 50, corruptionLocal: 55,
+            byEthnicity: { '汉': 0.42, '彝': 0.18, '白': 0.12, '纳西': 0.08, '苗': 0.06, '傣': 0.05, '其他': 0.09 },
+            byFaith: { '儒': 0.25, '佛': 0.30, '道': 0.10, '藏传佛教': 0.10, '民间': 0.22, '伊斯兰': 0.03 },
+            regionType: 'normal'
+          }),
+          division({
+            name: '贵州布政使司', level: 'province', officialPosition: '贵州巡抚', governor: '王瑊',
+            description: '黔中山地。下辖贵阳/思南/镇远/思州/石阡/铜仁/都匀/平越/黎平/安顺等府 + 水西安氏、播州杨氏（1600年被平）、永宁奢氏（1621起事）等大土司。奢安之乱刚平定。',
+            populationDetail: { mouths: 900000, fugitives: 60000, hiddenCount: 140000 },
+            terrain: '山地', specialResources: '汞·铅·朱砂·马·木材', taxLevel: '轻',
+            publicTreasuryInit: { money: 30000, grain: 80000, cloth: 8000 },
+            minxinLocal: 38, corruptionLocal: 65,
+            byEthnicity: { '汉': 0.28, '苗': 0.28, '布依': 0.16, '侗': 0.10, '彝': 0.08, '其他': 0.10 },
+            byFaith: { '儒': 0.18, '佛': 0.20, '道': 0.12, '民间': 0.45, '伊斯兰': 0.05 },
+            regionType: 'tusi'
+          }),
+          // ═══ 都司卫所 ═══
+          division({
             name: '辽东都指挥使司', level: 'province', officialPosition: '辽东经略', governor: '王之臣',
-            description: '九边之首。袁崇焕去后，现由王之臣兼领。宁远/山海关为关宁防线核心。',
-            populationDetail: { mouths: 850000, fugitives: 200000 },
-            terrain: '山地', specialResources: '马·皮毛·人参', taxLevel: '轻',
+            description: '九边之首。山东布政使司节制。辖辽阳/广宁/沈阳/铁岭/开原/锦州/广宁卫/宁远卫/前屯卫/山海关等二十五卫。沈阳/辽阳已陷后金；现只余辽西走廊+山海关+东江镇(皮岛)。',
+            populationDetail: { mouths: 850000, fugitives: 220000, hiddenCount: 90000 },
+            terrain: '山地', specialResources: '马·皮毛·人参·煤·铁', taxLevel: '轻',
             publicTreasuryInit: { money: 150000, grain: 300000, cloth: 20000 },
-            regionType: 'normal', minxinLocal: 40, corruptionLocal: 58,
-            children: [
-              division({ name: '宁远卫', level: 'prefecture', officialPosition: '宁远总兵', governor: '满桂',
-                description: '关外要冲。宁远大战故地。', populationDetail: { mouths: 120000 }, terrain: '沿海' }),
-              division({ name: '山海关', level: 'prefecture', officialPosition: '山海关总兵', governor: '赵率教',
-                description: '天下第一关。', populationDetail: { mouths: 180000 }, terrain: '山地' }),
-              division({ name: '东江镇·皮岛', level: 'prefecture', officialPosition: '东江总兵', governor: '毛文龙',
-                description: '鸭绿江口海岛。孤悬海外，扰后金后方。', populationDetail: { mouths: 80000 }, terrain: '沿海',
-                regionType: 'normal', minxinLocal: 55 })
-            ]
+            regionType: 'normal', minxinLocal: 38, corruptionLocal: 58,
+            byEthnicity: { '汉': 0.70, '女真': 0.14, '蒙古': 0.10, '朝鲜': 0.04, '其他': 0.02 },
+            carryingCapacity: { arable: 800000, water: 900000, climate: 0.74, historicalCap: 1200000, currentLoad: 1.06, carryingRegime: 'strained' }
+          }),
+          // ═══ 羁縻 ═══
+          division({
+            name: '乌思藏都指挥使司', level: 'province', officialPosition: '灌顶国师', governor: '(五世达赖未立·此时洛桑嘉措幼)',
+            description: '乌思藏(前藏)及朵甘(康区)。此时为藏传佛教格鲁/噶举诸派并立之局。明朝以册封诸派法王与赐金印羁縻之。实际内政由各大寺院与土司自治。',
+            populationDetail: { mouths: 500000, fugitives: 0, hiddenCount: 300000 },
+            terrain: '山地', specialResources: '马·羊毛·药材·盐(湖盐)·金', taxLevel: '贡赋',
+            publicTreasuryInit: { money: 5000, grain: 10000, cloth: 1000 },
+            regionType: 'jimi', minxinLocal: 55, corruptionLocal: 50,
+            byEthnicity: { '藏': 0.94, '汉': 0.02, '蒙古': 0.02, '其他': 0.02 },
+            byFaith: { '藏传佛教': 0.92, '苯教': 0.06, '其他': 0.02 },
+            fiscalDetail: { claimedRevenue: 50000, actualRevenue: 20000, remittedToCenter: 5000, retainedBudget: 40000, compliance: 0.15, skimmingRate: 0.30, autonomyLevel: 0.9 }
           })
         ]
       }
