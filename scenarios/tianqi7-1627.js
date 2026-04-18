@@ -599,7 +599,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v7-2026.04.19-parties';
+  var SCENARIO_VERSION = 'v8-2026.04.19-classes';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -1339,15 +1339,230 @@
     // § 5. 阶层
     // ═══════════════════════════════════════════════════════════════════
     var classes = [
-      { name: '宗室', desc: '朱氏皇族及分封藩王。万历末在籍逾 20 万，岁耗宗禄六百万石。福王、潞王、瑞王等亲王富可敌国。', privileges: '封爵·俸禄·不服役·不纳税·不科举', restrictions: '不得干政·不许出封地', population: '约 25 万', influence: 40, satisfaction: 58 },
-      { name: '士大夫', desc: '科举出身的读书人与官吏。儒学正统承载者。分为京官/外官/翰林/地方学官。', privileges: '免徭役·免杂税·特典·科举续命', restrictions: '须遵儒礼', population: '约 50 万', influence: 88, satisfaction: 32 },
-      { name: '缙绅', desc: '地方乡绅。退休官员/举人/监生。土地所有者，包揽赋税，掌控乡村。明末兼并日益严重。', privileges: '免徭役·包揽赋税·操纵里甲·免科', restrictions: '须遵礼法', population: '约 300 万', influence: 72, satisfaction: 62 },
-      { name: '自耕农', desc: '拥有小块土地的农户。赋役最重，最易破产。占总人口半数但土地份额仅三分之一。', privileges: '编户齐民', restrictions: '田赋·徭役·丁银·加派', population: '约 3000 万', influence: 25, satisfaction: 28 },
-      { name: '佃农与流民', desc: '无地租种、或失地流亡。小冰河期与辽饷加派下急速膨胀。将成民变主力。', privileges: '无', restrictions: '受缙绅盘剥·无籍可查', population: '约 5000 万', influence: 10, satisfaction: 10 },
-      { name: '商人', desc: '徽商/晋商/江南牙行。盐商巨富。徽商"挟盐策以走郡国"。晋商控九边茶马。', privileges: '实际巨富但社会地位低', restrictions: '四民末流·子弟科举被歧视·商税重', population: '约 500 万', influence: 55, satisfaction: 48 },
-      { name: '工匠', desc: '官匠（匠户）+ 民匠。织造局、军器局、宫廷营造。明中叶匠户改为"班匠银"折纳。', privileges: '官匠免徭', restrictions: '匠籍世袭·受工部/内府调遣', population: '约 400 万', influence: 15, satisfaction: 35 },
-      { name: '军户', desc: '军籍世袭。九边戍卒、京营、卫所守备。明初 280 万军户，至天启虚报虚额过半。', privileges: '世袭卫所田', restrictions: '军籍不能脱·应世世当兵·无饷即逃', population: '约 200 万', influence: 30, satisfaction: 22 },
-      { name: '僧道·外籍', desc: '佛教僧尼/道士/天主教/回教/西域/日本侨民。僧道不输赋税，朝廷屡禁未果。', privileges: '免徭役免税', restrictions: '须有度牒·不得与世俗争利', population: '约 50 万', influence: 18, satisfaction: 55 }
+      {
+        name: '宗室', description: '朱氏皇族及分封藩王。万历末在籍逾 20 万，岁耗宗禄六百万石。福王朱常洵岁食米 2 万石+田 4 万顷，潞王/瑞王等亦富。宗人府管辖，不许出封地。',
+        mobility: '低', status: '皇族', size: '约 25 万(占 0.02%)', satisfaction: 62, influence: 42,
+        privileges: '封爵·俸禄·不服役·不纳税·不科举·宗人府管辖',
+        obligations: '不得干政·不许出封地·婚姻受限',
+        economicRole: '治理', unrestThreshold: 20,
+        demands: '增岁禄·恢复万历末年禄米拖欠·允私自经营皇庄',
+        representativeNpcs: ['朱常洵', '朱常淓'],
+        leaders: ['朱常洵(福王·洛阳)', '朱常浩(瑞王·汉中)'],
+        supportingParties: ['阉党(部分)'],
+        regionalVariants: [
+          { region: '河南(洛阳)', satisfaction: 80, distinguishing: '福王富甲天下' },
+          { region: '湖广', satisfaction: 60, distinguishing: '瑞王/桂王等分封较近' },
+          { region: '陕甘', satisfaction: 40, distinguishing: '瑞王汉中就封困苦' }
+        ],
+        internalFaction: [
+          { name: '在京宗室', size: '10%', stance: '依附帝室' },
+          { name: '就国藩王', size: '60%', stance: '封地敛财' },
+          { name: '疏属远支', size: '30%', stance: '愤宗禄拖欠' }
+        ],
+        unrestLevels: { grievance: 65, petition: 75, strike: 88, revolt: 95 },
+        economicIndicators: { wealth: 90, taxBurden: 5, landHolding: 30 }
+      },
+      {
+        name: '士大夫', description: '科举出身的读书人与官吏。儒学正统承载者。分为京官/外官/翰林/地方学官。天启阉祸后东林血债未偿，士气极低。',
+        mobility: '高', status: '良民(士)', size: '约 50 万(含生员秀才)', satisfaction: 30, influence: 88,
+        privileges: '免徭役·免杂税·进士入仕·举人荫子·见官不跪',
+        obligations: '须遵儒礼·代朝廷教化',
+        economicRole: '治理', unrestThreshold: 35,
+        demands: '复东林·平六君子冤案·重整吏治·恢复殿试廷推·矿税永罢',
+        representativeNpcs: ['韩爌', '徐光启', '钱龙锡', '毕自严', '黄立极'],
+        leaders: ['韩爌(东林老臣)', '温体仁(浙党·将崛起)'],
+        supportingParties: ['东林党', '浙党', '阉党(附者)'],
+        regionalVariants: [
+          { region: '江南苏松', satisfaction: 45, distinguishing: '富庶开放·文采斐然·但屡遭阉党构陷' },
+          { region: '北方燕齐', satisfaction: 28, distinguishing: '务实重礼·多附阉党' },
+          { region: '湖广楚地', satisfaction: 25, distinguishing: '熊廷弼死后楚党零落' },
+          { region: '陕甘边地', satisfaction: 20, distinguishing: '师徒星散·饥荒士困' }
+        ],
+        internalFaction: [
+          { name: '东林清流', size: '20%', stance: '反阉·尊礼·讲学' },
+          { name: '实务派', size: '30%', stance: '徐光启等西学+农政' },
+          { name: '阉党附庸', size: '35%', stance: '附势求进' },
+          { name: '中立观望', size: '15%', stance: '韬晦' }
+        ],
+        unrestLevels: { grievance: 40, petition: 55, strike: 75, revolt: 88 },
+        economicIndicators: { wealth: 65, taxBurden: 20, landHolding: 50 }
+      },
+      {
+        name: '缙绅', description: '地方乡绅。退休官员/举人/监生。土地所有者，包揽赋税，掌控乡村。明末兼并日益严重，江南"田连阡陌，农夫食粥"。',
+        mobility: '中', status: '良民(绅)', size: '约 300 万', satisfaction: 64, influence: 74,
+        privileges: '免徭役·包揽赋税·操纵里甲·免科·减刑·免见官',
+        obligations: '须遵礼法·代朝廷安民',
+        economicRole: '治理', unrestThreshold: 35,
+        demands: '免派·维护里甲特权·反对丈田清查·反矿税商税',
+        representativeNpcs: ['董其昌', '钱谦益', '钱龙锡(已退)', '张溥(将立复社)'],
+        leaders: ['董其昌(松江)', '钱龙锡(华亭)', '钱谦益(常熟)'],
+        supportingParties: ['东林党', '浙党'],
+        regionalVariants: [
+          { region: '江南苏松', satisfaction: 80, distinguishing: '兼并猛进·文社林立·抗税为风' },
+          { region: '北方燕赵', satisfaction: 45, distinguishing: '兵祸频繁·田畴荒芜' },
+          { region: '西南滇黔', satisfaction: 55, distinguishing: '与土司并立·汉绅势微' }
+        ],
+        internalFaction: [
+          { name: '朝籍缙绅(退休官)', size: '25%', stance: '联络朝局' },
+          { name: '白身缙绅(举人监生)', size: '50%', stance: '钻营科举' },
+          { name: '豪强富户', size: '25%', stance: '兼并土地·包揽里甲' }
+        ],
+        unrestLevels: { grievance: 55, petition: 70, strike: 85, revolt: 92 },
+        economicIndicators: { wealth: 78, taxBurden: 15, landHolding: 72 }
+      },
+      {
+        name: '自耕农', description: '拥有小块土地的农户。赋役最重，最易破产。占总人口半数但土地份额仅三分之一。小冰河+辽饷加派之下，每年数十万户沦为佃农或流民。',
+        mobility: '低', status: '良民(民)', size: '约 3000 万(占 20%)', satisfaction: 26, influence: 25,
+        privileges: '编户齐民·科举资格(虽实难)',
+        obligations: '田赋·丁银·里甲徭役·辽饷加派·漕粮',
+        economicRole: '生产', unrestThreshold: 25,
+        demands: '减赋免派·禁止兼并·救荒',
+        representativeNpcs: [],
+        leaders: [],
+        supportingParties: [],
+        regionalVariants: [
+          { region: '江南', satisfaction: 38, distinguishing: '赋最重然有商贸副业' },
+          { region: '陕西', satisfaction: 10, distinguishing: '三年大旱·树皮草根已尽' },
+          { region: '山东河南', satisfaction: 22, distinguishing: '水旱交替·逐年破产' },
+          { region: '湖广', satisfaction: 38, distinguishing: '湖广熟天下足·相对稳' }
+        ],
+        internalFaction: [
+          { name: '自耕富农', size: '15%', stance: '保守·惧沦佃农' },
+          { name: '贫农', size: '65%', stance: '苟活' },
+          { name: '破产边缘', size: '20%', stance: '随时沦为佃农或流民' }
+        ],
+        unrestLevels: { grievance: 25, petition: 42, strike: 65, revolt: 78 },
+        economicIndicators: { wealth: 22, taxBurden: 82, landHolding: 28 }
+      },
+      {
+        name: '佃农与流民', description: '无地租种、或失地流亡。小冰河期与辽饷加派下急速膨胀。陕北 1628 已有百万流民成雏形，日后为民变主力。',
+        mobility: '极低', status: '良民(贫)/无籍(流)', size: '约 5000 万(含隐户)', satisfaction: 10, influence: 10,
+        privileges: '无',
+        obligations: '租佃租子·受缙绅盘剥',
+        economicRole: '生产', unrestThreshold: 15,
+        demands: '土地·救食·均田免赋·反辽饷',
+        representativeNpcs: ['王嘉胤', '高迎祥', '李自成(尚为驿卒)'],
+        leaders: ['王嘉胤(陕北)'],
+        supportingParties: [],
+        regionalVariants: [
+          { region: '陕北', satisfaction: 3, distinguishing: '吃观音土·将燎原' },
+          { region: '山西晋北', satisfaction: 18, distinguishing: '晋商压迫+灾荒' },
+          { region: '华北山东', satisfaction: 15, distinguishing: '逃户聚啸' },
+          { region: '江南', satisfaction: 35, distinguishing: '市镇谋食尚可' }
+        ],
+        internalFaction: [
+          { name: '佃农', size: '60%', stance: '苟活' },
+          { name: '流民(城郊)', size: '25%', stance: '乞讨·偷盗' },
+          { name: '逃卒(军户叛)', size: '10%', stance: '武装流寇种子' },
+          { name: '山寨绿林', size: '5%', stance: '已武装' }
+        ],
+        unrestLevels: { grievance: 12, petition: 25, strike: 42, revolt: 55 },
+        economicIndicators: { wealth: 5, taxBurden: 95, landHolding: 3 }
+      },
+      {
+        name: '商人', description: '徽商/晋商/江南牙行。盐商巨富。徽商"挟盐策以走郡国"。晋商控九边茶马。天启末年矿税罢，商业微舒。',
+        mobility: '中', status: '良民(末)', size: '约 500 万', satisfaction: 50, influence: 55,
+        privileges: '实际巨富',
+        obligations: '商税·关税·盐引·四民末流·子弟科举被歧视',
+        economicRole: '商贸', unrestThreshold: 30,
+        demands: '减商税·开海禁·允子弟科举·保护商路',
+        representativeNpcs: ['郑芝龙(海商)', '汪文言(徽商掌故)'],
+        leaders: ['郑芝龙(海商)', '(晋商无名人)', '(徽商无名人)'],
+        supportingParties: ['东林党(部分)'],
+        regionalVariants: [
+          { region: '徽州', satisfaction: 62, distinguishing: '徽商通盐业·富甲江南' },
+          { region: '山西平阳太原', satisfaction: 52, distinguishing: '晋商九边茶马·兼营钱庄' },
+          { region: '福建泉漳', satisfaction: 58, distinguishing: '海商郑氏起家·亦盗亦商' },
+          { region: '江南苏松', satisfaction: 55, distinguishing: '丝绸牙行·棉布行' },
+          { region: '广州', satisfaction: 45, distinguishing: '与澳门葡人互市·多政策限' }
+        ],
+        internalFaction: [
+          { name: '盐商', size: '10%', stance: '最富·结交阉党' },
+          { name: '海商', size: '15%', stance: '游走官商之间' },
+          { name: '晋商', size: '20%', stance: '控边贸·亦对后金' },
+          { name: '徽商', size: '25%', stance: '重读书·子弟科举' },
+          { name: '中小行商', size: '30%', stance: '求稳求活' }
+        ],
+        unrestLevels: { grievance: 52, petition: 68, strike: 82, revolt: 90 },
+        economicIndicators: { wealth: 72, taxBurden: 55, landHolding: 25 }
+      },
+      {
+        name: '工匠', description: '官匠（匠户）+ 民匠。织造局、军器局、宫廷营造、造船、瓷器。明中叶匠户改为"班匠银"折纳。',
+        mobility: '低', status: '良民(匠)', size: '约 400 万', satisfaction: 36, influence: 15,
+        privileges: '官匠免役·技艺传家',
+        obligations: '匠籍世袭·受工部/内府调遣·班匠银',
+        economicRole: '手工', unrestThreshold: 28,
+        demands: '减匠役·允转业·提高工钱·废匠籍',
+        representativeNpcs: ['宋应星(此时 40 岁在编《天工开物》)'],
+        leaders: [],
+        supportingParties: [],
+        regionalVariants: [
+          { region: '景德镇', satisfaction: 55, distinguishing: '官窑御用·工钱尚可' },
+          { region: '松江上海', satisfaction: 42, distinguishing: '棉布织造·商业化程度高' },
+          { region: '佛山', satisfaction: 48, distinguishing: '铁器铸造·广东海贸带动' },
+          { region: '南京', satisfaction: 38, distinguishing: '织造局供贡' },
+          { region: '北京/保定', satisfaction: 30, distinguishing: '宫廷/军器局·劳役繁重' }
+        ],
+        internalFaction: [
+          { name: '官匠(世籍)', size: '35%', stance: '受国家役使' },
+          { name: '民匠(自由)', size: '55%', stance: '市井作坊·售卖所作' },
+          { name: '军器匠', size: '10%', stance: '受工部/兵部·制甲铳' }
+        ],
+        unrestLevels: { grievance: 38, petition: 55, strike: 75, revolt: 88 },
+        economicIndicators: { wealth: 32, taxBurden: 52, landHolding: 8 }
+      },
+      {
+        name: '军户', description: '军籍世袭。九边戍卒、京营、卫所守备。明初 280 万军户，至天启虚报虚额过半。饷银长期拖欠，哗变已有宁远之例。',
+        mobility: '极低', status: '军籍', size: '约 200 万(实在册)', satisfaction: 22, influence: 30,
+        privileges: '世袭卫所田·子弟袭职',
+        obligations: '军籍不能脱·应世世当兵·无饷即逃',
+        economicRole: '军事', unrestThreshold: 20,
+        demands: '补发欠饷·允脱军籍·归还被占屯田',
+        representativeNpcs: ['满桂', '赵率教', '祖大寿'],
+        leaders: ['袁崇焕(即督关宁)', '孙承宗(元老)', '毛文龙(东江)'],
+        supportingParties: [],
+        regionalVariants: [
+          { region: '辽东/关宁', satisfaction: 38, distinguishing: '精锐·饷虽欠但战斗力在' },
+          { region: '九边其他', satisfaction: 20, distinguishing: '欠饷严重·虚额过半' },
+          { region: '京营', satisfaction: 30, distinguishing: '老弱·阉党兼任监军' },
+          { region: '内地卫所', satisfaction: 18, distinguishing: '屯田被侵吞·兵虚' }
+        ],
+        internalFaction: [
+          { name: '战兵精锐(关宁/戚家军)', size: '15%', stance: '战力强·饷可博' },
+          { name: '家丁亲兵', size: '5%', stance: '总兵私人武装·最忠最强' },
+          { name: '戍卒(普通军户)', size: '55%', stance: '世袭苦守·常哗变' },
+          { name: '逃兵', size: '25%', stance: '已逃亡·流民民变种子' }
+        ],
+        unrestLevels: { grievance: 20, petition: 38, strike: 55, revolt: 68 },
+        economicIndicators: { wealth: 18, taxBurden: 72, landHolding: 22 }
+      },
+      {
+        name: '僧道·外籍', description: '佛教僧尼/道士/天主教/回教/犹太人/西域/日本侨民。僧道免赋，朝廷屡禁未果。天主教自利玛窦以降渐入士林。',
+        mobility: '中(还俗易)', status: '度牒(僧道)/外化(外籍)', size: '约 50 万', satisfaction: 55, influence: 18,
+        privileges: '免徭役免税·免罪(僧道)',
+        obligations: '须有度牒·不得与世俗争利·外籍须有市舶司牍',
+        economicRole: '宗教/其他', unrestThreshold: 40,
+        demands: '保护寺产·允传教·开放互市',
+        representativeNpcs: ['汤若望(天主教·即将入华)', '徐光启(在家受洗)'],
+        leaders: ['利玛窦门生', '北京天主堂神父'],
+        supportingParties: [],
+        regionalVariants: [
+          { region: '京师', satisfaction: 65, distinguishing: '天主教有堂·与士大夫交' },
+          { region: '江南', satisfaction: 58, distinguishing: '佛寺最盛·徐光启籍地' },
+          { region: '西北', satisfaction: 42, distinguishing: '回民聚居·伊斯兰教' },
+          { region: '闽粤', satisfaction: 60, distinguishing: '妈祖·海商结合' },
+          { region: '西南', satisfaction: 55, distinguishing: '藏传佛教·民间信仰多元' }
+        ],
+        internalFaction: [
+          { name: '佛僧', size: '50%', stance: '寺产为重' },
+          { name: '道士', size: '20%', stance: '法师·风水·丹药' },
+          { name: '天主教士+教徒', size: '3%', stance: '传教·入仕徐光启一路' },
+          { name: '伊斯兰回民', size: '15%', stance: '聚居互助' },
+          { name: '西域/日/朝侨民', size: '12%', stance: '商贸或避难' }
+        ],
+        unrestLevels: { grievance: 58, petition: 72, strike: 88, revolt: 95 },
+        economicIndicators: { wealth: 48, taxBurden: 12, landHolding: 18 }
+      }
     ];
     classes.forEach(function (c) { c.sid = SID; c.id = _uid('cls_'); global.P.classes.push(c); });
 
