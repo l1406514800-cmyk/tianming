@@ -599,7 +599,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v13-2026.04.19-military';
+  var SCENARIO_VERSION = 'v14-2026.04.19-items';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -1065,19 +1065,50 @@
       },
 
       // ──── 历史文物/重器（P.items） ────
+      // 对齐编辑器字段: name/type/description/effect/rarity(普通/精良/珍贵/传说)/owner/value/quantity/provenance/era
       items: [
-        { name: '玉玺·制诰之宝', type: 'treasure', desc: '大明传国玉玺之一。发诰命、敕书所钤。', effect: '皇帝下诰敕之凭信', rarity: 'legendary', quantity: 1 },
-        { name: '金吾牌·银符', type: 'token', desc: '锦衣卫缉察之凭。', effect: '锦衣卫持之可通行诸门', rarity: 'rare', quantity: 50 },
-        { name: '尚方剑', type: 'weapon', desc: '皇帝赐臣下专断之剑。袁崇焕日后持此斩毛文龙。', effect: '持有者可先斩后奏', rarity: 'epic', quantity: 3 },
-        { name: '红衣大炮', type: 'weapon', desc: '葡制仿铸大炮。宁远一役威震辽东。孙元化精此。', effect: '城守利器，射程 3 里', rarity: 'rare', quantity: 40 },
-        { name: '鸟铳', type: 'weapon', desc: '单人火绳枪。从倭铳仿制。', effect: '步兵远射', rarity: 'common', quantity: 80000 },
-        { name: '《永乐大典》副本', type: 'book', desc: '存南京文渊阁。近万册大典。', effect: '学识+10', rarity: 'legendary', quantity: 1 },
-        { name: '《农政全书》稿', type: 'book', desc: '徐光启主编。论救荒、屯田、水利。此时在编。', effect: '农业+20', rarity: 'epic', quantity: 1 },
-        { name: '《本草纲目》', type: 'book', desc: '李时珍著。万历中刻成。', effect: '医学+15', rarity: 'rare', quantity: 100 },
-        { name: '《天工开物》', type: 'book', desc: '宋应星正撰（原史崇祯十年刊）。此时初稿。', effect: '工艺+15', rarity: 'rare', quantity: 1 },
-        { name: '永乐大钟', type: 'treasure', desc: '大钟寺存大钟，刻《金刚经》二十余万字。', effect: '镇国之器', rarity: 'epic', quantity: 1 },
-        { name: '《几何原本》前六卷', type: 'book', desc: '利玛窦、徐光启合译（1607）。欧氏几何入中国。', effect: '西学+20', rarity: 'epic', quantity: 200 },
-        { name: '九龙盔甲', type: 'armor', desc: '明帝御用盔甲。', effect: '防御极强', rarity: 'epic', quantity: 1 }
+        // ═══ 皇家印玺与仪仗 ═══
+        { name: '皇帝之宝', type: 'seal', description: '明代二十四宝玺之首。金质金龙纽。告祭天地宗庙所钤。', effect: '皇帝最高权威之凭', rarity: '传说', owner: '朱由检', value: 1000000, quantity: 1, provenance: '洪武始制，世代相承', era: '明', hiddenAbility: '无此玺则朝廷诏令失法理根基' },
+        { name: '制诰之宝', type: 'seal', description: '钦定五品以上文武官员诰命所钤。金质龙纽。存尚宝司。', effect: '任命高官之凭', rarity: '传说', owner: '朱由检', value: 800000, quantity: 1, era: '明' },
+        { name: '敕命之宝', type: 'seal', description: '敕书所钤。金质。告谕百官。', effect: '帝命之凭', rarity: '珍贵', owner: '朱由检', value: 500000, quantity: 1, era: '明' },
+        { name: '皇帝奉天之宝', type: 'seal', description: '玉玺。郊祀/宗庙所用。', effect: '祭祀正统', rarity: '传说', owner: '朱由检', value: 1200000, quantity: 1, era: '明' },
+        // ═══ 权杖与武器 ═══
+        { name: '尚方剑', type: 'weapon', description: '皇帝赐臣下专断之剑。"如朕亲临，先斩后奏"。袁崇焕日后持此斩毛文龙。', effect: '持有者可先斩后奏四品以下', rarity: '珍贵', owner: '', value: 100000, quantity: 3, provenance: '皇帝赐封', era: '明' },
+        { name: '金吾牌·银符', type: 'token', description: '锦衣卫缉察之凭。方圆两式。', effect: '锦衣卫缇骑可通行九门及州县', rarity: '精良', owner: '田尔耕(锦衣卫指挥使)', value: 5000, quantity: 50, era: '明' },
+        { name: '虎符', type: 'token', description: '调兵之符。左半在兵部，右半在军中总兵。合则可调兵。', effect: '节制军队调动', rarity: '珍贵', owner: '兵部尚书崔呈秀', value: 50000, quantity: 9, provenance: '九边各一，京营一', era: '明' },
+        { name: '节钺', type: 'token', description: '督师/经略之仪。白旄黄钺。象征专征之权。', effect: '总督/经略统军之凭', rarity: '珍贵', owner: '辽东经略·王之臣', value: 80000, quantity: 5, era: '明' },
+        // ═══ 火器·西洋器 ═══
+        { name: '红衣大炮', type: 'weapon', description: '葡制仿铸大炮。宁远一役击退努尔哈赤。孙元化精此。射程约 3 里。', effect: '城守+25·野战爆发伤害', rarity: '珍贵', owner: '关宁军/京营/登莱', value: 8000, quantity: 80, provenance: '澳门葡人铸/北京仿铸', era: '明末' },
+        { name: '佛朗机铳', type: 'weapon', description: '小型后膛装填铜炮。葡语 Frangi 音译。', effect: '步兵+10·射速快', rarity: '精良', owner: '', value: 500, quantity: 520, era: '明' },
+        { name: '鸟铳', type: 'weapon', description: '单人火绳枪。从倭铳仿制。射程百步。', effect: '步兵远射', rarity: '普通', owner: '', value: 18, quantity: 85000, provenance: '戚继光传自日本', era: '明中后期' },
+        { name: '三眼铳', type: 'weapon', description: '三管轮射火铳。辽东关宁骑兵所用。', effect: '骑兵近射·三发连珠', rarity: '精良', owner: '', value: 120, quantity: 18000, era: '明末' },
+        // ═══ 甲胄 ═══
+        { name: '九龙金盔', type: 'armor', description: '明帝御用金盔。九龙纹饰。战场仪仗。', effect: '帝王出征之仪·防御极强', rarity: '传说', owner: '朱由检', value: 500000, quantity: 1, era: '明' },
+        { name: '明光铠', type: 'armor', description: '胸甲光亮如镜。将领用。', effect: '将领防御+15', rarity: '珍贵', owner: '', value: 1500, quantity: 200, era: '明' },
+        { name: '棉甲', type: 'armor', description: '多层棉布夹铁片。辽东边军主甲。抗寒抗弓箭。', effect: '防御+5·御寒', rarity: '普通', owner: '', value: 8, quantity: 240000, provenance: '明军制式', era: '明' },
+        // ═══ 典籍·学术 ═══
+        { name: '《永乐大典》副本', type: 'document', description: '22877 卷·11095 册。永乐修。存南京文渊阁，两副在皇史宬。', effect: '学识+15·文化遗产', rarity: '传说', owner: '南京文渊阁', value: 2000000, quantity: 1, era: '永乐' },
+        { name: '《农政全书》稿本', type: 'document', description: '徐光启主编。60 卷论救荒/屯田/水利/甘薯。此时在编。', effect: '农业+20·救荒+15', rarity: '珍贵', owner: '徐光启', value: 50000, quantity: 1, provenance: '徐光启自著', era: '天启' },
+        { name: '《本草纲目》', type: 'document', description: '李时珍著。16 部 52 卷。万历中刻成。天启朝流传。', effect: '医学+15', rarity: '精良', owner: '民间', value: 100, quantity: 150, era: '万历' },
+        { name: '《天工开物》初稿', type: 'document', description: '宋应星正撰。工艺百科。原史崇祯十年(1637)刊。', effect: '工艺+15', rarity: '珍贵', owner: '宋应星', value: 8000, quantity: 1, era: '天启' },
+        { name: '《几何原本》前六卷', type: 'document', description: '利玛窦+徐光启合译(1607)。欧氏几何入华。', effect: '西学+20·数学启蒙', rarity: '珍贵', owner: '翰林院·徐光启·士林', value: 80, quantity: 200, provenance: '译自欧几里得原本', era: '万历' },
+        { name: '《武备志》', type: 'document', description: '茅元仪著(1621)。240 卷。集古今兵法之大成。', effect: '军事+18', rarity: '精良', owner: '兵部/将领', value: 600, quantity: 80, era: '天启' },
+        { name: '《明实录》天启朝编撰中', type: 'document', description: '官修国史。按日记录帝王言行军国大事。', effect: '史鉴+10', rarity: '精良', owner: '翰林院·史馆', value: 0, quantity: 1, era: '天启' },
+        { name: '《金瓶梅》', type: 'document', description: '兰陵笑笑生著。明代第一部世情小说。民间流传。', effect: '市民文学+10·士人议之为秽', rarity: '精良', owner: '民间书肆', value: 2, quantity: 20000, era: '万历末' },
+        // ═══ 宗教·器物 ═══
+        { name: '永乐大钟', type: 'treasure', description: '大钟寺存。刻《金刚经》《诸佛名号》等二十余万字。', effect: '镇国之器', rarity: '珍贵', owner: '大钟寺', value: 300000, quantity: 1, era: '永乐' },
+        { name: '十字架·天主教', type: 'treasure', description: '利玛窦入华所带。徐光启等士大夫私家供奉。', effect: '通西学·天主教徒好感', rarity: '精良', owner: '徐光启/孙元化/汤若望', value: 200, quantity: 50, era: '万历末' },
+        { name: '传教士《七克》', type: 'document', description: '庞迪我著。天主教戒律与儒家伦理对话。', effect: '西学+5·正信', rarity: '精良', owner: '士大夫书房', value: 30, quantity: 500, era: '万历天启' },
+        // ═══ 诏令·典章 ═══
+        { name: '免死铁券', type: 'document', description: '开国功臣及后裔所赐。准予免死几次。明末稀罕。', effect: '持者一次免死', rarity: '珍贵', owner: '(多已废)', value: 200000, quantity: 5, era: '洪武' },
+        { name: '《大明会典》', type: 'document', description: '明代制度总汇。万历朝续修。典章制度最高依据。', effect: '吏治+10', rarity: '精良', owner: '内阁·六部', value: 1000, quantity: 40, era: '万历' },
+        // ═══ 边贸·外番 ═══
+        { name: '蒙古马', type: 'special', description: '蒙古良种战马。宣府/大同/张家口茶马互市所得。', effect: '骑兵战力+10', rarity: '精良', owner: '九边', value: 80, quantity: 120000, provenance: '蒙古察哈尔/土默特部', era: '明代通贸' },
+        { name: '人参', type: 'special', description: '辽东特产。明末后金控其产区，以此换白银。', effect: '医药价值/贡品', rarity: '精良', owner: '后金/辽东商人', value: 200, quantity: 5000, era: '明末' },
+        { name: '美洲白银', type: 'special', description: '自马尼拉-月港-澳门流入。明末岁入数百万两。', effect: '流通货币', rarity: '普通', owner: '商人/朝廷', value: 1, quantity: 5000000, provenance: '西葡经美洲·日本', era: '万历以降' },
+        // ═══ 私产·家传 ═══
+        { name: '《袁氏世范》·袁崇焕家传手札', type: 'document', description: '袁崇焕于宁远守城夜所书家训。劝子弟勿近权宦。', effect: '袁崇焕子弟+5 智力', rarity: '精良', owner: '袁崇焕', value: 500, quantity: 1, era: '天启末' },
+        { name: '九千岁金册', type: 'treasure', description: '天启六年熹宗赐魏忠贤"九千岁"荣号金册。日后清算之证据。', effect: '阉党荣誉·日后罪证', rarity: '珍贵', owner: '魏忠贤', value: 100000, quantity: 1, era: '天启六年' }
       ],
 
       // ──── 科技/工艺树（P.techTree） ────
