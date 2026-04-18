@@ -1241,7 +1241,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v28-2026.04.19-military-editor-schema';
+  var SCENARIO_VERSION = 'v29-2026.04.19-rules-object-building-system';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -1674,8 +1674,43 @@
         { turn: 146, date: '崇祯十七年三月', title: '煤山自缢', note: '李自成破京，帝自缢。明亡。', category: '亡国', isHistorical: true }
       ],
 
-      // ──── 规则（条件触发） ────
-      rules: [
+      // ──── 规则（编辑器 scriptData.rules · 4 段 AI 推演约束文本） ────
+      rules: {
+        base:
+          '【制度总纲】\n' +
+          '1. 《大明会典》为典章最高依据。祖制不可轻改，非常之事须"廷议"或"朝议"集合阁臣+六部+都察院+六科决。\n' +
+          '2. 内阁大学士正五品，然票拟之权超越六部尚书(正二品)。批红由司礼监秉笔太监代帝，阉祸之源即在此。\n' +
+          '3. 六科给事中正七品但可"封驳"六部之诏，所谓"小臣制大臣"。\n' +
+          '4. 锦衣卫+东厂"厂卫"不受刑部/都察院节制，直达天听；西厂天启朝已废。\n' +
+          '5. 八股取士为科举定制。四书五经为本，偏题考注疏者不拔。\n' +
+          '6. 文官三年一京察、六年一外察；武将每年一考核。',
+        combat:
+          '【战斗原则】\n' +
+          '1. "守险、守堡、守城"三原则：长城为险、卫所为堡、府县为城。\n' +
+          '2. 野战火器化：红衣大炮+鸟铳+佛朗机+三眼铳并用；宁远大捷(1626)为红衣炮战典范。\n' +
+          '3. 骑兵化关宁：祖大寿家丁、满桂蒙古骑为精锐；九边边军仍以步骑混合。\n' +
+          '4. 文臣节制武将：总督/经略+巡抚+巡按三重节制；宦官监军。武将不得私自调兵。\n' +
+          '5. 战力倒挂：家丁(私兵) > 募兵(精锐) > 边军(九边) > 卫所军(世袭老弱) > 乡勇。\n' +
+          '6. 后勤脆弱：九边军粮半仗屯田半仗漕运，加派辽饷为变量。欠饷 3 月必哗变。',
+        economy:
+          '【经济规则】\n' +
+          '1. 一条鞭法(张居正改)：赋役合并，折银交纳，简化征收。但北方小民不乐银货、多受折价之亏。\n' +
+          '2. 货币双本位：银(大宗)+铜钱(零售)。白银仰美洲/日本输入，明末岁入数百万两。\n' +
+          '3. 田赋正常每亩 3.3 升(夏税秋粮合)，加派辽饷(万历四十六年起九厘)+剿饷+练饷三饷累加，崇祯末加派超正税。\n' +
+          '4. 商税抵制：江南缙绅反对商税(钞关/市舶/盐课)，天启五年罢矿税为代表。\n' +
+          '5. 漕运为命脉：江南岁运 400 万石京师。漕军 12 万。运河一阻，京师断粮。\n' +
+          '6. 盐铁官营/开中：盐引换粮济边。明末盐引滥发，淮盐 1627 年积欠上千万引。',
+        diplomacy:
+          '【外交规则】\n' +
+          '1. 朝贡体系：朝鲜/安南/琉球/暹罗等"朝贡十国"，以"贡-赏"不等价交换为本。\n' +
+          '2. 宗藩关系：朝鲜事明最恭(天启七年被后金迫定兄弟盟)、安南摇摆、琉球仅贡。\n' +
+          '3. 对蒙古：察哈尔林丹汗西迁归化，欲联明抗金；土默特部/喀尔喀诸部皆叛附不定。\n' +
+          '4. 对后金：天启六-七年连战皆守势(宁远/宁锦)。后金尚未称帝国号(崇祯九年 1636 改清)。\n' +
+          '5. 对欧洲：葡人据澳门(嘉靖三十六年 1557 起)月租 500 两；荷人据台海(天启四年 1624 起)；西班牙据菲律宾与郑氏竞。\n' +
+          '6. 土司体制：西南广西/云贵/四川边地土司百余家。"改土归流"为长期国策，奢安之乱刚平。'
+      },
+      // 原"rules 数组"实为条件触发器，重命名至 conditionalRules（运行时引擎仍可读，不影响游戏）
+      conditionalRules: [
         { name: '阉党处置失当激兵变', enabled: true, trigger: { type: 'threshold', variable: '阉党权势值', op: '<', value: 30, window: 3 }, effect: { narrative: '魏忠贤党羽闻风，崔呈秀、田尔耕等阉党武将密谋京营兵变。', varChg: { '皇威': -15, '皇权': -10 } } },
         { name: '辽饷积欠过重引哗变', enabled: true, trigger: { type: 'threshold', variable: '辽饷积欠', op: '>', value: 300 }, effect: { narrative: '宁远/锦州戍卒索饷鼓噪。', varChg: { '辽东防线稳固度': -8, '民心': -3 } } },
         { name: '小冰河凛冬引疫', enabled: true, trigger: { type: 'threshold', variable: '小冰河凛冬指数', op: '>', value: 80 }, effect: { narrative: '华北疫气大行。', varChg: { '人口': -200000, '西北灾荒怨气': +10 } } },
@@ -1683,6 +1718,47 @@
         { name: '国库空虚引弹劾', enabled: true, trigger: { type: 'threshold', variable: '国库资金', op: '<', value: 500000 }, effect: { narrative: '科道合疏弹劾户部尚书无能，实则党争借题。', varChg: { '党争烈度': +5 } } },
         { name: '东林复起引新党争', enabled: true, trigger: { type: 'threshold', variable: '东林党复苏进度', op: '>', value: 60 }, effect: { narrative: '东林骨干重返朝堂，与浙党楚党齐党之间结怨渐深，门户之争迭起。', varChg: { '党争烈度': +8, '全局腐败': -3 } } }
       ],
+      // ──── 建筑系统（编辑器 scriptData.buildingSystem · 明代典型建筑类型） ────
+      buildingSystem: {
+        enabled: true,
+        buildingTypes: [
+          // ═══ 军事 ═══
+          { name: '卫所', category: 'military', description: '明代军户世袭的驻地。卫(5600人)-千户所(1120人)-百户所(112人)三级。自耕屯田济饷。明中叶后多虚化。', maxLevel: 5, baseCost: 5000, buildTime: 6 },
+          { name: '边镇·总兵府', category: 'military', description: '九边(辽东/蓟州/宣府/大同/山西/延绥/宁夏/甘肃/固原)总兵驻扎。节制本镇军务。', maxLevel: 5, baseCost: 20000, buildTime: 10 },
+          { name: '长城·关隘', category: 'military', description: '长城沿线险隘关城。山海/居庸/雁门/嘉峪等最险。月饷巨大。', maxLevel: 6, baseCost: 50000, buildTime: 24 },
+          { name: '烽火台', category: 'military', description: '长城沿线瞭望塔，五里一烟燧。有警则举火/举烟/击鼓为号。', maxLevel: 3, baseCost: 800, buildTime: 2 },
+          { name: '城墙', category: 'military', description: '府县城防。明代府城周 10-20 里、高 3-5 丈、厚 2-3 丈，内外包砖。', maxLevel: 5, baseCost: 30000, buildTime: 18 },
+          { name: '箭楼·敌台', category: 'military', description: '戚继光于蓟镇首建空心敌台，以利守御。', maxLevel: 3, baseCost: 3000, buildTime: 3 },
+          // ═══ 经济 ═══
+          { name: '市舶司', category: 'economic', description: '明代海贸管理衙门。宁波(通日本)、泉州(通琉球菲)、广州(通南海葡夷)。月进关税。', maxLevel: 4, baseCost: 15000, buildTime: 8 },
+          { name: '盐场·盐课提举司', category: 'economic', description: '两淮/两浙/山东/长芦/河东/四川等十一处盐场。盐引为大宗财源(年 250 万两)。', maxLevel: 5, baseCost: 10000, buildTime: 6 },
+          { name: '钞关', category: 'economic', description: '漕运河道税关。临清/淮安/扬州/杭州等七大钞关。商税来源。', maxLevel: 4, baseCost: 8000, buildTime: 4 },
+          { name: '漕仓·京通十三仓', category: 'economic', description: '通州京通十三仓储京师半年粮。年受江南漕米 400 万石。', maxLevel: 5, baseCost: 25000, buildTime: 10 },
+          { name: '驿站', category: 'economic', description: '明代驿递制度。每六十里一驿，十里一铺。塘马传递公文。崇祯元年裁驿为民变导火索。', maxLevel: 3, baseCost: 2000, buildTime: 3 },
+          { name: '织造局', category: 'economic', description: '苏/杭/江宁三大织造局。皇家锦缎所需。由宦官提督。', maxLevel: 4, baseCost: 18000, buildTime: 8 },
+          // ═══ 文化 ═══
+          { name: '书院', category: 'cultural', description: '讲学论政之所。东林(无锡)/首善(北京)/紫阳(徽州)/石鼓(湘潭)四大书院。天启朝被毁。', maxLevel: 4, baseCost: 6000, buildTime: 6 },
+          { name: '文庙·学宫', category: 'cultural', description: '府县学宫，祀孔子，诸生肄业。士子入门必经。', maxLevel: 4, baseCost: 10000, buildTime: 6 },
+          { name: '贡院', category: 'cultural', description: '乡试/会试考场。顺天/江南为最大。内有号房万余间。', maxLevel: 4, baseCost: 40000, buildTime: 14 },
+          { name: '会馆', category: 'cultural', description: '京师各省同乡会馆，应试举子下榻之所。晋/陕商建最多。', maxLevel: 3, baseCost: 3000, buildTime: 4 },
+          // ═══ 行政 ═══
+          { name: '府衙·县衙', category: 'administrative', description: '府县主官治所。六房(吏户礼兵刑工)办事。审判+税收+民政。', maxLevel: 4, baseCost: 12000, buildTime: 6 },
+          { name: '宗祠·祠堂', category: 'administrative', description: '宗族祭祖之所。明中叶以后盛兴，江南苏松尤多。族规法治之核心。', maxLevel: 3, baseCost: 4000, buildTime: 4 },
+          { name: '府仓·官仓', category: 'administrative', description: '州县常平仓/预备仓/义仓。储粮备荒。明末多已空虚。', maxLevel: 4, baseCost: 8000, buildTime: 5 },
+          { name: '巡抚衙门·总督府', category: 'administrative', description: '督抚驻地。应天/顺天/辽东/三边等巡抚/总督各有衙门。', maxLevel: 4, baseCost: 20000, buildTime: 10 },
+          // ═══ 宗教 ═══
+          { name: '佛寺', category: 'religious', description: '明代佛教寺院。北有拈花/戒台/碧云，南有灵隐/国清/寒山。', maxLevel: 4, baseCost: 15000, buildTime: 12 },
+          { name: '道观', category: 'religious', description: '道教宫观。武当山为皇家道场；北京白云观为全真祖庭。', maxLevel: 4, baseCost: 12000, buildTime: 10 },
+          { name: '清真寺', category: 'religious', description: '回民礼拜之所。北京牛街、西安化觉巷、泉州艾苏哈卜皆明代著名。', maxLevel: 3, baseCost: 5000, buildTime: 6 },
+          { name: '天主堂', category: 'religious', description: '明末利玛窦等耶稣会士所建。北京南堂(宣武门)为最早(万历三十三年)。', maxLevel: 3, baseCost: 6000, buildTime: 4 },
+          { name: '生祠', category: 'religious', description: '为活人立祠祀之。天启朝魏忠贤生祠遍天下（首建于浙江潘汝桢）。崇祯元年尽毁。', maxLevel: 3, baseCost: 20000, buildTime: 3 },
+          // ═══ 基础设施 ═══
+          { name: '水利·河工', category: 'infrastructure', description: '黄河治理+运河浚修。明代河漕总督常驻清江浦。河患频发。', maxLevel: 5, baseCost: 100000, buildTime: 24 },
+          { name: '漕运码头', category: 'infrastructure', description: '运河沿线漕粮转运码头。临清/淮安/扬州为三大转运枢纽。', maxLevel: 4, baseCost: 12000, buildTime: 6 },
+          { name: '石桥·拱桥', category: 'infrastructure', description: '明代桥梁工艺精湛。苏州宝带桥、绍兴八字桥、泉州洛阳桥皆名。', maxLevel: 3, baseCost: 3000, buildTime: 3 },
+          { name: '街市·商铺街区', category: 'infrastructure', description: '城内商业区。北京崇文门/大栅栏、南京夫子庙、苏州阊门为首。', maxLevel: 4, baseCost: 5000, buildTime: 3 }
+        ]
+      },
 
       // ──── 封臣/藩属 ────
       vassalSystem: {
