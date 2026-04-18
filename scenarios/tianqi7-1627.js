@@ -599,7 +599,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v16-2026.04.19-families';
+  var SCENARIO_VERSION = 'v17-2026.04.19-fac-class-editor';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -1507,6 +1507,143 @@
     // § 3. 势力
     // ═══════════════════════════════════════════════════════════════════
     // ═══════════════════════════════════════════════════════════════════
+    //  _FAC_EDITOR — 势力·对齐编辑器 openFactionModal 完整字段
+    //  (type/leaderTitle/goal/mainstream/culture/leaderInfo/heirInfo/
+    //   cohesion/militaryBreakdown/economicStructure/succession/
+    //   historicalEvents/internalParties/resources)
+    // ═══════════════════════════════════════════════════════════════════
+    var _FAC_EDITOR = {
+      '明朝廷': {
+        type: '主权国', leaderTitle: '皇帝', goal: '中兴大明·除阉党·守辽东·救饥',
+        mainstream: '儒家', culture: '汉文化',
+        resources: '漕粮·白银·盐·丝绸·瓷·茶·铁·铜',
+        leaderInfo: { name: '朱由检', personality: '刚烈·多疑·勤政·急切', age: '17', gender: '男', belief: '儒', learning: '皇子·经筵·博览', ethnicity: '汉', bio: '明熹宗之弟·信王入继大统·原史在位 17 年终亡国自缢煤山。' },
+        heirInfo: { name: '', personality: '', age: '', gender: '', belief: '', learning: '', ethnicity: '汉', bio: '周皇后尚未生嫡子。原史崇祯三年生太子朱慈烺。' },
+        cohesion: { political: 35, military: 48, economic: 40, cultural: 85, ethnic: 95, loyalty: 50 },
+        militaryBreakdown: { standingArmy: 380000, militia: 100000, elite: 65000, fleet: 8500 },
+        economicStructure: { agriculture: 72, trade: 14, handicraft: 9, tribute: 5 },
+        succession: { rule: 'primogeniture', designatedHeir: '', stability: 35 },
+        historicalEvents: [
+          { turn: -260, event: '洪武立国 1368', impact: '奠定二百六十年江山' },
+          { turn: -200, event: '永乐迁都北京 1421', impact: '天子守国门·长城防御体系' },
+          { turn: -175, event: '土木之变 1449', impact: '英宗被俘·国力由盛转衰苗头' },
+          { turn: -50, event: '张居正考成法+一条鞭法 1580', impact: '中兴之治' },
+          { turn: -35, event: '万历三大征 1592-1600', impact: '国力被透支·开始加派' },
+          { turn: -9, event: '萨尔浒之败 1619', impact: '辽东主力丧·后金崛起' },
+          { turn: -6, event: '广宁之变 1622', impact: '弃 40 卫所退关内' },
+          { turn: -3, event: '天启四年东林六君子死诏狱 1624', impact: '阉党当国·士林溃散' },
+          { turn: -1, event: '宁远大捷 1626', impact: '红衣炮退努尔哈赤·辽东短暂安' },
+          { turn: 0, event: '天启七年熹宗崩·新帝入继 1627', impact: '现场·开局' }
+        ],
+        internalParties: ['阉党', '东林党', '浙党', '楚党', '齐党', '宣党', '昆党']
+      },
+      '后金': {
+        type: '主权国', leaderTitle: '大金天聪汗', goal: '削察哈尔·迫朝鲜·绕蒙古破塞入中原',
+        mainstream: '萨满·兼礼汉儒', culture: '女真+汉+蒙古复合',
+        resources: '马·皮毛·人参·辽东铁·松嫩平原粮·关外珠',
+        leaderInfo: { name: '皇太极', personality: '深沉·多谋·隐忍·野心', age: '35', gender: '男', belief: '萨满·读汉儒', learning: '读《三国演义》', ethnicity: '女真', bio: '努尔哈赤第八子·天命十一年继位。1636 将改元崇德国号清。1643 病逝。' },
+        heirInfo: { name: '豪格(皇太极长子)', personality: '骁勇而短谋', age: '19', gender: '男', belief: '萨满', learning: '武勇', ethnicity: '女真', bio: '日后多尔衮竞位时黯然。' },
+        cohesion: { political: 75, military: 88, economic: 55, cultural: 60, ethnic: 70, loyalty: 80 },
+        militaryBreakdown: { standingArmy: 60000, militia: 40000, elite: 25000, fleet: 0 },
+        economicStructure: { agriculture: 35, trade: 20, handicraft: 15, tribute: 30 },
+        succession: { rule: 'electiveClan', designatedHeir: '(未定)', stability: 65 },
+        historicalEvents: [
+          { turn: -11, event: '努尔哈赤称汗 1616·国号金', impact: '女真统一崛起' },
+          { turn: -8, event: '萨尔浒之战 1619', impact: '破明四路·辽东主动在握' },
+          { turn: -6, event: '取沈阳辽阳 1621', impact: '辽东主要城市尽失于明' },
+          { turn: -1, event: '努尔哈赤殁 1626·皇太极继位', impact: '新汗整顿·图变法' },
+          { turn: 0, event: '江都盟 1627·迫朝鲜兄弟之盟', impact: '稳定后方·转力西进' }
+        ],
+        internalParties: ['皇太极本人一派', '代善一派', '多尔衮(幼)', '阿敏/莽古尔泰(对立)']
+      },
+      '察哈尔': {
+        type: '部落', leaderTitle: '察哈尔可汗', goal: '复元裔大统·抗后金',
+        mainstream: '藏传佛教', culture: '蒙古文化',
+        resources: '马·羊·毛皮',
+        leaderInfo: { name: '林丹汗', personality: '骄矜·急躁·黄教狂热', age: '35', gender: '男', belief: '藏传佛教格鲁派', learning: '汗学', ethnicity: '蒙古', bio: '元裔。1604 继汗。1634 病死青海。' },
+        heirInfo: { name: '额哲', personality: '少年', age: '12', gender: '男', belief: '藏传佛教', learning: '', ethnicity: '蒙古', bio: '日后 1635 归附后金被封亲王。' },
+        cohesion: { political: 38, military: 55, economic: 25, cultural: 65, ethnic: 88, loyalty: 48 },
+        militaryBreakdown: { standingArmy: 30000, militia: 60000, elite: 5000, fleet: 0 },
+        economicStructure: { agriculture: 10, trade: 25, handicraft: 5, tribute: 60 },
+        succession: { rule: 'primogeniture', designatedHeir: '额哲', stability: 45 },
+        historicalEvents: [
+          { turn: -23, event: '继察哈尔汗 1604', impact: '年仅 12 岁继位' },
+          { turn: -7, event: '诸部叛金 1619', impact: '察哈尔被孤立' },
+          { turn: -2, event: '林丹西迁归化 1625-1627', impact: '战略收缩' }
+        ],
+        internalParties: []
+      },
+      '朝鲜': {
+        type: '番属', leaderTitle: '国王', goal: '对明事大·对金虚应',
+        mainstream: '儒教', culture: '小中华',
+        resources: '人参·毛皮·银·米·纸·高丽参',
+        leaderInfo: { name: '仁祖·李倧', personality: '怯懦·事大·无奈', age: '32', gender: '男', belief: '儒教', learning: '朝鲜文武两科', ethnicity: '朝鲜', bio: '1623 反正立国·1637 丙子胡乱降清·1649 卒。' },
+        heirInfo: { name: '昭显世子', personality: '刚毅', age: '16', gender: '男', belief: '儒', learning: '', ethnicity: '朝鲜', bio: '日后被清军劫为质于沈阳。' },
+        cohesion: { political: 55, military: 42, economic: 60, cultural: 88, ethnic: 95, loyalty: 75 },
+        militaryBreakdown: { standingArmy: 25000, militia: 40000, elite: 2000, fleet: 3000 },
+        economicStructure: { agriculture: 75, trade: 10, handicraft: 10, tribute: 5 },
+        succession: { rule: 'primogeniture', designatedHeir: '昭显世子', stability: 62 },
+        historicalEvents: [
+          { turn: -235, event: '李成桂立朝鲜 1392', impact: '被明册封' },
+          { turn: -35, event: '壬辰倭乱 1592-1598', impact: '明军援朝·国破家亡' },
+          { turn: -4, event: '仁祖反正 1623', impact: '废光海君立李倧' },
+          { turn: 0, event: '1627 春丁卯之役·江都兄弟盟', impact: '被迫降后金为兄弟' }
+        ],
+        internalParties: ['西人', '南人', '老论', '少论']
+      },
+      '播州土司·杨氏(余裔)': {
+        type: '部落', leaderTitle: '土司', goal: '复播州旧业',
+        mainstream: '民间+汉儒', culture: '苗汉混合',
+        resources: '山地木材·朱砂·汞',
+        leaderInfo: { name: '杨朝栋', personality: '残忍·不甘', age: '45', gender: '男', belief: '民间', learning: '武举', ethnicity: '仡佬/汉', bio: '杨应龙遗脉。' },
+        heirInfo: { name: '', personality: '', age: '', gender: '', belief: '', learning: '', ethnicity: '', bio: '' },
+        cohesion: { political: 30, military: 50, economic: 15, cultural: 72, ethnic: 80, loyalty: 45 },
+        militaryBreakdown: { standingArmy: 2000, militia: 8000, elite: 500, fleet: 0 },
+        economicStructure: { agriculture: 50, trade: 8, handicraft: 20, tribute: 22 },
+        succession: { rule: 'primogeniture', designatedHeir: '', stability: 20 },
+        historicalEvents: [
+          { turn: -27, event: '播州之役 1600', impact: '杨应龙族灭·元气大伤' },
+          { turn: -6, event: '奢安之乱开始 1621', impact: '余裔加入叛乱' }
+        ],
+        internalParties: []
+      },
+      '郑氏海商': {
+        type: '商贸势力', leaderTitle: '海贸大头领', goal: '受明招抚为游击·海上王国',
+        mainstream: '天主教·兼佛', culture: '多国混合·海商',
+        resources: '糖·丝·鹿皮·海贸税·走私·武装商船',
+        leaderInfo: { name: '郑芝龙', personality: '机变·豪迈·贪利', age: '23', gender: '男', belief: '天主教', learning: '海商出身·通多语', ethnicity: '汉', bio: '福建南安人·日后福建海上霸主。1661 清廷杀于北京。' },
+        heirInfo: { name: '郑成功', personality: '(婴幼期)', age: '3', gender: '男', belief: '', learning: '', ethnicity: '汉(母日本)', bio: '日本平户生。日后抗清复台。' },
+        cohesion: { political: 55, military: 72, economic: 85, cultural: 50, ethnic: 70, loyalty: 70 },
+        militaryBreakdown: { standingArmy: 5000, militia: 12000, elite: 3000, fleet: 12000 },
+        economicStructure: { agriculture: 5, trade: 80, handicraft: 5, tribute: 10 },
+        succession: { rule: 'primogeniture', designatedHeir: '郑成功', stability: 55 },
+        historicalEvents: [
+          { turn: -23, event: '郑芝龙生南安 1604', impact: '海商之始' },
+          { turn: -6, event: '赴日本平户 1621', impact: '结田川松·生子成功 1624' },
+          { turn: -3, event: '助荷兰据台 1624', impact: '澎湖驱荷·入台湾' },
+          { turn: 0, event: '将受明招抚 1628', impact: '成合法游击' }
+        ],
+        internalParties: []
+      },
+      '陕北饥民(将起)': {
+        type: '起义军', leaderTitle: '魁首', goal: '生存→均田免赋',
+        mainstream: '民间·白莲教余脉', culture: '陕北农民',
+        resources: '劫掠·裹挟饥民',
+        leaderInfo: { name: '王嘉胤', personality: '豪猛·不学·能聚众', age: '42', gender: '男', belief: '民间', learning: '军卒', ethnicity: '汉', bio: '陕西府谷人·1628 起事·1631 被杀于内讧。' },
+        heirInfo: { name: '', personality: '', age: '', gender: '', belief: '', learning: '', ethnicity: '', bio: '' },
+        cohesion: { political: 10, military: 20, economic: 5, cultural: 45, ethnic: 90, loyalty: 30 },
+        militaryBreakdown: { standingArmy: 0, militia: 2000, elite: 200, fleet: 0 },
+        economicStructure: { agriculture: 15, trade: 0, handicraft: 0, tribute: 85 },
+        succession: { rule: 'strongest', designatedHeir: '', stability: 10 },
+        historicalEvents: [
+          { turn: -2, event: '陕北大旱三年始 1625', impact: '民食树皮观音土' },
+          { turn: 0, event: '饥民聚啸·将起 1627', impact: '民变前夜' }
+        ],
+        internalParties: []
+      }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════
     //  _FAC_LAYER2 — 势力第二层深化（数值关系/科技文化等级/人口/战争/胜负条件）
     // ═══════════════════════════════════════════════════════════════════
     var _FAC_LAYER2 = {
@@ -1726,6 +1863,12 @@
     ];
     facs.forEach(function (f) {
       f.sid = SID; f.id = _uid('fac_');
+      // 编辑器 openFactionModal 完整字段合并
+      if (_FAC_EDITOR[f.name]) {
+        Object.keys(_FAC_EDITOR[f.name]).forEach(function(k){
+          if (f[k] === undefined || f[k] === null) f[k] = _FAC_EDITOR[f.name][k];
+        });
+      }
       // 第二层深化合并（relations/techLevel/population/warState/胜负条件等）
       if (_FAC_LAYER2[f.name]) {
         Object.keys(_FAC_LAYER2[f.name]).forEach(function(k){
@@ -2090,7 +2233,61 @@
         economicIndicators: { wealth: 48, taxBurden: 12, landHolding: 18 }
       }
     ];
-    classes.forEach(function (c) { c.sid = SID; c.id = _uid('cls_'); global.P.classes.push(c); });
+    // 对齐编辑器 offendThresholds 结构 [{score, description, consequences[]}]
+    var _CLASS_OFFEND = {
+      '宗室': [
+        { score: 20, description: '削减宗禄', consequences: ['宗室联名上疏', '玩家皇威 -3'] },
+        { score: 50, description: '清查侵占民田', consequences: ['藩王反抗', '玩家皇权 -5', '宗室煽动藩部'] },
+        { score: 80, description: '削藩改革', consequences: ['宗室公开抵制', '部分藩王起兵'] }
+      ],
+      '士大夫': [
+        { score: 25, description: '滥杀言官/诏狱冤案', consequences: ['科道集体上疏', '士林风骨 -8', '玩家皇威 -5'] },
+        { score: 55, description: '罢免东林重臣/袁崇焕式冤案', consequences: ['士大夫罢官归乡', '东林党复苏 -15', '民心 -8'] },
+        { score: 85, description: '禁书院/禁讲学/逮捕大量士人', consequences: ['天下文社变地下', '士风崩溃'] }
+      ],
+      '缙绅': [
+        { score: 25, description: '丈田清查', consequences: ['缙绅联名抵制', '赋税征收 -15%'] },
+        { score: 50, description: '清理隐田+严追欠税', consequences: ['江南抗税激烈化', '商税抵制 +15'] },
+        { score: 80, description: '彻底废里甲制', consequences: ['缙绅或暗通民变', '乡村秩序瓦解'] }
+      ],
+      '自耕农': [
+        { score: 30, description: '加派超 3 成', consequences: ['流民 +10 万', '民心 -8'] },
+        { score: 60, description: '暴力征粮致大饥', consequences: ['自耕农破产 +100 万', '西北怨气 +15'] },
+        { score: 85, description: '屠村镇压反抗', consequences: ['自耕农集体投流寇', '陕北民变燎原'] }
+      ],
+      '佃农与流民': [
+        { score: 15, description: '断食路/禁迁徙', consequences: ['饥民聚啸', '流民数量 +50 万'] },
+        { score: 40, description: '大规模剿抚不力', consequences: ['民变成军', '流寇扩散'] },
+        { score: 70, description: '血腥镇压', consequences: ['流民投张献忠/李自成', '陕北燎原'] }
+      ],
+      '商人': [
+        { score: 30, description: '加商税过重', consequences: ['江南抗税', '漕运罢工'] },
+        { score: 60, description: '重征矿税/市舶', consequences: ['海商转私盗', '郑芝龙等武装化'] },
+        { score: 85, description: '抄没盐商徽商', consequences: ['商路断·军饷源崩'] }
+      ],
+      '工匠': [
+        { score: 30, description: '拖欠匠役工钱', consequences: ['工匠怠工', '军器产出 -20%'] },
+        { score: 60, description: '强征匠人修皇陵/宫室', consequences: ['工匠逃籍', '军器缺口'] },
+        { score: 85, description: '酷役致死率剧升', consequences: ['工匠民变响应流寇'] }
+      ],
+      '军户': [
+        { score: 25, description: '拖欠饷银 3 月以上', consequences: ['戍卒鼓噪', '哗变风险升'] },
+        { score: 55, description: '饷欠 6 月+虚额严重', consequences: ['部分哗变', '逃兵投敌/投流寇'] },
+        { score: 80, description: '克扣+酷役+战败不抚', consequences: ['宁远式哗变', '关宁军可能倒戈'] }
+      ],
+      '僧道·外籍': [
+        { score: 35, description: '收寺产/禁度牒', consequences: ['寺院抗命', '民间信仰活跃'] },
+        { score: 65, description: '禁天主教/驱逐传教士', consequences: ['西学断+徐光启辞', '对外关系 -10'] },
+        { score: 85, description: '灭佛灭道', consequences: ['天下骚动', '宗教反抗'] }
+      ]
+    };
+    classes.forEach(function (c) {
+      c.sid = SID; c.id = _uid('cls_');
+      if (_CLASS_OFFEND[c.name] && (!Array.isArray(c.offendThresholds) || c.offendThresholds.length === 0)) {
+        c.offendThresholds = _CLASS_OFFEND[c.name];
+      }
+      global.P.classes.push(c);
+    });
 
     // ═══════════════════════════════════════════════════════════════════
     // § 6. 变量
