@@ -1241,7 +1241,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v29-2026.04.19-rules-object-building-system';
+  var SCENARIO_VERSION = 'v30-2026.04.19-local-weisuo-garrisons';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -2394,6 +2394,206 @@
               { name: '战马', count: 1500, condition: '一般' }
             ],
             description: '海西/建州残部未归附后金者。现摇摆。朝廷以岁赐+官衔笼络之。'
+          },
+          // ═══ 各省卫所（世袭军户·战力低下·仗屯田济饷·长期虚额）═══
+          // 明代全国约 493 卫 + 359 千户所，下为代表性 18 处。每卫名额 5600 人，实额约 1500-3000，多老弱。
+          {
+            name: '通州卫(北直)', armyType: '地方守备', soldiers: 2800, garrison: '北直·通州',
+            quality: '新兵', morale: 38, training: 32, loyalty: 65, control: 80,
+            commander: '', commanderTitle: '通州卫指挥使',
+            ethnicity: '汉', activity: '漕运护卫·京通十三仓守备',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 2200 }, { type: '运卒', count: 600 } ],
+            salary: [ { resource: '钱', amount: 18000, unit: '两' }, { resource: '粮食', amount: 8400, unit: '石' }, { resource: '布匹', amount: 2800, unit: '匹' } ],
+            equipment: [ { name: '长矛', count: 2000, condition: '缺损' }, { name: '纸甲', count: 1800, condition: '缺损' }, { name: '鸟铳', count: 80, condition: '缺损' } ],
+            description: '京师东郭漕运要隘。名额 5600 实额 2800，军官世袭侵屯田五成。仅勉强护卫十三仓与漕船转运。'
+          },
+          {
+            name: '天津卫(北直)', armyType: '地方守备', soldiers: 2600, garrison: '北直·天津三卫',
+            quality: '新兵', morale: 36, training: 30, loyalty: 65, control: 80,
+            commander: '', commanderTitle: '天津三卫指挥使',
+            ethnicity: '汉', activity: '海河河口巡防·京师海运补给',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 2000 }, { type: '小水兵', count: 600 } ],
+            salary: [ { resource: '钱', amount: 16000, unit: '两' }, { resource: '粮食', amount: 7800, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 1800, condition: '缺损' }, { name: '沙船', count: 10, condition: '缺损' }, { name: '纸甲', count: 1500, condition: '缺损' } ],
+            description: '永乐二年设天津左/右/中三卫。海河口岸防御+京师物资海运中转。实额亦仅半。'
+          },
+          {
+            name: '山海卫(北直)', armyType: '边军', soldiers: 3200, garrison: '北直·山海卫',
+            quality: '普通', morale: 52, training: 48, loyalty: 72, control: 82,
+            commander: '', commanderTitle: '山海卫指挥使',
+            ethnicity: '汉', activity: '山海关外围戍守·关宁后勤',
+            equipmentCondition: '一般',
+            composition: [ { type: '城守步兵', count: 2500 }, { type: '辅兵', count: 700 } ],
+            salary: [ { resource: '钱', amount: 42000, unit: '两' }, { resource: '粮食', amount: 18000, unit: '石' } ],
+            equipment: [ { name: '鸟铳', count: 500, condition: '一般' }, { name: '长矛', count: 2500, condition: '一般' }, { name: '棉甲', count: 1800, condition: '一般' } ],
+            description: '山海关所在。受赵率教节制，战力比内地卫所稍佳。'
+          },
+          {
+            name: '登州卫(山东)', armyType: '边军', soldiers: 2400, garrison: '山东·登州',
+            quality: '新兵', morale: 42, training: 38, loyalty: 68, control: 78,
+            commander: '', commanderTitle: '登州卫指挥使',
+            ethnicity: '汉', activity: '海防·援辽·皮岛后勤',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 2000 }, { type: '水军辅兵', count: 400 } ],
+            salary: [ { resource: '钱', amount: 25000, unit: '两' }, { resource: '粮食', amount: 10800, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 1800, condition: '一般' }, { name: '鸟铳', count: 200, condition: '缺损' }, { name: '纸甲', count: 1500, condition: '缺损' } ],
+            description: '孙元化日后主登莱巡抚即此地。对辽东陆海前哨。'
+          },
+          {
+            name: '太原卫(山西)', armyType: '地方守备', soldiers: 2200, garrison: '山西·太原',
+            quality: '新兵', morale: 38, training: 30, loyalty: 68, control: 80,
+            commander: '', commanderTitle: '太原卫指挥使',
+            ethnicity: '汉', activity: '省会守备·屯田',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 1800 }, { type: '辅兵', count: 400 } ],
+            salary: [ { resource: '钱', amount: 15000, unit: '两' }, { resource: '粮食', amount: 6600, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 1600, condition: '缺损' }, { name: '纸甲', count: 1400, condition: '缺损' } ],
+            description: '山西省会守军。屯田 4 万亩实耕不足半。'
+          },
+          {
+            name: '西安卫(陕西)', armyType: '地方守备', soldiers: 2500, garrison: '陕西·西安',
+            quality: '新兵', morale: 36, training: 28, loyalty: 62, control: 75,
+            commander: '', commanderTitle: '西安卫指挥使',
+            ethnicity: '汉·回', activity: '省会守备·饥荒区',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 2100 }, { type: '辅兵', count: 400 } ],
+            salary: [ { resource: '钱', amount: 18000, unit: '两' }, { resource: '粮食', amount: 7500, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 2000, condition: '缺损' }, { name: '弓矢', count: 900, condition: '缺损' }, { name: '纸甲', count: 1500, condition: '缺损' } ],
+            description: '陕西省会。连年饥荒，军户逃亡严重，即将为民变基础兵源。'
+          },
+          {
+            name: '南京京营外备', armyType: '禁军', soldiers: 18000, garrison: '南直·南京',
+            quality: '新兵', morale: 35, training: 30, loyalty: 60, control: 72,
+            commander: '', commanderTitle: '南京兵部尚书节制',
+            ethnicity: '汉', activity: '陪都戍卫·名仅在册',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 14000 }, { type: '骑兵', count: 2000 }, { type: '辅兵', count: 2000 } ],
+            salary: [ { resource: '钱', amount: 120000, unit: '两' }, { resource: '粮食', amount: 54000, unit: '石' }, { resource: '布匹', amount: 12000, unit: '匹' } ],
+            equipment: [ { name: '长矛', count: 13000, condition: '缺损' }, { name: '鸟铳', count: 1800, condition: '缺损' }, { name: '纸甲', count: 12000, condition: '缺损' } ],
+            description: '南京京营与北京京营并立。名员 8 万实不足 2 万。老弱空额甚于北京。仅作陪都仪仗用。'
+          },
+          {
+            name: '苏州卫(南直)', armyType: '地方守备', soldiers: 2400, garrison: '南直·苏州',
+            quality: '新兵', morale: 32, training: 26, loyalty: 58, control: 72,
+            commander: '', commanderTitle: '苏州卫指挥使',
+            ethnicity: '汉', activity: '财赋重地守备',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 2000 }, { type: '辅兵', count: 400 } ],
+            salary: [ { resource: '钱', amount: 22000, unit: '两' }, { resource: '粮食', amount: 9000, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 1800, condition: '缺损' }, { name: '鸟铳', count: 150, condition: '缺损' } ],
+            description: '苏州一带繁华地守军。军户多已市民化或逃亡，实际如同衙役。天启六年抗税之变(五人墓事件)中几无作为。'
+          },
+          {
+            name: '杭州卫(浙江)', armyType: '地方守备', soldiers: 2300, garrison: '浙江·杭州',
+            quality: '新兵', morale: 38, training: 32, loyalty: 65, control: 80,
+            commander: '', commanderTitle: '杭州卫指挥使',
+            ethnicity: '汉', activity: '省会守备',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 2000 }, { type: '辅兵', count: 300 } ],
+            salary: [ { resource: '钱', amount: 18000, unit: '两' }, { resource: '粮食', amount: 7000, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 1900, condition: '缺损' }, { name: '鸟铳', count: 200, condition: '一般' } ],
+            description: '浙江省会守军。屯田多被缙绅侵占。'
+          },
+          {
+            name: '宁波卫(浙江)', armyType: '地方守备', soldiers: 2800, garrison: '浙江·宁波',
+            quality: '新兵', morale: 42, training: 36, loyalty: 68, control: 78,
+            commander: '', commanderTitle: '宁波卫指挥使',
+            ethnicity: '汉', activity: '海防·防倭遗制',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 2200 }, { type: '水军辅兵', count: 600 } ],
+            salary: [ { resource: '钱', amount: 22000, unit: '两' }, { resource: '粮食', amount: 9000, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 2000, condition: '一般' }, { name: '鸟铳', count: 400, condition: '一般' }, { name: '苍山船', count: 12, condition: '缺损' } ],
+            description: '嘉靖年间戚继光驻此抗倭。倭寇平后长期懈怠，然遗有舟船可用。'
+          },
+          {
+            name: '福州卫(福建)', armyType: '地方守备', soldiers: 2600, garrison: '福建·福州',
+            quality: '新兵', morale: 42, training: 36, loyalty: 68, control: 75,
+            commander: '', commanderTitle: '福州卫指挥使',
+            ethnicity: '汉', activity: '省会守备·海防',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 2100 }, { type: '水军辅兵', count: 500 } ],
+            salary: [ { resource: '钱', amount: 22000, unit: '两' }, { resource: '粮食', amount: 8400, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 1900, condition: '一般' }, { name: '鸟铳', count: 350, condition: '一般' }, { name: '福船', count: 8, condition: '缺损' } ],
+            description: '福建省会守军。实际海上战力远不及郑氏。'
+          },
+          {
+            name: '泉州卫(福建)', armyType: '地方守备', soldiers: 2400, garrison: '福建·泉州',
+            quality: '新兵', morale: 40, training: 34, loyalty: 65, control: 72,
+            commander: '', commanderTitle: '泉州卫指挥使',
+            ethnicity: '汉·回·蕃', activity: '海贸枢纽守备',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 1900 }, { type: '水军辅兵', count: 500 } ],
+            salary: [ { resource: '钱', amount: 20000, unit: '两' }, { resource: '粮食', amount: 7500, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 1800, condition: '一般' }, { name: '鸟铳', count: 300, condition: '一般' } ],
+            description: '泉州海贸重镇。军户多兼商贾。对海商实际无力。'
+          },
+          {
+            name: '武昌卫(湖广)', armyType: '地方守备', soldiers: 2500, garrison: '湖广·武昌',
+            quality: '新兵', morale: 38, training: 32, loyalty: 68, control: 78,
+            commander: '', commanderTitle: '武昌卫指挥使',
+            ethnicity: '汉', activity: '省会守备·水陆枢纽',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 2100 }, { type: '辅兵', count: 400 } ],
+            salary: [ { resource: '钱', amount: 20000, unit: '两' }, { resource: '粮食', amount: 7800, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 1900, condition: '缺损' }, { name: '鸟铳', count: 250, condition: '缺损' } ],
+            description: '湖广省会。长江中游水陆枢纽。崇祯十六年张献忠据武昌即由此地卫所投降。'
+          },
+          {
+            name: '成都卫(四川)', armyType: '地方守备', soldiers: 2300, garrison: '四川·成都',
+            quality: '新兵', morale: 40, training: 32, loyalty: 68, control: 78,
+            commander: '', commanderTitle: '成都卫指挥使',
+            ethnicity: '汉', activity: '省会守备',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 1900 }, { type: '辅兵', count: 400 } ],
+            salary: [ { resource: '钱', amount: 18000, unit: '两' }, { resource: '粮食', amount: 7000, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 1800, condition: '缺损' }, { name: '鸟铳', count: 200, condition: '缺损' } ],
+            description: '四川省会守军。奢安之乱期间曾调拨，多有损折。'
+          },
+          {
+            name: '广州卫(广东)', armyType: '地方守备', soldiers: 2800, garrison: '广东·广州',
+            quality: '新兵', morale: 44, training: 38, loyalty: 70, control: 78,
+            commander: '', commanderTitle: '广州卫指挥使',
+            ethnicity: '汉·粤民', activity: '省会守备·海防·蕃商管理',
+            equipmentCondition: '一般',
+            composition: [ { type: '步兵(军户)', count: 2200 }, { type: '水军辅兵', count: 600 } ],
+            salary: [ { resource: '钱', amount: 26000, unit: '两' }, { resource: '粮食', amount: 9800, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 2000, condition: '一般' }, { name: '鸟铳', count: 400, condition: '一般' }, { name: '广船', count: 8, condition: '一般' } ],
+            description: '广州城外十三行海贸点。澳门葡夷月租即由此卫监征。军户稍富。'
+          },
+          {
+            name: '桂林卫(广西)', armyType: '地方守备', soldiers: 2000, garrison: '广西·桂林',
+            quality: '新兵', morale: 42, training: 35, loyalty: 70, control: 76,
+            commander: '', commanderTitle: '桂林卫指挥使',
+            ethnicity: '汉·壮', activity: '省会守备·征调瑶僮',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 1700 }, { type: '辅兵', count: 300 } ],
+            salary: [ { resource: '钱', amount: 14000, unit: '两' }, { resource: '粮食', amount: 5500, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 1600, condition: '缺损' }, { name: '藤牌', count: 900, condition: '一般' } ],
+            description: '广西省会。与狼兵土司混合作战。'
+          },
+          {
+            name: '云南卫(云南)', armyType: '地方守备', soldiers: 2200, garrison: '云南·昆明',
+            quality: '新兵', morale: 45, training: 40, loyalty: 72, control: 75,
+            commander: '沐天波节制', commanderTitle: '黔国公节制·云南卫指挥使',
+            ethnicity: '汉·彝·白', activity: '省会守备·沐府辖下',
+            equipmentCondition: '一般',
+            composition: [ { type: '步兵(军户)', count: 1900 }, { type: '辅兵', count: 300 } ],
+            salary: [ { resource: '钱', amount: 15000, unit: '两' }, { resource: '粮食', amount: 6500, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 1800, condition: '一般' }, { name: '鸟铳', count: 200, condition: '一般' } ],
+            description: '黔国公沐氏世镇云南，此卫听沐氏节制比都司强。'
+          },
+          {
+            name: '贵阳卫(贵州)', armyType: '地方守备', soldiers: 1800, garrison: '贵州·贵阳',
+            quality: '新兵', morale: 40, training: 36, loyalty: 68, control: 72,
+            commander: '', commanderTitle: '贵阳卫指挥使',
+            ethnicity: '汉·苗·布依', activity: '省会守备·奢安之乱余波',
+            equipmentCondition: '简陋',
+            composition: [ { type: '步兵(军户)', count: 1500 }, { type: '辅兵', count: 300 } ],
+            salary: [ { resource: '钱', amount: 13000, unit: '两' }, { resource: '粮食', amount: 5000, unit: '石' } ],
+            equipment: [ { name: '长矛', count: 1500, condition: '缺损' }, { name: '藤牌', count: 800, condition: '缺损' } ],
+            description: '奢安之乱刚平，贵阳卫元气未复。'
           }
         ],
         // ─── 补充：武器库存/征兵/军政 ───
