@@ -1241,7 +1241,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v38-2026.04.19-houjin-militarybreakdown-fix';
+  var SCENARIO_VERSION = 'v39-2026.04.19-orphan-fields-cleanup';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -1696,62 +1696,7 @@
         source: '司礼监秉笔太监(魏忠贤)节制；王体乾掌印太监；内承运库掌库提调'
       },
 
-      // ──── 诏令权威初值（编辑器 fiscalConfig·诏令 Tab）────
-      edictAuthority: {
-        initialPower: 55,  // 0-100。新帝威柄尚未立
-        tokenMintRate: 0.8,  // 每月生成诏令令牌数
-        maxConcurrentEdicts: 3,
-        resistanceByFaction: {
-          '阉党': 85,     // 阉党完全抗拒新帝诏令(除非有利)
-          '东林残': 15,
-          '浙党': 60,
-          '楚党': 45,
-          '齐党': 55,
-          '宗室': 70,     // 侵田利益集团抗减禄
-          '辽东军头': 50,
-          '江南缙绅': 60
-        },
-        inertiaByCategory: {
-          '政治': 0.4,    // 低惯性(新帝用人自由)
-          '经济': 0.7,    // 中高惯性(加减税阻力大)
-          '军事': 0.5,
-          '外交': 0.6,
-          '宗藩': 0.85,   // 极高惯性(祖制不可改)
-          '刑罚': 0.5
-        },
-        note: '新帝即位初诏令效能系数: 威柄 55 × (1 - 党争烈度 0.35) ≈ 36 份实效。阉党完全掌握司礼监批红+通政司抄发，诏令每下需与阉党博弈'
-      },
-
-      // ──── 权力初值（编辑器 fiscalConfig·权力初值 Tab ）────
-      powerInitial: {
-        imperial: {       // 皇权
-          legitimacy: 85,  // 合法性：朱由校遗诏+张皇嫂召之入继
-          centralControl: 45,  // 中央控制：阁臣/六部多阉党牵制
-          edictEfficacy: 36,   // 诏令实效性
-          note: '合法性高(正统继位)但实控弱(阉党掣肘)'
-        },
-        bureaucratic: {  // 官僚权力
-          aristocrats: 28,    // 世家勋贵(明代已无)
-          literati: 45,       // 文官集团(东林将复但现残存+浙党附阉)
-          eunuchs: 92,        // 宦官(魏党巅峰)
-          military: 62,       // 将帅(家丁化+辽东独立)
-          foreign: 5          // 外藩(无干预朝政权)
-        },
-        regional: {      // 地方分权
-          provinces: 65,  // 督抚独立性(陕西胡廷宴敢粉饰太平)
-          tusi: 75,       // 土司半独立(奢安之乱余波)
-          frontiers: 80,  // 边镇军头(祖氏/毛文龙)
-          capital: 40     // 京畿(阉党控东厂+京营)
-        },
-        factional: {     // 党争烈度
-          level: 78,      // 0-100
-          dominant: '阉党',
-          rising: '东林(将起)·浙党(转舵)',
-          waning: '楚党·宣党·昆党',
-          mode: 'zero_sum',  // 你死我活
-          note: '天启朝末，党争即将进入"清算阉党→东林复起→东林与温体仁决裂"三步循环'
-        }
-      },
+      // (原 edictAuthority / powerInitial 自定义块已删除·信息已融入 globalRules/customPrompt/eraState/corruption)
 
       // ──── 官制总述（编辑器 scriptData.government · 对齐 editor-government.js） ────
       // 注: government.nodes 由 officeTree 自动合并(见 renderOfficeTree)，此处仅补 name/description/selectionSystem/promotionSystem/historicalReference
@@ -3781,10 +3726,13 @@
         succession: 'eldest_legitimate',  // 明代嫡长子继承制
         successionNote: '《皇明祖训》明定：有嫡立嫡，无嫡立长。但"争国本"万历朝已乱此制；光宗泰昌+熹宗天启+思宗崇祯皆非严格嫡出',
         haremDescription:
-          '明代后宫制度相对清代简朴。不设常在/答应等低位，以"皇后-皇贵妃-贵妃-妃-嫔-昭仪/婕妤/美人/才人-选侍-淑女/宫女子"为纲。' +
-          '皇贵妃乃永乐朝新设。嘉靖朝定"贵妃"冠字。神宗万历朝郑贵妃专宠以致"争国本"风波。' +
-          '宫中设六局一司(尚宫/尚仪/尚服/尚食/尚寝/尚功局+宫正司)管理宫务，皆宫女任职无宦官。' +
-          '天启末熹宗无嗣，由信邸朱由检入继；其时周、袁二位妃嫔随同入宫。',
+          '【位分制】明代后宫相对清代简朴。不设常在/答应等低位，以"皇后-皇贵妃-贵妃-妃-嫔-昭仪/婕妤/美人/才人-选侍-淑女/宫女子"为纲。皇贵妃乃永乐朝新设。嘉靖朝定"贵妃"冠字。神宗万历朝郑贵妃专宠以致"争国本"风波。\n' +
+          '【六局一司】宫中女官系统(皆宫女任职·不用宦官)：尚宫局(宣令奏启)/尚仪局(礼仪乐舞)/尚服局(宝玺衣饰)/尚食局(膳食医药)/尚寝局(床帐车舆)/尚功局(衣工赏赐)，加宫正司(纠察罪罚)。七司正五品首官，下设四司八司辖女史百余。\n' +
+          '【宦官十二监四司八局】司礼监(魏忠贤掌·批红)/御马监(涂文辅·四卫营)/内官监(营造)/司设/尚衣/尚膳/神宫/尚宝/印绶/直殿/都知/内承运库+四司+八局=二十四衙门。明末宦官约 9000(万历朝峰 2 万)。女官六局一司不受宦官辖。\n' +
+          '【当前后宫】周皇后居坤宁宫(16 岁·苏州人·贤淑节俭·母族周奎嘉定伯·崇祯十七年自缢殉国)。袁贵妃居承乾宫(17 岁·随信邸入宫·温顺体弱)。李选侍(光宗遗妃·30 岁·哕鸾宫·移宫案当事)。客氏(37 岁·出宫暂居私第·将于十一月杖毙)。\n' +
+          '【待入宫】田贵妃崇祯元年入宫(扬州人·精琴棋书画·父田弘遇·累进皇贵妃·崇祯十五年病卒)。张嫔崇祯二年入宫(生皇长子朱慈烺)。\n' +
+          '【移宫案】天启元年东林党逼李选侍出乾清宫移哕鸾宫，三案之一。\n' +
+          '【争国本】万历朝郑贵妃欲立子朱常洵(福王)为太子，东林党力保长子朱常洛(光宗)，前后 15 年政争。',
         motherClanSystem:
           '明代"外戚之祸"较唐汉为轻。后妃母族原则不封爵重职、不得干政。然神宗母李太后之父李伟封武清伯、熹宗乳母客氏父封侯，皆破例。' +
           '帝岳家可荫子入锦衣卫世袭指挥使(正三品)。然不得入阁、不得任尚书。宗人府+内阁+礼部联合管束。',
@@ -3888,31 +3836,8 @@
             rituals: [],
             note: '宫中使女。受幸或生子者升位。客氏即原熹宗乳母。'
           }
-        ],
-        // 六局一司（明代宫务管理体系·宫女任职）
-        sixBureaus: [
-          { name: '尚宫局', leader: '尚宫', rank: '正五品', staff: '司记/司言/司簿/司闱等', duties: '宣令·奏启·关防·出入' },
-          { name: '尚仪局', leader: '尚仪', rank: '正五品', staff: '司籍/司乐/司宾/司赞等', duties: '礼仪·乐舞·宾客·奏章' },
-          { name: '尚服局', leader: '尚服', rank: '正五品', staff: '司宝/司衣/司饰/司仗等', duties: '宝玺·衣服·珠翠·仪仗' },
-          { name: '尚食局', leader: '尚食', rank: '正五品', staff: '司膳/司酝/司药/司饎等', duties: '膳食·酒酿·医药·斋醮' },
-          { name: '尚寝局', leader: '尚寝', rank: '正五品', staff: '司设/司舆/司苑/司灯等', duties: '床帐·车舆·园苑·灯烛' },
-          { name: '尚功局', leader: '尚功', rank: '正五品', staff: '司制/司珍/司彩/司计等', duties: '衣工·金玉·彩帛·赏赐' },
-          { name: '宫正司', leader: '宫正', rank: '正五品', staff: '司正/典正/女史', duties: '宫人罪罚·戒令·纠察' }
-        ],
-        // 当前在世的妃嫔（开局状态）
-        initialConsorts: [
-          { name: '周皇后', rank: 'huanghou', rankName: '皇后', palace: '坤宁宫', favor: 85, children: 0, age: 16, motherClan: '周奎(嘉定伯·已封)', note: '正宫。苏州人。贤淑节俭。崇祯十七年三月自缢殉国。' },
-          { name: '袁贵妃', rank: 'guifei', rankName: '贵妃', palace: '承乾宫(承乾宫·东六宫)', favor: 70, children: 0, age: 17, note: '随朱由检自信邸入宫。温顺体弱。崇祯十七年兵陷自缢未死后不知所终。' }
-        ],
-        pendingEntries: [
-          { turn: 8, name: '田贵妃', rank: 'guifei', rankName: '贵妃', note: '扬州人，崇祯元年入宫。精琴棋书画，父田弘遇。崇祯朝最宠，累进至皇贵妃(崇祯八年)。崇祯十五年病卒。' },
-          { turn: 12, name: '张嫔', rank: 'pin', rankName: '嫔', note: '崇祯二年入宫，生皇长子朱慈烺(将立太子)。' }
-        ],
-        eunuchSystem: {
-          totalCount: 9000,  // 明末宦官数(万历朝峰值 2 万)
-          topSupervisors: '司礼监(魏忠贤)·御马监(涂文辅)·内官监·东厂',
-          note: '明宦官分十二监(司礼/御马/内官/司设/尚衣/尚膳/神宫/尚宝/印绶/直殿/都知/内承运库)+四司+八局(二十四衙门)。女宫六局一司独立不受宦官辖。'
-        }
+        ]
+        // (原 sixBureaus/initialConsorts/pendingEntries/eunuchSystem 自定义子字段已删除·信息已融入 haremDescription)
       },
 
       // ──── 驿站系统 ────
@@ -4204,9 +4129,7 @@
         description: '明末军事配置。关宁军家丁化、卫所虚额、欠饷引发哗变成常态。红衣大炮为城守利器(宁远大捷即依此)。'
       },
 
-      // ──── 剧本本体标签 ────
-      // 注：scenario.tags 已在 § 1 元信息设定（6 项）。此处 sceneTags 补充更细项供检索/过滤
-      sceneTags: ['明末', '天启', '崇祯即位', '魏忠贤', '阉党', '东林党', '小冰河', '辽东', '皇帝视角', '官方剧本', '史实', '大悲剧', '末世', '权阉倾覆', '后金', '陕北民变']
+      // (原 sceneTags 自定义字段已删除·与 scenario.tags 重复)
     };
 
     // 为 armies / items 打 sid（以便 GM filter-by-sid 能捕获）
@@ -4219,6 +4142,14 @@
       scenario.items.forEach(function(it) {
         it.sid = SID; it.id = _uid('item_');
         global.P.items.push(it);
+      });
+    }
+    // rigidHistoryEvents 注册到 P.rigidHistoryEvents (tm-endturn.js 运行时读此处)
+    if (Array.isArray(scenario.rigidHistoryEvents)) {
+      if (!Array.isArray(global.P.rigidHistoryEvents)) global.P.rigidHistoryEvents = [];
+      scenario.rigidHistoryEvents.forEach(function(ev) {
+        ev.sid = SID; ev.id = ev.id || _uid('rh_');
+        global.P.rigidHistoryEvents.push(ev);
       });
     }
 
@@ -4504,7 +4435,6 @@
           spy: '借明朝辽东降将/走私商/蒙古归附部提供情报'
         },
         attitude: '敌对',
-        attitudeDetail: { self: '女真正统·大金汗业·承宋金天命', enemies: '大明/察哈尔/朝鲜(初)', allies: '科尔沁蒙古/喀喇沁/扎鲁特/朝鲜(已迫兄弟盟)', neutrals: '其他蒙古·乌思藏' },
         mainResources: '战马(年产3万匹以上)·皮毛(貂狐豹)·人参·辽东铁(抚顺煤铁)·辽河粮·铜矿·盐(海盐辽东)·辽阳-沈阳汉匠工业',
         treasury: {
           money: 600000,   // 原 300000 上调。八旗共富+抚顺辽阳沈阳缴获+蒙古贡马银
@@ -4513,33 +4443,14 @@
           horses: 80000,   // 新增战马库存
           note: '八旗共有制基础上，汗库(内帑) + 各旗旗库 + 个人家产。天聪朝皇太极逐步中央集权。1627年整体资源远超明辽东可支。'
         },
-        population: 1100000,   // 原注"不足百万"上调·含汉人辽民+蒙古归附+女真本族+朝鲜西北战俘
-        populationBreakdown: {
-          '女真本族(八旗满洲)': 450000,
-          '蒙古归附(八旗蒙古雏形)': 180000,
-          '汉人·沈辽辽民': 350000,
-          '汉人军户(八旗汉军雏形)': 60000,
-          '朝鲜战俘/降附': 40000,
-          '其他(达斡尔/索伦/鄂温克)': 20000
-        },
-        // 编辑器 saveFaction·militaryBreakdown (4 字段·总计 280000 全员动员)
-        // 对齐 aiGenFac '游牧/清八旗': standingArmy 30% + militia 60% + elite 10% + fleet<1%
+        // 人口 110 万: 女真 45 万(41%) + 蒙古归附 18 万(16%) + 汉辽民 35 万(32%) + 汉军户 6 万(5%) + 朝鲜战俘 4 万(4%) + 杂族(达斡尔/索伦/鄂温克) 2 万(2%)
+        population: 1100000,
+        // 编辑器 saveFaction·militaryBreakdown · 对齐 aiGenFac '清八旗' 模板 (standingArmy 30%+militia 60%+elite 10%+fleet<1%)
         militaryBreakdown: {
-          elite: 35000,         // 精锐·两黄旗(太极亲领)+正白旗精锐甲士+汗近卫·最能野战无敌
+          elite: 35000,         // 精锐·两黄旗(太极亲领)+正白精锐+汗近卫
           standingArmy: 85000,  // 常备军·八旗其他甲士(两红/两蓝/镶白)+汉军(佟养性·李永芳)+蒙古归附核心
-          militia: 160000,      // 民兵·全民皆兵式·包衣阿哈(阿哈每甲士约 2)·蒙古半游牧全丁·辽民军户
-          fleet: 500            // 水师·辽河/鸭绿江小舟·几乎无海军(清初始建)
-        },
-        // 辅助扩展(非编辑器·作为参考)
-        militaryExtended: {
-          totalField: 110000,          // 1627 可野战兵力(战时动员)
-          eightBannerArmored: 80000,   // 八旗满洲甲士总(含精锐与一般)
-          mongolAux: 15000,            // 蒙古归附
-          hanArmy: 12000,              // 汉军(尚未正式编旗)
-          liaoDongSurrendered: 3000,   // 辽东降军零散
-          logisticsAux: 160000,       // 辅兵·包衣·马夫(每甲士约 2 阿哈)
-          totalIncludingAux: 280500,   // 总动员数(4 子项之和)
-          note: '八旗"全民皆兵"制度下,男丁 15 岁以上皆可出征。甲士为披甲战士,包衣为无甲辅兵,民兵为役牧之丁。'
+          militia: 160000,      // 民兵·包衣阿哈(每甲士约 2)+蒙古全丁半游牧+辽民军户
+          fleet: 500            // 水师·辽河/鸭绿江小舟·几乎无海军
         },
         partyRelations:
           '内部: 四大贝勒(代善/阿敏/莽古尔泰/皇太极)并坐议政 — 皇太极隐忍削权(1629 起削两红旗，1630 囚阿敏，1632 莽古尔泰暴死)。\n' +
@@ -4576,26 +4487,11 @@
           '远离中原补给·冬季劣势'
         ],
         strategy:
-          '1627 年已定大略: (1) 先击朝鲜固后方 ✓(已成) (2) 整肃蒙古·结盟科尔沁压察哈尔 (3) 练红衣炮补攻城短板 (4) 取明循两路——绕蒙古破长城/从辽西硬啃 — 皇太极选定前者 (5) 长期招降明将蚕食朝廷。',
-        militaryDoctrine: {
-          mainForce: '八旗·满洲为核心·蒙古汉军为翼',
-          tactics: '围城打援(萨尔浒/广宁/锦州皆用)·机动骑射·坚壁野战',
-          sustainability: '屯田+抢掠+贡赋+互市',
-          siegeCraft: '此时仍弱·约 1631 后铸红衣炮始能攻坚'
-        },
-        eightBanners: {
-          '正黄旗(皇太极亲领)': { bannerMen: 7500, population: 75000, elite: '禁军+汗近侍' },
-          '镶黄旗(皇太极亲领)': { bannerMen: 7500, population: 68000 },
-          '正红旗(代善领)': { bannerMen: 7500, population: 62000, note: '大贝勒主力' },
-          '镶红旗(代善岳托·萨哈廉)': { bannerMen: 7500, population: 58000 },
-          '正白旗(皇太极长子豪格·摄)': { bannerMen: 7500, population: 56000, note: '豪格此时 19 岁·皇太极子嗣未壮' },
-          '镶白旗(杜度→多铎)': { bannerMen: 7500, population: 55000 },
-          '正蓝旗(莽古尔泰领)': { bannerMen: 7500, population: 52000, note: '三贝勒' },
-          '镶蓝旗(阿敏领)': { bannerMen: 7500, population: 50000, note: '二贝勒·后 1630 囚死' }
-        },
+          '1627 年已定大略: (1) 先击朝鲜固后方 ✓(已成) (2) 整肃蒙古·结盟科尔沁压察哈尔 (3) 练红衣炮补攻城短板(1631 佟养性铸成) (4) 取明循两路——绕蒙古破长城/从辽西硬啃 — 皇太极选定前者(1629 己巳之变) (5) 长期招降明将蚕食朝廷。\n' +
+          '【军事教义】主力八旗·满洲为核心蒙汉为翼·围城打援(萨尔浒/广宁/锦州皆用)·机动骑射+坚壁野战·屯田抢掠贡赋互市补给·攻城法弱(1631 后红衣炮始能攻坚)。\n' +
+          '【八旗详细】每旗约 7500 甲士: 两黄旗皇太极亲领(15000 甲+15万民·最精锐禁军)·两红旗代善领(14000 甲+12万民·大贝勒主力)·两白旗杜度多铎摄(13000 甲+11万民·多尔衮 14 岁待长)·两蓝旗莽古尔泰阿敏领(13500 甲+10万民·1627 征朝鲜主力)。包衣阿哈约 16 万(每甲士约 2 阿哈)。',
         foundYear: 1616,
-        peakYear: 1644,
-        note: '按《满文老档》《太宗实录》1627 年天聪汗皇太极初掌汗位，八旗总甲士约 6 万+包衣 12 万，加上蒙古汉军归附可动员 11 万野战、28 万全部动员。此为明军所不及——关宁精锐 3-5 万家丁骑战兵虽能守却难野战破之。'
+        peakYear: 1644
       },
       {
         name: '察哈尔', leader: '林丹汗', color: '#8b4513',
