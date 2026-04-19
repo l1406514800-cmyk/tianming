@@ -1241,7 +1241,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v42-2026.04.19-capital-prefix+total-troops';
+  var SCENARIO_VERSION = 'v43-2026.04.19-force-refresh-pop-config';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {

@@ -5491,8 +5491,14 @@ function enterGame(){
   try {
     if (typeof HujiEngine !== 'undefined' && typeof HujiEngine.init === 'function') {
       var _sc8 = typeof findScenarioById === 'function' ? findScenarioById(GM.sid) : null;
+      // 诊断：打印剧本 populationConfig 是否存在及 nationalMouths
+      if (GM.turn === 1) {
+        var _pc8 = _sc8 && _sc8.populationConfig;
+        console.log('[HujiEngine] sc.populationConfig:', _pc8 ? '存在' : '缺失',
+          _pc8 && _pc8.initial ? ('initial.nationalMouths=' + _pc8.initial.nationalMouths) : '(无 initial)');
+      }
       HujiEngine.init(_sc8);
-      if (GM.turn === 1) console.log('[HujiEngine] 初始化 朝代=' + (GM.population && GM.population.dynasty));
+      if (GM.turn === 1) console.log('[HujiEngine] 初始化后 GM.population.national:', GM.population && GM.population.national);
     }
   } catch(e) { console.error('[enterGame] HujiEngine 失败:', e); }
 
@@ -5579,11 +5585,19 @@ function enterGame(){
     if (typeof GuokuEngine !== 'undefined' && typeof GuokuEngine.ensureModel === 'function') GuokuEngine.ensureModel();
     if (typeof NeitangEngine !== 'undefined' && typeof NeitangEngine.ensureModel === 'function') NeitangEngine.ensureModel();
     // 首回合立即跑一次税收级联 + 聚合，这样 UI 启动时不会显示 0
+    if (GM.turn === 1) {
+      console.log('[enterGame-T1] GM.adminHierarchy 结构:',
+        GM.adminHierarchy ? ('键=' + Object.keys(GM.adminHierarchy).join(',') +
+          '·player.divisions 长度=' + (GM.adminHierarchy.player && GM.adminHierarchy.player.divisions ? GM.adminHierarchy.player.divisions.length : '(无 player.divisions)')) : '(空)');
+    }
     if (typeof CascadeTax !== 'undefined' && typeof CascadeTax.collect === 'function') {
       try { CascadeTax.collect(); } catch(_ctInitE) { console.warn('[enterGame] CascadeTax.collect init', _ctInitE); }
     }
     if (typeof IntegrationBridge !== 'undefined' && typeof IntegrationBridge.aggregateRegionsToVariables === 'function') {
       try { IntegrationBridge.aggregateRegionsToVariables(); } catch(_agInitE) { console.warn('[enterGame] bridge aggregate init', _agInitE); }
+    }
+    if (GM.turn === 1) {
+      console.log('[enterGame-T1] 聚合后 GM.population.national:', GM.population && GM.population.national);
     }
   } catch(e) { console.error('[enterGame] Phase 补丁 init 失败:', e); }
 
