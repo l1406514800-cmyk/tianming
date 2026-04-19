@@ -708,24 +708,111 @@ function _flushPostTurnModalQueue() {
   _next();
 }
 
-function showTurnResult(html){
+function showTurnResult(html, idx){
   // 后朝进行中·排队延后（朝会结束后再弹）
   if (typeof _isPostTurnActive === 'function' && _isPostTurnActive()) {
-    _queuePostTurnModal(function(){ showTurnResult(html); }, '史记');
+    _queuePostTurnModal(function(){ showTurnResult(html, idx); }, '史记');
     return;
   }
-  _$("turn-body").innerHTML=html;
-  // 更新弹窗标题显示当前日期
-  var titleEl=_$("turn-modal-title");
-  if(titleEl){
-    var dateStr=typeof getTSText==='function'?getTSText(GM.turn):'';
-    titleEl.innerHTML='📜 '+dateStr;
+  var body = _$("turn-body"); if (body) body.innerHTML = html;
+  // 尝试定位对应 shijiHistory 索引
+  if (idx == null && GM.shijiHistory && GM.shijiHistory.length > 0) {
+    for (var i = GM.shijiHistory.length - 1; i >= 0; i--) {
+      if (GM.shijiHistory[i].html === html) { idx = i; break; }
+    }
+    if (idx == null) idx = GM.shijiHistory.length - 1; // 新回合
   }
+  GM._trCurrentIdx = (typeof idx === 'number') ? idx : null;
+  _trPopulateHead();
   _$("turn-modal").classList.add("show");
   // v5·C·装饰 pending 人名为可点击
   try { if (typeof decoratePendingInDom === 'function') decoratePendingInDom(_$("turn-body")); } catch(_){}
 }
 function closeTurnResult(){_$("turn-modal").classList.remove("show");}
+
+/** 填充弹窗头部（日期/回合/一句话总曰/要闻标签），从 shijiHistory[_trCurrentIdx] 读取 */
+function _trPopulateHead(){
+  var idx = GM._trCurrentIdx;
+  var sj = (idx != null && GM.shijiHistory && GM.shijiHistory[idx]) ? GM.shijiHistory[idx] : null;
+  var turnNo = sj ? sj.turn : (GM.turn - 1);
+  var dateStr = sj ? (sj.time || '') : (typeof getTSText==='function'?getTSText(GM.turn):'');
+
+  var turnEl = _$("tr-turn-no"); if (turnEl) turnEl.textContent = '\u7B2C ' + turnNo + ' \u56DE \u5408';
+  var dateEl = _$("tr-date");
+  if (dateEl) {
+    var era = (dateStr||'').match(/([\u7532\u4E59\u4E19\u4E01\u620A\u5DF1\u5E9A\u8F9B\u58EC\u7678][\u5B50\u4E11\u5BC5\u536F\u8FB0\u5DF3\u5348\u672A\u7533\u9149\u620C\u4EA5])/);
+    var eraStr = era ? era[1] : '';
+    var main = dateStr.replace(eraStr, '').trim();
+    dateEl.innerHTML = escHtml(main || dateStr) + (eraStr ? ' <span class="tr-era-chip">' + escHtml(eraStr) + '</span>' : '');
+  }
+  // 一句话总曰
+  var sumEl = _$("tr-summary");
+  if (sumEl) {
+    var sum = sj ? (sj.turnSummary || sj.szjSummary || '') : '';
+    if (!sum && sj && sj.shizhengji) sum = (sj.shizhengji.split(/[\u3002\uFF01\n]/)[0] || '').slice(0, 80);
+    if (sum) { sumEl.textContent = sum; sumEl.style.display = 'block'; }
+    else sumEl.style.display = 'none';
+  }
+  // 要闻标签
+  var critEl = _$("tr-critical");
+  if (critEl) {
+    var tags = _trDetectCritical(sj);
+    if (tags.length > 0) {
+      var lh = '<span class="tr-critical-lbl">\u672C \u56DE \u8981 \u95FB</span>';
+      tags.forEach(function(t){ lh += '<span class="tr-critical-tag ' + t.cls + '">' + escHtml(t.txt) + '</span>'; });
+      critEl.innerHTML = lh; critEl.style.display = 'flex';
+    } else { critEl.style.display = 'none'; critEl.innerHTML = ''; }
+  }
+  // 前后翻阅按钮
+  var total = (GM.shijiHistory||[]).length;
+  var prev = _$("tr-prev"), next = _$("tr-next");
+  if (prev) prev.disabled = !(idx != null && idx > 0);
+  if (next) next.disabled = !(idx != null && idx < total - 1);
+}
+
+/** 侦测关键事件标签 */
+function _trDetectCritical(sj){
+  var tags = [];
+  if (!sj) return tags;
+  var t = (sj.shizhengji||'') + ' ' + (sj.shilu||'') + ' ' + (sj.html||'');
+  if (/\u6218\u4E8B|\u6218\u5F79|\u653B\u57CE|\u5927\u6377|\u51FA\u5175|\u65CB\u5E08|\u5931\u9677/.test(t)) tags.push({cls:'war', txt:'\u6218 \u4E8B'});
+  if (/\u6B81|\u5D29|\u55E1|\u4EBA\u6BBA|\u75C5\u6B7B|\u81EA\u5208/.test(t)) tags.push({cls:'death', txt:'\u4EBA \u6B81'});
+  if (/\u5BC6\u8C0B|\u963F\u8C0B|\u9634\u8C0B|\u8C0B\u907F/.test(t)) tags.push({cls:'scheme', txt:'\u5BC6 \u8C0B'});
+  if (/\u515A\u4E89|\u515A\u6D3E|\u4E1C\u6797|\u9609\u515A/.test(t)) tags.push({cls:'faction', txt:'\u515A \u4E89'});
+  if (/\u65F1\u707E|\u6D2A\u707E|\u96EA\u707E|\u9707\u707E|\u75AB|\u7792|\u5929\u706B|\u5730\u9707|\u5929\u5E1D\u6C44/.test(t)) tags.push({cls:'calamity', txt:'\u707E \u5F02'});
+  return tags.slice(0, 4);
+}
+
+/** 前后回合翻阅 */
+function _trNavTurn(dir){
+  if (GM._trCurrentIdx == null || !GM.shijiHistory) return;
+  var newIdx = GM._trCurrentIdx + dir;
+  if (newIdx < 0 || newIdx >= GM.shijiHistory.length) return;
+  showTurnResult(GM.shijiHistory[newIdx].html || '', newIdx);
+}
+
+/** 导出本回 */
+function _trExportCurrent(){
+  var idx = GM._trCurrentIdx;
+  var sj = (idx != null && GM.shijiHistory && GM.shijiHistory[idx]) ? GM.shijiHistory[idx] : null;
+  if (!sj) { if (typeof toast === 'function') toast('\u65E0\u53EF\u5BFC\u51FA\u6570\u636E'); return; }
+  var txt = '[T' + sj.turn + '] ' + (sj.time||'') + '\n';
+  if (sj.szjTitle) txt += '\n【' + sj.szjTitle + '】\n';
+  if (sj.turnSummary) txt += '\u603B\u66F0\uFF1A' + sj.turnSummary + '\n';
+  if (sj.shilu) txt += '\n\u3010\u5B9E\u5F55\u3011\n' + sj.shilu + '\n';
+  if (sj.shizhengji) txt += '\n\u3010\u65F6\u653F\u8BB0\u3011\n' + sj.shizhengji + '\n';
+  if (sj.zhengwen) txt += '\n\u3010\u653F\u6587\u3011\n' + sj.zhengwen + '\n';
+  if (sj.houren) txt += '\n\u3010\u540E\u4EBA\u620F\u8BF4\u3011\n' + sj.houren + '\n';
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(function(){ if(typeof toast==='function')toast('\u5DF2\u590D\u5236'); }).catch(function(){ _trDownloadTxt(txt, sj.turn); });
+  } else _trDownloadTxt(txt, sj.turn);
+}
+function _trDownloadTxt(txt, turn){
+  var a=document.createElement('a');
+  a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(txt);
+  a.download='shiji_T'+turn+'.txt';a.click();
+  if (typeof toast === 'function') toast('\u5DF2\u5BFC\u51FA');
+}
 function saveP(){
   // 1. 写入 IndexedDB（主存储，无容量限制）
   if (typeof TM_SaveDB !== 'undefined') {

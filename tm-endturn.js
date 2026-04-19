@@ -13323,7 +13323,7 @@ function renderShijiList(){
       var sumText = sj.turnSummary || sj.szjSummary || (sj.shizhengji||'').split(/[\u3002\uFF01\n]/)[0] || '';
       var titleText = sj.szjTitle || '';
 
-      h += '<div class="' + cardCls + '" onclick="showTurnResult(GM.shijiHistory[' + idx + '].html)">';
+      h += '<div class="' + cardCls + '" onclick="showTurnResult(GM.shijiHistory[' + idx + '].html,' + idx + ')">';
       // 左：回合号
       h += '<div class="sj-turn-col">';
       h += '<div class="sj-turn-no"><span class="n">' + sj.turn + '</span>\u56DE</div>';

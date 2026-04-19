@@ -641,9 +641,7 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
     _summaryText = _firstSentence || '';
   }
   var summaryHtml = '';
-  if (_summaryText) {
-    summaryHtml = '<div class="turn-summary-bar">' + escHtml(_summaryText) + '</div>';
-  }
+  // 一句话总曰已由弹窗头部 .tr-summary-bar 显示（从 sj.turnSummary 读取），此处不再重复渲染
 
   // 关键事件标签（战争/死亡/叛乱等醒目标记）
   var _criticalTags = [];
@@ -658,34 +656,32 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
     if (_warFE.length > 0) _criticalTags.push({label:'势力冲突',color:'var(--red)'});
   }
   var criticalHtml = '';
-  if (_criticalTags.length > 0) {
-    criticalHtml = '<div class="turn-critical-tags">';
-    _criticalTags.forEach(function(t){ criticalHtml += '<span class="turn-critical-tag" style="--tag-color:'+t.color+';">'+t.label+'</span>'; });
-    criticalHtml += '</div>';
-  }
+  // 要闻标签已由弹窗头部 .tr-critical-bar 显示（_trDetectCritical 从 sj 自动侦测），此处不再重复渲染
 
   // ============================================================
   // 新五板块结构：①实录 ②时政记 ③数值变化说明 ④人事变动 ⑤后人戏说
   // ============================================================
 
-  // ① 实录（文言史官体）
+  // ① 实录（文言史官体） · 新版 tr-section.shilu + tr-shilu
   var shiluHtml = '';
   if (shiluText) {
-    shiluHtml = '<div class="turn-section shilu-section"><h3>\u5B9E \u5F55</h3>'
-      + '<div class="narr-shilu" style="font-family:var(--font-serif,serif);line-height:2;text-indent:2em;color:var(--color-foreground,var(--txt));background:linear-gradient(to bottom,rgba(184,154,83,0.04),transparent);padding:1rem;border-left:3px solid var(--gold-500);border-radius:var(--radius-md);white-space:pre-wrap;">'
-      + escHtml(shiluText) + '</div></div>';
+    shiluHtml = '<div class="tr-section shilu">'
+      + '<div class="tr-section-hdr"><span class="lab">\u5B9E \u5F55</span><span class="meta">\u8D77\u5C45\u6CE8\u5B98\u5B9E\u5F55 \u00B7 \u6B63\u53F2\u4F53</span></div>'
+      + '<div class="tr-shilu"><div class="tr-shilu-seal">\u53F2\u5B98</div>' + escHtml(shiluText) + '</div>'
+      + '</div>';
   }
 
-  // ② 时政记（朝政纪要体：副标题+正文+总结）
+  // ② 时政记 · 新版 tr-section.szj
   var szjSectionHtml = '';
   if (shizhengji) {
-    szjSectionHtml = '<div class="turn-section szj-section"><h3>\u65F6 \u653F \u8BB0</h3>';
+    szjSectionHtml = '<div class="tr-section szj">'
+      + '<div class="tr-section-hdr"><span class="lab">\u65F6 \u653F \u8BB0</span><span class="meta">\u671D\u653F\u7EAA\u8981\u4F53</span></div>';
     if (szjTitle) {
-      szjSectionHtml += '<div class="szj-title" style="text-align:center;font-size:1.05rem;color:var(--gold-400);font-weight:700;letter-spacing:0.1em;padding:0.5rem 0;border-bottom:1px dashed var(--gold-d);margin-bottom:0.8rem;">\u2014\u2014 ' + escHtml(szjTitle) + ' \u2014\u2014</div>';
+      szjSectionHtml += '<div class="tr-szj-title">' + escHtml(szjTitle) + '</div>';
     }
-    szjSectionHtml += '<div class="narr-shizhengji" style="line-height:1.9;color:var(--txt-s);">' + _renderedSzj + '</div>';
+    szjSectionHtml += '<div class="tr-szj-content">' + _renderedSzj + '</div>';
     if (szjSummary) {
-      szjSectionHtml += '<div class="szj-summary" style="margin-top:0.8rem;padding:0.5rem 0.8rem;background:var(--bg-2);border-radius:var(--radius-md);font-style:italic;color:var(--color-primary);text-align:center;font-size:0.88rem;letter-spacing:0.05em;">\u603B\u66F0\uFF1A' + escHtml(szjSummary) + '</div>';
+      szjSectionHtml += '<div class="tr-szj-summary">' + escHtml(szjSummary) + '</div>';
     }
     szjSectionHtml += '</div>';
   }
@@ -696,12 +692,13 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
   // ④ 人事变动
   var personnelHtml = _renderPersonnelChanges(personnelChanges);
 
-  // ⑤ 后人戏说（场景叙事）
+  // ⑤ 后人戏说（场景叙事）· 新版 tr-section.houren + tr-houren-box
   var hourenHtml = '';
   if (hourenXishuo) {
-    hourenHtml = '<div class="turn-section houren-section"><h3>\u540E \u4EBA \u620F \u8BF4</h3>'
-      + '<div class="narr-houren" style="line-height:2;color:var(--color-foreground,var(--txt));padding:0.8rem;white-space:pre-wrap;background:linear-gradient(to bottom right,rgba(155,89,182,0.03),rgba(155,89,182,0.01));border-radius:var(--radius-md);">'
-      + escHtml(hourenXishuo) + '</div></div>';
+    hourenHtml = '<div class="tr-section houren">'
+      + '<div class="tr-section-hdr"><span class="lab">\u540E \u4EBA \u620F \u8BF4</span><span class="meta">\u7A17\u5B98\u91CE\u53F2 \u00B7 \u53C2\u8003\u4E0D\u53EF\u5C3D\u4FE1</span></div>'
+      + '<div class="tr-houren-box">' + escHtml(hourenXishuo) + '</div>'
+      + '</div>';
   }
 
   // 第一层（默认展开）：实录 + 一句话总曰 + 关键标签 + 战况
@@ -742,9 +739,9 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
   } catch(_fwE) { console.warn('[shiji→fengwen] NPC evts 转录失败', _fwE); }
 
   var shijiHtml = layer1Html +
-    '<div class="turn-detail-toggle" onclick="var d=this.parentElement.querySelector(\'.turn-detail-content\');if(!d)return;var open=d.classList.toggle(\'show\');this.querySelector(\'.toggle-arrow\').textContent=open?\'\u25B2\':\'\u25BC\';this.querySelector(\'.toggle-text\').textContent=open?\'\u6536\u8D77\u8BE6\u60C5\':\'\u5C55\u5F00\u8BE6\u60C5\';">' +
-    '<span class="toggle-arrow">\u25BC</span> <span class="toggle-text">\u5C55\u5F00\u8BE6\u60C5</span></div>' +
-    '<div class="turn-detail-content">' + layer2Html + '</div>';
+    '<div class="tr-detail-toggle" onclick="var p=this.parentElement;var d=p.querySelector(\'.tr-detail-content\');if(!d)return;var open=d.classList.toggle(\'show\');this.classList.toggle(\'open\',open);this.querySelector(\'.toggle-text\').textContent=open?\'\u6536 \u8D77 \u8BE6 \u60C5\':\'\u5C55 \u5F00 \u8BE6 \u60C5\';">' +
+    '<span class="arrow">\u25BC</span> <span class="toggle-text">\u5C55 \u5F00 \u8BE6 \u60C5</span> <span class="arrow">\u25BC</span></div>' +
+    '<div class="tr-detail-content">' + layer2Html + '</div>';
 
   // shijiHistory存完整HTML + 所有结构化字段（供史记回顾和后续兼容）
   var _fullHtml = layer1Html + layer2Html;
@@ -831,7 +828,7 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
 
   // 13. 显示史记弹窗
   hideLoading();
-  showTurnResult(shijiHtml+"<div style=\"text-align:center;color:var(--gold-d);margin-top:1rem;\">"+getTSText(GM.turn)+"</div>");
+  showTurnResult(shijiHtml+"<div style=\"text-align:center;color:var(--gold-d);margin-top:1rem;\">"+getTSText(GM.turn)+"</div>", GM.shijiHistory.length - 1);
 
   // 7.2: 预加载——玩家阅读回合结果时预构建固定层prompt缓存
   setTimeout(function() {
@@ -1563,18 +1560,36 @@ function _renderUnifiedChangesLegacy(oldVars) {
 // ============================================================
 function _renderPersonnelChanges(personnelChanges) {
   if (!personnelChanges || !personnelChanges.length) return '';
-  var html = '<div class="turn-section personnel-section"><h3>\u4EBA \u4E8B \u53D8 \u52A8</h3>';
-  html += '<div style="display:flex;flex-direction:column;gap:0.3rem;">';
+  // 推断 type → CSS class
+  function _pcType(change, reason) {
+    var s = (change||'') + ' ' + (reason||'');
+    if (/\u6B81|\u5D29|\u75C5\u6B7B|\u8584\u5929|\u55E1|\u81EA\u5208/.test(s)) return {cls:'death', lbl:'\u6B81 \u6545'};
+    if (/\u4EFB\u547D|\u62DC|\u6388|\u8865\u8BA1|\u85A6\u64A2|\u5C31\u4EFB|\u5152\u8D1F|\u4E0A\u4EFB/.test(s)) return {cls:'appoint', lbl:'\u4EFB \u547D'};
+    if (/\u8FC1|\u64A2|\u5347|\u8FDB|\u5165\u9601|\u62DC\u5C06/.test(s)) return {cls:'promote', lbl:'\u8FC1 \u64A2'};
+    if (/\u8D2C|\u964D|\u88AB\u8D2C|\u964D\u7EA7|\u9000\u804C/.test(s)) return {cls:'demote', lbl:'\u964D \u8C2A'};
+    if (/\u5F52\u7530|\u81F4\u4EDD|\u9000\u4F11|\u4EF1\u5B85/.test(s)) return {cls:'retire', lbl:'\u81F4 \u4EDD'};
+    if (/\u4E01\u5FE7|\u5B88\u5236/.test(s)) return {cls:'mourn', lbl:'\u4E01 \u5FE7'};
+    if (/\u7F62|\u9769|\u51FA\u4EFB|\u88C1\u6492/.test(s)) return {cls:'fire', lbl:'\u7F62 \u5242'};
+    if (/\u6DFB\u4E01|\u6DFB\u5B50|\u4EA7|\u751F|\u65B0\u751F/.test(s)) return {cls:'birth', lbl:'\u6DFB \u4E01'};
+    return {cls:'appoint', lbl:'\u4EBA \u4E8B'};
+  }
+  var html = '<div class="tr-section personnel">';
+  html += '<div class="tr-section-hdr"><span class="lab">\u4EBA \u4E8B \u53D8 \u52A8</span><span class="meta">\u8FC1 \u00B7 \u8C2A \u00B7 \u6B81 \u00B7 \u751F \u00B7 \u4EFB \u672C\u56DE\u5408 ' + personnelChanges.length + ' \u8D77</span></div>';
+  html += '<div class="tr-personnel-list">';
   personnelChanges.forEach(function(pc) {
     if (!pc || !pc.name) return;
     var former = pc.former || pc.origin || '';
     var change = pc.change || pc.desc || '';
     var reason = pc.reason || '';
-    html += '<div style="padding:0.4rem 0.6rem;background:var(--bg-2);border-radius:var(--radius-md);border-left:3px solid var(--gold-d);font-size:0.85rem;line-height:1.7;">';
-    html += '<b style="color:var(--gold);">' + escHtml(pc.name) + '</b>';
-    if (former) html += '<span style="color:var(--txt-d);font-size:0.78rem;">（' + escHtml(former) + '）</span>';
-    html += '：<span style="color:var(--txt-s);">' + escHtml(change) + '</span>';
-    if (reason) html += '<span style="color:var(--txt-d);font-size:0.78rem;">（' + escHtml(reason) + '）</span>';
+    var t = _pcType(change, reason);
+    html += '<div class="tr-person-row ' + t.cls + '">';
+    html += '<span class="type">' + t.lbl + '</span>';
+    html += '<span class="who">' + escHtml(pc.name) + '</span>';
+    html += '<span class="from-to">';
+    if (former) html += escHtml(former) + ' <span class="arrow">\u2192</span> ';
+    html += escHtml(change);
+    if (reason) html += ' \uFF08' + escHtml(reason) + '\uFF09';
+    html += '</span>';
     html += '</div>';
   });
   html += '</div></div>';
