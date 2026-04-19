@@ -1796,131 +1796,216 @@ function _renderDifangPanel() {
     return a.name.localeCompare(b.name);
   });
 
+  if (_allDivs.length === 0) { grid.innerHTML = '<div style="color:var(--color-foreground-muted);text-align:center;padding:2rem;font-family:var(--font-serif);letter-spacing:0.2em;">\u65E0\u5339\u914D\u533A\u5212</div>'; return; }
+
+  // ═══ 统计栏 + 图例 + 预警 ═══
+  var _allTotal = _allDivs.length;
+  var _cntZhi=0, _cntFan=0, _cntJi=0, _cntTu=0, _cntShu=0, _cntCrisis=0;
+  _allDivs.forEach(function(item){
+    var t = item.autonomy.type;
+    if (t === 'zhixia') _cntZhi++;
+    else if (t === 'fanzhen' || t === 'fanguo') _cntFan++;
+    else if (t === 'jimi') _cntJi++;
+    else if (t === 'chaogong') _cntShu++;
+    if (item.regionType === 'tusi') _cntTu++;
+    if (item.unrest > 40 || item.corruption > 50 || (item.fugitives||0) > (item.pop||1) * 0.04) _cntCrisis++;
+  });
+
+  // 统计栏
+  var statEl = _$('df-statbar');
+  if (statEl) {
+    var sh = '';
+    sh += '<div class="df-stat-card s-all"><div class="df-stat-lbl">\u884C \u653F \u533A \u5212</div><div class="df-stat-num">' + _allTotal + '</div><div class="df-stat-sub">\u5404\u9053\u00B7\u5E03\u653F\u53F8\u00B7\u85E9\u9547\u00B7\u7F81\u7E3B</div></div>';
+    sh += '<div class="df-stat-card s-zhi"><div class="df-stat-lbl">\u76F4 \u8F96</div><div class="df-stat-num">' + _cntZhi + '</div><div class="df-stat-sub">\u90E1\u53BF\u5236\u00B7\u6D41\u5B98\u7BA1\u7406</div></div>';
+    sh += '<div class="df-stat-card s-fan"><div class="df-stat-lbl">\u85E9 \u9547</div><div class="df-stat-num">' + _cntFan + '</div><div class="df-stat-sub">\u8282\u5EA6\u4F7F\u00B7\u85E9\u56FD</div></div>';
+    sh += '<div class="df-stat-card s-ji"><div class="df-stat-lbl">\u7F81 \u7E3B \u00B7 \u571F \u53F8</div><div class="df-stat-num">' + (_cntJi + _cntTu) + '</div><div class="df-stat-sub">\u56E0\u4FD7\u800C\u6CBB</div></div>';
+    sh += '<div class="df-stat-card s-crisis"><div class="df-stat-lbl">\u26A0 \u5371 \u673A</div><div class="df-stat-num">' + _cntCrisis + '</div><div class="df-stat-sub">\u6C11\u53D8\u9AD8\u00B7\u8150\u8D25\u91CD\u00B7\u9003\u6237\u591A</div></div>';
+    statEl.innerHTML = sh;
+  }
+
+  // 图例
+  var legendEl = _$('df-legend');
+  if (legendEl) {
+    var lh = '<span class="df-legend-lbl">\u7BA1 \u8F96</span>';
+    lh += '<span class="df-legend-chip zhi">\u76F4 \u8F96 <span class="num">' + _cntZhi + '</span></span>';
+    lh += '<span class="df-legend-chip fan">\u85E9 \u9547 <span class="num">' + _cntFan + '</span></span>';
+    lh += '<span class="df-legend-chip ji">\u7F81 \u7E3B <span class="num">' + _cntJi + '</span></span>';
+    lh += '<span class="df-legend-chip tu">\u571F \u53F8 <span class="num">' + _cntTu + '</span></span>';
+    lh += '<span class="df-legend-chip shu">\u671D \u8D21 <span class="num">' + _cntShu + '</span></span>';
+    legendEl.innerHTML = lh;
+  }
+
+  // 预警条（前 3 个高危区）
+  var alertEl = _$('df-alerts');
+  if (alertEl) {
+    var _crisisSortedAll = _allDivs.slice().sort(function(a,b){
+      var sa = (a.unrest||0) * 1.5 + (a.corruption||0);
+      var sb = (b.unrest||0) * 1.5 + (b.corruption||0);
+      return sb - sa;
+    }).filter(function(x){ return x.unrest > 40 || x.corruption > 50; }).slice(0, 3);
+    if (_crisisSortedAll.length > 0) {
+      var ah = '';
+      _crisisSortedAll.forEach(function(cx){
+        var icon = cx.unrest > 60 ? '\u4E71' : cx.corruption > 60 ? '\u8150' : '\u8B66';
+        var cls = cx.unrest > 60 ? '' : 'warn';
+        var cause = [];
+        if (cx.unrest > 60) cause.push('\u6C11\u53D8 ' + Math.round(cx.unrest));
+        if (cx.corruption > 50) cause.push('\u8150\u8D25 ' + Math.round(cx.corruption));
+        if ((cx.fugitives||0) > 0) cause.push('\u9003\u6237 ' + (cx.fugitives > 10000 ? Math.round(cx.fugitives/10000)+'\u4E07':cx.fugitives));
+        ah += '<div class="df-alert' + (cls?' '+cls:'') + '"><div class="ic">' + icon + '</div>';
+        ah += '<div><span class="lbl">' + escHtml(cx.name) + '\uFF1A</span><span class="txt">' + cause.join(' \u00B7 ') + (cx.governor ? ' \u00B7 \u957F\u5B98 ' + escHtml(cx.governor) : '') + '</span></div></div>';
+      });
+      alertEl.innerHTML = ah;
+      alertEl.style.display = 'flex';
+    } else {
+      alertEl.style.display = 'none';
+      alertEl.innerHTML = '';
+    }
+  }
+
+  // ═══ 省份卡网格 ═══
   var html = '';
-  if (_allDivs.length === 0) { grid.innerHTML = '<div style="color:var(--txt-d);text-align:center;padding:2rem;">\u65E0\u5339\u914D\u533A\u5212</div>'; return; }
+  _allDivs.forEach(function(item) {
+    var t = item.autonomy.type;
+    var typeCls = t === 'zhixia' ? 'df-zhi' : (t === 'fanguo' || t === 'fanzhen') ? 'df-fan' : (t === 'jimi' ? 'df-ji' : (t === 'chaogong' ? 'df-shu' : 'df-zhi'));
+    if (item.regionType === 'tusi') typeCls = 'df-tu';
+    var isCrisis = item.unrest > 40 || item.corruption > 50;
+    var cardCls = 'df-card ' + typeCls + (isCrisis ? ' crisis' : '');
 
-  // 按管辖类型分组——五类(中国古代政治制度)
-  var _order = ['zhixia', 'fanguo', 'fanzhen', 'jimi', 'chaogong'];
-  var _groupInfo = {
-    zhixia:   { label: '\u4EAC\u757F\u76F4\u8F96', icon: '\u25CE', hint: '\u90E1\u53BF\u5236\u3001\u6D41\u5B98\u7BA1\u7406\u3001\u8BCF\u4EE4\u76F4\u8FBE', color: 'var(--gold-500)' },
-    fanguo:   { label: '\u5206\u5C01\u85E9\u56FD', icon: '\u738B', hint: '\u5B97\u5BA4\u6216\u529F\u81E3\u53D7\u5C01\uFF1B\u8BCF\u4EE4\u987B\u7ECF\u85E9\u738B\u3001\u6267\u884C\u89C6\u5FE0\u8BDA', color: 'var(--indigo-400,#7986cb)' },
-    fanzhen:  { label: '\u85E9\u9547\u81EA\u6CBB', icon: '\u622F', hint: '\u519B\u653F\u5408\u4E00\uFF1B\u8282\u5EA6\u4F7F\u81EA\u4EFB\u50DA\u4F50\u3001\u81EA\u5F81\u8D4B\u7A0E\uFF0C\u96BE\u8282\u5236', color: 'var(--vermillion-400)' },
-    jimi:     { label: '\u7F81\u7E3B\u571F\u53F8', icon: '\u25B3', hint: '\u571F\u53F8\u4E16\u88AD\u3001\u56E0\u4FD7\u800C\u6CBB\uFF1B\u6566\u8C15\u5F62\u5F0F\uFF0C\u53EF\u884C\u6539\u571F\u5F52\u6D41', color: 'var(--celadon-400,#66bb6a)' },
-    chaogong: { label: '\u671D\u8D21\u5916\u85E9', icon: '\u203B', hint: '\u5916\u85E9\u5C5E\u56FD\uFF1B\u53EA\u901A\u671D\u8D21\u793C\u4EEA\uFF0C\u653F\u4EE4\u4E0D\u8FBE\u5176\u5185', color: 'var(--amber-400,#f59e0b)' }
-  };
-  var _grouped = {};
-  _order.forEach(function(t) { _grouped[t] = []; });
-  _allDivs.forEach(function(item) { if (_grouped[item.autonomy.type]) _grouped[item.autonomy.type].push(item); });
+    var autonLabel = t === 'zhixia' ? '\u76F4 \u8F96' : t === 'fanguo' ? (item.autonomy.subtype === 'real' ? '\u5B9E\u5C01\u85E9' : '\u865A\u5C01\u85E9') : t === 'fanzhen' ? '\u85E9 \u9547' : t === 'jimi' ? (item.regionType === 'tusi' ? '\u571F \u53F8' : '\u7F81 \u7E3B') : t === 'chaogong' ? '\u671D \u8D21' : '';
+    var _isDirect = t === 'zhixia';
 
-  _order.forEach(function(gk) {
-    var items = _grouped[gk];
-    if (items.length === 0) return;
-    var gi = _groupInfo[gk];
-    // 分组标题行
-    html += '<div style="margin-top:0.6rem;margin-bottom:0.3rem;padding:0.3rem 0.5rem;background:linear-gradient(90deg,' + gi.color + '22,transparent);border-left:3px solid ' + gi.color + ';border-radius:var(--radius-sm);">';
-    html += '<div style="display:flex;align-items:center;gap:0.4rem;">';
-    html += '<span style="font-size:1rem;color:' + gi.color + ';">' + gi.icon + '</span>';
-    html += '<span style="font-size:0.88rem;font-weight:700;color:' + gi.color + ';letter-spacing:0.1em;">\u3010' + gi.label + '\u3011</span>';
-    html += '<span style="font-size:0.65rem;color:var(--color-foreground-muted);">\u00B7 ' + gi.hint + '</span>';
-    html += '<span style="margin-left:auto;font-size:0.7rem;color:var(--color-foreground-muted);">' + items.length + ' \u5904</span>';
-    html += '</div></div>';
-    // 该组的区划卡片
-    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.5rem;margin-bottom:0.5rem;">';
-    items.forEach(function(item) {
-      var _isCrisis = item.unrest > 40 || item.corruption > 50;
-      var _borderClr = _isCrisis ? 'var(--vermillion-400)' : item.stability > 70 ? 'var(--celadon-400)' : item.stability > 40 ? 'var(--gold-400)' : 'var(--amber-400)';
-      var _hhStr = item.households > 0 ? (item.households > 10000 ? Math.round(item.households/10000) + '\u4E07\u6237' : item.households + '\u6237') + '/' : '';
-      var pop = '\u5728\u7F16' + _hhStr + (item.pop > 10000 ? Math.round(item.pop / 10000) + '\u4E07\u53E3' : (item.pop || '?') + '\u53E3');
-      var govInfo = item.govCh ? item.governor + '(\u653F' + (item.govCh.administration||50) + '\u5FE0' + (item.govCh.loyalty||50) + ')' : (item.governor || '\u7A7A\u7F3A');
+    // 大人口口数显示
+    var _popMain = item.pop > 10000 ? (item.pop/10000).toFixed(item.pop >= 1e6 ? 0 : 1).replace(/\.0$/,'') : item.pop;
+    var _popUnit = item.pop > 10000 ? '\u4E07\u53E3' : '\u53E3';
 
-      // 非直辖——视觉差异（虚线边框+灰度）
-      var _isDirect = item.autonomy.type === 'zhixia';
-      var _cardStyle = _isDirect
-        ? 'padding:0.5rem;background:var(--color-surface);border:1px solid var(--color-border-subtle);border-left:3px solid ' + _borderClr + ';border-radius:var(--radius-sm);'
-        : 'padding:0.5rem;background:var(--color-surface);border:1px dashed ' + gi.color + ';border-left:3px solid ' + _borderClr + ';border-radius:var(--radius-sm);opacity:0.88;';
+    html += '<div class="' + cardCls + '">';
+    // 顶部
+    html += '<div class="df-card-hdr">';
+    html += '<span class="df-card-name">' + escHtml(item.name) + '</span>';
+    if (autonLabel) html += '<span class="df-auton-chip">' + autonLabel + '</span>';
+    if (item.faction) html += '<span class="df-fac-tag">' + escHtml(item.faction) + '</span>';
+    html += '<span class="df-pop-main"><span class="n">' + _popMain + '</span><span class="u">' + _popUnit + '</span></span>';
+    html += '</div>';
 
-      html += '<div style="' + _cardStyle + '">';
-      // 标题行
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-      html += '<span style="font-size:0.78rem;font-weight:700;color:var(--color-foreground);">' + escHtml(item.name) + '</span>';
-      html += '<span style="font-size:0.6rem;color:var(--ink-300);">' + escHtml(item.faction) + '</span>';
+    html += '<div class="df-card-body">';
+
+    // 持爵者/宗主（非直辖）
+    if (!_isDirect && item.autonomy.holder) {
+      var holderLbl = t === 'fanguo' ? (item.autonomy.subtype === 'real' ? '\u5B9E\u5C01\u85E9\u738B' : '\u865A\u5C01\u85E9\u738B') : t === 'jimi' ? '\u571F\u53F8' : t === 'fanzhen' ? '\u8282\u5EA6\u4F7F' : t === 'chaogong' ? '\u5916\u85E9\u738B' : '';
+      html += '<div style="font-size:10.5px;color:var(--auton-c);font-family:var(--font-serif);letter-spacing:0.08em;">' + holderLbl + '\uFF1A' + escHtml(item.autonomy.holder);
+      if (item.autonomy.loyalty !== undefined) html += ' \u00B7 \u5FE0 ' + item.autonomy.loyalty;
+      if (item.autonomy.tributeRate) html += ' \u00B7 \u8D21\u7387 ' + Math.round(item.autonomy.tributeRate*100) + '%';
       html += '</div>';
-      // 持爵者/宗主标签（非直辖）
-      if (!_isDirect && item.autonomy.holder) {
-        var _holderLabel = item.autonomy.type === 'fanguo' ? (item.autonomy.subtype === 'real' ? '实封藩王' : '虚封藩王')
-                         : item.autonomy.type === 'jimi' ? '土司'
-                         : item.autonomy.type === 'fanzhen' ? '节度使'
-                         : item.autonomy.type === 'chaogong' ? '外藩王' : '';
-        html += '<div style="font-size:0.66rem;color:' + gi.color + ';margin-top:2px;">' + _holderLabel + '\uFF1A' + escHtml(item.autonomy.holder) + (item.autonomy.loyalty !== undefined ? ' \u5FE0' + item.autonomy.loyalty : '') + (item.autonomy.tributeRate ? ' \u8D21' + Math.round(item.autonomy.tributeRate*100) + '%' : '') + '</div>';
-      }
-      // 长官+人口+税收（按管辖类型区分）
-      html += '<div style="font-size:0.68rem;color:var(--color-foreground-muted);margin-top:2px;">\u957F\u5B98\uFF1A' + escHtml(govInfo) + '</div>';
-      // 户口三元（天命字段）
-      var _kouStr = item.pop > 10000 ? Math.round(item.pop/10000)+'\u4E07' : item.pop;
-      var _hhStr2 = item.households > 10000 ? Math.round(item.households/10000)+'\u4E07' : item.households;
-      var _dingStr = item.ding > 10000 ? Math.round(item.ding/10000)+'\u4E07' : item.ding;
-      html += '<div style="font-size:0.68rem;color:var(--color-foreground-muted);">' + _hhStr2 + '\u6237 \u00B7 ' + _kouStr + '\u53E3 \u00B7 ' + _dingStr + '\u4E01';
-      if (item.fugitives > 0) html += ' \u00B7 <span style="color:var(--amber-400);">\u9003' + item.fugitives + '</span>';
-      html += '</div>';
-      // 赋税（按管辖类型）
-      var _taxRev = Math.round(item.taxRevenue||0);
-      var _remit = Math.round(item.remit||0);
-      var _taxDisplay;
+    }
+
+    // 4 维条形图
+    var _mxCls = item.minxin != null ? (item.minxin >= 60 ? '' : item.minxin >= 35 ? ' mid' : ' lo') : '';
+    var _mxVal = item.minxin != null ? Math.round(item.minxin) : null;
+    var _crCls = item.corruption >= 60 ? ' hi' : item.corruption >= 40 ? ' mid' : '';
+    var _crVal = Math.round(item.corruption||0);
+    var _prVal = Math.round(item.prosperity||0);
+    var _unCls = item.unrest >= 60 ? ' hi' : item.unrest >= 35 ? ' mid' : '';
+    var _unVal = Math.round(item.unrest||0);
+    html += '<div class="df-bars">';
+    if (_mxVal != null) html += '<div class="df-bar minxin' + _mxCls + '"><span class="df-bar-lbl">\u6C11\u5FC3</span><div class="df-bar-track"><div class="df-bar-fill" style="width:' + Math.min(100,_mxVal) + '%;"></div></div><span class="df-bar-val">' + _mxVal + '</span></div>';
+    html += '<div class="df-bar corruption' + _crCls + '"><span class="df-bar-lbl">\u8150\u8D25</span><div class="df-bar-track"><div class="df-bar-fill" style="width:' + Math.min(100,_crVal) + '%;"></div></div><span class="df-bar-val">' + _crVal + '</span></div>';
+    html += '<div class="df-bar prosperity"><span class="df-bar-lbl">\u7E41\u8363</span><div class="df-bar-track"><div class="df-bar-fill" style="width:' + Math.min(100,_prVal) + '%;"></div></div><span class="df-bar-val">' + _prVal + '</span></div>';
+    html += '<div class="df-bar unrest' + _unCls + '"><span class="df-bar-lbl">\u53DB\u4E71</span><div class="df-bar-track"><div class="df-bar-fill" style="width:' + Math.min(100,_unVal) + '%;"></div></div><span class="df-bar-val">' + _unVal + '</span></div>';
+    html += '</div>';
+
+    // 户口细项
+    function _fmtP(v){ return v >= 10000 ? (v/10000).toFixed(v>=1e7?0:1).replace(/\.0$/,'') + '\u4E07' : v; }
+    html += '<div class="df-pop-detail">';
+    html += '<span class="df-pop-item"><span class="lbl">\u6237</span><span class="v">' + _fmtP(item.households||0) + '</span></span>';
+    html += '<span class="df-pop-item"><span class="lbl">\u53E3</span><span class="v">' + _fmtP(item.pop||0) + '</span></span>';
+    html += '<span class="df-pop-item"><span class="lbl">\u4E01</span><span class="v">' + _fmtP(item.ding||0) + '</span></span>';
+    if (item.fugitives > 0) {
+      var fugCls = (item.fugitives > (item.pop||1) * 0.04) ? ' danger' : ' warn';
+      html += '<span class="df-pop-item' + fugCls + '"><span class="lbl">\u9003</span><span class="v">' + _fmtP(item.fugitives) + '</span></span>';
+    }
+    if (item.hiddenCount > 0) {
+      html += '<span class="df-pop-item warn"><span class="lbl">\u9690</span><span class="v">' + _fmtP(item.hiddenCount) + '</span></span>';
+    }
+    html += '</div>';
+
+    // 财政
+    var _taxRev = Math.round(item.taxRevenue||0);
+    var _remit = Math.round(item.remit||0);
+    if (_taxRev > 0 || _remit > 0) {
+      html += '<div class="df-fiscal">';
+      if (_taxRev > 0) html += '<span class="df-fiscal-item income"><span class="lbl">\u5B9E \u6536</span><span class="v">' + _fmtP(_taxRev) + '\u4E24</span></span>';
       if (_isDirect) {
-        _taxDisplay = '\u4E0A\u89E3' + (_remit > 10000 ? Math.round(_remit/10000)+'\u4E07' : _remit);
+        html += '<span class="df-fiscal-item"><span class="lbl">\u4E0A \u89E3</span><span class="v">' + _fmtP(_remit) + '\u4E24</span></span>';
       } else if (item.autonomy.tributeRate) {
         var _tribute = Math.round(_taxRev * item.autonomy.tributeRate);
-        _taxDisplay = '\u8D21' + (_tribute > 10000 ? Math.round(_tribute/10000)+'\u4E07' : _tribute);
-      } else {
-        _taxDisplay = '\u975E\u76F4\u8F96';
+        html += '<span class="df-fiscal-item"><span class="lbl">\u8D21 \u8D4B</span><span class="v">' + _fmtP(_tribute) + '\u4E24</span></span>';
       }
-      var _pubStr = item.pubMoney > 0 ? ' \u00B7 \u5E93' + (item.pubMoney > 10000 ? Math.round(item.pubMoney/10000)+'\u4E07' : item.pubMoney) : '';
-      html += '<div style="font-size:0.68rem;color:var(--color-foreground-muted);">' + _taxDisplay + _pubStr + '</div>';
-      // 数据条（民心 / 腐败 / 民变风险）
-      if (item.minxin != null) html += _dfBar('\u6C11\u5FC3', item.minxin, 'var(--celadon-400)', item.trend.prosperity);
-      else html += _dfBar('\u7E41\u8363', item.prosperity, 'var(--celadon-400)', item.trend.prosperity);
-      html += _dfBar('\u8150\u8D25', item.corruption, 'var(--vermillion-400)', item.trend.corruption);
-      html += _dfBar('\u6C11\u53D8', item.unrest, 'var(--amber-400)', item.trend.unrest);
-      // regionType 标签（羁縻/土司/藩属/宗藩）
-      if (item.regionType && item.regionType !== 'normal') {
-        var _rtLabels = { jimi:'\u7F81\u7E3B', tusi:'\u571F\u53F8', fanbang:'\u85E9\u5C5E', imperial_clan:'\u5B97\u85E9' };
-        html += '<div style="font-size:0.58rem;color:var(--gold);margin-top:2px;">[' + (_rtLabels[item.regionType]||item.regionType) + ']</div>';
-      }
-      // 承载过重提示
-      if (item.envLoad > 0.85) html += '<div style="font-size:0.58rem;color:var(--red);">\u26A0 \u8F7D\u91CD ' + (item.envLoad*100).toFixed(0) + '%</div>';
+      html += '</div>';
+    }
 
-      // 建筑展开折叠
-      var _bldList = (typeof getTerritoryBuildings === 'function') ? getTerritoryBuildings(item.name) : [];
-      if (_bldList.length > 0) {
-        var _bldId = 'dfbld-' + item.name.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g,'_');
-        html += '<details style="margin-top:3px;">';
-        html += '<summary style="cursor:pointer;font-size:0.6rem;color:var(--gold-400);">\u5EFA\u7B51 (' + _bldList.length + ')</summary>';
-        html += '<div style="font-size:0.58rem;color:var(--color-foreground-muted);padding:2px 4px;background:var(--color-elevated);border-radius:2px;margin-top:2px;">';
-        html += _bldList.map(function(b){ return escHtml(b.name) + (b.level?'·Lv'+b.level:''); }).join('\u3001');
-        html += '</div></details>';
-      }
-      // 快捷操作——按管辖权限分化
-      html += '<div style="display:flex;gap:2px;margin-top:3px;flex-wrap:wrap;">';
-      var _divName = escHtml(item.name).replace(/'/g,"\\'");
-      var _autonomyKey = item.autonomy.type + (item.autonomy.subtype === 'real' ? '_real' : item.autonomy.type === 'fanguo' ? '_nominal' : '');
-      if (_isDirect) {
-        html += '<button class="bt bsm" style="font-size:0.6rem;padding:0 3px;" onclick="_dfEdict(\'' + _divName + '\')">\u4E0B\u65E8</button>';
-        if (item.governor) html += '<button class="bt bsm" style="font-size:0.6rem;padding:0 3px;" onclick="_dfChangeGov(\'' + _divName + '\')">\u6362\u5B98</button>';
-        html += '<button class="bt bsm" style="font-size:0.6rem;padding:0 3px;" onclick="_dfBuildModal(\'' + _divName + '\')">\u4FEE\u5EFA</button>';
-      } else {
-        // 非直辖：提示+中国化操作入口
-        html += '<button class="bt bsm" style="font-size:0.6rem;padding:0 3px;" onclick="_dfNonDirectAction(\'' + _divName + '\',\'' + item.autonomy.type + '\')">\u53EF\u884C\u4E4B\u7B56</button>';
-        html += '<button class="bt bsm" style="font-size:0.6rem;padding:0 3px;" onclick="_dfEdict(\'' + _divName + '\')">\u4F20\u65E8</button>';
-      }
+    // 公库 钱粮布
+    if (item.pubMoney > 0 || item.pubGrain > 0 || item.pubCloth > 0) {
+      html += '<div class="df-treasury-row">';
+      html += '<span class="lbl">\u5DDE \u5E93</span>';
+      if (item.pubMoney > 0) html += '<span class="item gold"><span class="k">\u94B1</span><span class="v">' + _fmtP(item.pubMoney) + '\u4E24</span></span>';
+      if (item.pubGrain > 0) html += '<span class="item grain"><span class="k">\u7CAE</span><span class="v">' + _fmtP(item.pubGrain) + '\u77F3</span></span>';
+      if (item.pubCloth > 0) html += '<span class="item cloth"><span class="k">\u5E03</span><span class="v">' + _fmtP(item.pubCloth) + '\u5339</span></span>';
       html += '</div>';
-      html += '</div>';
-    });
+    }
+
+    // 环境负担
+    if (item.envLoad > 0) {
+      var _envPct = Math.round((item.envLoad > 1 ? item.envLoad : item.envLoad * 100));
+      var _envCls = _envPct >= 85 ? ' hi' : _envPct >= 60 ? ' mid' : '';
+      html += '<div class="df-bar env' + _envCls + '"><span class="df-bar-lbl">\u73AF\u8D1F</span><div class="df-bar-track"><div class="df-bar-fill" style="width:' + Math.min(100,_envPct) + '%;"></div></div><span class="df-bar-val">' + _envPct + '</span></div>';
+    }
+
+    // 危机说明
+    if (isCrisis) {
+      var notes = [];
+      if (item.unrest > 60) notes.push('\u6C11\u53D8\u5371\u6025');
+      if (item.corruption > 60) notes.push('\u8150\u8D25\u6CDB\u6EE5');
+      if ((item.fugitives||0) > (item.pop||1) * 0.04) notes.push('\u9003\u6237\u6D6A\u6F6E');
+      if (item.envLoad > 0.85) notes.push('\u8F7D\u91CD\u8D85\u9650');
+      if (notes.length > 0) html += '<div class="df-crisis-note">' + notes.join(' \u00B7 ') + '\uFF0C\u4EB2\u987B\u65E9\u7B79\u5904\u7F6E</div>';
+    }
+
+    // 长官行
+    html += '<div class="df-governor">';
+    if (item.governor) {
+      var _portChar = item.governor ? item.governor.charAt(0) : '?';
+      var _portImg = (item.govCh && item.govCh.portrait) ? '<img src="' + escHtml(item.govCh.portrait) + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover;">' : escHtml(_portChar);
+      html += '<div class="df-gov-portrait">' + _portImg + '</div>';
+      var _loy = item.govCh ? (item.govCh.loyalty || 50) : 50;
+      var _loyCls = _loy >= 70 ? '' : _loy >= 40 ? 'mid' : 'lo';
+      var _gTitle = _isDirect ? '\u5DE1\u629A' : (t === 'fanzhen' ? '\u603B\u5175\u5B98' : t === 'jimi' ? '\u5BA3\u6170\u4F7F' : '\u957F\u5B98');
+      html += '<div class="df-gov-info"><div class="df-gov-title">' + _gTitle + '</div><div class="df-gov-name">' + escHtml(item.governor) + '<span class="loyalty ' + _loyCls + '">\u5FE0 ' + _loy + '</span></div></div>';
+    } else {
+      html += '<div class="df-gov-portrait" style="background:repeating-linear-gradient(45deg,rgba(107,93,71,0.25),rgba(107,93,71,0.25) 2px,rgba(107,93,71,0.1) 2px,rgba(107,93,71,0.1) 4px);border-style:dashed;color:var(--ink-300);">?</div>';
+      html += '<div class="df-gov-info"><div class="df-gov-title">\u957F\u5B98</div><div class="df-gov-name" style="color:var(--vermillion-400);font-style:italic;">\u7A7A\u7F3A</div></div>';
+    }
+    // 操作按钮
+    var _divName = escHtml(item.name).replace(/'/g,"\\'");
+    html += '<div class="df-gov-actions">';
+    if (_isDirect) {
+      html += '<button class="df-gov-btn" onclick="event.stopPropagation();_dfEdict(\'' + _divName + '\')">\u4E0B \u65E8</button>';
+      if (item.governor) html += '<button class="df-gov-btn" onclick="event.stopPropagation();_dfChangeGov(\'' + _divName + '\')">\u6362 \u5B98</button>';
+      if (isCrisis) html += '<button class="df-gov-btn danger" onclick="event.stopPropagation();_dfEdict(\'' + _divName + '\')">\u8D48 \u6D4E</button>';
+    } else {
+      html += '<button class="df-gov-btn" onclick="event.stopPropagation();_dfEdict(\'' + _divName + '\')">\u4F20 \u65E8</button>';
+      html += '<button class="df-gov-btn" onclick="event.stopPropagation();_dfNonDirectAction(\'' + _divName + '\',\'' + t + '\')">\u53EF \u884C \u4E4B \u7B56</button>';
+    }
     html += '</div>';
+    html += '</div>';
+
+    html += '</div>'; // .df-card-body
+    html += '</div>'; // .df-card
   });
   grid.innerHTML = html;
 }
 
-/** 数据条辅助 */
+/** 数据条辅助·兼容旧调用 */
 function _dfBar(label, val, color, trend) {
   var v = Math.round(val||0);
   var tStr = trend ? '<span style="font-size:0.55rem;color:' + (trend==='\u2191'?'var(--vermillion-400)':'var(--celadon-400)') + ';">' + trend + '</span>' : '';
@@ -5197,17 +5282,21 @@ function renderGameState(){
   if (P.adminHierarchy) {
     var _dfBtn=document.createElement("button");_dfBtn.className="g-tab-btn";_dfBtn.innerHTML=_ti('faction',13)+' \u5730\u65B9';
     _dfBtn.onclick=function(){switchGTab(_dfBtn,"gt-difang");_renderDifangPanel();};tabBar.appendChild(_dfBtn);
-    var _dfP=document.createElement("div");_dfP.className="g-tab-panel";_dfP.id="gt-difang";_dfP.style.cssText="flex:1;overflow-y:auto;padding:1rem;";
-    _dfP.innerHTML='<div class="scroll-manager-header" style="padding:var(--space-2);font-size:var(--text-md);">\u3014 \u5730\u65B9\u8206\u60C5 \u3015</div>'
-      +'<div style="font-size:var(--text-xs);color:var(--color-foreground-muted);text-align:center;margin-bottom:var(--space-2);letter-spacing:0.08em;">\u5404\u9053\u5DDE\u5E9C\u6C11\u60C5\u6982\u89C8</div>'
-      +'<hr class="ink-divider">'
-      +'<div style="display:flex;gap:var(--space-1);align-items:center;margin-bottom:var(--space-2);flex-wrap:wrap;">'
-      +'<input id="df-search" placeholder="\u641C\u7D22\u5730\u540D\u2026" style="flex:1;min-width:80px;padding:3px 6px;font-size:var(--text-xs);background:var(--color-elevated);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-foreground);font-family:inherit;" oninput="_dfSearch=this.value;_renderDifangPanel();">'
-      +'<select id="df-sort" style="font-size:var(--text-xs);padding:2px 4px;background:var(--color-elevated);border:1px solid var(--color-border);color:var(--color-foreground);border-radius:var(--radius-sm);" onchange="_dfSort=this.value;_renderDifangPanel();"><option value="name">\u6392\uFF1A\u540D\u79F0</option><option value="unrest">\u6392\uFF1A\u6C11\u53D8\u2191</option><option value="corruption">\u6392\uFF1A\u8150\u8D25\u2191</option><option value="population">\u6392\uFF1A\u4EBA\u53E3\u2193</option></select>'
-      +'<label style="font-size:var(--text-xs);color:var(--vermillion-400);display:flex;align-items:center;gap:2px;"><input type="checkbox" id="df-crisis" onchange="_dfCrisis=this.checked;_renderDifangPanel();">\u5371\u673A</label>'
-      +'<button class="bt bsm" onclick="if(typeof openProvinceEconomy===\'function\')openProvinceEconomy();" style="font-size:0.65rem;">\u8BE6\u7EC6\u533A\u5212</button>'
+    var _dfP=document.createElement("div");_dfP.className="g-tab-panel";_dfP.id="gt-difang";_dfP.style.cssText="flex:1;overflow-y:auto;padding:0;";
+    _dfP.innerHTML='<div class="df-panel-wrap"><div class="df-inner">'
+      +'<div class="df-title"><div class="seal">\u5730<br>\u65B9</div><div class="main">\u5730 \u65B9 \u8206 \u60C5</div><div class="sub">\u4E00 \u7701 \u4E00 \u6C11 \u60C5\u3000\u3000\u6309 \u5BDF \u629A \u6C11 \u00B7 \u5B89 \u6C11 \u4E3A \u672C</div></div>'
+      +'<div id="df-statbar" class="df-statbar"></div>'
+      +'<div class="df-tools">'
+      +'<span class="df-tools-lbl">\u6309 \u5BDF</span>'
+      +'<div class="df-search-wrap"><input id="df-search" class="df-search" placeholder="\u641C\u7D22\u5730\u540D\u00B7\u5B98\u540D\u00B7\u4E8B\u7531\u2026\u2026" oninput="_dfSearch=this.value;_renderDifangPanel();"></div>'
+      +'<select id="df-sort" class="df-filter" onchange="_dfSort=this.value;_renderDifangPanel();"><option value="name">\u6392\uFF1A\u540D\u79F0</option><option value="unrest">\u6392\uFF1A\u6C11\u53D8 \u2191</option><option value="corruption">\u6392\uFF1A\u8150\u8D25 \u2191</option><option value="population">\u6392\uFF1A\u4EBA\u53E3 \u2193</option><option value="tax">\u6392\uFF1A\u7A0E\u6536 \u2193</option></select>'
+      +'<label class="df-chk"><input type="checkbox" id="df-crisis" onchange="_dfCrisis=this.checked;_renderDifangPanel();">\u26A0 \u4EC5 \u5371 \u673A</label>'
+      +'<button class="df-export" onclick="if(typeof openProvinceEconomy===\'function\')openProvinceEconomy();">\u8BE6 \u7EC6 \u533A \u5212</button>'
       +'</div>'
-      +'<div id="difang-grid"></div>';
+      +'<div id="df-legend" class="df-legend"></div>'
+      +'<div id="df-alerts" class="df-alerts" style="display:none;"></div>'
+      +'<div id="difang-grid" class="df-grid"></div>'
+      +'</div></div>';
     gc.appendChild(_dfP);
   }
 

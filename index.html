@@ -1884,6 +1884,160 @@ input,textarea,select{pointer-events:auto!important;position:relative;z-index:10
 .tr-btn.primary:hover{background:linear-gradient(to bottom,var(--vermillion-400),var(--vermillion-400));box-shadow:0 2px 6px rgba(140,40,30,0.5);}
 .tr-btn.primary::before{content:"❖";margin-right:6px;opacity:0.75;}
 
+/* ═════════ 地方舆情标签页（.df-*）═════════ */
+.df-panel-wrap{background-color:var(--color-surface,#241e18);background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.04) 2.5em,rgba(107,93,71,0.04) calc(2.5em + 1px)),repeating-linear-gradient(0deg,transparent 0,transparent 3em,rgba(107,93,71,0.02) 3em,rgba(107,93,71,0.02) calc(3em + 1px)),linear-gradient(to bottom,rgba(184,154,83,0.05) 0%,transparent 80px);position:relative;padding:var(--space-4) var(--space-5);min-height:500px;width:100%;box-sizing:border-box;}
+.df-panel-wrap::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle at 15% 25%,rgba(139,90,50,0.025) 0.5px,transparent 1px),radial-gradient(circle at 80% 60%,rgba(139,90,50,0.03) 0.5px,transparent 1px);background-size:80px 80px,120px 120px;}
+.df-inner{position:relative;z-index:1;}
+.df-title{text-align:center;margin-bottom:20px;position:relative;padding:14px 0 18px;}
+.df-title::before,.df-title::after{content:"";position:absolute;left:50%;width:180px;height:1px;transform:translateX(-50%);background:linear-gradient(to right,transparent,var(--gold-d),transparent);}
+.df-title::before{top:0;} .df-title::after{bottom:0;}
+.df-title .main{font-family:var(--font-serif);font-size:24px;letter-spacing:0.5em;color:var(--color-foreground);margin-bottom:6px;}
+.df-title .sub{font-size:12px;color:var(--ink-300,#6b5d47);letter-spacing:0.3em;font-family:var(--font-serif);font-style:italic;}
+.df-title .seal{position:absolute;right:28px;top:10px;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(192,64,48,0.85),rgba(140,40,30,0.75));display:flex;align-items:center;justify-content:center;color:#f4eadd;font-size:11px;font-family:var(--font-serif);letter-spacing:0.05em;font-weight:bold;transform:rotate(-6deg);box-shadow:0 2px 6px rgba(140,40,30,0.4);opacity:0.88;line-height:1.2;text-align:center;}
+
+/* 统计栏 */
+.df-statbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;}
+.df-stat-card{padding:10px 14px;background:var(--color-surface);border:1px solid var(--color-border-subtle);border-left:3px solid var(--sc-c,var(--gold-d));border-radius:3px;background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.025) 2.5em,rgba(107,93,71,0.025) calc(2.5em + 1px));}
+.df-stat-card.s-all{--sc-c:var(--gold-400);}
+.df-stat-card.s-zhi{--sc-c:var(--celadon-400);}
+.df-stat-card.s-fan{--sc-c:var(--indigo-400,#5a6fa8);}
+.df-stat-card.s-ji{--sc-c:var(--purple-400,#8e6aa8);}
+.df-stat-card.s-crisis{--sc-c:var(--vermillion-400);}
+.df-stat-lbl{font-family:var(--font-serif);font-size:10.5px;color:var(--color-foreground-muted);letter-spacing:0.25em;margin-bottom:4px;}
+.df-stat-num{font-family:var(--font-serif);font-size:22px;color:var(--sc-c);letter-spacing:0.05em;font-weight:700;line-height:1;}
+.df-stat-sub{font-size:10.5px;color:var(--ink-300,#6b5d47);margin-top:3px;font-style:italic;}
+
+/* 工具栏 */
+.df-tools{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(184,154,83,0.04);border:1px solid var(--color-border-subtle);border-radius:2px;margin-bottom:14px;flex-wrap:wrap;}
+.df-tools-lbl{font-family:var(--font-serif);font-size:12px;color:var(--color-foreground-muted);letter-spacing:0.2em;padding-right:6px;border-right:1px solid var(--color-border-subtle);flex-shrink:0;}
+.df-search-wrap{position:relative;flex:1;min-width:180px;max-width:260px;}
+.df-search-wrap::before{content:"⌕";position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink-300,#6b5d47);font-size:14px;pointer-events:none;}
+.df-search{width:100%;padding:5px 12px 5px 28px;background:var(--color-background,#1a1510);border:1px solid var(--color-border-subtle);color:var(--color-foreground);font-family:var(--font-song,"SimSun");font-size:12px;border-radius:2px;outline:none;}
+.df-filter{padding:5px 12px;background:var(--color-background,#1a1510);border:1px solid var(--color-border-subtle);color:var(--color-foreground);font-family:var(--font-serif);font-size:12px;letter-spacing:0.1em;border-radius:2px;cursor:pointer;}
+.df-chk{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--color-foreground-muted);font-family:var(--font-serif);letter-spacing:0.1em;cursor:pointer;}
+.df-chk input{accent-color:var(--vermillion-400);}
+.df-export{padding:5px 14px;background:linear-gradient(to bottom,rgba(184,154,83,0.1),rgba(184,154,83,0.02));border:1px solid var(--gold-d);color:var(--color-foreground-muted);font-family:var(--font-serif);font-size:12px;letter-spacing:0.15em;border-radius:2px;cursor:pointer;}
+.df-export::before{content:"❖";margin-right:4px;opacity:0.7;font-size:10px;}
+
+/* 图例 */
+.df-legend{display:flex;gap:8px 12px;padding:8px 14px;margin-bottom:14px;background:rgba(184,154,83,0.02);border:1px solid var(--color-border-subtle);border-radius:2px;font-size:11px;flex-wrap:wrap;align-items:center;}
+.df-legend-lbl{font-family:var(--font-serif);font-size:11px;color:var(--color-foreground-muted);letter-spacing:0.2em;margin-right:4px;padding-right:6px;border-right:1px solid var(--color-border-subtle);}
+.df-legend-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:2px;font-family:var(--font-serif);letter-spacing:0.08em;font-size:11px;border:1px solid var(--chip-c);color:var(--chip-c);background:rgba(var(--chip-rgb),0.06);}
+.df-legend-chip.zhi{--chip-c:var(--celadon-400);--chip-rgb:106,154,127;}
+.df-legend-chip.fan{--chip-c:var(--indigo-400,#5a6fa8);--chip-rgb:90,111,168;}
+.df-legend-chip.ji{--chip-c:var(--purple-400,#8e6aa8);--chip-rgb:142,106,168;}
+.df-legend-chip.tu{--chip-c:var(--amber-400,#c9a045);--chip-rgb:201,160,69;}
+.df-legend-chip.shu{--chip-c:var(--gold-400);--chip-rgb:184,154,83;}
+.df-legend-chip .num{color:var(--chip-c);font-weight:500;font-size:10px;opacity:0.85;}
+
+/* 预警条 */
+.df-alerts{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.df-alert{flex:1;min-width:280px;padding:10px 14px;background:rgba(192,64,48,0.06);border:1px dashed var(--a-c,var(--vermillion-400));border-left:3px solid var(--a-c,var(--vermillion-400));border-radius:3px;display:flex;align-items:center;gap:10px;font-size:12px;}
+.df-alert.warn{--a-c:var(--amber-400,#c9a045);background:rgba(201,160,69,0.06);}
+.df-alert.info{--a-c:var(--celadon-400);background:rgba(106,154,127,0.06);}
+.df-alert .ic{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--a-c),var(--ink-100,#3d342a));color:#f4eadd;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif);font-size:14px;font-weight:bold;flex-shrink:0;}
+.df-alert .lbl{color:var(--a-c);letter-spacing:0.1em;font-family:var(--font-serif);font-weight:500;margin-right:4px;}
+.df-alert .txt{flex:1;color:var(--color-foreground);line-height:1.5;}
+
+/* 省份卡网格 */
+.df-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;}
+.df-card{position:relative;background:var(--color-surface);background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.03) 2.5em,rgba(107,93,71,0.03) calc(2.5em + 1px));border:1px solid var(--color-border-subtle);border-left:3px solid var(--auton-c,var(--gold-d));border-radius:3px;overflow:hidden;transition:all 0.25s;cursor:pointer;}
+.df-card:hover{border-color:var(--gold-400);box-shadow:0 3px 12px rgba(184,154,83,0.15),0 0 8px rgba(184,154,83,0.1);transform:translateY(-2px);}
+.df-card.crisis{border-left-color:var(--vermillion-400);background:linear-gradient(to right,rgba(192,64,48,0.04),var(--color-surface) 30%);}
+.df-card.crisis::after{content:"⚠";position:absolute;top:6px;right:10px;color:var(--vermillion-400);font-size:16px;text-shadow:0 0 6px rgba(192,64,48,0.4);z-index:1;}
+.df-zhi{--auton-c:var(--celadon-400);--auton-rgb:106,154,127;}
+.df-fan{--auton-c:var(--indigo-400,#5a6fa8);--auton-rgb:90,111,168;}
+.df-ji{--auton-c:var(--purple-400,#8e6aa8);--auton-rgb:142,106,168;}
+.df-tu{--auton-c:var(--amber-400,#c9a045);--auton-rgb:201,160,69;}
+.df-shu{--auton-c:var(--gold-400);--auton-rgb:184,154,83;}
+.df-card-hdr{display:flex;align-items:center;gap:8px;padding:10px 14px 8px;background:linear-gradient(to right,rgba(var(--auton-rgb),0.12),transparent);border-bottom:1px solid var(--color-border-subtle);flex-wrap:wrap;}
+.df-card-name{font-family:var(--font-serif);font-size:15px;color:var(--color-foreground);letter-spacing:0.2em;font-weight:500;}
+.df-auton-chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:1px 7px;border-radius:2px;background:rgba(var(--auton-rgb),0.15);color:var(--auton-c);border:1px solid var(--auton-c);font-family:var(--font-serif);letter-spacing:0.12em;font-weight:500;}
+.df-auton-chip::before{content:"●";font-size:8px;opacity:0.8;margin-right:1px;}
+.df-fac-tag{font-size:10px;color:var(--ink-300,#6b5d47);font-family:var(--font-serif);letter-spacing:0.08em;font-style:italic;}
+.df-pop-main{margin-left:auto;font-family:var(--font-serif);font-size:13px;color:var(--gold-400);letter-spacing:0.05em;display:inline-flex;align-items:baseline;gap:3px;}
+.df-pop-main .n{font-size:15px;font-weight:700;color:var(--gold-300,#c9a85f);}
+.df-pop-main .u{font-size:10px;color:var(--ink-300,#6b5d47);}
+.df-card-body{padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px;}
+
+/* 条形图 */
+.df-bars{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;}
+.df-bar{display:flex;align-items:center;gap:6px;font-size:10.5px;font-family:var(--font-serif);letter-spacing:0.06em;}
+.df-bar-lbl{color:var(--ink-500);width:30px;flex-shrink:0;letter-spacing:0.15em;}
+.df-bar-track{flex:1;height:6px;background:rgba(107,93,71,0.22);border-radius:3px;overflow:hidden;}
+.df-bar-fill{height:100%;background:var(--bar-c,var(--gold-400));border-radius:3px;transition:width 0.4s;}
+.df-bar-val{min-width:26px;text-align:right;color:var(--color-foreground);font-weight:500;font-size:11px;}
+.df-bar.minxin .df-bar-fill{--bar-c:var(--celadon-400);}
+.df-bar.minxin.mid .df-bar-fill{--bar-c:var(--gold-400);}
+.df-bar.minxin.lo .df-bar-fill{--bar-c:var(--vermillion-400);}
+.df-bar.corruption.hi .df-bar-fill{--bar-c:var(--vermillion-400);}
+.df-bar.corruption.mid .df-bar-fill{--bar-c:var(--amber-400,#c9a045);}
+.df-bar.corruption .df-bar-fill{--bar-c:var(--celadon-400);}
+.df-bar.unrest.hi .df-bar-fill{--bar-c:var(--vermillion-400);}
+.df-bar.unrest.mid .df-bar-fill{--bar-c:var(--amber-400,#c9a045);}
+.df-bar.unrest .df-bar-fill{--bar-c:var(--celadon-400);}
+.df-bar.prosperity .df-bar-fill{--bar-c:var(--gold-400);}
+.df-bar.env.hi .df-bar-fill{--bar-c:var(--vermillion-400);}
+.df-bar.env.mid .df-bar-fill{--bar-c:var(--amber-400,#c9a045);}
+.df-bar.env .df-bar-fill{--bar-c:var(--celadon-400);}
+
+/* 户口细项 */
+.df-pop-detail{display:flex;gap:4px;flex-wrap:wrap;padding:6px 8px;background:linear-gradient(to right,rgba(106,154,127,0.04),transparent);border-left:2px solid var(--celadon-400);border-radius:0 2px 2px 0;font-size:10.5px;}
+.df-pop-item{display:inline-flex;align-items:center;gap:3px;font-family:var(--font-serif);color:var(--color-foreground);letter-spacing:0.05em;}
+.df-pop-item .lbl{color:var(--ink-300,#6b5d47);font-size:10px;}
+.df-pop-item .v{color:var(--color-foreground);font-weight:500;}
+.df-pop-item.warn .v{color:var(--amber-400,#c9a045);}
+.df-pop-item.danger .v{color:var(--vermillion-400);}
+.df-pop-item + .df-pop-item::before{content:"·";color:var(--ink-300,#6b5d47);opacity:0.5;margin:0 2px;}
+
+/* 财政 */
+.df-fiscal{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;padding:6px 8px;background:linear-gradient(to right,rgba(201,160,69,0.04),transparent);border-left:2px solid var(--amber-400,#c9a045);border-radius:0 2px 2px 0;font-size:10.5px;}
+.df-fiscal-item{display:inline-flex;align-items:center;gap:3px;font-family:var(--font-serif);color:var(--color-foreground);}
+.df-fiscal-item .lbl{color:var(--ink-300,#6b5d47);font-size:10px;letter-spacing:0.08em;}
+.df-fiscal-item .v{color:var(--gold-400);font-weight:500;letter-spacing:0.05em;}
+.df-fiscal-item.income .v{color:var(--celadon-400);}
+.df-fiscal-item.pubtr .v{color:var(--amber-400,#c9a045);}
+
+/* 公库 */
+.df-treasury-row{display:flex;gap:6px;font-size:10px;padding:5px 8px;background:rgba(184,154,83,0.04);border-radius:2px;border-left:2px solid var(--gold-d);align-items:center;flex-wrap:wrap;}
+.df-treasury-row .lbl{color:var(--ink-300,#6b5d47);font-family:var(--font-serif);letter-spacing:0.1em;font-size:10px;}
+.df-treasury-row .item{display:inline-flex;align-items:center;gap:2px;font-family:var(--font-serif);}
+.df-treasury-row .item .k{color:var(--ink-500);font-size:9px;}
+.df-treasury-row .item.gold .v{color:var(--gold-400);}
+.df-treasury-row .item.grain .v{color:var(--celadon-400);}
+.df-treasury-row .item.cloth .v{color:var(--amber-400,#c9a045);}
+
+/* 事件徽章 */
+.df-events{display:flex;gap:4px;flex-wrap:wrap;}
+.df-event-chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:1px 6px;border-radius:2px;font-family:var(--font-serif);letter-spacing:0.1em;border:1px solid var(--ev-c);color:var(--ev-c);background:rgba(var(--ev-rgb),0.06);}
+.df-event-chip.calamity{--ev-c:var(--amber-400,#c9a045);--ev-rgb:201,160,69;}
+.df-event-chip.rebellion{--ev-c:var(--vermillion-400);--ev-rgb:184,71,56;}
+.df-event-chip.plague{--ev-c:var(--purple-400,#8e6aa8);--ev-rgb:142,106,168;}
+.df-event-chip.war{--ev-c:var(--vermillion-400);--ev-rgb:184,71,56;}
+.df-event-chip.flood{--ev-c:var(--blue-400,#5a8fb8);--ev-rgb:90,143,184;}
+.df-event-chip.drought{--ev-c:var(--amber-400,#c9a045);--ev-rgb:201,160,69;}
+.df-event-chip.bumper{--ev-c:var(--celadon-400);--ev-rgb:106,154,127;}
+.df-event-chip::before{content:"◆";font-size:7px;opacity:0.7;}
+
+/* 长官 */
+.df-governor{display:flex;align-items:center;gap:8px;padding:5px 8px;background:rgba(184,154,83,0.03);border-radius:2px;border-top:1px dashed var(--color-border-subtle);margin-top:2px;}
+.df-gov-portrait{width:26px;height:26px;border-radius:50%;background:linear-gradient(135deg,var(--auton-c),var(--ink-100,#3d342a));border:1.5px solid var(--auton-c);display:flex;align-items:center;justify-content:center;color:#f4eadd;font-family:var(--font-serif);font-size:12px;flex-shrink:0;}
+.df-gov-info{flex:1;min-width:0;}
+.df-gov-title{font-size:9.5px;color:var(--ink-300,#6b5d47);letter-spacing:0.1em;font-family:var(--font-serif);}
+.df-gov-name{font-size:12px;color:var(--color-foreground);font-family:var(--font-serif);letter-spacing:0.08em;}
+.df-gov-name .loyalty{margin-left:6px;font-size:10px;color:var(--celadon-400);}
+.df-gov-name .loyalty.mid{color:var(--gold-400);}
+.df-gov-name .loyalty.lo{color:var(--vermillion-400);}
+.df-gov-actions{display:flex;gap:4px;flex-shrink:0;flex-wrap:wrap;}
+.df-gov-btn{padding:3px 9px;font-size:10.5px;background:linear-gradient(to bottom,rgba(184,154,83,0.1),rgba(184,154,83,0.02));border:1px solid var(--gold-d);color:var(--gold-400);font-family:var(--font-serif);letter-spacing:0.1em;border-radius:2px;cursor:pointer;}
+.df-gov-btn:hover{background:rgba(184,154,83,0.18);border-color:var(--gold-400);}
+.df-gov-btn.danger{color:var(--vermillion-400);border-color:var(--vermillion-400);}
+.df-gov-btn.danger:hover{background:rgba(192,64,48,0.12);}
+
+/* 危机描述 */
+.df-crisis-note{font-size:10.5px;color:var(--vermillion-400);font-style:italic;padding:4px 8px;background:rgba(192,64,48,0.05);border-left:2px solid var(--vermillion-400);border-radius:0 2px 2px 0;font-family:var(--font-serif);letter-spacing:0.03em;}
+.df-crisis-note::before{content:"⚠ ";}
+
 /* 史记（旧·保留兼容） */
 .qiju-record{background:var(--bg-2);border:1px solid var(--bdr);border-radius:var(--r);padding:0.7rem;margin-bottom:0.5rem;border-left:3px solid var(--gold-d);}
 .qiju-turn{font-size:0.72rem;color:var(--gold);margin-bottom:0.3rem;}
@@ -2904,7 +3058,7 @@ console.log('天命游戏脚本开始加载...');
 <script src="tm-change-queue.js"></script>
 <script src="tm-index-world.js?v=20260419v"></script>
 <script src="tm-npc-engine.js"></script>
-<script src="tm-game-engine.js?v=20260420b"></script>
+<script src="tm-game-engine.js?v=20260420c"></script>
 <script src="tm-map-system.js"></script>
 <script src="tm-dynamic-systems.js"></script>
 <script src="tm-economy-military.js"></script>
