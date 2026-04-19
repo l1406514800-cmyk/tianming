@@ -422,10 +422,19 @@
     // 选 1 条入奏
     if (issues.length > 0 && Math.random() < 0.3) {
       var picked = issues[Math.floor(Math.random() * issues.length)];
+      // 议题类型 id → 中文题名
+      var _issueLabels = {
+        fugitive_surge: '逃户疏',
+        burden_critical: '民负临赤疏',
+        eco_overload: '减徭安民疏',
+        corruption_urgent: '整肃朝纲疏',
+        memorial_stale: '积压奏疏疏'
+      };
+      var pickedLabel = _issueLabels[picked.type] || picked.type;
       var memo = {
         id: 'proactive_' + ctx.turn + '_' + Math.floor(Math.random()*10000),
         typeKey: 'tax_reform',
-        typeName: picked.type,
+        typeName: pickedLabel,
         drafter: picked.drafter,
         subject: picked.content.slice(0, 20),
         turn: ctx.turn || 0,
@@ -436,7 +445,7 @@
       };
       if (!G._pendingMemorials) G._pendingMemorials = [];
       G._pendingMemorials.push(memo);
-      if (global.addEB) global.addEB('奏疏', picked.drafter + ' 自主奏：' + picked.type);
+      if (global.addEB) global.addEB('奏疏', picked.drafter + ' 自主奏：《' + pickedLabel + '》——' + picked.content.slice(0, 30));
     }
   }
 

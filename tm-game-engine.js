@@ -7050,7 +7050,11 @@ function showCharPopup(charName, evt) {
   if (old) old.remove();
 
   var ch = findCharByName(charName);
-  if (!ch) { toast('未找到角色：' + charName); return; }
+  if (!ch) {
+    // 未找到·显示"查找档案"弹窗·触发 crystallizePendingCharacter
+    _showCharNotFoundPopup(charName, evt);
+    return;
+  }
 
   // 构建面板内容
   var html = '<div class="char-popup-header" style="display:flex;gap:8px;align-items:flex-start;">';
@@ -7146,29 +7150,21 @@ function showCharPopup(charName, evt) {
   if (typeof openAppointModal === 'function' && !ch.isPlayer) {
     html += '<button class="char-popup-btn" onclick="document.querySelector(\'.char-popup\').remove();openAppointModal(\'' + ch.name.replace(/'/g,"\\'") + '\');">\u4EFB\u547D</button>';
   }
-  html += '<button class="char-popup-btn" onclick="document.querySelector(\'.char-popup\').remove();if(typeof showCharDetail===\'function\')showCharDetail(\'' + ch.name.replace(/'/g,"\\'") + '\');else switchGTab(null,\'gt-renwu\');">\u8BE6\u60C5</button>';
+  html += '<button class="char-popup-btn" onclick="document.querySelector(\'.char-popup\').remove();if(typeof openCharDetail===\'function\')openCharDetail(\'' + ch.name.replace(/'/g,"\\'") + '\');else if(typeof showCharDetail===\'function\')showCharDetail(\'' + ch.name.replace(/'/g,"\\'") + '\');else switchGTab(null,\'gt-renwu\');">\u8BE6\u60C5</button>';
   html += '</div>';
 
   // 创建popup元素
   var popup = document.createElement('div');
   popup.className = 'char-popup';
   popup.innerHTML = html;
+  // 预设 max-height 以便真正超出屏幕时可滚动
+  popup.style.maxHeight = 'calc(100vh - 24px)';
+  popup.style.overflowY = 'auto';
+  popup.style.maxWidth = Math.min(380, window.innerWidth - 24) + 'px';
   document.body.appendChild(popup);
 
-  // 定位（evt 缺省时从 window.event 兜底，再缺则居中）
-  var rect = popup.getBoundingClientRect();
-  var _evt = evt || (typeof window !== 'undefined' ? window.event : null);
-  var x, y;
-  if (_evt && typeof _evt.clientX === 'number' && typeof _evt.clientY === 'number') {
-    x = _evt.clientX + 8; y = _evt.clientY + 8;
-  } else {
-    x = Math.max(8, (window.innerWidth - rect.width) / 2);
-    y = Math.max(8, (window.innerHeight - rect.height) / 2);
-  }
-  if (x + rect.width > window.innerWidth) x = Math.max(8, window.innerWidth - rect.width - 8);
-  if (y + rect.height > window.innerHeight) y = Math.max(8, window.innerHeight - rect.height - 8);
-  popup.style.left = x + 'px';
-  popup.style.top = y + 'px';
+  // 定位·考虑全屏边界·不能超出
+  _positionCharPopup(popup, evt);
 
   // 点击外部关闭
   setTimeout(function() {
@@ -7177,6 +7173,99 @@ function showCharPopup(charName, evt) {
     }
     document.addEventListener('mousedown', _closePopup);
   }, 50);
+}
+
+/** 人物卡片定位·自动适配屏幕·避免溢出 */
+function _positionCharPopup(popup, evt) {
+  var rect = popup.getBoundingClientRect();
+  var _evt = evt || (typeof window !== 'undefined' ? window.event : null);
+  var margin = 12;
+  var w = rect.width, h = rect.height;
+  var vw = window.innerWidth, vh = window.innerHeight;
+  var x, y;
+  if (_evt && typeof _evt.clientX === 'number' && typeof _evt.clientY === 'number') {
+    // 优先右下·若挤边则翻到左边或上方
+    x = _evt.clientX + 10;
+    y = _evt.clientY + 10;
+    // 右边溢出·改放鼠标左侧
+    if (x + w > vw - margin) x = Math.max(margin, _evt.clientX - w - 10);
+    // 下边溢出·改放鼠标上方
+    if (y + h > vh - margin) y = Math.max(margin, _evt.clientY - h - 10);
+  } else {
+    // 无 evt 信息·居中
+    x = Math.max(margin, (vw - w) / 2);
+    y = Math.max(margin, (vh - h) / 2);
+  }
+  // 最终保险·仍溢出时钳制
+  if (x + w > vw - margin) x = Math.max(margin, vw - w - margin);
+  if (y + h > vh - margin) y = Math.max(margin, vh - h - margin);
+  if (x < margin) x = margin;
+  if (y < margin) y = margin;
+  popup.style.left = x + 'px';
+  popup.style.top = y + 'px';
+}
+
+/** 未找到人物·弹"查找档案"提示卡·点击按钮调 crystallize 触发详细生成 */
+function _showCharNotFoundPopup(charName, evt) {
+  var old = document.querySelector('.char-popup');
+  if (old) old.remove();
+  var popup = document.createElement('div');
+  popup.className = 'char-popup';
+  var safeName = (charName||'').replace(/'/g, "\\'");
+  popup.innerHTML = ''
+    + '<div class="char-popup-header" style="display:flex;gap:8px;align-items:flex-start;">'
+    +   '<div>'
+    +     '<div class="char-popup-name" style="color:var(--amber-400);">' + escHtml(charName) + '</div>'
+    +     '<div class="char-popup-title" style="color:var(--ink-300);">\u6863\u6848\u672A\u5F55</div>'
+    +   '</div>'
+    + '</div>'
+    + '<div class="char-popup-info" style="font-size:0.78rem;line-height:1.7;color:var(--color-foreground-muted);margin-top:4px;">'
+    +   '\u6B64\u4EBA\u5C1A\u672A\u5F55\u5165\u4EBA\u7269\u5FD7\u3002\u94E8\u66F9\u53EF\u67E5\u627E\u5176\u6765\u5386\u00B7\u5982\u7CFB\u53F2\u5B9E\u4EBA\u7269\u5219\u91C7\u53F2\u4E66\u7ACB\u4F20\u00B7\u5982\u867A\u6784\u5219\u6784\u5176\u8EAB\u4E16\u3002'
+    + '</div>'
+    + '<div class="char-popup-actions" style="margin-top:8px;">'
+    +   '<button class="char-popup-btn" onclick="document.querySelector(\'.char-popup\').remove();_lookupCharDossier(\'' + safeName + '\');">\uD83D\uDCDA \u67E5\u627E\u6863\u6848</button>'
+    +   '<button class="char-popup-btn" onclick="document.querySelector(\'.char-popup\').remove();">\u6682\u7F13</button>'
+    + '</div>';
+  popup.style.maxHeight = 'calc(100vh - 24px)';
+  popup.style.overflowY = 'auto';
+  popup.style.maxWidth = Math.min(340, window.innerWidth - 24) + 'px';
+  document.body.appendChild(popup);
+  _positionCharPopup(popup, evt);
+  setTimeout(function() {
+    function _closePopup(e) {
+      if (!popup.contains(e.target)) { popup.remove(); document.removeEventListener('mousedown', _closePopup); }
+    }
+    document.addEventListener('mousedown', _closePopup);
+  }, 50);
+}
+
+/** 查找档案·调 crystallizePendingCharacter·成功后自动弹出 showCharPopup */
+async function _lookupCharDossier(charName) {
+  if (!charName) return;
+  if (typeof findCharByName === 'function' && findCharByName(charName)) {
+    showCharPopup(charName);
+    return;
+  }
+  if (typeof crystallizePendingCharacter !== 'function') {
+    if (typeof toast === 'function') toast('\u89D2\u8272\u751F\u6210\u6A21\u5757\u672A\u52A0\u8F7D');
+    return;
+  }
+  try {
+    // crystallizePendingCharacter 自带"整理档案中"进度条·内部判断史实/虚构
+    await crystallizePendingCharacter(charName, { reason: '\u73A9\u5BB6\u67E5\u627E\u6863\u6848' });
+    // 成功后展示其卡片
+    if (typeof findCharByName === 'function' && findCharByName(charName)) {
+      setTimeout(function(){ showCharPopup(charName); }, 300);
+    }
+  } catch(e) {
+    console.warn('[\u67E5\u627E\u6863\u6848] \u5931\u8D25', e);
+    if (typeof toast === 'function') toast('\u67E5\u627E\u5931\u8D25\uFF1A' + (e.message || e));
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window._lookupCharDossier = _lookupCharDossier;
+  window._showCharNotFoundPopup = _showCharNotFoundPopup;
 }
 
 // ============================================================

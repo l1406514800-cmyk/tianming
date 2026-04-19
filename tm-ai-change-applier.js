@@ -180,7 +180,11 @@
       intelligence:'智', administration:'政', military:'军', scholarship:'学',
       officialTitle:'官职', faction:'派系', alive:'存亡', rank:'品级',
       health:'体', stress:'压力', fame:'名', clanPrestige:'族望',
-      strength:'实力', influence:'影响'
+      strength:'实力', influence:'影响',
+      // 2026-04 扩展：状态/位置变化
+      location:'所在', illness:'疾病', ill:'疾病', disease:'疾病',
+      mourning:'守丧', retired:'致仕', exile:'流放',
+      title:'身份'
     };
     if (!labels[field]) return;
     var G = global.GM;
@@ -367,6 +371,10 @@
           new: entity[key],
           turn: G.turn||0
         });
+      }
+      // 若是人物更新·同步登记到 turnChanges.characters（供史记数值变化说明显示）
+      if (reportType === 'char_update' && entityName && !/^\+/.test(key)) {
+        try { _recordCharChange('chars.' + entityName + '.' + key, oldVal, entity[key], ''); } catch(_rcE){}
       }
     });
     return count;

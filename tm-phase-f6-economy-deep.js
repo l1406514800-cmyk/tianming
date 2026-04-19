@@ -17,6 +17,26 @@
 (function(global) {
   'use strict';
 
+  // 辅助：按 region id 在 adminHierarchy 里查找人类可读 name
+  function _findDivisionNameById(G, rid) {
+    if (!G || !G.adminHierarchy || !rid) return null;
+    var found = null;
+    function walk(divs) {
+      for (var i = 0; i < (divs||[]).length; i++) {
+        if (found) return;
+        var d = divs[i];
+        if (d.id === rid || d.name === rid) { found = d.name || rid; return; }
+        if (d.children) walk(d.children);
+        if (d.divisions) walk(d.divisions);
+      }
+    }
+    Object.keys(G.adminHierarchy).forEach(function(fac) {
+      var node = G.adminHierarchy[fac];
+      if (node && Array.isArray(node.divisions)) walk(node.divisions);
+    });
+    return found;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  Ledger 税种×区域分解
   // ═══════════════════════════════════════════════════════════════════
@@ -149,9 +169,11 @@
         // 升格
         reg._elevatedToFeudal = true;
         if (!G.feudalHoldings) G.feudalHoldings = [];
+        // 解析 region 人类可读名·优先 reg.name·否则从 adminHierarchy 找·最后 fallback rid
+        var _regName = reg.name || _findDivisionNameById(G, rid) || rid;
         var fh = {
           id: 'feudal_' + (G.turn||0) + '_' + rid,
-          name: reg.name || rid,
+          name: _regName,
           originalRegionId: rid,
           type: 'warlord',
           ruler: reg.localRulerName || '某节度',
@@ -160,7 +182,7 @@
           elevatedTurn: G.turn || 0
         };
         G.feudalHoldings.push(fh);
-        if (global.addEB) global.addEB('藩镇', rid + ' 自立为 ' + fh.name + '（独立藩镇）');
+        if (global.addEB) global.addEB('藩镇', _regName + ' 自立\uFF08\u72EC\u7ACB\u85E9\u9547\uFF09');
         // 皇权皇威损
         if (global._adjAuthority) {
           global._adjAuthority('huangquan', -8);

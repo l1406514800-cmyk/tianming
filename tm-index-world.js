@@ -4696,7 +4696,7 @@ function _renderOfficeTreeSVG(container) {
       nodesDivs += '<div style="padding:0 6px 4px 9px;">';
       nodesDivs += '<div style="font-size:11px;color:' + _holderClr + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35;">';
       if (nd.holder) {
-        nodesDivs += '<span style="cursor:pointer;text-decoration:underline dotted var(--ink-300);" onclick="event.stopPropagation();_offShowCareer(\'' + escHtml(nd.holder).replace(/'/g,"\\'") + '\')">' + escHtml(_holderName) + '</span>';
+        nodesDivs += '<span style="cursor:pointer;text-decoration:underline dotted var(--ink-300);" onclick="event.stopPropagation();if(typeof showCharPopup===\'function\')showCharPopup(\'' + escHtml(nd.holder).replace(/'/g,"\\'") + '\',event);else _offShowCareer(\'' + escHtml(nd.holder).replace(/'/g,"\\'") + '\')">' + escHtml(_holderName) + '</span>';
       } else {
         nodesDivs += '<span style="font-style:italic;">' + escHtml(_holderName) + '</span>';
       }

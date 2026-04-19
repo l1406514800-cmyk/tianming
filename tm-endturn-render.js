@@ -243,19 +243,44 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
     }
   }
 
-  // 人物变动摘要——忠诚/野心/压力变化
+  // 人物变动摘要——忠诚/野心/压力/官职/所在地/疾病变化
   var charChangeHtml = '';
   if (GM.turnChanges && GM.turnChanges.characters && GM.turnChanges.characters.length > 0) {
     charChangeHtml = '<div class="turn-section"><h3>\uD83D\uDC64 \u4EBA\u7269\u53D8\u52A8</h3>';
     GM.turnChanges.characters.forEach(function(cc) {
       if (!cc.changes || cc.changes.length === 0) return;
       cc.changes.forEach(function(ch) {
-        var _arrow = ch.newValue > ch.oldValue ? '\u2191' : '\u2193';
-        var _col = ch.field === 'loyalty' ? (ch.newValue > ch.oldValue ? 'var(--green)' : 'var(--red)') : 'var(--txt-s)';
-        var _fName = {'loyalty':'\u5FE0\u8BDA','ambition':'\u91CE\u5FC3','stress':'\u538B\u529B','strength':'\u5B9E\u529B','influence':'\u5F71\u54CD'}[ch.field] || ch.field;
+        var _fNameMap = {
+          'loyalty':'\u5FE0\u8BDA','ambition':'\u91CE\u5FC3','stress':'\u538B\u529B',
+          'strength':'\u5B9E\u529B','influence':'\u5F71\u54CD',
+          'officialTitle':'\u5B98\u804C','title':'\u8EAB\u4EFD','faction':'\u6240\u5C5E',
+          'location':'\u6240\u5728','alive':'\u5B58\u4EA1','rank':'\u54C1\u7EA7',
+          'health':'\u4F53\u6CC1','illness':'\u75BE\u75C5','ill':'\u75BE\u75C5','disease':'\u75BE\u75C5',
+          'mourning':'\u5B88\u4E27','retired':'\u81F4\u4ED5','exile':'\u6D41\u653E',
+          'integrity':'\u5EC9\u8282','morale':'\u58EB\u6C14','intelligence':'\u667A',
+          'administration':'\u653F','military':'\u519B','scholarship':'\u5B66',
+          'fame':'\u540D\u671B','clanPrestige':'\u65CF\u671B'
+        };
+        var _fName = _fNameMap[ch.field] || ch.field;
+        // 数值字段·用 ↑↓·字符串字段·用 →
+        var _isNum = typeof ch.oldValue === 'number' && typeof ch.newValue === 'number';
+        var _arrow = _isNum ? (ch.newValue > ch.oldValue ? '\u2191' : '\u2193') : '\u2192';
+        var _col = 'var(--txt-s)';
+        if (_isNum) {
+          if (ch.field === 'loyalty') _col = ch.newValue > ch.oldValue ? 'var(--green)' : 'var(--red)';
+          else if (ch.field === 'stress') _col = ch.newValue > ch.oldValue ? 'var(--red)' : 'var(--green)';
+        } else if (ch.field === 'alive') _col = ch.newValue === false ? 'var(--red)' : 'var(--green)';
+        else if (ch.field === 'illness' || ch.field === 'ill' || ch.field === 'disease') _col = 'var(--amber-400,#f59e0b)';
+        // 布尔/特殊·可读化
+        var _ov = ch.oldValue, _nv = ch.newValue;
+        if (ch.field === 'alive') { _ov = _ov === false ? '\u6545' : '\u5728'; _nv = _nv === false ? '\u6545' : '\u5728'; }
+        if (typeof _ov === 'boolean') _ov = _ov ? '\u662F' : '\u5426';
+        if (typeof _nv === 'boolean') _nv = _nv ? '\u662F' : '\u5426';
+        if (_ov === undefined || _ov === null || _ov === '') _ov = '\uFF08\u65E0\uFF09';
+        if (_nv === undefined || _nv === null || _nv === '') _nv = '\uFF08\u65E0\uFF09';
         charChangeHtml += '<div style="font-size:0.78rem;display:flex;justify-content:space-between;padding:0.15rem 0;border-bottom:1px solid var(--bg-4);">';
         charChangeHtml += '<span>' + escHtml(cc.name) + ' ' + _fName + '</span>';
-        charChangeHtml += '<span style="color:' + _col + ';">' + ch.oldValue + _arrow + ch.newValue + (ch.reason ? ' (' + escHtml(ch.reason) + ')' : '') + '</span></div>';
+        charChangeHtml += '<span style="color:' + _col + ';">' + escHtml(String(_ov)) + _arrow + escHtml(String(_nv)) + (ch.reason ? ' (' + escHtml(ch.reason) + ')' : '') + '</span></div>';
       });
     });
     charChangeHtml += '</div>';
@@ -685,8 +710,31 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
 
   // 第二层（默认折叠）：时政记 + 数值变化（含要点/财政/军事/势力/党派/阶层/人物）+ 人事变动 + 后人戏说 + 兼容附件
   // ※ changeReportHtml 已并入 _renderUnifiedChanges，此处不再重复
+  // ※ 2026-04 用户调整：群臣动向(npcActHtml) 移入风闻录事·密报与奏闻(intelHtml) 删除
   var layer2Html = szjSectionHtml + unifiedChangesHtml + personnelHtml + hourenHtml
-    + statusHtml + tyrantHtml + npcActHtml + factionEvtHtml + intelHtml + financeReportHtml;
+    + statusHtml + tyrantHtml + factionEvtHtml + financeReportHtml;
+
+  // 群臣动向→风闻录事（每条 NPC 事件写入 GM._fengwenRecord）
+  try {
+    if (GM.evtLog) {
+      var _npcEvtsFw = GM.evtLog.filter(function(e) { return e.type === 'NPC\u81EA\u4E3B' && e.turn === GM.turn - 1; });
+      if (_npcEvtsFw.length > 0) {
+        if (!GM._fengwenRecord) GM._fengwenRecord = [];
+        _npcEvtsFw.forEach(function(e) {
+          var _t = e.text || '';
+          var _type = '耳报';
+          if (/奏|谏|弹劾|上书|请|议/.test(_t)) _type = '风议';
+          else if (/密|暗|谋|阴|贿|收买|拉拢/.test(_t)) _type = '密札';
+          else if (/结|交|拜|宴|盟|联|访/.test(_t)) _type = '耳报';
+          else if (/军|兵|战|攻|守|练|征|讨/.test(_t)) _type = '军情';
+          GM._fengwenRecord.push({
+            type: _type, text: _t,
+            credibility: 0.75, turn: GM.turn - 1, source: 'npc_action'
+          });
+        });
+      }
+    }
+  } catch(_fwE) { console.warn('[shiji→fengwen] NPC evts 转录失败', _fwE); }
 
   var shijiHtml = layer1Html +
     '<div class="turn-detail-toggle" onclick="var d=this.parentElement.querySelector(\'.turn-detail-content\');if(!d)return;var open=d.classList.toggle(\'show\');this.querySelector(\'.toggle-arrow\').textContent=open?\'\u25B2\':\'\u25BC\';this.querySelector(\'.toggle-text\').textContent=open?\'\u6536\u8D77\u8BE6\u60C5\':\'\u5C55\u5F00\u8BE6\u60C5\';">' +
