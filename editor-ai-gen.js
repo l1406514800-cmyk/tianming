@@ -2268,6 +2268,27 @@ async function _multiPassAdminGen(ctx, existingContent, existingNote, maxTok) {
 // 剧本信息单项AI生成
 // ============================================================
 
+/**
+ * 读取 AI 生成模态框中已填入的参考信息/附加指令/当前日期。
+ * 模态关闭后 DOM 值仍保留，故快捷生成按钮也能吃到这些 hint。
+ * 用户每次重开模态会被清空（openAIGenModal 会 reset）。
+ * @returns {{ref:string, extra:string, date:string, suffix:string}}
+ */
+function _getEditorAIHints() {
+  var refEl = document.getElementById('aiGenRef');
+  var extraEl = document.getElementById('aiGenPrompt');
+  var dateEl = document.getElementById('aiGenDate');
+  var ref = refEl ? refEl.value.trim() : '';
+  var extra = extraEl ? extraEl.value.trim() : '';
+  var date = dateEl ? dateEl.value.trim() : '';
+  var suffix = '';
+  if (date) suffix += '\n\u5F53\u524D\u65E5\u671F:' + date;
+  if (ref) suffix += '\n\u53C2\u8003\u8D44\u6599:\n' + ref;
+  if (extra) suffix += '\n\u9644\u52A0\u8981\u6C42:' + extra;
+  return { ref: ref, extra: extra, date: date, suffix: suffix };
+}
+if (typeof window !== 'undefined') window._getEditorAIHints = _getEditorAIHints;
+
 function _buildScriptContext() {
   var parts = [];
   if (scriptData.name) parts.push('剧本:' + scriptData.name);
@@ -2364,6 +2385,7 @@ async function aiGenOverview() {
   try {
     var ctx = _buildScriptContext();
     var prompt = '你是历史剧本设计师。请根据以下信息生成一段300-600字的剧本总述，描述时代背景、政治局势、主要矛盾和玩家面临的挑战。\n\n' + ctx + '\n\n要求：\n- 文笔优美，有代入感\n- 准确反映该历史时期的实际状况\n- 突出戏剧性冲突和玩家的处境\n- 直接输出文本，不要JSON格式';
+    prompt += _getEditorAIHints().suffix;
     var result = await callAIEditor(prompt, 2000);
     result = result.replace(/```[\s\S]*?```/g, '').trim();
     if (result.length > 50) {
@@ -2388,6 +2410,7 @@ async function aiGenOpeningText() {
   try {
     var ctx = _buildScriptContext();
     var prompt = '你是历史小说家。请根据以下剧本信息生成一段400-800字的游戏开场白。\n\n' + ctx + '\n\n要求：\n- 文学性强，像历史小说的开篇\n- 渲染时代氛围，营造紧张感或史诗感\n- 自然引出玩家角色的处境\n- 可以描写环境、气氛、人物内心\n- 直接输出文本，不要JSON格式，不要标题';
+    prompt += _getEditorAIHints().suffix;
     var result = await callAIEditor(prompt, 2500);
     result = result.replace(/```[\s\S]*?```/g, '').trim();
     if (result.length > 80) {
@@ -2411,6 +2434,7 @@ async function aiGenGlobalRules() {
   try {
     var ctx = _buildScriptContext();
     var prompt = '你是历史模拟游戏规则设计师。请根据以下剧本信息生成AI推演必须遵守的全局规则（5-15条）。\n\n' + ctx + '\n\n要求：\n- 每条规则一行，简洁明确\n- 反映该朝代/时期的特殊制度和约束（如唐代的藩镇体制、宋代的重文轻武、明代的内阁/宦官等）\n- 包含政治、军事、经济、文化方面的核心规则\n- 规定AI不应逾越的历史底线（如不应出现该朝代不存在的事物）\n- 直接输出规则文本，每条规则一行，不要JSON格式，不要编号';
+    prompt += _getEditorAIHints().suffix;
     var result = await callAIEditor(prompt, 1500);
     result = result.replace(/```[\s\S]*?```/g, '').trim();
     // 去掉可能的编号前缀
@@ -2451,6 +2475,7 @@ async function aiGenFactionRelations() {
       + '[{"from":"势力A","to":"势力B","type":"关系类型","value":数值(-100到100),"desc":"一句话描述"}]\n'
       + '\n关系类型：联盟/友好/中立/敌视/交战/朝贡/宗藩/名义从属'
       + '\n注意：\n- 每对势力只需一个方向（A→B）\n- value正=友好 负=敌对\n- 必须符合历史\n- 玩家势力(' + (pi.factionName || '未知') + ')与各势力关系也要包含\n只输出JSON。';
+    prompt += _getEditorAIHints().suffix;
 
     var result = await callAIEditor(prompt, 3000);
     var cleaned = result.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
@@ -2500,6 +2525,7 @@ async function aiGenFiscalConfig() {
       + '  "currencyRules": {"enabledCoins": {"gold":bool,"silver":bool,"copper":bool,"iron":bool,"shell":bool,"paper":bool}, "initialStandard": "copper|silver|copper_paper|silver_copper_paper"}\n'
       + '}\n\n按朝代按史实：秦汉铜金、唐铜银金、宋铜银铁纸、元明清银铜纸。\n'
       + '帑廪规模按朝代常额：唐初 500 万、盛唐 1500 万、宋 4000 万、明盛 2000 万、清康乾 6000 万两。\n只输出 JSON。';
+    prompt += _getEditorAIHints().suffix;
     var result = await callAIEditor(prompt, 1500);
     var cleaned = result.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
     var match = cleaned.match(/\{[\s\S]*\}/);
@@ -2539,6 +2565,7 @@ async function aiGenPopulationConfig() {
       + '- 明：户 1000万 口 6000万 丁 1800万，丁龄 16-60，户等 ming_10\n'
       + '- 清康乾：户 4000万 口 3亿 丁 9000万，无户等\n'
       + '色目户：编户必有，军户/匠户/僧道常见，乐户/疍户仅特殊朝代。\n只输出 JSON。';
+    prompt += _getEditorAIHints().suffix;
     var result = await callAIEditor(prompt, 1500);
     var cleaned = result.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
     var match = cleaned.match(/\{[\s\S]*\}/);
@@ -2573,6 +2600,7 @@ async function aiGenEnvironmentConfig() {
       + '- 明末/清初：little_ice_age（小冰期）\n'
       + '- 其他：normal\n'
       + '初始疤痕按朝代末期渐重：开国低、末世高。\n只输出 JSON。';
+    prompt += _getEditorAIHints().suffix;
     var result = await callAIEditor(prompt, 2500);
     var cleaned = result.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
     var match = cleaned.match(/\{[\s\S]*\}/);
@@ -2611,6 +2639,7 @@ async function aiGenAuthorityConfig() {
       + '- 暴君时期（秦始皇末/隋炀帝末）：huangwei 90-95, huangquan 80-90, minxin 20-35, corruption 50-70\n'
       + '- 权臣时期（汉献帝/曹魏末/唐后期）：huangwei 25-40, huangquan 10-25, minxin 30-45, corruption 60-75\n'
       + '只输出 JSON。';
+    prompt += _getEditorAIHints().suffix;
     var result = await callAIEditor(prompt, 800);
     var cleaned = result.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
     var match = cleaned.match(/\{[\s\S]*\}/);
@@ -2656,6 +2685,7 @@ async function aiPolishStructuredField(fieldPath, description, context) {
       + '- 数值字段只在明显不合理时微调\n'
       + '- 历史名词规范化（官职/地名/称谓符合朝代）\n'
       + '只输出 JSON，不要说明，不要 markdown。';
+    prompt += _getEditorAIHints().suffix;
     var result = await callAIEditor(prompt, 4000);
     var cleaned = result.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
     var match = cleaned.match(/^[\[{][\s\S]*[\]}]$/);
@@ -2726,6 +2756,7 @@ async function aiGenWorldSettingField(fieldKey, fieldLabel) {
       diplomacy: '外交格局（周边势力关系、朝贡体系、和亲互市、战争与和平等）'
     };
     var prompt = '你是历史文化专家。请根据以下剧本信息，详细描述该时代的' + fieldLabel + '。\n\n' + ctx + '\n\n请描述：' + (fieldMap[fieldKey]||fieldLabel) + '\n\n要求：100-200字，准确反映历史实际，有细节和具体例子。直接输出文本。';
+    prompt += _getEditorAIHints().suffix;
     var result = await callAIEditor(prompt, 1500);
     result = result.replace(/```[\s\S]*?```/g, '').trim();
     if (result.length > 30) {
