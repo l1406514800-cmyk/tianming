@@ -4763,73 +4763,100 @@ function renderGameState(){
     else if(_r) _edictRole=_r;
   }
   var _ei = typeof tmIcon === 'function' ? tmIcon : function(){return '';};
-  // 诏令5类的色彩和图标映射
+  // 诏令5类·含圆形字符徽章+宋体提示词
   var _edictCats = [
-    {id:'edict-pol', label:'政令', icon:'office', color:'var(--indigo-400)', placeholder:'诏谕天下，如：改革官制、降旨安抚、任免官员……'},
-    {id:'edict-mil', label:'军令', icon:'troops', color:'var(--vermillion-400)', placeholder:'调兵遣将，如：调动军队、加强边防、讨伐叛贼……'},
-    {id:'edict-dip', label:'外交', icon:'faction', color:'var(--celadon-400)', placeholder:'纵横捭阖，如：遣使和亲、结盟讨伐、册封藩属……'},
-    {id:'edict-eco', label:'经济', icon:'treasury', color:'var(--gold-400)', placeholder:'经纶民生，如：减税轻赋、开仓放粮、兴修水利……'},
-    {id:'edict-oth', label:'其他', icon:'scroll', color:'var(--ink-300)', placeholder:'其他旨意，如：大赦天下、科举取士、建造宫殿……'}
+    {id:'edict-pol', label:'政 令', badge:'政', cls:'ed-c-pol', hint:'改革官制·任免官员·降旨安抚',  placeholder:'诏谕天下，如：改革官制、降旨安抚、任免官员……'},
+    {id:'edict-mil', label:'军 令', badge:'军', cls:'ed-c-mil', hint:'调兵遣将·加强边防·讨伐叛贼',  placeholder:'调兵遣将，如：调动军队、加强边防、讨伐叛贼……'},
+    {id:'edict-dip', label:'外 交', badge:'外', cls:'ed-c-dip', hint:'遣使和亲·结盟讨伐·册封藩属',  placeholder:'纵横捭阖，如：遣使和亲、结盟讨伐、册封藩属……'},
+    {id:'edict-eco', label:'经 济', badge:'经', cls:'ed-c-eco', hint:'减税轻赋·开仓放粮·兴修水利',  placeholder:'经纶民生，如：减税轻赋、开仓放粮、兴修水利……'},
+    {id:'edict-oth', label:'其 他', badge:'他', cls:'ed-c-oth', hint:'大赦·科举·建造·礼仪',          placeholder:'其他旨意，如：大赦天下、科举取士、建造宫殿……'}
   ];
-  var edictHTML = '';
+  var edictHTML = '<div class="ed-panel-wrap" style="padding:var(--space-4) var(--space-5);">';
 
-  // ═══ 左右并排布局：左侧建议库 | 右侧诏书编辑 ═══
-  edictHTML += '<div style="display:flex;gap:var(--space-3);align-items:flex-start;">';
+  // ═══ 左右并排布局 ═══
+  edictHTML += '<div style="display:flex;gap:var(--space-5);align-items:flex-start;position:relative;z-index:1;">';
 
-  // ── 左侧：建议库（动态容器，切换tab时刷新）──
-  edictHTML += '<div id="edict-sug-sidebar" style="width:240px;flex-shrink:0;max-height:70vh;overflow-y:auto;border-right:1px solid var(--color-border-subtle);padding-right:var(--space-3);"></div>';
+  // ── 左侧：建议库 ──
+  edictHTML += '<div style="width:260px;flex-shrink:0;align-self:flex-start;position:sticky;top:20px;">';
+  edictHTML += '<div class="ed-sug-title-wrap"><span class="ed-sug-title">\u8BAE \u4E8B \u6E05 \u518C</span></div>';
+  edictHTML += '<div id="edict-sug-sidebar" style="display:flex;flex-direction:column;gap:8px;max-height:70vh;overflow-y:auto;padding-right:4px;"></div>';
+  edictHTML += '</div>';
 
   // ── 右侧：诏书编辑区 ──
   edictHTML += '<div style="flex:1;min-width:0;">';
 
-  // 装饰标题
-  edictHTML += '<div style="text-align:center;margin-bottom:var(--space-3);"><div class="label-text" style="letter-spacing:0.2em;">'+escHtml(_edictRole)+'\u5FA1\u7B14</div><hr class="ink-divider" style="max-width:120px;margin:var(--space-1) auto;"></div>';
-  // 5类诏令卡片
-  edictHTML += '<div style="display:flex;flex-direction:column;gap:var(--space-2);">';
+  // 御笔标题 + 朱砂印章
+  edictHTML += '<div class="ed-yubi-title">';
+  edictHTML += '<div class="seal">'+escHtml(_edictRole)+'</div>';
+  edictHTML += '<div class="main">' + escHtml(_edictRole) + ' \u5FA1 \u7B14</div>';
+  edictHTML += '<div class="sub">\u5949 \u5929 \u627F \u8FD0</div>';
+  edictHTML += '</div>';
+
+  // 5 类诏令卡片
+  edictHTML += '<div class="ed-cards">';
   _edictCats.forEach(function(cat) {
-    edictHTML += '<div style="border-left:3px solid '+cat.color+';padding:var(--space-2) var(--space-3);background:var(--color-elevated);border-radius:var(--radius-md);transition:box-shadow var(--duration-normal) var(--ease-out);" onmouseover="this.style.boxShadow=\'var(--shadow-sm)\'" onmouseout="this.style.boxShadow=\'none\'">';
-    edictHTML += '<label style="font-size:var(--text-sm);color:'+cat.color+';font-weight:var(--weight-medium);display:flex;align-items:center;gap:var(--space-1);margin-bottom:var(--space-1);">'+_ei(cat.icon,13)+' '+cat.label+'</label>';
+    edictHTML += '<div class="ed-card '+cat.cls+'">';
+    edictHTML += '<div class="ed-card-hdr">';
+    edictHTML += '<span class="ed-cat-icon">'+cat.badge+'</span>';
+    edictHTML += '<span class="ed-cat-label">'+cat.label+'</span>';
+    edictHTML += '<span class="ed-cat-hint">'+cat.hint+'</span>';
+    edictHTML += '</div>';
     edictHTML += '<textarea id="'+cat.id+'" rows="2" class="edict-input paper-texture" placeholder="'+cat.placeholder+'" oninput="_edictLiveForecast(\''+cat.id+'\')"></textarea>';
-    edictHTML += '<div id="'+cat.id+'-forecast" style="display:none;margin-top:var(--space-1);padding:var(--space-1) var(--space-2);background:var(--bg-2);border-radius:var(--radius-sm);font-size:var(--text-xs);color:var(--color-foreground-muted);line-height:1.6;border-left:2px solid '+cat.color+';"></div>';
+    edictHTML += '<div id="'+cat.id+'-forecast" class="ed-forecast" style="display:none;"></div>';
     edictHTML += '</div>';
   });
   edictHTML += '</div>';
-  // 建议库动态渲染（首次+后续刷新共用）
+
+  // 建议库动态渲染
   _renderEdictSuggestions();
-  edictHTML += '<div style="display:flex;align-items:center;justify-content:center;gap:var(--space-2);margin-top:var(--space-3);flex-wrap:wrap;">';
-  edictHTML += '<select id="edict-polish-style" style="font-size:var(--text-xs);padding:var(--space-1) var(--space-2);background:var(--color-elevated);border:1px solid var(--color-border-subtle);color:var(--color-foreground);border-radius:var(--radius-sm);">';
+
+  // 润色控制行
+  edictHTML += '<div class="ed-polish-bar">';
+  edictHTML += '<span class="ed-polish-label">\u6587 \u98CE \u9009 \u62E9</span>';
+  edictHTML += '<select id="edict-polish-style" style="font-size:12px;padding:6px 12px;background:var(--color-elevated);border:1px solid var(--color-border-subtle);color:var(--color-foreground);border-radius:2px;font-family:var(--font-serif);cursor:pointer;">';
   edictHTML += '<option value="elegant">\u5178\u96C5\u9A88\u6587</option>';
   edictHTML += '<option value="concise">\u7B80\u6D01\u660E\u5FEB</option>';
   edictHTML += '<option value="ornate">\u534E\u4E3D\u6587\u85FB</option>';
   edictHTML += '<option value="plain">\u767D\u8BDD\u6587\u8A00</option>';
   edictHTML += '</select>';
-  edictHTML += '<button class="bt bs" onclick="_polishEdicts()" style="letter-spacing:0.1em;padding:var(--space-2) var(--space-6);">'+_ei('scroll',14)+' \u6709\u53F8\u6DA6\u8272</button>';
+  edictHTML += '<button class="ed-polish-btn" onclick="_polishEdicts()">\u6709 \u53F8 \u6DA6 \u8272</button>';
   edictHTML += '</div>';
-  // 润色结果区（初始隐藏）
+
+  // 润色结果区
   edictHTML += '<div id="edict-polished" style="display:none;margin-top:var(--space-3);"></div>';
+
   // 主角行止
-  edictHTML += '<hr class="ink-divider">';
-  edictHTML += '<div class="label-text" style="text-align:center;letter-spacing:0.15em;margin-bottom:var(--space-2);">\u4E3B\u89D2\u884C\u6B62</div>';
-  edictHTML += '<div style="border-left:3px solid var(--gold-400);padding:var(--space-2) var(--space-3);background:var(--color-elevated);border-radius:var(--radius-md);">';
-  edictHTML += '<label style="font-size:var(--text-sm);color:var(--gold-400);display:flex;align-items:center;gap:var(--space-1);margin-bottom:var(--space-1);">'+_ei('person',13)+' \u672C\u56DE\u5408\u884C\u52A8 <span style="font-size:var(--text-xs);color:var(--color-foreground-muted);">\u2014\u2014\u4F60\u8FD9\u6BB5\u65F6\u95F4\u505A\u4E86\u4EC0\u4E48</span></label>';
-  edictHTML += '<textarea id="xinglu-pub" rows="4" class="edict-input paper-texture" placeholder="\u5982\uFF1A\u53EC\u89C1\u67D0\u81E3\u3001\u6821\u9605\u4E09\u519B\u3001\u5FAE\u670D\u79C1\u8BBF\u3001\u591C\u8BFB\u53F2\u4E66\u3001\u7956\u5E99\u796D\u7940\u3001\u5BB4\u8BF7\u7FA4\u81E3\u2026\u2026"></textarea>';
+  edictHTML += '<div class="ed-section-divider"><span class="label">\u4E3B \u89D2 \u884C \u6B62</span></div>';
+  edictHTML += '<div class="ed-xinglu-card">';
+  edictHTML += '<div class="ed-xinglu-hdr">';
+  edictHTML += '<span class="title">\u672C \u56DE \u5408 \u884C \u52A8</span>';
+  edictHTML += '<span class="desc">\u2014\u2014\u4F60\u8FD9\u6BB5\u65F6\u95F4\u505A\u4E86\u4EC0\u4E48</span>';
   edictHTML += '</div>';
+  edictHTML += '<textarea id="xinglu-pub" rows="4" class="edict-input paper-texture" placeholder="\u5982\uFF1A\u53EC\u89C1\u67D0\u81E3\u3001\u6821\u9605\u4E09\u519B\u3001\u5FAE\u670D\u79C1\u8BBF\u3001\u591C\u8BFB\u53F2\u4E66\u3001\u7956\u5E99\u796D\u7940\u3001\u5BB4\u8BF7\u7FA4\u81E3\u2026\u2026"></textarea>';
+
   // 行止历史
   if (GM.qijuHistory && GM.qijuHistory.length > 1) {
     var _recentXl = GM.qijuHistory.filter(function(q) { return q.xinglu && q.turn < GM.turn; }).slice(-5).reverse();
     if (_recentXl.length > 0) {
-      edictHTML += '<details style="margin-top:var(--space-1);"><summary style="cursor:pointer;font-size:var(--text-xs);color:var(--ink-300);">\u8FD1\u671F\u884C\u6B62\u8BB0\u5F55</summary>';
-      edictHTML += '<div style="margin-top:var(--space-1);max-height:150px;overflow-y:auto;">';
+      edictHTML += '<details class="ed-xinglu-hist">';
+      edictHTML += '<summary>\u8FD1\u671F\u884C\u6B62\u8BB0\u5F55 <span style="color:var(--ink-300);margin-left:6px;font-size:10px;">' + _recentXl.length + ' \u6761</span></summary>';
+      edictHTML += '<div style="margin-top:10px;max-height:200px;overflow-y:auto;">';
       _recentXl.forEach(function(q) {
-        edictHTML += '<div style="font-size:var(--text-xs);padding:2px 0;border-bottom:1px solid var(--color-border-subtle);color:var(--color-foreground-muted);">';
-        edictHTML += '<span style="color:var(--gold-400);">T' + q.turn + '</span> ' + escHtml(q.xinglu);
-        edictHTML += '</div>';
+        edictHTML += '<div class="ed-xinglu-hist-item"><span class="turn">T' + q.turn + '</span>' + escHtml(q.xinglu) + '</div>';
       });
       edictHTML += '</div></details>';
     }
   }
-  // 帝王私行（折叠）
-  edictHTML += '<div style="margin-top:var(--space-2);"><div style="text-align:center;cursor:pointer;" onclick="var p=_$(\'tyrant-panel\');if(p)p.style.display=p.style.display===\'none\'?\'block\':\'none\';if(p&&p.style.display!==\'none\'&&typeof TyrantActivitySystem!==\'undefined\')TyrantActivitySystem.renderPanel();"><span class="label-text">帝王私行 ▸ <span style="font-size:var(--text-xs);">(点击展开)</span></span></div><div id="tyrant-panel" style="display:none;max-height:300px;overflow-y:auto;padding:var(--space-1);"></div></div>';
+  edictHTML += '</div>'; // ed-xinglu-card
+
+  // 帝王私行
+  edictHTML += '<div class="ed-tyrant-block">';
+  edictHTML += '<div class="ed-tyrant-toggle" onclick="var p=_$(\'tyrant-panel\');if(p){p.style.display=p.style.display===\'none\'?\'block\':\'none\';this.classList.toggle(\'open\');if(p.style.display!==\'none\'&&typeof TyrantActivitySystem!==\'undefined\')TyrantActivitySystem.renderPanel();}">';
+  edictHTML += '\u5E1D \u738B \u79C1 \u884C';
+  edictHTML += '<span class="sub">\u2014\u2014 \u70B9\u51FB\u5C55\u5F00\uFF08\u540E\u5983\u00B7\u6E38\u730E\u00B7\u4E39\u836F\u00B7\u5BC6\u8BBF\uFF09</span>';
+  edictHTML += '</div>';
+  edictHTML += '<div id="tyrant-panel" style="display:none;max-height:300px;overflow-y:auto;padding:var(--space-2);margin-top:var(--space-2);"></div>';
+  edictHTML += '</div>';
   // 往期诏令档案
   if (GM._edictTracker && GM._edictTracker.length > 0) {
     var _allEdicts = GM._edictTracker.filter(function(e) { return e.turn < GM.turn; });
@@ -4838,15 +4865,14 @@ function renderGameState(){
       var _edictByTurn = {};
       _allEdicts.forEach(function(e) { if (!_edictByTurn[e.turn]) _edictByTurn[e.turn] = []; _edictByTurn[e.turn].push(e); });
       var _edictTurns = Object.keys(_edictByTurn).sort(function(a,b){ return b-a; });
-      edictHTML += '<hr class="ink-divider" style="margin:var(--space-3) 0;">';
-      edictHTML += '<details style="margin-bottom:var(--space-2);">';
-      edictHTML += '<summary style="cursor:pointer;font-size:var(--text-sm);color:var(--ink-300);text-align:center;">\u5F80\u671F\u8BCF\u4EE4\u6863\u6848 (' + _allEdicts.length + '\u6761)</summary>';
+      edictHTML += '<details class="ed-archive">';
+      edictHTML += '<summary>\u5F80 \u671F \u8BCF \u4EE4 \u6863 \u6848 \u00B7 ' + _allEdicts.length + ' \u6761</summary>';
       edictHTML += '<div style="margin-top:var(--space-2);max-height:400px;overflow-y:auto;">';
       _edictTurns.forEach(function(turn) {
         var edicts = _edictByTurn[turn];
         var _tsText = typeof getTSText === 'function' ? getTSText(parseInt(turn)) : 'T' + turn;
-        edictHTML += '<div style="margin-bottom:var(--space-2);padding:var(--space-2);background:var(--color-elevated);border-radius:var(--radius-sm);">';
-        edictHTML += '<div style="font-size:var(--text-xs);color:var(--gold-400);font-weight:var(--weight-bold);margin-bottom:var(--space-1);">\u7B2C' + turn + '\u56DE\u5408 ' + _tsText + '</div>';
+        edictHTML += '<div class="ed-archive-group">';
+        edictHTML += '<div class="ed-archive-group-title">\u7B2C' + turn + '\u56DE\u5408 \u00B7 ' + _tsText + '</div>';
         edicts.forEach(function(e) {
           var _sc = e.status === 'completed' ? 'var(--celadon-400)' : e.status === 'obstructed' ? 'var(--vermillion-400)' : e.status === 'partial' ? '#e67e22' : e.status === 'pending_delivery' ? 'var(--amber-400)' : 'var(--ink-300)';
           var _sl = {completed:'\u2705', obstructed:'\u274C', partial:'\u26A0\uFE0F', executing:'\u23F3', pending:'\u2B55', pending_delivery:'\uD83D\uDCE8'}[e.status] || '';
@@ -4882,12 +4908,13 @@ function renderGameState(){
   }
 
   // 结束回合按钮
-  edictHTML += '<div style="margin-top:var(--space-4);text-align:center;display:flex;gap:var(--space-3);justify-content:center;">';
+  edictHTML += '<div class="ed-action-bar">';
   edictHTML += '<button class="bt bp" id="btn-end" onclick="confirmEndTurn()" style="padding:var(--space-3) var(--space-8);font-size:var(--text-md);letter-spacing:0.15em;border:2px solid var(--gold-400);box-shadow:0 2px 12px rgba(184,154,83,0.2);">'+_ei('end-turn',16)+' 静待时变</button>';
   edictHTML += '<button class="bt" onclick="openMapViewer()" style="padding:var(--space-3) var(--space-6);font-size:var(--text-md);">'+_ei('map',16)+' 查看地图</button>';
   edictHTML += '</div>';
   edictHTML += '</div>'; // 关闭右侧诏书编辑区
-  edictHTML += '</div>'; // 关闭左右并排flex容器
+  edictHTML += '</div>'; // 关闭左右并排 flex 容器
+  edictHTML += '</div>'; // 关闭 ed-panel-wrap
   edictP.innerHTML = edictHTML;
   gc.appendChild(edictP);
 
@@ -5253,9 +5280,10 @@ function _renderEdictSuggestions() {
     {id:'edict-oth', label:'\u5176\u4ED6', color:'var(--ink-300)'}
   ];
   var _unused = (GM._edictSuggestions || []).filter(function(s) { return !s.used; });
-  var html = '<div style="font-size:var(--text-sm);color:var(--gold-400);font-weight:var(--weight-bold);margin-bottom:var(--space-2);">\uD83D\uDCDA \u8BF8\u4E66\u5EFA\u8BAE\u5E93' + (_unused.length > 0 ? ' (' + _unused.length + ')' : '') + '</div>';
+  // 美化版：标题"议事清册"已在父级 HTML 中渲染·此处只渲染项目
+  var html = '';
   if (_unused.length === 0) {
-    html += '<div style="font-size:var(--text-xs);color:var(--color-foreground-muted);line-height:1.6;padding:var(--space-2);">\u6682\u65E0\u5EFA\u8BAE\u3002<br>\u53EC\u5F00\u300C\u671D\u8BAE\u300D\u6216\u300C\u95EE\u5BF9\u300D\u5927\u81E3\uFF0C\u6216\u7B49\u5F85\u300C\u9E3F\u96C1\u6765\u51FD\u300D\uFF0C\u5176\u8FDB\u8A00\u5C06\u6536\u5165\u6B64\u5904\u3002</div>';
+    html += '<div style="font-size:11.5px;color:var(--color-foreground-muted);line-height:1.7;padding:12px 10px;text-align:center;font-family:var(--font-serif);font-style:italic;">\u8BF8\u4E8B\u6682\u5B81\u3002\u53EC\u5F00\u300C\u671D\u8BAE\u300D\u6216\u300C\u95EE\u5BF9\u300D\uFF0C\u5176\u8FDB\u8A00\u5C06\u6536\u5165\u6B64\u5904\u3002</div>';
   } else {
     _unused.forEach(function(s, si) {
       var _realIdx = (GM._edictSuggestions || []).indexOf(s);

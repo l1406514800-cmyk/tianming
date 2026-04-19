@@ -652,6 +652,77 @@ input,textarea,select{pointer-events:auto!important;position:relative;z-index:10
 /* 诏令输入区（宣纸稿纸风格） */
 .edict-input{width:100%;margin-top:0.3rem;padding:0.6rem 0.8rem;background:var(--bg-3);border:1px solid var(--bdr);border-radius:var(--radius-md);color:var(--txt);font-family:var(--font-serif);font-size:var(--text-base);line-height:var(--leading-relaxed);resize:vertical;min-height:44px;background-image:repeating-linear-gradient(90deg,transparent,transparent 2em,rgba(107,93,79,0.04) 2em,rgba(107,93,79,0.04) calc(2em + 1px));}
 .edict-input:focus{outline:none;border-color:var(--gold-d);}
+
+/* ═════════ 诏令标签页·美化版（v2）═════════ */
+.ed-panel-wrap{background-color:var(--color-surface,#241e18);background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.04) 2.5em,rgba(107,93,71,0.04) calc(2.5em + 1px)),repeating-linear-gradient(0deg,transparent 0,transparent 3em,rgba(107,93,71,0.02) 3em,rgba(107,93,71,0.02) calc(3em + 1px)),linear-gradient(to bottom,rgba(184,154,83,0.05) 0%,transparent 80px);position:relative;}
+.ed-panel-wrap::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle at 15% 25%,rgba(139,90,50,0.025) 0.5px,transparent 1px),radial-gradient(circle at 80% 60%,rgba(139,90,50,0.03) 0.5px,transparent 1px),radial-gradient(circle at 40% 85%,rgba(139,90,50,0.02) 0.5px,transparent 1px);background-size:80px 80px,120px 120px,100px 100px;background-position:0 0,40px 40px,20px 60px;}
+.ed-yubi-title{text-align:center;margin-bottom:24px;position:relative;padding:12px 0 18px;}
+.ed-yubi-title::before,.ed-yubi-title::after{content:"";position:absolute;left:50%;width:180px;height:1px;transform:translateX(-50%);background:linear-gradient(to right,transparent,var(--gold-d),transparent);}
+.ed-yubi-title::before{top:0;}
+.ed-yubi-title::after{bottom:0;}
+.ed-yubi-title .main{font-family:var(--font-serif);font-size:24px;letter-spacing:0.5em;color:var(--color-foreground,#f4eadd);font-weight:400;margin-bottom:6px;}
+.ed-yubi-title .sub{font-size:12px;color:var(--ink-300,#6b5d47);letter-spacing:0.3em;font-family:var(--font-serif);}
+.ed-yubi-title .seal{position:absolute;right:24px;top:8px;width:42px;height:42px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(192,64,48,0.85),rgba(140,40,30,0.75));display:flex;align-items:center;justify-content:center;color:#f4eadd;font-size:11px;font-family:var(--font-serif);letter-spacing:0.1em;font-weight:bold;transform:rotate(-6deg);box-shadow:0 2px 6px rgba(140,40,30,0.4);opacity:0.88;}
+.ed-cards{display:flex;flex-direction:column;gap:16px;}
+.ed-card{background-color:var(--color-surface,#241e18);background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.025) 2.5em,rgba(107,93,71,0.025) calc(2.5em + 1px));border:1px solid var(--color-border-subtle,rgba(184,154,83,0.15));border-left:3px solid var(--ed-cat,var(--gold-400));border-radius:4px;padding:16px 18px;transition:all 0.3s;position:relative;overflow:hidden;}
+.ed-card::after{content:"";position:absolute;top:0;right:0;width:60px;height:60px;background:radial-gradient(circle at top right,rgba(184,154,83,0.08),transparent 70%);pointer-events:none;}
+.ed-card:hover{box-shadow:0 0 12px rgba(184,154,83,0.18),0 3px 8px rgba(0,0,0,0.3);border-left-width:4px;transform:translateX(-1px);}
+.ed-card-hdr{display:flex;align-items:center;gap:8px;margin-bottom:10px;}
+.ed-cat-icon{width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;color:var(--ed-cat);background:linear-gradient(135deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01));border:1px solid var(--ed-cat);border-radius:50%;font-family:var(--font-serif);font-size:13px;flex-shrink:0;}
+.ed-cat-label{font-family:var(--font-serif);font-size:15px;color:var(--ed-cat);letter-spacing:0.12em;font-weight:500;}
+.ed-cat-hint{font-size:11px;color:var(--ink-300,#6b5d47);margin-left:auto;font-family:var(--font-song,"SimSun");letter-spacing:0.05em;}
+.ed-forecast{margin-top:10px;padding:8px 12px;background:rgba(184,154,83,0.04);border:1px dashed var(--color-border-subtle);border-left:2px solid var(--ed-cat);border-radius:2px;font-size:11.5px;color:var(--color-foreground-muted,#a69470);line-height:1.6;}
+.ed-forecast .tag{display:inline-block;font-size:10px;padding:1px 5px;background:var(--ed-cat);color:var(--bg-1,#0f0d0a);border-radius:2px;margin-right:6px;font-family:var(--font-serif);letter-spacing:0.05em;opacity:0.85;}
+/* 分类颜色 */
+.ed-c-pol{--ed-cat:var(--indigo-400,#5a6fa8);}
+.ed-c-mil{--ed-cat:var(--vermillion-400,#b84738);}
+.ed-c-dip{--ed-cat:var(--celadon-400,#6a9a7f);}
+.ed-c-eco{--ed-cat:var(--gold-400,#b89a53);}
+.ed-c-oth{--ed-cat:var(--ink-300,#8b7a5e);}
+/* 润色控制行 */
+.ed-polish-bar{margin-top:24px;padding:18px 16px;background:linear-gradient(to right,transparent,rgba(184,154,83,0.06),transparent);border-top:1px solid var(--color-border-subtle);border-bottom:1px solid var(--color-border-subtle);display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:wrap;}
+.ed-polish-label{font-family:var(--font-serif);color:var(--color-foreground-muted);letter-spacing:0.1em;font-size:13px;}
+.ed-polish-btn{background:linear-gradient(to bottom,var(--vermillion-400,#b84738),var(--vermillion-600,#8f3428));color:#f4eadd;border:1px solid var(--vermillion-600,#8f3428);border-radius:2px;padding:8px 24px;font-family:var(--font-serif);font-size:14px;letter-spacing:0.25em;cursor:pointer;box-shadow:0 1px 3px rgba(140,40,30,0.4),inset 0 1px 0 rgba(255,255,255,0.1);position:relative;transition:all 0.2s;}
+.ed-polish-btn:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(140,40,30,0.5),inset 0 1px 0 rgba(255,255,255,0.12);}
+.ed-polish-btn::before{content:"❖";margin-right:6px;opacity:0.7;}
+/* 建议库 */
+.ed-sug-title-wrap{text-align:center;margin-bottom:14px;}
+.ed-sug-title{display:inline-block;font-family:var(--font-serif);font-size:14px;letter-spacing:0.25em;color:var(--color-foreground);padding:4px 14px 6px;background:linear-gradient(to bottom,rgba(157,130,68,0.12),rgba(157,130,68,0.03));border-top:1px solid var(--gold-d);border-bottom:1px solid var(--gold-d);position:relative;}
+.ed-sug-title::before,.ed-sug-title::after{content:"❖";color:var(--gold-400);font-size:10px;margin:0 6px;opacity:0.6;}
+.ed-sug-item{border-left:2px solid var(--gold-d)!important;background:var(--color-surface)!important;padding:10px 12px!important;border-radius:2px;font-size:12.5px!important;line-height:1.6!important;color:var(--color-foreground-muted)!important;cursor:pointer;transition:all 0.25s;position:relative;}
+.ed-sug-item:hover{border-left-color:var(--vermillion-400)!important;color:var(--color-foreground)!important;background:linear-gradient(to right,rgba(192,64,48,0.08),var(--color-surface))!important;}
+.ed-sug-item .src{font-size:10.5px!important;color:var(--gold-400)!important;font-family:var(--font-serif);letter-spacing:0.05em;margin-bottom:3px;}
+/* 主角行止分割+卡片 */
+.ed-section-divider{text-align:center;margin:28px 0 20px;position:relative;}
+.ed-section-divider::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:linear-gradient(to right,transparent 0%,var(--gold-d) 30%,var(--gold-d) 70%,transparent 100%);}
+.ed-section-divider .label{position:relative;display:inline-block;padding:2px 20px;background:var(--color-background,#1a1510);font-family:var(--font-serif);font-size:14px;color:var(--gold-400);letter-spacing:0.3em;}
+.ed-xinglu-card{background-color:var(--color-surface);background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.025) 2.5em,rgba(107,93,71,0.025) calc(2.5em + 1px));border:1px solid var(--color-border-subtle);border-left:3px solid var(--gold-400);border-radius:4px;padding:16px 18px;position:relative;}
+.ed-xinglu-hdr{display:flex;align-items:baseline;gap:8px;margin-bottom:10px;}
+.ed-xinglu-hdr .title{font-family:var(--font-serif);font-size:15px;color:var(--gold-400);letter-spacing:0.12em;}
+.ed-xinglu-hdr .desc{font-size:11px;color:var(--ink-300);}
+.ed-xinglu-hist{margin-top:12px;padding-top:12px;border-top:1px dashed var(--color-border-subtle);}
+.ed-xinglu-hist summary{cursor:pointer;font-size:12px;color:var(--color-foreground-muted);display:inline-flex;align-items:center;gap:6px;font-family:var(--font-serif);letter-spacing:0.1em;list-style:none;}
+.ed-xinglu-hist summary::before{content:"▸";transition:transform 0.2s;color:var(--ink-300);}
+.ed-xinglu-hist[open] summary::before{transform:rotate(90deg);}
+.ed-xinglu-hist summary:hover{color:var(--gold-400);}
+.ed-xinglu-hist-item{font-size:11.5px;padding:6px 10px;background:rgba(184,154,83,0.03);border-left:2px solid var(--ink-100,#3d342a);color:var(--color-foreground-muted);line-height:1.6;border-radius:2px;margin-bottom:4px;}
+.ed-xinglu-hist-item .turn{color:var(--gold-400);font-family:var(--font-serif);letter-spacing:0.05em;margin-right:6px;}
+/* 帝王私行折叠区 */
+.ed-tyrant-block{margin-top:28px;padding:12px 16px;background:linear-gradient(to right,rgba(192,64,48,0.06),transparent);border-left:2px dashed var(--vermillion-400);border-radius:2px;}
+.ed-tyrant-toggle{font-family:var(--font-serif);font-size:13px;color:var(--color-foreground-muted);letter-spacing:0.2em;cursor:pointer;display:flex;align-items:center;gap:6px;}
+.ed-tyrant-toggle::before{content:"▸";color:var(--vermillion-400);transition:transform 0.2s;}
+.ed-tyrant-toggle.open::before{transform:rotate(90deg);}
+.ed-tyrant-toggle .sub{font-size:11px;color:var(--ink-300);font-family:var(--font-song,"SimSun");letter-spacing:0;}
+/* 诏令档案往期 */
+.ed-archive{margin-top:24px;}
+.ed-archive summary{cursor:pointer;font-size:13px;color:var(--color-foreground-muted);text-align:center;padding:6px 0;font-family:var(--font-serif);letter-spacing:0.2em;list-style:none;}
+.ed-archive summary::before{content:"◢ ";color:var(--gold-400);}
+.ed-archive summary::after{content:" ◣";color:var(--gold-400);}
+.ed-archive summary:hover{color:var(--gold-400);}
+.ed-archive-group{margin-bottom:10px;padding:10px;background:var(--color-surface);border-radius:3px;border-left:2px solid var(--gold-d);}
+.ed-archive-group-title{font-size:11.5px;color:var(--gold-400);font-family:var(--font-serif);letter-spacing:0.1em;margin-bottom:6px;}
+/* 结束回合按钮区 */
+.ed-action-bar{margin-top:28px;text-align:center;display:flex;gap:12px;justify-content:center;}
 .gir{display:flex;gap:0.5rem;}.gir textarea{flex:1;resize:none;background:var(--bg-3);border:1px solid var(--bdr);border-radius:8px;padding:0.55rem 0.8rem;color:var(--txt);font-family:inherit;font-size:0.88rem;min-height:40px;}
 .gir textarea:focus{outline:none;border-color:var(--gold-d);}
 .gsn{width:40px;height:40px;border:none;border-radius:8px;background:linear-gradient(135deg,var(--gold-d),var(--gold));cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
@@ -1719,7 +1790,7 @@ console.log('天命游戏脚本开始加载...');
 <script src="tm-change-queue.js"></script>
 <script src="tm-index-world.js?v=20260419q"></script>
 <script src="tm-npc-engine.js"></script>
-<script src="tm-game-engine.js?v=20260419p"></script>
+<script src="tm-game-engine.js?v=20260419q"></script>
 <script src="tm-map-system.js"></script>
 <script src="tm-dynamic-systems.js"></script>
 <script src="tm-economy-military.js"></script>
