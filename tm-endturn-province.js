@@ -1019,7 +1019,7 @@ function _peBuiltContent() {
   if (totalRemit === 0 && totalPubMoney === 0 && typeof CascadeTax !== 'undefined') {
     html += '<div style="padding:0.5rem 0.8rem;background:var(--bg-2);border-left:3px solid var(--amber-400);border-radius:4px;margin-bottom:0.8rem;font-size:0.72rem;color:var(--txt-d);">';
     html += '\u203B \u672C\u56DE\u5408\u7A0E\u6536\u5C1A\u672A\u7ED3\u7B97\uFF08\u9700\u7B49\u672C\u56DE\u5408 endTurn \u540E\u5F00\u59CB\u7A0E\u6536\u7EA7\u8054\uFF09\u3002\u8FDB\u5165\u65B0\u5267\u672C\u65F6\u82E5\u521D\u503C\u4E3A 0\uFF0C\u53EF\u5728\u5267\u672C\u7F16\u8F91\u5668\u91CC\u914D\u6263 fiscalConfig.taxes\u3002';
-    html += '<button class="bt bsm" style="margin-left:10px;font-size:0.65rem;" onclick="if(typeof CascadeTax!==\'undefined\'&&CascadeTax.collect){CascadeTax.collect();if(typeof IntegrationBridge!==\'undefined\'&&IntegrationBridge.aggregateRegionsToVariables)IntegrationBridge.aggregateRegionsToVariables();openProvinceEconomy();}" title="立即执行一次税收级联结算">\u7ACB\u5373\u7ED3\u7B97</button>';
+    html += '<button class="bt bp bsm" style="margin-left:10px;font-size:0.65rem;" onclick="_peTriggerCascadeNow()" title="立即执行一次税收级联结算">\u7ACB\u5373\u7ED3\u7B97</button>';
     html += '</div>';
   }
 
@@ -1067,6 +1067,54 @@ function _peRefreshContent() {
   container.innerHTML = _peBuiltContent();
   container.scrollTop = scrollTop;
 }
+
+/** 立即结算——手动触发一次税收级联 */
+function _peTriggerCascadeNow() {
+  try {
+    if (typeof CascadeTax === 'undefined' || typeof CascadeTax.collect !== 'function') {
+      if (typeof toast === 'function') toast('税收级联引擎未加载');
+      console.error('[立即结算] CascadeTax 未加载');
+      return;
+    }
+    if (!GM.adminHierarchy || Object.keys(GM.adminHierarchy).length === 0) {
+      if (typeof toast === 'function') toast('未配置行政区划·无法结算');
+      console.error('[立即结算] GM.adminHierarchy 为空');
+      return;
+    }
+    var result = CascadeTax.collect();
+    console.log('[立即结算] CascadeTax.collect 返回:', result);
+
+    // 即使结算成功也可能 totals 全为 0（剧本税率太低/人口不足/region 无 fiscal 字段）
+    if (result && result.ok === false) {
+      if (typeof toast === 'function') toast('结算失败: ' + (result.reason || '未知'));
+      return;
+    }
+
+    // 聚合到顶栏变量
+    if (typeof IntegrationBridge !== 'undefined' && typeof IntegrationBridge.aggregateRegionsToVariables === 'function') {
+      try { IntegrationBridge.aggregateRegionsToVariables(); } catch(e){ console.warn('[立即结算] aggregate 失败', e); }
+    }
+
+    // 刷新顶栏变量
+    if (typeof renderTopBarVars === 'function') {
+      try { renderTopBarVars(); } catch(_e){}
+    }
+
+    // 反馈
+    var turnIn = (GM.guoku && GM.guoku.turnIncome) || 0;
+    var gIn = (GM.guoku && GM.guoku.turnGrainIncome) || 0;
+    if (typeof toast === 'function') {
+      toast('结算完成·中央帑廪 +' + (turnIn >= 10000 ? Math.round(turnIn/10000) + '万两' : turnIn + '两') + (gIn > 0 ? ' +' + (gIn >= 10000 ? Math.round(gIn/10000) + '万石' : gIn + '石') : ''));
+    }
+
+    // 重开面板（会刷新显示）
+    openProvinceEconomy();
+  } catch (e) {
+    console.error('[立即结算] 异常:', e);
+    if (typeof toast === 'function') toast('结算异常: ' + (e.message || e));
+  }
+}
+if (typeof window !== 'undefined') window._peTriggerCascadeNow = _peTriggerCascadeNow;
 
 /** 打开地方区划面板 */
 function openProvinceEconomy() {
