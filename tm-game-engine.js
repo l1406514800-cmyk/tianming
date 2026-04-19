@@ -3746,53 +3746,106 @@ function _ltCheckSameProvince(loc1, loc2) {
 /** 渲染鸿雁传书面板 */
 function renderLetterPanel() {
   var capital = GM._capital || '京城';
-  var _filter = GM._ltFilter || 'all'; // all/unread/transit/lost
-  // ── 驿路状态提示 ──
+  var _filter = GM._ltFilter || 'all';
+
+  // ── 驿路状态 ──
   var routeBar = _$('letter-route-bar');
   if (routeBar) {
     var disruptions = GM._routeDisruptions || [];
     var active = disruptions.filter(function(d) { return !d.resolved; });
     if (active.length > 0) {
-      routeBar.innerHTML = active.map(function(d) {
-        return '<div style="font-size:0.65rem;color:var(--vermillion-400);padding:2px 6px;background:rgba(231,76,60,0.1);border-radius:3px;border:1px solid var(--vermillion-400);">⚠ ' + escHtml(d.route||'') + ' 驿路阻断' + (d.reason ? '（' + escHtml(d.reason) + '）' : '') + '</div>';
+      var _rHtml = '<span class="hy-route-warn-lbl">\u26A0 \u9A7F\u8DEF\u544A\u6025\uFF1A</span>';
+      _rHtml += active.map(function(d) {
+        return '<span class="hy-route-warn-item">' + escHtml(d.route||'') + (d.reason ? ' \u00B7 ' + escHtml(d.reason) : '') + '</span>';
       }).join('');
+      routeBar.innerHTML = _rHtml;
       routeBar.style.display = 'flex';
     } else { routeBar.style.display = 'none'; routeBar.innerHTML = ''; }
   }
-  // ── NPC卡片列表 ──
+
+  // 更新 multi button 状态
+  var _mbtn = _$('lt-multi-toggle');
+  if (_mbtn) _mbtn.classList.toggle('active', !!GM._ltMultiMode);
+  // 更新 compose target 提示
+  var _ctgt = _$('lt-compose-target');
+  if (_ctgt) {
+    if (GM._ltMultiMode && GM._ltMultiTargets && GM._ltMultiTargets.length > 0) _ctgt.textContent = '（\u7FA4\u53D1' + GM._ltMultiTargets.length + '\u4EBA\uFF09';
+    else if (GM._pendingLetterTo) _ctgt.textContent = '\u2192 \u81F4 ' + GM._pendingLetterTo;
+    else _ctgt.textContent = '\uFF08\u9009\u62E9\u53D7\u4FE1\u4EBA\uFF09';
+  }
+
+  // ── 人物分组·按地域粗分 ──
+  function _regionOf(loc) {
+    if (!loc) return '\u5176\u4ED6';
+    if (/\u8FBD|\u5BA7|\u9526|\u7518\u76F4|\u76DB\u4EAC|\u8FA3\u9633|\u6C88\u9633|\u4EAC\u7B7B/.test(loc)) return '\u8FBD\u4E1C\u00B7\u5317\u5883';
+    if (/\u5927\u540C|\u5BA3|\u8367|\u592A\u539F|\u9695/.test(loc)) return '\u8FBD\u4E1C\u00B7\u5317\u5883';
+    if (/\u9655|\u897F\u5B89|\u5EF6|\u7518|\u5B81\u590F|\u5170\u5DDE|\u4E09\u8FB9|\u6C58\u5DDE|\u51C9/.test(loc)) return '\u897F\u9677\u00B7\u8FB9\u9547';
+    if (/\u56DB\u5DDD|\u91CD\u5E86|\u4E91|\u8D35|\u8568|\u7B47|\u77F3\u67F1|\u6210\u90FD/.test(loc)) return '\u897F\u5357\u00B7\u5DF4\u8700';
+    if (/\u798F\u5EFA|\u5E7F\u4E1C|\u5E7F\u897F|\u6D77|\u5384\u95E8|\u6280\u6E7E|\u6E29\u90FD|\u7518\u590F/.test(loc)) return '\u5357\u65B9\u00B7\u6D77\u7586';
+    if (/\u6C5F|\u676D|\u5357\u4EAC|\u82CF|\u6E56\u5E7F|\u77F3\u5BAE|\u6D59/.test(loc)) return '\u6C5F\u5357\u00B7\u6C5F\u6D59';
+    if (/\u6CB3\u5357|\u5C71\u4E1C|\u6CB3\u5317|\u5317\u76F4|\u9C81/.test(loc)) return '\u4E2D\u539F\u00B7\u9C81\u8C6B';
+    return '\u5176\u4ED6';
+  }
+
+  // ── NPC 卡片列表 ──
   var el = _$('letter-chars');
   if (el) {
     var remote = (GM.chars||[]).filter(function(c) { return c.alive !== false && c.location && c.location !== capital && !c.isPlayer; });
     if (remote.length === 0) {
-      el.innerHTML = '<div style="color:var(--color-foreground-muted);font-size:var(--text-xs);padding:var(--space-3);text-align:center;">所有臣子均在京城，无需传书。</div>';
+      el.innerHTML = '<div style="color:var(--color-foreground-muted);font-size:12px;padding:20px 14px;text-align:center;font-family:var(--font-serif);letter-spacing:0.12em;line-height:1.8;">\u767E\u5B98\u5747\u5728\u4EAC\u57CE\u00B7\u65E0\u9700\u4F20\u4E66</div>';
     } else {
-      var cardsHtml = '';
+      // 按地域分组
+      var _groups = {};
       remote.forEach(function(ch) {
-        var isMulti = (GM._ltMultiTargets||[]).indexOf(ch.name) >= 0;
-        var sel = (GM._ltMultiMode ? (isMulti ? ' active' : '') : (GM._pendingLetterTo === ch.name ? ' active' : ''));
-        var safeName = ch.name.replace(/'/g, "\\'");
-        var badges = '';
-        var unreadCount = _ltCountUnread(ch.name);
-        var transitCount = _ltCountTransit(ch.name);
-        var lostCount = _ltCountLost(ch.name);
-        var npcNewCount = _ltCountNpcNew(ch.name);
-        if (unreadCount > 0) badges += '<span class="lt-badge lt-badge-unread">' + unreadCount + '封未读</span>';
-        if (npcNewCount > 0) badges += '<span class="lt-badge lt-badge-npc-new">来函' + npcNewCount + '</span>';
-        if (transitCount > 0) badges += '<span class="lt-badge lt-badge-transit">在途' + transitCount + '</span>';
-        if (lostCount > 0) badges += '<span class="lt-badge lt-badge-lost">信使逾期</span>';
-        // 驿路阻断标记
-        var _isRouteBlocked = _ltIsRouteBlocked(capital, ch.location);
-        if (_isRouteBlocked) badges += '<span class="lt-badge lt-badge-lost">驿路断</span>';
+        var r = _regionOf(ch.location);
+        if (!_groups[r]) _groups[r] = [];
+        _groups[r].push(ch);
+      });
+      var _grpOrder = ['\u8FBD\u4E1C\u00B7\u5317\u5883','\u897F\u9677\u00B7\u8FB9\u9547','\u4E2D\u539F\u00B7\u9C81\u8C6B','\u6C5F\u5357\u00B7\u6C5F\u6D59','\u897F\u5357\u00B7\u5DF4\u8700','\u5357\u65B9\u00B7\u6D77\u7586','\u5176\u4ED6'];
 
-        cardsHtml += '<div class="lt-npc-card' + sel + '" onclick="_ltSelectTarget(\'' + safeName + '\')">';
-        if (ch.portrait) cardsHtml += '<img src="' + escHtml(ch.portrait) + '" style="width:32px;height:32px;object-fit:cover;border-radius:50%;flex-shrink:0;">';
-        cardsHtml += '<div style="flex:1;min-width:0;">';
-        cardsHtml += '<div class="lt-npc-name">' + escHtml(ch.name) + '</div>';
-        cardsHtml += '<div class="lt-npc-title">' + escHtml(ch.title || ch.role || '') + '</div>';
-        cardsHtml += '<div class="lt-npc-loc">' + escHtml(ch.location || '') + (ch._travelTo ? ' → 赶往' + escHtml(ch._travelTo) : '') + '</div>';
-        cardsHtml += '</div>';
-        if (badges) cardsHtml += '<div class="lt-npc-badge">' + badges + '</div>';
-        cardsHtml += '</div>';
+      function _cardClass(ch) {
+        var t = (ch.title||'') + (ch.officialTitle||'');
+        if (/\u5C06|\u603B\u5175|\u7763|\u6307\u6325|\u6307\u6325\u4F7F/.test(t)) return 'hy-c-mili';
+        if ((ch.loyalty||50) >= 75) return 'hy-c-loyal';
+        if (/\u5B66\u58EB|\u4FA8|\u5C1A\u4E66|\u90CE\u4E2D|\u4FA8\u5B66|\u7AE5\u5B9E|\u4F5B|\u5FB4\u58EB|\u6559\u6388|\u4FA8\u516C|\u84DD\u77E5/.test(t)) return 'hy-c-scholar';
+        return 'hy-c-normal';
+      }
+
+      var cardsHtml = '';
+      _grpOrder.forEach(function(g) {
+        if (!_groups[g] || _groups[g].length === 0) return;
+        cardsHtml += '<div class="hy-group-sep">' + escHtml(g) + '</div>';
+        _groups[g].forEach(function(ch) {
+          var isMulti = (GM._ltMultiTargets||[]).indexOf(ch.name) >= 0;
+          var sel = (GM._ltMultiMode ? (isMulti ? ' active' : '') : (GM._pendingLetterTo === ch.name ? ' active' : ''));
+          var safeName = ch.name.replace(/'/g, "\\'");
+          var _cls = _cardClass(ch);
+          var unreadCount = _ltCountUnread(ch.name);
+          var transitCount = _ltCountTransit(ch.name);
+          var lostCount = _ltCountLost(ch.name);
+          var npcNewCount = _ltCountNpcNew(ch.name);
+          var _isRouteBlocked = _ltIsRouteBlocked(capital, ch.location);
+          var _inds = '';
+          if (unreadCount > 0) _inds += '<div class="hy-ind hy-ind-unread" title="' + unreadCount + ' \u5C01\u672A\u8BFB">' + unreadCount + '</div>';
+          if (npcNewCount > 0) _inds += '<div class="hy-ind hy-ind-new" title="' + npcNewCount + ' \u5C01\u6765\u51FD">' + npcNewCount + '</div>';
+          if (transitCount > 0) _inds += '<div class="hy-ind hy-ind-transit" title="' + transitCount + ' \u5C01\u5728\u9014">' + transitCount + '</div>';
+          if (lostCount > 0) _inds += '<div class="hy-ind hy-ind-lost" title="\u4FE1\u4F7F\u903E\u671F">?</div>';
+          if (_isRouteBlocked) _inds += '<div class="hy-ind hy-ind-blocked" title="\u9A7F\u8DEF\u963B\u65AD">\u2715</div>';
+
+          var _initial = escHtml(String(ch.name||'?').charAt(0));
+          var _portrait = ch.portrait ? '<img src="' + escHtml(ch.portrait) + '">' : _initial;
+          var _travel = ch._travelTo ? '<span class="travel-arrow">\u2192</span>' + escHtml(ch._travelTo) : '';
+
+          cardsHtml += '<div class="hy-npc-card ' + _cls + sel + '" onclick="_ltSelectTarget(\'' + safeName + '\')">';
+          cardsHtml += '<div class="hy-npc-portrait">' + _portrait + '</div>';
+          cardsHtml += '<div class="hy-npc-info">';
+          cardsHtml += '<div class="hy-npc-name">' + escHtml(ch.name) + '</div>';
+          cardsHtml += '<div class="hy-npc-title">' + escHtml(ch.officialTitle || ch.title || ch.role || '') + '</div>';
+          cardsHtml += '<div class="hy-npc-loc">' + escHtml(ch.location || '') + _travel + '</div>';
+          cardsHtml += '</div>';
+          cardsHtml += '<div class="hy-npc-indicators">' + _inds + '</div>';
+          cardsHtml += '</div>';
+        });
       });
       el.innerHTML = cardsHtml;
     }
@@ -3803,20 +3856,22 @@ function renderLetterPanel() {
   if (!hist) return;
   var target = GM._pendingLetterTo || '';
   if (!target) {
-    // 无选中目标时：显示NPC间截获情报或全局信件概览
     var _npcCorr = GM._npcCorrespondence || [];
     var _recentCorr = _npcCorr.filter(function(c) { return (GM.turn - c.turn) <= 5; });
-    var overviewHtml = '<div style="color:var(--color-foreground-muted);text-align:center;padding:1rem;font-size:var(--text-sm);">选择一位远方臣子以查看往来书信</div>';
+    var overviewHtml = '<div class="hy-hist-body"><div class="hy-hist-empty">\u9009\u62E9\u4E00\u4F4D\u8FDC\u65B9\u81E3\u5B50\u00B7\u4EE5\u89C1\u4E66\u4FE1\u5F80\u6765</div>';
     if (_recentCorr.length > 0) {
-      overviewHtml += '<div style="margin-top:var(--space-3);border-top:1px solid var(--color-border-subtle);padding-top:var(--space-2);">';
-      overviewHtml += '<div style="font-size:var(--text-xs);color:var(--vermillion-400);font-weight:var(--weight-bold);margin-bottom:var(--space-1);letter-spacing:0.08em;">截获的NPC间密信</div>';
+      overviewHtml = '<div class="hy-hist-head"><div class="hy-hist-title-wrap"><div class="hy-hist-portrait" style="background:linear-gradient(135deg,var(--vermillion-400),var(--ink-100));border-color:var(--vermillion-400);">\u5BC6</div><div><div class="hy-hist-name">\u622A\u83B7\u7684 NPC \u5BC6\u4FE1</div><div class="hy-hist-sub">\u8FD1 5 \u56DE\u5408\u00B7\u5171 ' + _recentCorr.length + ' \u5C01</div></div></div></div>';
+      overviewHtml += '<div class="hy-hist-body">';
       _recentCorr.forEach(function(c) {
-        overviewHtml += '<div class="letter-card letter-intercepted" style="padding:var(--space-2);">';
-        overviewHtml += '<div class="letter-direction" style="color:var(--vermillion-300);font-size:0.65rem;">〔截获〕' + escHtml(c.from) + ' → ' + escHtml(c.to) + '</div>';
-        overviewHtml += '<div class="letter-body" style="font-size:0.75rem;text-indent:0;">' + escHtml(c.content || c.summary || '') + '</div>';
-        if (c.implication) overviewHtml += '<div style="font-size:0.6rem;color:var(--amber-400);margin-top:2px;">暗含：' + escHtml(c.implication) + '</div>';
-        overviewHtml += '</div>';
+        overviewHtml += '<div class="hy-msg hy-msg-intercept"><span class="hy-msg-tag"></span>';
+        overviewHtml += '<div class="hy-letter">';
+        overviewHtml += '<div class="header"><span class="type-pill">\u5BC6\u51FD</span><span>' + escHtml(c.from) + ' \u2192 ' + escHtml(c.to) + '</span><span class="date">T' + (c.turn||'?') + '</span></div>';
+        overviewHtml += '<div class="body">' + escHtml(c.content || c.summary || '') + '</div>';
+        if (c.implication) overviewHtml += '<div class="hy-intercept-imply">\u6697\u542B\uFF1A' + escHtml(c.implication) + '</div>';
+        overviewHtml += '</div></div>';
       });
+      overviewHtml += '</div>';
+    } else {
       overviewHtml += '</div>';
     }
     hist.innerHTML = overviewHtml;
@@ -3825,30 +3880,38 @@ function renderLetterPanel() {
 
   var ch = findCharByName(target);
   var allLetters = (GM.letters||[]).filter(function(l) { return l.to === target || l.from === target; });
-  // 筛选
   var letters = allLetters;
   if (_filter === 'unread') letters = allLetters.filter(function(l) { return !l._playerRead; });
   else if (_filter === 'transit') letters = allLetters.filter(function(l) { return l.status === 'traveling' || l.status === 'replying'; });
   else if (_filter === 'lost') letters = allLetters.filter(function(l) { return l.status === 'intercepted' || (l.status === 'traveling' && GM.turn > l.deliveryTurn + 1); });
 
-  // 头部：目标信息 + 筛选栏
-  var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-2);">';
-  html += '<div style="font-size:var(--text-sm);font-weight:var(--weight-bold);color:var(--gold-400);letter-spacing:0.06em;">与' + escHtml(target) + '（' + escHtml(ch ? ch.location : '?') + '）的书信</div>';
-  html += '<div style="display:flex;gap:2px;">';
-  var _filterBtns = [{k:'all',l:'全部'},{k:'unread',l:'未读'},{k:'transit',l:'在途'},{k:'lost',l:'失踪'}];
+  // 新头部
+  var _initial = escHtml(String(target||'?').charAt(0));
+  var _portraitHtml = (ch && ch.portrait) ? '<img src="' + escHtml(ch.portrait) + '">' : _initial;
+  var html = '<div class="hy-hist-head"><div class="hy-hist-title-wrap">';
+  html += '<div class="hy-hist-portrait">' + _portraitHtml + '</div>';
+  html += '<div><div class="hy-hist-name">\u4E0E ' + escHtml(target) + ' \u7684\u4E66\u4FE1</div>';
+  html += '<div class="hy-hist-sub">' + escHtml(ch ? ch.location : '?') + '\u3000\u5171 ' + allLetters.length + ' \u5C01\u5F80\u6765</div></div>';
+  html += '</div><div class="hy-filter-btns">';
+  var _filterBtns = [{k:'all',l:'\u5168\u90E8'},{k:'unread',l:'\u672A\u8BFB'},{k:'transit',l:'\u5728\u9014'},{k:'lost',l:'\u5931\u8E2A'}];
   _filterBtns.forEach(function(f) {
-    html += '<button class="bt bsm' + (_filter===f.k?' bp':'') + '" onclick="GM._ltFilter=\'' + f.k + '\';renderLetterPanel();" style="font-size:0.6rem;padding:1px 5px;">' + f.l + '</button>';
+    html += '<button class="hy-filter-btn' + (_filter===f.k?' active':'') + '" onclick="GM._ltFilter=\'' + f.k + '\';renderLetterPanel();">' + f.l + '</button>';
   });
   html += '</div></div>';
 
+  // 信件列表容器
+  html += '<div class="hy-hist-body">';
   if (letters.length === 0) {
-    html += '<div style="color:var(--color-foreground-muted);text-align:center;padding:1.5rem;font-size:var(--text-sm);">' + (_filter==='all' ? '尚无往来书信。' : '无匹配信件。') + '</div>';
+    html += '<div class="hy-hist-empty">' + (_filter==='all' ? '\u5C1A\u65E0\u5F80\u6765\u4E66\u4FE1' : '\u65E0\u5339\u914D\u4FE1\u4EF6') + '</div>';
   } else {
     letters.sort(function(a,b) { return (a.sentTurn||0) - (b.sentTurn||0); });
     letters.forEach(function(l) { html += _ltRenderLetterCard(l, target); });
   }
+  html += '</div>';
+
   hist.innerHTML = html;
-  hist.scrollTop = hist.scrollHeight;
+  var _body = hist.querySelector('.hy-hist-body');
+  if (_body) _body.scrollTop = _body.scrollHeight;
 }
 
 /** 渲染单封信笺卡片 */
@@ -4935,28 +4998,39 @@ function renderGameState(){
   gc.appendChild(wdP);
 
   // 鸿雁传书面板
-  var ltP=document.createElement("div");ltP.className="g-tab-panel";ltP.id="gt-letter";ltP.style.cssText="flex:1;overflow-y:auto;padding:1rem;display:flex;flex-direction:column;";
-  ltP.innerHTML='<div class="scroll-manager-header" style="padding:var(--space-2);font-size:var(--text-md);">\u3014 \u9E3F\u96C1\u4F20\u4E66 \u3015</div>'
-    +'<div style="font-size:var(--text-xs);color:var(--color-foreground-muted);text-align:center;margin-bottom:var(--space-2);letter-spacing:0.08em;">\u4E0E\u8FDC\u65B9\u81E3\u5B50\u4E66\u4FE1\u5F80\u6765\uFF0C\u4FE1\u4F7F\u4F20\u9012\u9700\u65F6\u65E5</div>'
-    +'<div id="letter-route-bar" style="display:none;gap:var(--space-1);flex-wrap:wrap;margin-bottom:var(--space-1);"></div>'
-    +'<hr class="ink-divider">'
-    +'<div style="display:flex;justify-content:flex-end;margin-bottom:var(--space-1);"><button class="bt bsm" onclick="GM._ltMultiMode=!GM._ltMultiMode;GM._ltMultiTargets=[];renderLetterPanel();" id="lt-multi-toggle" style="font-size:0.65rem;">群发模式</button></div>'
-    +'<div id="letter-chars" class="lt-npc-list"></div>'
-    +'<div id="letter-history" style="flex:1;overflow-y:auto;min-height:200px;background:var(--color-sunken);border:1px solid var(--color-border-subtle);border-radius:var(--radius-md);padding:var(--space-3);margin-bottom:var(--space-3);"></div>'
-    +'<div class="lt-compose">'
-    +'<div class="lt-compose-row">'
-    +'<select id="letter-type"><option value="secret_decree">\u5BC6\u65E8</option><option value="military_order">\u5F81\u8C03\u4EE4</option><option value="greeting">\u95EE\u5B89\u51FD</option><option value="personal" selected>\u79C1\u51FD</option><option value="proclamation">\u6A84\u6587</option></select>'
-    +'<select id="letter-urgency"><option value="normal">\u666E\u901A\u9A7F\u9012\uFF08\u65E5\u884C\u4E94\u5341\u91CC\uFF09</option><option value="urgent">\u52A0\u6025\u9A7F\u9012\uFF08\u65E5\u884C\u4E09\u767E\u91CC\uFF09</option><option value="extreme">\u516B\u767E\u91CC\u52A0\u6025</option></select>'
+  var ltP=document.createElement("div");ltP.className="g-tab-panel";ltP.id="gt-letter";ltP.style.cssText="flex:1;overflow-y:auto;padding:0;";
+  ltP.innerHTML='<div class="hy-panel-wrap"><div class="hy-inner">'
+    +'<div class="hy-title"><div class="seal">\u9C7C<br>\u96C1</div><div class="main">\u9E3F \u96C1 \u4F20 \u4E66</div><div class="sub">\u7B3A\u672D\u5F80\u6765\u3000\u3000\u9A7F\u4F7F\u4F20\u9012</div></div>'
+    +'<div id="letter-route-bar" class="hy-route-warn" style="display:none;"></div>'
+    +'<div class="hy-main">'
+    +  '<div class="hy-left">'
+    +    '<div class="hy-left-header"><span class="hy-left-title">\u8FDC \u65B9 \u81E3 \u5B50</span>'
+    +      '<button class="hy-multi-btn" id="lt-multi-toggle" onclick="GM._ltMultiMode=!GM._ltMultiMode;GM._ltMultiTargets=[];renderLetterPanel();">\u7FA4 \u53D1</button>'
+    +    '</div>'
+    +    '<div id="letter-chars" class="hy-npc-list"></div>'
+    +  '</div>'
+    +  '<div class="hy-center">'
+    +    '<div id="letter-history"></div>'
+    +    '<div class="hy-compose-area">'
+    +      '<div class="hy-compose-title">\u4E66 \u672D \u62DF \u7A3F<span class="target" id="lt-compose-target">\uFF08\u9009\u62E9\u53D7\u4FE1\u4EBA\uFF09</span></div>'
+    +      '<div class="hy-compose-row">'
+    +        '<select id="letter-type"><option value="secret_decree">\u5BC6\u65E8</option><option value="military_order">\u5F81\u8C03\u4EE4</option><option value="greeting">\u95EE\u5B89\u51FD</option><option value="personal" selected>\u79C1\u51FD</option><option value="proclamation">\u6A84\u6587</option></select>'
+    +        '<select id="letter-urgency"><option value="normal">\u666E\u901A\u9A7F\u9012\uFF08\u65E5\u884C\u4E94\u5341\u91CC\uFF09</option><option value="urgent">\u52A0\u6025\u9A7F\u9012\uFF08\u65E5\u884C\u4E09\u767E\u91CC\uFF09</option><option value="extreme">\u516B\u767E\u91CC\u52A0\u6025</option></select>'
+    +      '</div>'
+    +      '<div class="hy-compose-row">'
+    +        '<select id="letter-cipher"><option value="none">\u4E0D\u52A0\u5BC6</option><option value="yinfu">\u9634\u7B26\uFF08\u6697\u53F7\u4F53\u7CFB\uFF09</option><option value="yinshu">\u9634\u4E66\uFF08\u62C6\u5206\u4E09\u8DEF\uFF09</option><option value="wax_ball">\u8721\u4E38\u5BC6\u51FD</option><option value="silk_sewn">\u5E1B\u4E66\u7F1D\u8863</option></select>'
+    +        '<select id="letter-sendmode"><option value="normal">\u666E\u901A\u4FE1\u4F7F</option><option value="multi_courier">\u591A\u8DEF\u4FE1\u4F7F\uFF08\u622A\u83B7\u7387\u964D\u4F4E\uFF09</option><option value="secret_agent">\u5BC6\u4F7F\uFF08\u4E0D\u8D70\u9A7F\u7AD9\uFF09</option></select>'
+    +      '</div>'
+    +      '<div class="hy-compose-row" id="lt-agent-row" style="display:none;"><label style="font-size:12px;color:var(--color-foreground-muted);align-self:center;">\u5BC6\u4F7F\u4EBA\u9009\uFF1A</label><select id="letter-agent"></select></div>'
+    +      '<textarea id="letter-textarea" class="hy-compose-paper" placeholder="\u81F4\u4E66\u8FDC\u65B9\u81E3\u5B50\u2026\u2026" rows="4"></textarea>'
+    +      '<div class="hy-compose-bot">'
+    +        '<span class="hy-compose-hint">\u203B \u52A0\u5BC6/\u5BC6\u4F7F\u964D\u4F4E\u622A\u83B7\u7387\uFF1B\u516B\u767E\u91CC\u52A0\u6025\u8017\u8D39\u66F4\u591A\u90AE\u8D39</span>'
+    +        '<button class="hy-send-btn" onclick="sendLetter()">\u9063 \u4F7F</button>'
+    +      '</div>'
+    +    '</div>'
+    +  '</div>'
     +'</div>'
-    +'<div class="lt-compose-row">'
-    +'<select id="letter-cipher"><option value="none">\u4E0D\u52A0\u5BC6</option><option value="yinfu">\u9634\u7B26\uFF08\u6697\u53F7\u4F53\u7CFB\uFF09</option><option value="yinshu">\u9634\u4E66\uFF08\u62C6\u5206\u4E09\u8DEF\uFF09</option><option value="wax_ball">\u8721\u4E38\u5BC6\u51FD</option><option value="silk_sewn">\u5E1B\u4E66\u7F1D\u8863</option></select>'
-    +'<select id="letter-sendmode"><option value="normal">\u666E\u901A\u4FE1\u4F7F</option><option value="multi_courier">\u591A\u8DEF\u4FE1\u4F7F\uFF08\u622A\u83B7\u7387\u964D\u4F4E\uFF09</option><option value="secret_agent">\u5BC6\u4F7F\uFF08\u4E0D\u8D70\u9A7F\u7AD9\uFF09</option></select>'
-    +'</div>'
-    +'<div class="lt-compose-row" id="lt-agent-row" style="display:none;"><label style="font-size:var(--text-xs);color:var(--color-foreground-muted);">\u5BC6\u4F7F\u4EBA\u9009\uFF1A</label><select id="letter-agent"></select></div>'
-    +'<textarea id="letter-textarea" class="lt-compose textarea" placeholder="\u81F4\u4E66\u8FDC\u65B9\u81E3\u5B50\u2026\u2026" rows="3"></textarea>'
-    +'<div style="display:flex;justify-content:flex-end;margin-top:var(--space-2);gap:var(--space-2);">'
-    +'<button class="bt bp" onclick="sendLetter()" style="padding:var(--space-2) var(--space-6);letter-spacing:0.1em;">\u9063\u4F7F</button></div>'
-    +'</div>';
+    +'</div></div>';
   gc.appendChild(ltP);
   // 密使选择器联动
   var _smSel = ltP.querySelector('#letter-sendmode');
