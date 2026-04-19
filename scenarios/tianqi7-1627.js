@@ -1884,7 +1884,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v44-2026.04.19-char-family-graph';
+  var SCENARIO_VERSION = 'v45-2026.04.19-guoku-neitang-officeTree-audit';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -2310,32 +2310,32 @@
       // 说明: 编辑器新版不再手填库存，由 行政区划 publicTreasuryInit + 官制 publicTreasuryInit + 税收级联 自然聚合
       // 此处填 top-level 供旧流程兼容 + 运行时初始化之用
       guoku: {
-        initialMoney: 800000,   // 太仓银库存·两
-        initialGrain: 2800000,  // 太仓粮储·石
-        initialCloth: 80000,    // 布匹·匹
-        monthlyIncomeEstimate: { money: 650000, grain: 720000, cloth: 18000 },  // 月均估计
-        monthlyExpenseEstimate: { money: 920000, grain: 980000, cloth: 22000 },  // 月均估计(含辽饷)
-        deficitNote: '月赤字约 27 万两+26 万石粮。辽饷岁需 500 万靠加派。三大征八百万两已耗尽张居正遗积',
-        quotaMoney: 8000000,   // 天下税银理论总额
-        quotaGrain: 20000000,  // 天下税粮理论总额
+        initialMoney: 850000,      // 太仓银库存·两（天启末 80-120 万两，取中值 85 万）
+        initialGrain: 1500000,     // 京通十三仓储粮·石（《明史·食货志》京通仓储约 130-150 万石，1500 万占全国漕粮一年）
+        initialCloth: 80000,       // 布匹·匹（内外二库合约 8-10 万匹）
+        monthlyIncomeEstimate: { money: 500000, grain: 500000, cloth: 15000 },   // 月均入账·银/石/匹
+        monthlyExpenseEstimate: { money: 820000, grain: 620000, cloth: 20000 },  // 月均支出·含辽饷俸禄宗禄
+        deficitNote: '月赤字约 32 万两+12 万石粮。辽饷岁需 500 万靠加派（年田赋每亩 9 厘）。三大征耗尽张居正八百万积',
+        quotaMoney: 8000000,       // 天下税银理论总额·两
+        quotaGrain: 26000000,      // 天下税粮理论总额·石（《明会典》夏秋税粮共约 2600 万石）
         quotaCloth: 500000,
-        historicalContext: '《明史·食货志》《崇祯实录》: 天启末太仓库存银仅 80 余万两（张居正积八百万已尽于三大征）；辽饷加派每年 500 万两勉强补九边；崇祯元年盘查时太仓实存银不足百万',
-        source: '户部主管+十三清吏司分掌；太仓银库存通州；京通十三仓储粮'
+        historicalContext: '《明史·食货志》《崇祯实录》: 天启末太仓银库存银约 80-120 万两（张居正积八百万已尽于三大征，另加派辽饷济之）；京通十三仓储粮 130-150 万石（供京师九边一年用度）；内外二库藏布 8-10 万匹（折俸+赐赉用）',
+        source: '户部主管+十三清吏司分掌；太仓银库存通州；京通十三仓储粮；内外二库藏布'
       },
 
       // ──── 内帑初值（编辑器 top-level scriptData.neitang · 皇帝私藏）────
       neitang: {
-        initialMoney: 2000000,  // 内承运库存银·两（魏忠贤聚敛+万历馈余）
-        initialGrain: 200000,
-        initialCloth: 150000,
+        initialMoney: 2500000,     // 内承运库存银·两（魏忠贤聚敛·崇祯元年清查约 200-300 万两）
+        initialGrain: 120000,      // 内府粮储·石（宫廷御膳+赏赉之用。内库粮远少于太仓粮，供岁用宫廷所需）
+        initialCloth: 280000,      // 绸缎匹数·匹（苏州/杭州/江宁三织造累积·宫廷绢缎服饰赏赐用；比太仓粗布多得多）
         huangzhuangAcres: 320000,  // 皇庄田亩
-        huangzhuangRatePerAcre: 0.45,  // 每亩租两/年
-        monthlyIncomeEstimate: { money: 45000, grain: 12000, cloth: 3500 },
-        monthlyExpenseEstimate: { money: 95000, grain: 18000, cloth: 4500 },
-        historicalContext: '魏忠贤掌内承运库八年聚敛无数。崇祯元年清查时实存约 200 万两+金数万+宝石锦缎无算。万历末原有 500-600 万两(矿税积累)，三大征+阉党挥霍后剩此数',
-        imperialBusinesses: ['苏州织造局', '杭州织造局', '江宁织造局', '内库盐引', '贡茶(武夷/阳羡)', '景德镇御器厂(宫廷窑)'],
-        imperialBusinessRevenueAnnual: 500000,
-        debtToGuoku: { amount: 1800000, interestFree: true, note: '边饷极急时户部借内帑形成的累计欠额' },
+        huangzhuangRatePerAcre: 0.45,  // 每亩租银/年
+        monthlyIncomeEstimate: { money: 55000, grain: 8000, cloth: 8000 },   // 月均入账（皇庄租+织造贡+盐引）
+        monthlyExpenseEstimate: { money: 110000, grain: 12000, cloth: 10000 },  // 月均支出（宫廷俸米+大典+赏赉）
+        historicalContext: '魏忠贤掌内承运库八年聚敛无数。崇祯元年清查时实存约 250 万两+金宝数万两+三织造绸缎锦缎二十余万匹。万历末内帑原有 500-600 万两（矿税积累），三大征+宫中挥霍+阉党窃用后剩此数。粮储较少（约 10-15 万石，仅供宫廷御膳），绸缎较多（苏杭江三织造岁供 8-15 万匹累积）',
+        imperialBusinesses: ['苏州织造局', '杭州织造局', '江宁织造局', '内库盐引(两淮长芦)', '贡茶(武夷/阳羡)', '景德镇御器厂(宫廷窑)'],
+        imperialBusinessRevenueAnnual: 650000,
+        debtToGuoku: { amount: 1800000, interestFree: true, note: '边饷极急时户部借内帑形成的累计欠额（万历朝历次三大征调拨）' },
         source: '司礼监秉笔太监(魏忠贤)节制；王体乾掌印太监；内承运库掌库提调'
       },
 
@@ -7496,7 +7496,7 @@
           { name: '首辅·建极殿大学士', rank: '正五品', holder: '黄立极', establishedCount: 1, vacancyCount: 0, authority: 'decision', succession: 'appointment', duties: '总摄票拟，调和阴阳。实际朝政之枢。', publicTreasuryInit: { money: 0, grain: 0, cloth: 0, quotaMoney: 0, quotaGrain: 0, quotaCloth: 0 }, bindingHint: 'ministry', privateIncome: { bonusType: '恩赏', illicitRisk: 'medium' }, powers: { appointment: true, impeach: true, supervise: false } },
           { name: '次辅·文华殿大学士', rank: '正五品', holder: '施凤来', establishedCount: 1, vacancyCount: 0, authority: 'decision', succession: 'appointment', duties: '辅佐首辅，分理庶政。' },
           { name: '武英殿大学士', rank: '正五品', holder: '张瑞图', establishedCount: 1, vacancyCount: 0, authority: 'execution', succession: 'appointment', duties: '入值文渊，参与票拟。冯铨天启六年十一月已罢，张瑞图以礼部尚书兼武英殿大学士入阁（阉党新贵，书法独步）。' },
-          { name: '东阁大学士', rank: '正五品', holder: '李国{木普}', establishedCount: 1, vacancyCount: 0, authority: 'execution', succession: 'appointment', duties: '天启七年七月以礼部右侍郎兼东阁大学士入阁（阉党附庸）。' },
+          { name: '东阁大学士', rank: '正五品', holder: '李国普', establishedCount: 1, vacancyCount: 0, authority: 'execution', succession: 'appointment', duties: '天启七年七月以礼部右侍郎兼东阁大学士入阁（阉党附庸）。' },
           { name: '东阁大学士(缺)', rank: '正五品', holder: '', establishedCount: 1, vacancyCount: 1, authority: 'execution', succession: 'appointment', duties: '储相之位，目前空缺。' }
         ],
         subs: []
@@ -7513,7 +7513,7 @@
       {
         id: _uid('off_'), name: '户部', desc: '地官。掌户口、田赋、钱粮',
         positions: [
-          { name: '户部尚书', rank: '正二品', holder: '郭允厚', establishedCount: 1, vacancyCount: 0, authority: 'decision', succession: 'appointment', duties: '掌天下钱粮·太仓银库出纳总纲。天启末太仓库存银仅80余万两（张居正积存的800万两早被三大征耗尽），辽饷加派每年约500万两勉强补九边。', publicTreasuryInit: { money: 800000, grain: 2800000, cloth: 80000, quotaMoney: 8000000, quotaGrain: 20000000, quotaCloth: 500000 }, bindingHint: 'ministry', powers: { taxCollect: true } },
+          { name: '户部尚书', rank: '正二品', holder: '郭允厚', establishedCount: 1, vacancyCount: 0, authority: 'decision', succession: 'appointment', duties: '掌天下钱粮·太仓银库出纳总纲。天启末太仓库存银仅80余万两（张居正积存的800万两早被三大征耗尽），京通仓储粮约150万石（供京师九边一年用度），辽饷加派每年约500万两勉强补九边。', publicTreasuryInit: { money: 850000, grain: 1500000, cloth: 80000, quotaMoney: 8000000, quotaGrain: 26000000, quotaCloth: 500000 }, bindingHint: 'ministry', powers: { taxCollect: true } },
           { name: '左侍郎', rank: '正三品', holder: '', establishedCount: 1, vacancyCount: 1 },
           { name: '右侍郎·总督仓场', rank: '正三品', holder: '', establishedCount: 1, vacancyCount: 1, duties: '驻通州，掌京通十三仓。' }
         ],
@@ -7531,7 +7531,7 @@
       {
         id: _uid('off_'), name: '兵部', desc: '夏官。掌武选、武职、边防',
         positions: [
-          { name: '兵部尚书', rank: '正二品', holder: '崔呈秀', establishedCount: 1, vacancyCount: 0, authority: 'decision', duties: '总督京营戎政。阉党之鹰犬。', publicTreasuryInit: { money: 500000, grain: 1000000, cloth: 50000, quotaMoney: 5000000, quotaGrain: 10000000 }, bindingHint: 'military', privateIncome: { illicitRisk: 'high' }, powers: { militaryCommand: true } },
+          { name: '兵部尚书', rank: '正二品', holder: '崔呈秀', establishedCount: 1, vacancyCount: 0, authority: 'decision', duties: '总督京营戎政·掌武选武职边防。阉党之鹰犬。本衙门经费有限，兵器甲胄粮饷分储各镇武库。', publicTreasuryInit: { money: 50000, grain: 30000, cloth: 10000, quotaMoney: 300000 }, bindingHint: 'military', privateIncome: { illicitRisk: 'high' }, powers: { militaryCommand: true } },
           { name: '左侍郎', rank: '正三品', holder: '', establishedCount: 1, vacancyCount: 1 },
           { name: '武选司主事', rank: '正六品', holder: '孙传庭', establishedCount: 10, vacancyCount: 0, duties: '（原史此时在吏部，此处归兵部备战场需要）' },
           { name: '职方司主事', rank: '正六品', holder: '孙元化', establishedCount: 4, vacancyCount: 0, duties: '掌地图军机，火器。' }
@@ -7541,14 +7541,14 @@
       {
         id: _uid('off_'), name: '刑部', desc: '秋官。掌刑名、审录',
         positions: [
-          { name: '刑部尚书', rank: '正二品', holder: '薛贞', establishedCount: 1, vacancyCount: 0, authority: 'decision', duties: '掌天下刑名。薛贞天启七年八月魏忠贤举任（阉党）。', publicTreasuryInit: { money: 80000, grain: 20000, cloth: 5000 }, bindingHint: 'ministry', privateIncome: { illicitRisk: 'high', bonusNote: '诏狱赎金·赃罚入私' } }
+          { name: '刑部尚书', rank: '正二品', holder: '薛贞', establishedCount: 1, vacancyCount: 0, authority: 'decision', duties: '掌天下刑名。薛贞天启七年八月魏忠贤举任（阉党）。刑部本衙门经费有限，赃罚银多解太仓。', publicTreasuryInit: { money: 20000, grain: 5000, cloth: 2000 }, bindingHint: 'ministry', privateIncome: { illicitRisk: 'high', bonusNote: '诏狱赎金·赃罚入私' } }
         ],
         subs: []
       },
       {
         id: _uid('off_'), name: '工部', desc: '冬官。掌营造、工役',
         positions: [
-          { name: '工部尚书', rank: '正二品', holder: '薛凤翔', establishedCount: 1, vacancyCount: 0, authority: 'decision', duties: '掌营造/宫殿/陵寝/河道。薛凤翔主持熹宗德陵与生祠工程。', publicTreasuryInit: { money: 300000, grain: 80000, cloth: 40000 }, bindingHint: 'ministry', privateIncome: { illicitRisk: 'high', bonusNote: '营造采买·工料克扣' } }
+          { name: '工部尚书', rank: '正二品', holder: '薛凤翔', establishedCount: 1, vacancyCount: 0, authority: 'decision', duties: '掌营造/宫殿/陵寝/河道。薛凤翔主持熹宗德陵与生祠工程。工部节慎库存银约 10 万两，供采办诸需。', publicTreasuryInit: { money: 100000, grain: 30000, cloth: 20000, quotaMoney: 600000 }, bindingHint: 'ministry', privateIncome: { illicitRisk: 'high', bonusNote: '营造采买·工料克扣' } }
         ],
         subs: []
       },
@@ -7579,7 +7579,7 @@
         id: _uid('off_'), name: '司礼监', desc: '内廷宦官首衙。掌御前批红+宝玺+内府事务',
         positions: [
           { name: '司礼监掌印太监', rank: '正四品', holder: '王体乾', establishedCount: 1, vacancyCount: 0, authority: 'decision', succession: 'appointment', duties: '内廷首宦·掌御宝盖印。王体乾自天启元年任至崇祯元年。虽位在魏忠贤之上，实听命于魏忠贤。', publicTreasuryInit: { money: 50000, grain: 0, cloth: 0 }, bindingHint: 'imperial', privateIncome: { illicitRisk: 'high', bonusNote: '盖印费·礼金' }, powers: { appointment: true, supervise: true } },
-          { name: '秉笔太监·提督东厂·上公', rank: '从四品', holder: '魏忠贤', establishedCount: 1, vacancyCount: 0, authority: 'decision', succession: 'appointment', duties: '代帝批红+兼提督东厂。魏忠贤虽位秉笔，实以"上公"尊号凌掌印，号"九千九百岁"。', publicTreasuryInit: { money: 200000, grain: 50000, cloth: 20000 }, bindingHint: 'imperial', privateIncome: { illicitRisk: 'high', bonusNote: '生祠贡献·官员奉承·抄没所得' }, powers: { appointment: true, impeach: true, supervise: true } },
+          { name: '秉笔太监·提督东厂·上公', rank: '正四品', holder: '魏忠贤', establishedCount: 1, vacancyCount: 0, authority: 'decision', succession: 'appointment', duties: '代帝批红+兼提督东厂。魏忠贤虽本位秉笔（与掌印同为正四品），实以"上公"尊号凌掌印，号"九千九百岁"。按《明会典》司礼监秉笔 正四品。', publicTreasuryInit: { money: 200000, grain: 50000, cloth: 20000 }, bindingHint: 'imperial', privateIncome: { illicitRisk: 'high', bonusNote: '生祠贡献·官员奉承·抄没所得' }, powers: { appointment: true, impeach: true, supervise: true } },
           { name: '秉笔太监·东厂掌刑', rank: '从四品', holder: '李永贞', establishedCount: 4, vacancyCount: 0, authority: 'execution', duties: '代帝批红奏疏+掌东厂刑狱。李永贞为魏忠贤第一心腹，《三朝要典》即其主持修撰。', privateIncome: { illicitRisk: 'high' } },
           { name: '秉笔太监', rank: '从四品', holder: '涂文辅', establishedCount: 1, vacancyCount: 0, authority: 'execution', duties: '魏党亲信，提督御马监兼管司礼监事。' },
           { name: '随堂太监', rank: '从四品', holder: '', establishedCount: 8, vacancyCount: 3 }
@@ -7590,7 +7590,7 @@
         id: _uid('off_'), name: '锦衣卫', desc: '天子亲军二十六卫之首。掌侍卫、缉察、诏狱',
         positions: [
           { name: '指挥使', rank: '正三品', holder: '田尔耕', establishedCount: 1, vacancyCount: 0, authority: 'execution', duties: '阉党"五彪"之首。掌诏狱。', publicTreasuryInit: { money: 200000, grain: 0, cloth: 0 }, bindingHint: 'imperial', privateIncome: { illicitRisk: 'high' }, powers: { impeach: true, supervise: true } },
-          { name: '北镇抚使·专理诏狱', rank: '正四品', holder: '许显纯', establishedCount: 1, vacancyCount: 0, duties: '阉党"五彪"之一。天启中诛杀东林六君子之手。' }
+          { name: '北镇抚使·专理诏狱', rank: '从四品', holder: '许显纯', establishedCount: 1, vacancyCount: 0, duties: '阉党"五彪"之一。天启中诛杀东林六君子之手。《明会典》锦衣卫南北镇抚使正制 从四品。' }
         ],
         subs: []
       },
@@ -7619,11 +7619,11 @@
         id: _uid('off_'), name: '地方督抚', desc: '巡抚/总督，封疆大吏',
         positions: [
           { name: '辽东经略', rank: '正二品(加兵部尚书衔)', holder: '阎鸣泰', establishedCount: 1, vacancyCount: 0, duties: '节制关宁、东江两镇。王之臣于天启七年五月因宁锦失守被罢，阎鸣泰继任（阉党附庸，建魏忠贤生祠数处）。', publicTreasuryInit: { money: 300000, grain: 600000, cloth: 30000 }, bindingHint: 'region' },
-          { name: '三边总督', rank: '从一品(加兵部尚书衔)', holder: '武之望', establishedCount: 1, vacancyCount: 0, duties: '节制陕西/甘肃/宁夏/延绥四镇。', publicTreasuryInit: { money: 150000, grain: 400000, cloth: 15000 }, bindingHint: 'region' },
-          { name: '陕西巡抚', rank: '正二品', holder: '胡廷宴', establishedCount: 1, vacancyCount: 0, publicTreasuryInit: { money: 50000, grain: 80000, cloth: 5000 }, bindingHint: 'region' },
-          { name: '应天巡抚(南直隶)', rank: '正二品', holder: '毛一鹭', establishedCount: 1, vacancyCount: 0, publicTreasuryInit: { money: 600000, grain: 1200000, cloth: 150000 }, bindingHint: 'region' },
-          { name: '顺天巡抚(北直隶)', rank: '正二品', holder: '刘诏', establishedCount: 1, vacancyCount: 0, publicTreasuryInit: { money: 300000, grain: 600000, cloth: 50000 }, bindingHint: 'region' },
-          { name: '浙江巡抚', rank: '正二品', holder: '潘汝桢', establishedCount: 1, vacancyCount: 0, duties: '阉党，为魏忠贤建生祠第一人。' },
+          { name: '三边总督', rank: '正二品(加兵部尚书+太子少保)', holder: '武之望', establishedCount: 1, vacancyCount: 0, duties: '节制陕西/甘肃/宁夏/延绥四镇。明制总督正二品加兵部尚书衔，武之望再加太子少保衔晋秩从一品。', publicTreasuryInit: { money: 150000, grain: 400000, cloth: 15000 }, bindingHint: 'region' },
+          { name: '陕西巡抚', rank: '从二品(加都察院右副都御史衔)', holder: '胡廷宴', establishedCount: 1, vacancyCount: 0, duties: '明制巡抚 从二品，加都察院右副都御史衔或兵部右侍郎衔。', publicTreasuryInit: { money: 50000, grain: 80000, cloth: 5000 }, bindingHint: 'region' },
+          { name: '应天巡抚(南直隶)', rank: '从二品(加都察院右副都御史衔)', holder: '毛一鹭', establishedCount: 1, vacancyCount: 0, publicTreasuryInit: { money: 600000, grain: 1200000, cloth: 150000 }, bindingHint: 'region' },
+          { name: '顺天巡抚(北直隶)', rank: '从二品(加都察院右副都御史衔)', holder: '刘诏', establishedCount: 1, vacancyCount: 0, publicTreasuryInit: { money: 300000, grain: 600000, cloth: 50000 }, bindingHint: 'region' },
+          { name: '浙江巡抚', rank: '从二品(加都察院右副都御史衔)', holder: '潘汝桢', establishedCount: 1, vacancyCount: 0, duties: '阉党，为魏忠贤建生祠第一人。' },
           { name: '大名府知府', rank: '正四品', holder: '卢象升', establishedCount: 1, vacancyCount: 0, duties: '北直隶南部要冲。' }
         ],
         subs: []
@@ -7748,7 +7748,7 @@
           { name: '神宫监掌印', rank: '正四品', holder: '', establishedCount: 1, vacancyCount: 0, duties: '掌太庙洒扫/陵寝。', publicTreasuryInit: { money: 30000, grain: 5000, cloth: 2000 }, bindingHint: 'imperial' },
           { name: '尚衣监掌印', rank: '正四品', holder: '', establishedCount: 1, vacancyCount: 0, publicTreasuryInit: { money: 40000, grain: 0, cloth: 50000 }, bindingHint: 'imperial' },
           { name: '尚膳监掌印', rank: '正四品', holder: '', establishedCount: 1, vacancyCount: 0, publicTreasuryInit: { money: 60000, grain: 80000, cloth: 2000 }, bindingHint: 'imperial', privateIncome: { illicitRisk: 'medium' } },
-          { name: '内承运库掌库', rank: '正五品', holder: '', establishedCount: 1, vacancyCount: 0, duties: '内帑金银仓·皇帝私库。天启末魏忠贤聚敛加派解京，现存银约200万两+金数万两+宝石锦缎无算（崇祯元年清查时因魏忠贤挥霍已大减）。', publicTreasuryInit: { money: 2000000, grain: 200000, cloth: 150000, quotaMoney: 3000000 }, bindingHint: 'imperial', privateIncome: { illicitRisk: 'high', bonusNote: '库盗·贡私分·冒领' } }
+          { name: '内承运库掌库', rank: '正五品', holder: '', establishedCount: 1, vacancyCount: 0, duties: '内帑金银仓·皇帝私库。天启末魏忠贤聚敛加派解京，现存银约250万两+金数万两+苏杭江三织造绸缎锦缎 28 万匹（崇祯元年清查时因魏忠贤挥霍已大减）。粮储约 12 万石仅供宫廷御膳。', publicTreasuryInit: { money: 2500000, grain: 120000, cloth: 280000, quotaMoney: 3000000 }, bindingHint: 'imperial', privateIncome: { illicitRisk: 'high', bonusNote: '库盗·贡私分·冒领' } }
         ],
         subs: []
       },

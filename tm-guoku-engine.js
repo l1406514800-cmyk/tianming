@@ -546,11 +546,39 @@
     // 剧本覆盖
     if (scenarioOverride && scenarioOverride.guoku) {
       var go = scenarioOverride.guoku;
-      if (go.balance !== undefined)       GM.guoku.balance = go.balance;
+      // 新字段：initialMoney/initialGrain/initialCloth（三列分账）
+      if (go.initialMoney !== undefined) {
+        GM.guoku.balance = go.initialMoney;
+        GM.guoku.ledgers.money.stock = go.initialMoney;
+      }
+      if (go.initialGrain !== undefined) {
+        GM.guoku.ledgers.grain.stock = go.initialGrain;
+        GM.guoku.grain = go.initialGrain;
+      }
+      if (go.initialCloth !== undefined) {
+        GM.guoku.ledgers.cloth.stock = go.initialCloth;
+        GM.guoku.cloth = go.initialCloth;
+      }
+      // 配额
+      if (go.quotaMoney !== undefined) GM.guoku.ledgers.money.quota = go.quotaMoney;
+      if (go.quotaGrain !== undefined) GM.guoku.ledgers.grain.quota = go.quotaGrain;
+      if (go.quotaCloth !== undefined) GM.guoku.ledgers.cloth.quota = go.quotaCloth;
+      // 月均估计
+      if (go.monthlyIncomeEstimate) {
+        if (go.monthlyIncomeEstimate.money != null) GM.guoku.monthlyIncome = go.monthlyIncomeEstimate.money;
+        if (go.monthlyIncomeEstimate.grain != null) GM.guoku.monthlyGrainIncome = go.monthlyIncomeEstimate.grain;
+        if (go.monthlyIncomeEstimate.cloth != null) GM.guoku.monthlyClothIncome = go.monthlyIncomeEstimate.cloth;
+      }
+      if (go.monthlyExpenseEstimate) {
+        if (go.monthlyExpenseEstimate.money != null) GM.guoku.monthlyExpense = go.monthlyExpenseEstimate.money;
+        if (go.monthlyExpenseEstimate.grain != null) GM.guoku.monthlyGrainExpense = go.monthlyExpenseEstimate.grain;
+        if (go.monthlyExpenseEstimate.cloth != null) GM.guoku.monthlyClothExpense = go.monthlyExpenseEstimate.cloth;
+      }
+      // 兼容旧字段（balance/monthlyIncome 直接给）
+      if (go.balance !== undefined)       { GM.guoku.balance = go.balance; GM.guoku.ledgers.money.stock = go.balance; }
       if (go.monthlyIncome !== undefined) GM.guoku.monthlyIncome = go.monthlyIncome;
       if (go.monthlyExpense !== undefined) GM.guoku.monthlyExpense = go.monthlyExpense;
       if (go.annualIncome !== undefined)  GM.guoku.annualIncome = go.annualIncome;
-      GM.guoku.ledgers.money.stock = GM.guoku.balance;
     }
     return { dynasty: dynasty, phase: phase, multiplier: mult };
   }

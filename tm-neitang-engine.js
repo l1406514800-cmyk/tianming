@@ -432,11 +432,35 @@
     // 剧本覆盖
     if (scenarioOverride && scenarioOverride.neitang) {
       var no = scenarioOverride.neitang;
-      if (no.balance !== undefined) GM.neitang.balance = no.balance;
+      // 新字段：initialMoney/initialGrain/initialCloth（三列分账）
+      if (no.initialMoney !== undefined) {
+        GM.neitang.balance = no.initialMoney;
+        GM.neitang.ledgers.money.stock = no.initialMoney;
+      }
+      if (no.initialGrain !== undefined) {
+        GM.neitang.ledgers.grain.stock = no.initialGrain;
+        GM.neitang.grain = no.initialGrain;
+      }
+      if (no.initialCloth !== undefined) {
+        GM.neitang.ledgers.cloth.stock = no.initialCloth;
+        GM.neitang.cloth = no.initialCloth;
+      }
+      // 月均估计
+      if (no.monthlyIncomeEstimate) {
+        if (no.monthlyIncomeEstimate.money != null) GM.neitang.monthlyIncome = no.monthlyIncomeEstimate.money;
+        if (no.monthlyIncomeEstimate.grain != null) GM.neitang.monthlyGrainIncome = no.monthlyIncomeEstimate.grain;
+        if (no.monthlyIncomeEstimate.cloth != null) GM.neitang.monthlyClothIncome = no.monthlyIncomeEstimate.cloth;
+      }
+      if (no.monthlyExpenseEstimate) {
+        if (no.monthlyExpenseEstimate.money != null) GM.neitang.monthlyExpense = no.monthlyExpenseEstimate.money;
+        if (no.monthlyExpenseEstimate.grain != null) GM.neitang.monthlyGrainExpense = no.monthlyExpenseEstimate.grain;
+        if (no.monthlyExpenseEstimate.cloth != null) GM.neitang.monthlyClothExpense = no.monthlyExpenseEstimate.cloth;
+      }
+      // 兼容旧字段
+      if (no.balance !== undefined) { GM.neitang.balance = no.balance; GM.neitang.ledgers.money.stock = no.balance; }
       if (no.monthlyIncome !== undefined) GM.neitang.monthlyIncome = no.monthlyIncome;
       if (no.huangzhuangAcres !== undefined) GM.neitang.huangzhuangAcres = no.huangzhuangAcres;
       if (no.specialTaxActive !== undefined) GM.neitang.specialTaxActive = no.specialTaxActive;
-      GM.neitang.ledgers.money.stock = GM.neitang.balance;
     }
 
     return { dynasty: dynasty, ratio: preset.ratio, balance: GM.neitang.balance };
