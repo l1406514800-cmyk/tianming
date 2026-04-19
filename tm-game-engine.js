@@ -5554,6 +5554,9 @@ function enterGame(){
 
   // C/D/B/A/E/F 阶段补丁 init
   try {
+    // scriptData 在此作用域解析：优先取当前剧本对象；否则取 window.scriptData；都无则空对象
+    var scriptData = (typeof findScenarioById === 'function' && GM.sid) ? findScenarioById(GM.sid) : null;
+    if (!scriptData) scriptData = (typeof window !== 'undefined' && window.scriptData) ? window.scriptData : {};
     if (typeof PhaseC !== 'undefined' && typeof PhaseC.init === 'function') PhaseC.init();
     if (typeof PhaseD !== 'undefined' && typeof PhaseD.init === 'function') PhaseD.init();
     if (typeof PhaseB !== 'undefined' && typeof PhaseB.init === 'function') PhaseB.init(scriptData);
