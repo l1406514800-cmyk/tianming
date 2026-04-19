@@ -5049,17 +5049,22 @@ function renderGameState(){
   };
 
   // 编年面板
-  var bnP=document.createElement("div");bnP.className="g-tab-panel";bnP.id="gt-biannian";bnP.style.cssText="flex:1;overflow-y:auto;padding:1rem;";
-  bnP.innerHTML='<div class="scroll-manager-header" style="padding:var(--space-2);font-size:var(--text-md);">\u3014 \u7F16\u5E74\u7EAA\u4E8B \u3015</div>'
-    +'<hr class="ink-divider">'
-    +'<div id="bn-active" style="margin-bottom:var(--space-3);"></div>'
-    +'<div style="display:flex;gap:var(--space-2);align-items:center;margin-bottom:var(--space-2);">'
-    +'<input id="bn-search" placeholder="\u641C\u7D22\u7F16\u5E74\u2026" style="flex:1;padding:3px 6px;font-size:var(--text-xs);background:var(--color-elevated);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-foreground);font-family:inherit;" oninput="renderBiannian()">'
-    +'<select id="bn-filter" style="font-size:var(--text-xs);padding:2px 4px;background:var(--color-elevated);border:1px solid var(--color-border);color:var(--color-foreground);border-radius:var(--radius-sm);" onchange="renderBiannian()">'
-    +'<option value="all">\u5168\u90E8</option><option value="\u519B\u4E8B">\u519B\u4E8B</option><option value="\u653F\u6CBB">\u653F\u6CBB</option><option value="\u7ECF\u6D4E">\u7ECF\u6D4E</option><option value="\u4EBA\u4E8B">\u4EBA\u4E8B</option><option value="\u707E\u5F02">\u707E\u5F02</option></select>'
-    +'<button class="bt bsm" onclick="_bnExport()" title="\u5BFC\u51FA">\u5BFC\u51FA</button>'
+  var bnP=document.createElement("div");bnP.className="g-tab-panel";bnP.id="gt-biannian";bnP.style.cssText="flex:1;overflow-y:auto;padding:0;";
+  bnP.innerHTML='<div class="bn-panel-wrap"><div class="bn-inner">'
+    +'<div class="bn-title"><div class="seal">\u7F16<br>\u5E74</div><div class="main">\u7F16 \u5E74 \u7EAA \u4E8B</div><div class="sub">\u5929\u3000\u5B50\u3000\u7EAA\u3000\u5E74\u3000\u3000\u3000\u8BF8\u4E8B\u7ECF\u5E74\u7D2F\u8F7D</div></div>'
+    +'<div id="bn-active"></div>'
+    +'<div class="bn-section-hdr" style="margin-top:16px;"><span class="tag">\u7F16 \u5E74 \u68C0 \u7D22</span><span class="desc">\u2014\u2014 \u6309\u5E74\u4EFD\u00B7\u7C7B\u522B\u00B7\u5173\u952E\u5B57\u8FFD\u6EAF\u5F80\u8FF9</span></div>'
+    +'<div class="bn-tools">'
+    +'<span class="bn-tools-label">\u67E5\u3000\u9605\uFF1A</span>'
+    +'<div class="bn-search-wrap"><input id="bn-search" class="bn-search" placeholder="\u9898\u76EE\u3001\u4EBA\u540D\u3001\u5730\u70B9\u3001\u5173\u952E\u5B57\u2026\u2026" oninput="renderBiannian()"></div>'
+    +'<select id="bn-filter" class="bn-filter" onchange="renderBiannian()">'
+    +'<option value="all">\u5168\u90E8\u7C7B\u522B</option><option value="\u519B\u4E8B">\u519B\u4E8B</option><option value="\u653F\u6CBB">\u653F\u4E8B</option><option value="\u7ECF\u6D4E">\u7ECF\u6D4E</option><option value="\u5916\u4EA4">\u5916\u4EA4</option><option value="\u6587\u5316">\u6587\u5316</option><option value="\u4EBA\u4E8B">\u4EBA\u4E8B</option><option value="\u707E\u5F02">\u5929\u8C61\u707E\u5F02</option></select>'
+    +'<button class="bn-export-btn" onclick="_bnExport()" title="\u5BFC\u51FA\u5168\u90E8\u7F16\u5E74">\u2756 \u5BFC \u51FA</button>'
+    +'<span class="bn-tools-stat" id="bn-tools-stat"></span>'
     +'</div>'
-    +'<div id="biannian-list"></div>';
+    +'<div class="bn-section-hdr"><span class="tag">\u7F16 \u5E74 \u53F2 \u518C</span><span class="desc">\u2014\u2014 \u65E2\u5F80\u4E4B\u4E8B\u00B7\u6C38\u4E45\u5B58\u5F55</span></div>'
+    +'<div class="bn-chronicle-wrap"><div id="biannian-list"></div></div>'
+    +'</div></div>';
   gc.appendChild(bnP);
 
   // 官制面板

@@ -5716,95 +5716,177 @@ async function submitOfficeCh(){if(!GM.officeChanges)GM.officeChanges=[];if(GM.o
 //  编年
 // ============================================================
 function renderBiannian(){
-  // ── 上区：进行中事务 + 长期事势追踪 ──
+  // 类型→(label,cat,icon) 映射
+  var _BN_TYPE = {
+    keju:             {label:'\u79D1\u4E3E\u884C\u671D',     cat:'keju',     icon:'\u6587'},
+    edict:            {label:'\u957F\u671F\u8BCF\u4EE4',     cat:'edict',    icon:'\u8BCF'},
+    project:          {label:'\u5DE5\u7A0B\u5546\u961F',     cat:'project',  icon:'\u5DE5'},
+    pending_memorial: {label:'\u79EF\u538B\u594F\u758F',     cat:'memorial', icon:'\u79EF'},
+    faction_treaty:   {label:'\u52BF\u529B\u7EA6\u671F',     cat:'faction',  icon:'\u76DF'},
+    npc_action:       {label:'NPC \u6301\u7EED\u884C\u52A8', cat:'npc',      icon:'\u52A8'},
+    tingyi_pending:   {label:'\u5EF7\u8BAE\u5F85\u843D\u5B9E',cat:'tingyi',  icon:'\u8BAE'},
+    chaoyi_pending:   {label:'\u671D\u8BAE\u5F85\u6267\u884C',cat:'tingyi',  icon:'\u8BAE'},
+    dynasty_event:    {label:'\u671D\u4EE3\u4E8B\u4EF6',     cat:'dynasty',  icon:'\u671D'},
+    other:            {label:'\u5176\u4ED6',                 cat:'dynasty',  icon:'\u4E8B'}
+  };
+
+  // 史册类别→cat-* 映射
+  function _bnEntryCat(c) {
+    var s = (c.category||'') + (c.title||'');
+    if (/\u519B|\u5175|\u6218|\u88D7|\u5E05|\u5BC6/.test(s)) return 'cat-mil';
+    if (/\u707E|\u5F02|\u65F1|\u6D3A|\u5730\u9707|\u661F|\u6A90\u66C4|\u96EA|\u5929\u8C61|\u65E5\u98DF|\u6708\u98DF|\u864E|\u72FC/.test(s)) return 'cat-nat';
+    if (/\u7ECF|\u8D4B|\u7A0E|\u8D22|\u7C73|\u94F6|\u79DF|\u5E01|\u8D4B\u5F79|\u8D44/.test(s)) return 'cat-eco';
+    if (/\u5916\u4EA4|\u85E9|\u8D21|\u8D1F\u76DF|\u4F7F\u81E3|\u548C\u4EB2|\u518C\u5C01/.test(s)) return 'cat-dip';
+    if (/\u6587|\u79D1\u4E3E|\u8D24|\u5B66|\u793C|\u7965|\u7948|\u796D|\u4E66/.test(s)) return 'cat-cult';
+    if (/\u653F|\u5B98|\u8BCF|\u5415|\u7F62|\u514D|\u664B|\u7F62\u804C|\u5BA3|\u514D\u804C|\u5149\u5E1D|\u5373\u4F4D/.test(s)) return 'cat-pol';
+    return 'cat-misc';
+  }
+
+  // 从日期推断季节
+  function _bnSeason(date) {
+    if (!date) return null;
+    if (/\u6625|\u6B63\u6708|\u4E8C\u6708|\u4E09\u6708/.test(date)) return '\u6625';
+    if (/\u590F|\u56DB\u6708|\u4E94\u6708|\u516D\u6708/.test(date)) return '\u590F';
+    if (/\u79CB|\u4E03\u6708|\u516B\u6708|\u4E5D\u6708/.test(date)) return '\u79CB';
+    if (/\u51AC|\u5341\u6708|\u5341\u4E00\u6708|\u5341\u4E8C\u6708|\u814A\u6708/.test(date)) return '\u51AC';
+    return null;
+  }
+
+  // ═══ Section 1：长期事势·进行中 ═══
   var activeEl = _$('bn-active');
   if (activeEl) {
     var aHtml = '';
-
-    // A. 长期事势追踪器条目（科举/诏令/工程/积压奏疏/势力约期·含按类分组）
+    var _tracks = [];
     if (typeof ChronicleTracker !== 'undefined') {
-      var _tracks = ChronicleTracker.getVisible();
-      if (_tracks && _tracks.length > 0) {
-        // 按 type 分组
-        var _trackGroups = {};
-        _tracks.forEach(function(t){
-          var k = t.type || 'other';
-          if (!_trackGroups[k]) _trackGroups[k] = [];
-          _trackGroups[k].push(t);
-        });
-        var _typeLabels = {
-          keju: '\u79D1\u4E3E', edict: '\u8BCF\u4EE4', project: '\u5DE5\u7A0B\u5546\u961F',
-          pending_memorial: '\u79EF\u538B\u594F\u758F', faction_treaty: '\u52BF\u529B\u7EA6\u671F',
-          npc_action: 'NPC \u6301\u7EED\u884C\u52A8', tingyi_pending: '\u5EF7\u8BAE\u5F85\u843D\u5B9E',
-          chaoyi_pending: '\u671D\u8BAE\u5F85\u6267\u884C', dynasty_event: '\u671D\u4EE3\u4E8B\u4EF6',
-          other: '\u5176\u4ED6'
-        };
-        var _typeColors = {
-          keju: 'var(--gold-400)', edict: 'var(--vermillion-400)', project: 'var(--celadon-400)',
-          pending_memorial: 'var(--amber-400)', faction_treaty: 'var(--purple,#9b59b6)',
-          npc_action: 'var(--color-foreground-secondary)', tingyi_pending: 'var(--amber-400)',
-          chaoyi_pending: 'var(--amber-400)', dynasty_event: 'var(--gold-d)', other: 'var(--color-foreground-muted)'
-        };
-        aHtml += '<div style="font-size:var(--text-xs);color:var(--gold-400);font-weight:var(--weight-bold);margin-bottom:var(--space-1);letter-spacing:0.1em;">\u3010 \u957F \u671F \u4E8B \u52BF \u00B7 \u7F16 \u5E74 \u8FDB \u884C \u4E2D \u3011</div>';
-        Object.keys(_trackGroups).forEach(function(typeK){
-          var label = _typeLabels[typeK] || typeK;
-          var color = _typeColors[typeK] || 'var(--color-foreground-muted)';
-          aHtml += '<div style="font-size:0.66rem;color:'+color+';font-weight:var(--weight-bold);margin:var(--space-2) 0 var(--space-1) 0;padding-left:var(--space-1);border-left:2px solid '+color+';">' + escHtml(label) + ' <span style="color:var(--color-foreground-muted);">(' + _trackGroups[typeK].length + ')</span></div>';
-          _trackGroups[typeK].forEach(function(t){
-            var elapsed = (GM.turn||0) - (t.startTurn||0);
-            var pct = Math.min(100, Math.max(0, t.progress||0));
-            var _prioStyle = t.priority === 'high' ? ';box-shadow:0 0 0 1px var(--vermillion-400);' : '';
-            aHtml += '<div class="timeline-item" style="padding:var(--space-1) var(--space-2);border-left:2px solid '+color+';background:var(--color-surface);border-radius:var(--radius-sm);margin-bottom:var(--space-1);margin-left:var(--space-1);'+_prioStyle+'">';
-            aHtml += '<div style="flex:1;font-size:0.76rem;">';
-            aHtml += '<div style="display:flex;justify-content:space-between;align-items:center;gap:var(--space-1);">';
-            aHtml += '<span style="font-weight:600;color:var(--color-foreground);">' + escHtml(t.title||'\u65E0\u9898') + '</span>';
-            if (t.priority === 'high') aHtml += '<span style="font-size:0.58rem;color:var(--vermillion-400);">\u26A0 \u9AD8\u4F18\u5148</span>';
-            aHtml += '</div>';
-            aHtml += '<div style="font-size:0.65rem;color:var(--gold-d);margin-top:2px;">';
-            if (t.actor) aHtml += '\u4E3B\uFF1A' + escHtml(t.actor) + ' \u00B7 ';
-            aHtml += '\u9636\u6BB5\uFF1A' + escHtml(t.currentStage||'-') + ' \u00B7 ' + elapsed + ' \u56DE\u5408';
-            if (t.expectedEndTurn && t.expectedEndTurn > (GM.turn||0)) aHtml += ' \u00B7 \u9884\u4F59 ' + (t.expectedEndTurn - GM.turn) + ' \u56DE';
-            aHtml += '</div>';
-            if (t.narrative) aHtml += '<div style="font-size:0.68rem;color:var(--color-foreground-secondary);line-height:1.5;margin-top:2px;">' + escHtml(t.narrative) + '</div>';
-            if (Array.isArray(t.stakeholders) && t.stakeholders.length) aHtml += '<div style="font-size:0.62rem;color:var(--color-foreground-muted);margin-top:2px;">\u76F8\u5173\uFF1A' + escHtml(t.stakeholders.slice(0,4).join('\u3001')) + '</div>';
-            aHtml += '<div class="timeline-progress" style="margin-top:4px;"><div class="timeline-progress-fill" style="width:' + pct + '%;background:'+color+';"></div></div>';
-            aHtml += '</div></div>';
-          });
-        });
-      }
+      _tracks = ChronicleTracker.getVisible() || [];
     }
 
-    // B. 旧 biannianItems（保留兼容）
-    var _activeItems = (GM.biannianItems||[]).filter(function(item) {
-      var elapsed = GM.turn - (item.startTurn||item.turn||GM.turn);
+    // 旧 biannianItems 合并（保留兼容，转成类兼容结构）
+    var _legacyActive = (GM.biannianItems||[]).filter(function(item){
+      var elapsed = (GM.turn||0) - (item.startTurn||item.turn||GM.turn||0);
       return elapsed < (item.duration||1);
     });
-    if (_activeItems.length > 0) {
-      aHtml += '<div style="font-size:var(--text-xs);color:var(--gold-400);font-weight:var(--weight-bold);margin:var(--space-2) 0 var(--space-1) 0;">\u5176\u4ED6\u8FDB\u884C\u4E2D</div>';
-      _activeItems.forEach(function(item) {
-        var elapsed = GM.turn - (item.startTurn||item.turn||GM.turn);
-        var total = item.duration||1;
-        var pct = Math.min(100, Math.round(elapsed/total*100));
-        var rem = Math.max(0, total - elapsed);
-        var _date = item.date || (typeof getTSText === 'function' ? getTSText(item.startTurn||item.turn||1) : '');
-        aHtml += '<div class="timeline-item"><div class="timeline-dot active"></div><div style="flex:1;font-size:0.8rem;">';
-        aHtml += '<div style="font-weight:700;">' + escHtml(item.title||item.name||'') + '</div>';
-        aHtml += '<div style="font-size:0.68rem;color:var(--gold-d);">' + _date + ' · \u8FD8\u5269' + rem + '\u56DE\u5408</div>';
-        if (item.content||item.desc) aHtml += '<div style="font-size:0.72rem;color:var(--txt-d);">' + escHtml((item.content||item.desc||'').slice(0,80)) + '</div>';
-        aHtml += '<div class="timeline-progress"><div class="timeline-progress-fill" style="width:' + pct + '%;"></div></div>';
-        aHtml += '</div></div>';
+
+    var totalActive = _tracks.length + _legacyActive.length;
+
+    // 标题（进行中 N 件）
+    aHtml += '<div class="bn-section-hdr">';
+    aHtml += '<span class="tag">\u957F \u671F \u4E8B \u52BF</span>';
+    aHtml += '<span class="desc">\u2014\u2014 \u8DE8\u8D8A\u591A\u56DE\u5408\u7684\u671D\u91CE\u5927\u4E8B\u00B7AI \u63A8\u6F14\u65F6\u89C6\u4E3A\u6301\u7EED\u4E2D</span>';
+    aHtml += '<span class="stat">\u8FDB\u884C\u4E2D ' + totalActive + ' \u4EF6</span>';
+    aHtml += '</div>';
+
+    if (totalActive === 0) {
+      aHtml += '<div class="bn-empty">\u6682\u65E0\u8FDB\u884C\u4E2D\u7684\u957F\u671F\u4E8B\u52BF</div>';
+    } else {
+      aHtml += '<div class="bn-tracks-wrap">';
+
+      // 按 type 分组
+      var _trackGroups = {};
+      _tracks.forEach(function(t){
+        var k = t.type || 'other';
+        if (!_trackGroups[k]) _trackGroups[k] = [];
+        _trackGroups[k].push(t);
       });
+
+      // 按 _BN_TYPE 键固定顺序渲染（非映射内的 type 放最后）
+      var _typeOrder = ['keju','edict','project','pending_memorial','faction_treaty','npc_action','tingyi_pending','chaoyi_pending','dynasty_event','other'];
+      var _allTypes = Object.keys(_trackGroups);
+      var _orderedTypes = _typeOrder.filter(function(k){return _trackGroups[k];}).concat(_allTypes.filter(function(k){return _typeOrder.indexOf(k)<0;}));
+
+      _orderedTypes.forEach(function(typeK){
+        var meta = _BN_TYPE[typeK] || _BN_TYPE.other;
+        var items = _trackGroups[typeK];
+        aHtml += '<div class="bn-track-group bn-cat-' + meta.cat + '">';
+        aHtml += '<div class="bn-track-group-hdr">';
+        aHtml += '<div class="icon">' + meta.icon + '</div>';
+        aHtml += '<div class="name">' + escHtml(meta.label) + '</div>';
+        aHtml += '<div class="count">' + items.length + ' \u4EF6</div>';
+        aHtml += '</div>';
+
+        items.forEach(function(t){
+          var elapsed = (GM.turn||0) - (t.startTurn||0);
+          var pct = Math.min(100, Math.max(0, t.progress||0));
+          var _prioCls = (t.priority === 'high') ? ' priority-high' : '';
+          aHtml += '<div class="bn-track' + _prioCls + '">';
+          // hdr
+          aHtml += '<div class="bn-track-hdr">';
+          aHtml += '<span class="bn-track-title">' + escHtml(t.title||'\u65E0\u9898') + '</span>';
+          if (t.priority === 'high') {
+            var prioLbl = (t.nextDeadline && t.nextDeadline <= (GM.turn||0)) ? '\u26A0 \u903E\u671F' : '\u26A0 \u9AD8\u4F18\u5148';
+            aHtml += '<span class="bn-track-prio">' + prioLbl + '</span>';
+          }
+          if (t.hidden) aHtml += '<span class="bn-track-hidden">\u25C7 \u9690</span>';
+          aHtml += '</div>';
+          // meta
+          aHtml += '<div class="bn-track-meta">';
+          if (t.actor) {
+            aHtml += '\u4E3B\uFF1A<strong style="color:var(--color-foreground);">' + escHtml(t.actor) + '</strong>';
+            aHtml += '<span class="sep">\u00B7</span>';
+          }
+          aHtml += '\u9636\u6BB5\uFF1A<span class="stage">' + escHtml(t.currentStage||'-') + '</span>';
+          aHtml += '<span class="sep">\u00B7</span>';
+          aHtml += '<span class="elapsed">\u5DF2\u5386 ' + elapsed + ' \u56DE\u5408</span>';
+          if (t.expectedEndTurn && t.expectedEndTurn > (GM.turn||0)) {
+            aHtml += '<span class="sep">\u00B7</span>';
+            aHtml += '<span class="remaining">\u9884\u4F59 ' + (t.expectedEndTurn - GM.turn) + ' \u56DE</span>';
+          }
+          aHtml += '</div>';
+          if (t.narrative) aHtml += '<div class="bn-track-narr">' + escHtml(t.narrative) + '</div>';
+          if (Array.isArray(t.stakeholders) && t.stakeholders.length) {
+            aHtml += '<div class="bn-track-stake"><span class="lbl">\u76F8\u5173\uFF1A</span>';
+            t.stakeholders.slice(0,6).forEach(function(s){
+              aHtml += '<span class="chip">' + escHtml(s) + '</span>';
+            });
+            aHtml += '</div>';
+          }
+          if (pct > 0 || t.expectedEndTurn) {
+            aHtml += '<div class="bn-track-bar"><div class="bn-track-bar-fill" style="width:' + pct + '%;"></div></div>';
+            aHtml += '<div class="bn-track-pct">' + pct + '%</div>';
+          }
+          aHtml += '</div>'; // .bn-track
+        });
+        aHtml += '</div>'; // .bn-track-group
+      });
+
+      // 旧 biannianItems（若有）放入"其他"组
+      if (_legacyActive.length > 0) {
+        aHtml += '<div class="bn-track-group bn-cat-dynasty">';
+        aHtml += '<div class="bn-track-group-hdr">';
+        aHtml += '<div class="icon">\u4E8B</div>';
+        aHtml += '<div class="name">\u5176 \u4ED6 \u8FDB \u884C \u4E2D</div>';
+        aHtml += '<div class="count">' + _legacyActive.length + ' \u4EF6</div>';
+        aHtml += '</div>';
+        _legacyActive.forEach(function(item){
+          var elapsed = (GM.turn||0) - (item.startTurn||item.turn||GM.turn||0);
+          var total = item.duration||1;
+          var pct = Math.min(100, Math.round(elapsed/total*100));
+          var rem = Math.max(0, total - elapsed);
+          var _date = item.date || (typeof getTSText === 'function' ? getTSText(item.startTurn||item.turn||1) : '');
+          aHtml += '<div class="bn-track">';
+          aHtml += '<div class="bn-track-hdr"><span class="bn-track-title">' + escHtml(item.title||item.name||'\u65E0\u9898') + '</span></div>';
+          aHtml += '<div class="bn-track-meta">';
+          if (_date) { aHtml += escHtml(_date) + '<span class="sep">\u00B7</span>'; }
+          aHtml += '<span class="elapsed">\u8FD8\u5269 ' + rem + ' \u56DE\u5408</span>';
+          aHtml += '</div>';
+          if (item.content||item.desc) aHtml += '<div class="bn-track-narr">' + escHtml((item.content||item.desc||'').slice(0,120)) + '</div>';
+          aHtml += '<div class="bn-track-bar"><div class="bn-track-bar-fill" style="width:' + pct + '%;"></div></div>';
+          aHtml += '<div class="bn-track-pct">' + pct + '%</div>';
+          aHtml += '</div>';
+        });
+        aHtml += '</div>';
+      }
+
+      aHtml += '</div>'; // .bn-tracks-wrap
     }
 
-    activeEl.innerHTML = aHtml || '<div style="color:var(--color-foreground-muted);text-align:center;padding:var(--space-2);font-size:0.7rem;">\u6682\u65E0\u8FDB\u884C\u4E2D\u7684\u957F\u671F\u4E8B\u52BF</div>';
+    activeEl.innerHTML = aHtml;
   }
 
-  // ── 下区：永久编年历史 ──
+  // ═══ Section 3：永久编年·史册 ═══
   var el = _$('biannian-list'); if (!el) return;
-  // 防御：若_chronicle被其他系统误写入非数组数据，重置为空数组
   if (!Array.isArray(GM._chronicle)) GM._chronicle = [];
   var chronicle = GM._chronicle;
-  if (chronicle.length === 0) { el.innerHTML = '<div style="color:var(--txt-d);text-align:center;padding:2rem;">\u5C1A\u65E0\u7F16\u5E74\u8BB0\u5F55</div>'; return; }
 
   // 搜索筛选
   var _kw = (_$('bn-search')||{}).value || '';
@@ -5818,13 +5900,27 @@ function renderBiannian(){
     filtered = filtered.filter(function(c) { return (c.category||'').indexOf(_filter) >= 0 || (c.title||'').indexOf(_filter) >= 0 || (c.content||'').indexOf(_filter) >= 0; });
   }
 
-  // 按年→季分组
+  // 更新统计
+  var statEl = _$('bn-tools-stat');
+  if (statEl) {
+    statEl.innerHTML = '\u5377\u5E19 <span class="n">' + chronicle.length + '</span> \u6761 \u00B7 \u663E <span class="n">' + filtered.length + '</span> \u6761';
+  }
+
+  if (chronicle.length === 0) {
+    el.innerHTML = '<div class="bn-empty">\u5C1A\u65E0\u7F16\u5E74\u8BB0\u5F55</div>';
+    return;
+  }
+  if (filtered.length === 0) {
+    el.innerHTML = '<div class="bn-empty">\u672A\u5BFB\u5F97\u7B26\u5408\u6761\u4EF6\u7684\u5377\u5E19</div>';
+    return;
+  }
+
+  // 按年分组
   var _byYear = {};
   filtered.forEach(function(c) {
     var yr = c.year || c.date || 'T' + (c.turn||0);
-    // 尝试从date提取年份
     if (c.date) {
-      var _yrMatch = c.date.match(/(.{2,8}年)/);
+      var _yrMatch = c.date.match(/(.{2,8}\u5E74)/);
       if (_yrMatch) yr = _yrMatch[1];
     }
     if (!_byYear[yr]) _byYear[yr] = [];
@@ -5832,22 +5928,32 @@ function renderBiannian(){
   });
 
   var html = '';
-  var _years = Object.keys(_byYear).reverse(); // 最近的年份在前
-  _years.forEach(function(yr) {
+  var _years = Object.keys(_byYear).reverse();
+  _years.forEach(function(yr, yrIdx) {
     var items = _byYear[yr];
-    html += '<details open style="margin-bottom:var(--space-2);">';
-    html += '<summary style="cursor:pointer;font-size:var(--text-sm);color:var(--gold-400);font-weight:var(--weight-bold);padding:var(--space-1) 0;">' + escHtml(yr) + ' <span style="font-size:0.65rem;color:var(--ink-300);">(' + items.length + '\u6761)</span></summary>';
-    items.forEach(function(c) {
-      var _catClr = (c.category||'').indexOf('\u519B') >= 0 ? 'var(--vermillion-400)' : (c.category||'').indexOf('\u7ECF') >= 0 ? 'var(--gold-400)' : (c.category||'').indexOf('\u4EBA') >= 0 ? 'var(--purple,#9b59b6)' : 'var(--celadon-400)';
-      html += '<div style="padding:var(--space-1) var(--space-2);border-left:2px solid ' + _catClr + ';margin-bottom:var(--space-1);margin-left:var(--space-2);">';
-      html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-      html += '<span style="font-size:0.78rem;font-weight:var(--weight-bold);color:var(--color-foreground);">' + escHtml(c.title||'') + '</span>';
-      if (c.category) html += '<span style="font-size:0.6rem;color:' + _catClr + ';">' + escHtml(c.category) + '</span>';
+    var openAttr = (yrIdx === 0) ? ' open' : '';
+    html += '<details class="bn-year-block"' + openAttr + '>';
+    html += '<summary class="bn-year-summary">' + escHtml(yr) + '<span class="count">' + items.length + ' \u6761</span></summary>';
+
+    // 按季节分组（可选，若能推断）
+    var _lastSeason = null;
+    items.forEach(function(c){
+      var sea = _bnSeason(c.date||'');
+      if (sea && sea !== _lastSeason) {
+        html += '<div class="bn-season">' + sea + '</div>';
+        _lastSeason = sea;
+      }
+      var catCls = _bnEntryCat(c);
+      html += '<div class="bn-entry ' + catCls + '">';
+      html += '<div class="bn-entry-hdr">';
+      html += '<span class="bn-entry-title">' + escHtml(c.title||'') + '</span>';
+      if (c.category) html += '<span class="bn-entry-cat">' + escHtml(c.category) + '</span>';
       html += '</div>';
-      html += '<div style="font-size:0.68rem;color:var(--gold-d);">' + escHtml(c.date||('T'+(c.turn||''))) + '</div>';
-      if (c.content) html += '<div style="font-size:0.72rem;color:var(--color-foreground-secondary);line-height:1.5;">' + escHtml(c.content) + '</div>';
+      html += '<div class="bn-entry-date">' + escHtml(c.date||('T'+(c.turn||''))) + '</div>';
+      if (c.content) html += '<div class="bn-entry-body">' + escHtml(c.content) + '</div>';
       html += '</div>';
     });
+
     html += '</details>';
   });
   el.innerHTML = html;
