@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>纪事标签页·美化预览</title>
+<style>
+:root {
+  --bg-1: #0f0d0a;
+  --bg-2: #1a1510;
+  --bg-paper: #241e18;
+  --bg-sunken: #120f0a;
+  --ink-900: #f4eadd;
+  --ink-700: #d9c9a9;
+  --ink-500: #a69470;
+  --ink-300: #6b5d47;
+  --ink-100: #3d342a;
+  --gold-300: #c9a85f;
+  --gold-400: #b89a53;
+  --gold-500: #9d8244;
+  --gold-d: #6b5a30;
+  --vermillion-300: #d15c47;
+  --vermillion-400: #b84738;
+  --vermillion-600: #8f3428;
+  --indigo-400: #5a6fa8;
+  --indigo-600: #3e4e80;
+  --celadon-400: #6a9a7f;
+  --celadon-600: #4a7a5f;
+  --amber-400: #c9a045;
+  --purple-400: #8e6aa8;
+  --blue-400: #5a8fb8;
+  --border-subtle: rgba(184,154,83,0.15);
+  --border-strong: rgba(184,154,83,0.35);
+  --shadow-scroll: 0 6px 18px rgba(0,0,0,0.45),0 0 0 1px rgba(184,154,83,0.08);
+  --font-serif: "STKaiti","KaiTi","楷体","Georgia",serif;
+  --font-song: "STSong","SimSun","宋体",serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;padding:0;background:radial-gradient(ellipse at top,#1a1510 0%,#0f0d0a 70%),var(--bg-1);color:var(--ink-700);font-family:var(--font-song);font-size:14px;line-height:1.7;min-height:100vh;}
+.preview-frame{max-width:1280px;margin:32px auto;background:var(--bg-2);border:1px solid var(--border-subtle);border-radius:6px;overflow:hidden;box-shadow:var(--shadow-scroll);}
+.preview-header{background:linear-gradient(to bottom,rgba(184,154,83,0.04),transparent);padding:12px 20px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:12px;font-size:11px;color:var(--ink-500);letter-spacing:0.1em;}
+.preview-header .dot{width:10px;height:10px;border-radius:50%;}
+.preview-header .dot.r{background:#d15c47;} .preview-header .dot.y{background:#c9a85f;} .preview-header .dot.g{background:#6a9a7f;}
+.preview-header .title{margin-left:auto;font-family:var(--font-serif);letter-spacing:0.3em;color:var(--ink-300);}
+
+.tab-bar{display:flex;gap:0;background:var(--bg-1);border-bottom:1px solid var(--border-subtle);overflow-x:auto;}
+.tab-btn{padding:10px 16px;background:transparent;border:none;color:var(--ink-300);font-family:var(--font-serif);font-size:14px;letter-spacing:0.1em;cursor:pointer;border-bottom:2px solid transparent;position:relative;}
+.tab-btn:hover{color:var(--ink-700);}
+.tab-btn.active{color:var(--gold-400);border-bottom-color:var(--gold-400);}
+.tab-btn.active::before{content:"";position:absolute;top:6px;right:6px;width:5px;height:5px;background:var(--vermillion-400);border-radius:1px;transform:rotate(12deg);}
+
+/* ═══ 纪事主区 ═══ */
+.ji-panel{
+  padding:24px 28px;min-height:980px;background-color:var(--bg-paper);
+  background-image:
+    repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.04) 2.5em,rgba(107,93,71,0.04) calc(2.5em + 1px)),
+    repeating-linear-gradient(0deg,transparent 0,transparent 3em,rgba(107,93,71,0.02) 3em,rgba(107,93,71,0.02) calc(3em + 1px)),
+    linear-gradient(to bottom,rgba(184,154,83,0.05) 0%,transparent 80px);
+  position:relative;
+}
+.ji-panel::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle at 15% 25%,rgba(139,90,50,0.025) 0.5px,transparent 1px),radial-gradient(circle at 80% 60%,rgba(139,90,50,0.03) 0.5px,transparent 1px);background-size:80px 80px,120px 120px;}
+.ji-inner{position:relative;z-index:1;}
+
+.ji-title{text-align:center;margin-bottom:20px;position:relative;padding:14px 0 18px;}
+.ji-title::before,.ji-title::after{content:"";position:absolute;left:50%;width:180px;height:1px;transform:translateX(-50%);background:linear-gradient(to right,transparent,var(--gold-d),transparent);}
+.ji-title::before{top:0;} .ji-title::after{bottom:0;}
+.ji-title .main{font-family:var(--font-serif);font-size:24px;letter-spacing:0.5em;color:var(--ink-900);margin-bottom:6px;}
+.ji-title .sub{font-size:12px;color:var(--ink-300);letter-spacing:0.3em;font-family:var(--font-serif);}
+.ji-title .seal{position:absolute;right:28px;top:10px;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(192,64,48,0.85),rgba(140,40,30,0.75));display:flex;align-items:center;justify-content:center;color:#f4eadd;font-size:11px;font-family:var(--font-serif);letter-spacing:0.05em;font-weight:bold;transform:rotate(-6deg);box-shadow:0 2px 6px rgba(140,40,30,0.4);opacity:0.88;line-height:1.2;text-align:center;}
+
+/* 工具栏 */
+.ji-tools{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;
+  background:rgba(184,154,83,0.04);border:1px solid var(--border-subtle);
+  border-radius:2px;margin-bottom:14px;flex-wrap:wrap;
+}
+.ji-tools-lbl{font-family:var(--font-serif);font-size:12px;color:var(--ink-500);letter-spacing:0.15em;flex-shrink:0;padding-right:6px;border-right:1px solid var(--border-subtle);}
+.ji-view-switch{display:inline-flex;border:1px solid var(--border-subtle);border-radius:2px;overflow:hidden;}
+.ji-view-btn{padding:4px 14px;background:transparent;border:none;color:var(--ink-500);font-family:var(--font-serif);font-size:12px;letter-spacing:0.15em;cursor:pointer;border-right:1px solid var(--border-subtle);}
+.ji-view-btn:last-child{border-right:none;}
+.ji-view-btn.active{background:linear-gradient(to bottom,rgba(184,154,83,0.15),rgba(184,154,83,0.05));color:var(--gold-400);}
+.ji-view-btn:hover{color:var(--gold-400);}
+
+.ji-search-wrap{position:relative;flex:1;min-width:180px;max-width:320px;}
+.ji-search-wrap::before{content:"⌕";position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink-300);font-size:14px;pointer-events:none;}
+.ji-search{width:100%;padding:5px 12px 5px 28px;background:var(--bg-1);border:1px solid var(--border-subtle);color:var(--ink-700);font-family:var(--font-song);font-size:12px;border-radius:2px;outline:none;}
+.ji-search:focus{border-color:var(--gold-400);box-shadow:0 0 0 1px rgba(184,154,83,0.25);}
+
+.ji-filter{padding:5px 12px;background:var(--bg-1);border:1px solid var(--border-subtle);color:var(--ink-700);font-family:var(--font-serif);font-size:12px;letter-spacing:0.1em;border-radius:2px;cursor:pointer;}
+
+.ji-star-btn,.ji-export-btn{padding:5px 12px;background:linear-gradient(to bottom,rgba(184,154,83,0.1),rgba(184,154,83,0.02));border:1px solid var(--gold-d);color:var(--ink-500);font-family:var(--font-serif);font-size:12px;letter-spacing:0.15em;border-radius:2px;cursor:pointer;transition:all 0.2s;}
+.ji-star-btn:hover,.ji-export-btn:hover{background:rgba(184,154,83,0.15);color:var(--gold-400);border-color:var(--gold-400);}
+.ji-star-btn.on{color:var(--gold-300);border-color:var(--gold-300);background:linear-gradient(to bottom,rgba(201,168,95,0.18),rgba(184,154,83,0.05));}
+.ji-export-btn::before{content:"❖";margin-right:4px;opacity:0.7;font-size:10px;}
+
+.ji-stat{margin-left:auto;font-size:11px;color:var(--ink-300);letter-spacing:0.08em;font-family:var(--font-serif);}
+.ji-stat .n{color:var(--gold-400);font-weight:500;}
+
+/* 源类型图例条 */
+.ji-legend{display:flex;gap:12px;padding:8px 14px;margin-bottom:14px;background:rgba(184,154,83,0.02);border:1px solid var(--border-subtle);border-radius:2px;font-size:11px;flex-wrap:wrap;}
+.ji-legend-chip{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-serif);letter-spacing:0.08em;color:var(--ink-500);}
+.ji-legend-chip .sw{display:inline-block;width:4px;height:14px;border-radius:1px;background:var(--sw-c);}
+.ji-legend-chip .num{color:var(--sw-c);font-weight:500;}
+
+/* ═══ 回合日志容器 ═══ */
+.ji-turn-block{margin-bottom:20px;}
+.ji-turn-block:last-child{margin-bottom:0;}
+
+.ji-turn-hdr{
+  display:flex;align-items:center;gap:12px;margin-bottom:10px;
+  padding:7px 14px;
+  background:linear-gradient(to right,rgba(157,130,68,0.12),rgba(157,130,68,0.02) 80%);
+  border-left:3px solid var(--gold-400);border-radius:0 2px 2px 0;
+}
+.ji-turn-hdr .t-label{font-family:var(--font-serif);font-size:14px;color:var(--gold-300);letter-spacing:0.22em;font-weight:500;}
+.ji-turn-hdr .t-date{font-size:11.5px;color:var(--ink-500);font-family:var(--font-serif);letter-spacing:0.1em;font-style:italic;}
+.ji-turn-hdr .t-count{margin-left:auto;font-size:10.5px;color:var(--ink-300);font-family:var(--font-serif);letter-spacing:0.08em;padding:1px 8px;background:rgba(184,154,83,0.06);border:1px solid var(--border-subtle);border-radius:2px;}
+
+/* ═══ 人物视图·分组 ═══ */
+.ji-char-block{margin-bottom:14px;}
+.ji-char-summary{
+  cursor:pointer;list-style:none;padding:8px 14px;
+  background:var(--bg-paper);
+  border:1px solid var(--border-subtle);border-left:3px solid var(--char-c,var(--gold-400));
+  border-radius:3px;
+  display:flex;align-items:center;gap:10px;
+  transition:all 0.2s;
+}
+.ji-char-summary::-webkit-details-marker{display:none;}
+.ji-char-summary::before{content:"▸";color:var(--char-c,var(--gold-400));transition:transform 0.25s;font-size:11px;}
+.ji-char-block[open] > .ji-char-summary::before{transform:rotate(90deg);}
+.ji-char-summary:hover{background:rgba(184,154,83,0.04);border-left-width:4px;}
+.ji-char-portrait{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--char-c,var(--gold-400)),var(--ink-100));border:1.5px solid var(--char-c,var(--gold-400));display:flex;align-items:center;justify-content:center;color:#f4eadd;font-family:var(--font-serif);font-size:13px;flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,0.3);}
+.ji-char-nm{font-family:var(--font-serif);font-size:14px;color:var(--ink-900);letter-spacing:0.12em;font-weight:500;}
+.ji-char-title{font-size:10.5px;color:var(--ink-300);letter-spacing:0.05em;font-style:italic;margin-left:6px;}
+.ji-char-cnt{margin-left:auto;font-size:10.5px;color:var(--ink-300);font-family:var(--font-serif);padding:1px 8px;background:rgba(184,154,83,0.06);border:1px solid var(--border-subtle);border-radius:2px;}
+
+/* ═══ 单条纪事卡 ═══ */
+.ji-record{
+  position:relative;
+  margin-bottom:10px;
+  padding:10px 14px 10px 18px;
+  background:var(--bg-paper);
+  background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.03) 2.5em,rgba(107,93,71,0.03) calc(2.5em + 1px));
+  border:1px solid var(--border-subtle);
+  border-left:3px solid var(--src-c,var(--gold-d));
+  border-radius:3px;
+  transition:all 0.2s;
+}
+.ji-record:hover{border-color:var(--gold-400);box-shadow:0 2px 8px rgba(0,0,0,0.3),0 0 6px rgba(184,154,83,0.12);}
+.ji-record.starred{background:linear-gradient(to right,rgba(201,168,95,0.04),var(--bg-paper) 40%);}
+.ji-record.starred::after{
+  content:"★";position:absolute;top:8px;right:10px;color:var(--gold-300);
+  font-size:14px;line-height:1;
+}
+.ji-record.private{
+  background-image:
+    repeating-linear-gradient(135deg,transparent 0,transparent 10px,rgba(142,106,168,0.04) 10px,rgba(142,106,168,0.04) 11px),
+    repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.03) 2.5em,rgba(107,93,71,0.03) calc(2.5em + 1px));
+  background-color:var(--bg-paper);
+}
+
+/* 源徽章 */
+.ji-rec-head{display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap;}
+.ji-src-badge{
+  font-size:10.5px;padding:2px 9px;
+  color:var(--src-c,var(--gold-400));background:rgba(var(--src-rgb,184,154,83),0.1);
+  border:1px solid var(--src-c,var(--gold-400));border-radius:2px;
+  font-family:var(--font-serif);letter-spacing:0.15em;font-weight:500;
+  display:inline-flex;align-items:center;gap:3px;
+}
+.ji-src-badge::before{content:var(--src-icon,"❖");font-size:9px;opacity:0.7;}
+.ji-rec-char{font-family:var(--font-serif);font-size:13px;color:var(--ink-900);letter-spacing:0.12em;font-weight:500;}
+.ji-rec-char .title{font-size:10.5px;color:var(--ink-300);font-weight:normal;margin-left:4px;font-style:italic;letter-spacing:0.05em;}
+.ji-private-mark{font-size:10.5px;color:var(--purple-400);padding:1px 6px;border:1px dashed var(--purple-400);border-radius:2px;font-family:var(--font-serif);letter-spacing:0.1em;background:rgba(142,106,168,0.08);}
+.ji-private-mark::before{content:"🔒";margin-right:2px;font-size:9px;}
+.ji-rec-time{margin-left:auto;font-size:10.5px;color:var(--ink-300);font-family:var(--font-serif);letter-spacing:0.08em;font-style:italic;}
+.ji-star-toggle{background:none;border:none;cursor:pointer;color:var(--ink-300);font-size:14px;line-height:1;padding:0 2px;transition:all 0.2s;}
+.ji-star-toggle:hover{color:var(--gold-300);transform:scale(1.15);}
+.ji-star-toggle.on{color:var(--gold-300);}
+
+/* 源类型配色 */
+.src-formal  {--src-c:var(--celadon-400);    --src-rgb:106,154,127; --src-icon:"殿";}
+.src-private {--src-c:var(--purple-400);     --src-rgb:142,106,168; --src-icon:"私";}
+.src-court   {--src-c:var(--indigo-400);     --src-rgb:90,111,168;  --src-icon:"议";}
+.src-memo    {--src-c:var(--vermillion-400); --src-rgb:184,71,56;   --src-icon:"奏";}
+.src-audience{--src-c:var(--gold-400);       --src-rgb:184,154,83;  --src-icon:"觐";}
+.src-record  {--src-c:var(--ink-300);        --src-rgb:107,93,71;   --src-icon:"录";}
+
+/* 对话气泡 */
+.ji-dialog{margin-top:4px;display:flex;flex-direction:column;gap:6px;}
+.ji-line{
+  position:relative;padding:6px 12px 6px 32px;
+  border-radius:3px;font-family:var(--font-serif);
+  font-size:12.5px;line-height:1.7;letter-spacing:0.02em;
+}
+.ji-line::before{
+  position:absolute;left:10px;top:6px;
+  font-size:12px;font-family:var(--font-serif);
+  font-weight:500;opacity:0.85;
+}
+.ji-line-player{
+  color:var(--ink-900);
+  background:linear-gradient(to right,rgba(192,64,48,0.08),rgba(192,64,48,0.02) 80%);
+  border-left:2px solid var(--vermillion-400);
+}
+.ji-line-player::before{content:"上";color:var(--vermillion-400);}
+.ji-line-npc{
+  color:var(--ink-700);
+  background:linear-gradient(to right,rgba(184,154,83,0.08),rgba(184,154,83,0.02) 80%);
+  border-left:2px solid var(--gold-400);
+}
+.ji-line-npc::before{content:"臣";color:var(--gold-400);}
+
+/* 变化指示 */
+.ji-delta{margin-top:5px;padding-top:5px;border-top:1px dashed var(--border-subtle);display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:10.5px;}
+.ji-delta-item{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:2px;font-family:var(--font-serif);letter-spacing:0.08em;}
+.ji-delta-item.up{color:var(--celadon-400);background:rgba(106,154,127,0.08);border:1px solid var(--celadon-400);}
+.ji-delta-item.dn{color:var(--vermillion-400);background:rgba(192,64,48,0.08);border:1px solid var(--vermillion-400);}
+.ji-delta-item.mid{color:var(--gold-400);background:rgba(184,154,83,0.06);border:1px solid var(--gold-d);}
+
+/* 分页 */
+.ji-paging{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:18px;padding:10px 0;}
+.ji-pg-btn{width:28px;height:28px;padding:0;background:transparent;border:1px solid var(--border-subtle);color:var(--ink-500);font-family:var(--font-serif);font-size:14px;border-radius:2px;cursor:pointer;line-height:26px;}
+.ji-pg-btn:hover:not(:disabled){color:var(--gold-400);border-color:var(--gold-400);}
+.ji-pg-btn:disabled{opacity:0.35;cursor:not-allowed;}
+.ji-pg-info{font-family:var(--font-serif);font-size:12px;color:var(--ink-500);letter-spacing:0.08em;}
+.ji-pg-info .n{color:var(--gold-400);}
+
+/* 空态 */
+.ji-empty{text-align:center;padding:48px 24px;font-family:var(--font-serif);font-size:15px;color:var(--ink-500);letter-spacing:0.2em;line-height:2;}
+.ji-empty::before{content:"❖";display:block;color:var(--gold-400);font-size:32px;margin-bottom:12px;opacity:0.5;}
+
+.legend{padding:14px 20px;background:var(--bg-2);border-top:1px solid var(--border-subtle);font-size:11px;color:var(--ink-500);text-align:center;letter-spacing:0.08em;line-height:1.9;}
+.legend .k{color:var(--gold-400);} .legend .m{color:var(--vermillion-400);}
+</style>
+</head>
+<body>
+
+<div class="preview-frame">
+
+  <div class="preview-header">
+    <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+    <span>tianming · 纪事标签页美化预览</span>
+    <span class="title">〔 纪 事 本 末 〕</span>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn">朝政</button>
+    <button class="tab-btn">诏令</button>
+    <button class="tab-btn">奏疏</button>
+    <button class="tab-btn">问对</button>
+    <button class="tab-btn">鸿雁</button>
+    <button class="tab-btn">编年</button>
+    <button class="tab-btn">官制</button>
+    <button class="tab-btn">文苑</button>
+    <button class="tab-btn">起居注</button>
+    <button class="tab-btn active">纪事</button>
+    <button class="tab-btn">史记</button>
+  </div>
+
+  <div class="ji-panel">
+    <div class="ji-inner">
+
+      <!-- 标题 -->
+      <div class="ji-title">
+        <div class="seal">纪<br>事</div>
+        <div class="main">纪 事 本 末</div>
+        <div class="sub">以 事 系 日　　以 日 系 月　　以 月 系 时　　以 时 系 年</div>
+      </div>
+
+      <!-- 工具栏 -->
+      <div class="ji-tools">
+        <span class="ji-tools-lbl">披　览</span>
+        <div class="ji-view-switch">
+          <button class="ji-view-btn active">时 间 线</button>
+          <button class="ji-view-btn">按 人 物</button>
+        </div>
+        <div class="ji-search-wrap">
+          <input class="ji-search" placeholder="搜索人物·对话·事件……">
+        </div>
+        <select class="ji-filter">
+          <option>全部人物</option>
+          <option>袁崇焕 (12)</option>
+          <option>温体仁 (9)</option>
+          <option>钱谦益 (7)</option>
+          <option>徐光启 (5)</option>
+        </select>
+        <select class="ji-filter">
+          <option>全部来源</option>
+          <option>问对·正式</option>
+          <option>问对·私下</option>
+          <option>朝议</option>
+          <option>奏疏</option>
+          <option>求见</option>
+        </select>
+        <button class="ji-star-btn on" title="仅看星标">★</button>
+        <button class="ji-export-btn">导 出</button>
+        <span class="ji-stat">共 <span class="n">87</span> 条 · 显 <span class="n">24</span> 条</span>
+      </div>
+
+      <!-- 源图例 -->
+      <div class="ji-legend">
+        <span class="ji-legend-chip src-formal"><span class="sw"></span>问对·正式 <span class="num">28</span></span>
+        <span class="ji-legend-chip src-private"><span class="sw"></span>问对·私下 <span class="num">9</span></span>
+        <span class="ji-legend-chip src-court"><span class="sw"></span>朝议 <span class="num">15</span></span>
+        <span class="ji-legend-chip src-memo"><span class="sw"></span>奏疏 <span class="num">22</span></span>
+        <span class="ji-legend-chip src-audience"><span class="sw"></span>求见 <span class="num">11</span></span>
+        <span class="ji-legend-chip src-record"><span class="sw"></span>记录 <span class="num">2</span></span>
+      </div>
+
+      <!-- ═══ 时间线视图 ═══ -->
+
+      <!-- 第 42 回合 -->
+      <div class="ji-turn-block">
+        <div class="ji-turn-hdr">
+          <span class="t-label">第 42 回 合</span>
+          <span class="t-date">崇 祯 元 年 丁 亥 八 月 初 九</span>
+          <span class="t-count">3 条</span>
+        </div>
+
+        <!-- 问对·正式 -->
+        <div class="ji-record src-formal starred">
+          <div class="ji-rec-head">
+            <span class="ji-src-badge">问对·正式</span>
+            <span class="ji-rec-char">袁崇焕<span class="title">兵部尚书衔督师</span></span>
+            <span class="ji-rec-time">卯时三刻</span>
+            <button class="ji-star-toggle on">★</button>
+          </div>
+          <div class="ji-dialog">
+            <div class="ji-line ji-line-player">卿抵辽东数月，前线军情如何？朕深念之。可如实直陈，不得隐瞒。</div>
+            <div class="ji-line ji-line-npc">臣到任以来，整饬边备，修城练兵。宁远一线固若金汤。然军饷已逾月未至，将士枵腹以待敌，臣日夜焦灼，恳陛下速发内帑以济燃眉。</div>
+          </div>
+          <div class="ji-delta">
+            <span class="ji-delta-item up">忠 +3</span>
+            <span class="ji-delta-item mid">关系 · 进言</span>
+            <span class="ji-delta-item dn">压力 +5</span>
+          </div>
+        </div>
+
+        <!-- 朝议 -->
+        <div class="ji-record src-court">
+          <div class="ji-rec-head">
+            <span class="ji-src-badge">朝议</span>
+            <span class="ji-rec-char">温体仁<span class="title">内阁首辅·浙党魁</span></span>
+            <span class="ji-rec-time">辰时</span>
+            <button class="ji-star-toggle">☆</button>
+          </div>
+          <div class="ji-dialog">
+            <div class="ji-line ji-line-player">户部再拨辽饷三十万两可行？兵部言前方缺饷甚急。</div>
+            <div class="ji-line ji-line-npc">陛下圣鉴。国用不足，而辽饷已岁支百八十万。若再发三十万，恐河南赈灾之银告罄。臣请先减内廷岁支以补辽饷，两全之策也。</div>
+          </div>
+        </div>
+
+        <!-- 奏疏 -->
+        <div class="ji-record src-memo">
+          <div class="ji-rec-head">
+            <span class="ji-src-badge">奏疏</span>
+            <span class="ji-rec-char">毕自严<span class="title">户部尚书</span></span>
+            <span class="ji-rec-time">午时·御笔朱批</span>
+            <button class="ji-star-toggle">☆</button>
+          </div>
+          <div class="ji-dialog">
+            <div class="ji-line ji-line-npc">臣自严谨奏：今岁秋漕已到七百三十万石，较去岁减三成。请陛下严饬漕运总督，勿使江南粮船再滞。又闻运河苏州以北有淤塞，乞遣工部勘议。</div>
+            <div class="ji-line ji-line-player">着温体仁会同工部议处。秋漕不可再滞，漕运总督责一切。</div>
+          </div>
+          <div class="ji-delta">
+            <span class="ji-delta-item mid">关系 · 转交</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第 41 回合 -->
+      <div class="ji-turn-block">
+        <div class="ji-turn-hdr">
+          <span class="t-label">第 41 回 合</span>
+          <span class="t-date">崇 祯 元 年 丁 亥 八 月 初 二</span>
+          <span class="t-count">4 条</span>
+        </div>
+
+        <!-- 求见 -->
+        <div class="ji-record src-audience">
+          <div class="ji-rec-head">
+            <span class="ji-src-badge">求见</span>
+            <span class="ji-rec-char">徐光启<span class="title">礼部左侍郎</span></span>
+            <span class="ji-rec-time">辰时二刻</span>
+            <button class="ji-star-toggle">☆</button>
+          </div>
+          <div class="ji-dialog">
+            <div class="ji-line ji-line-player">（NPC主动求见）卿今日何事求见？</div>
+            <div class="ji-line ji-line-npc">陛下。臣前所请设西局督造红夷大炮事，工部已核算用料，银八万两、铜铁五千斤。图样亦得自澳门耶稣会，乞陛下早赐批允。此器利器千倍，可保辽东不失。</div>
+          </div>
+          <div class="ji-delta">
+            <span class="ji-delta-item up">忠 +2</span>
+            <span class="ji-delta-item mid">关系 · 请命</span>
+          </div>
+        </div>
+
+        <!-- 问对·私下 (starred) -->
+        <div class="ji-record src-private starred">
+          <div class="ji-rec-head">
+            <span class="ji-src-badge">问对·私下</span>
+            <span class="ji-rec-char">周皇后<span class="title">中宫</span></span>
+            <span class="ji-private-mark">私下</span>
+            <span class="ji-rec-time">戌时·坤宁宫</span>
+            <button class="ji-star-toggle on">★</button>
+          </div>
+          <div class="ji-dialog">
+            <div class="ji-line ji-line-player">（私下）朝中诸臣互讦甚烈，朕日益倦怠。皇后可有良言？</div>
+            <div class="ji-line ji-line-npc">陛下春秋正盛，毋为谗言所扰。祖宗家法，帝王执中守正。妾妇人之见，愿陛下少进药饵，多宽圣心。</div>
+          </div>
+          <div class="ji-delta">
+            <span class="ji-delta-item up">亲密 +5</span>
+            <span class="ji-delta-item up">心境 宽慰</span>
+          </div>
+        </div>
+
+        <!-- 朝议 -->
+        <div class="ji-record src-court">
+          <div class="ji-rec-head">
+            <span class="ji-src-badge">朝议</span>
+            <span class="ji-rec-char">钱谦益<span class="title">礼部尚书·东林</span></span>
+            <span class="ji-rec-time">巳时</span>
+            <button class="ji-star-toggle">☆</button>
+          </div>
+          <div class="ji-dialog">
+            <div class="ji-line ji-line-npc">陛下。今岁科举当开，主考人选关系国体。东林同党议推钱龙锡、温体仁二人共主会试。</div>
+            <div class="ji-line ji-line-player">朕意，此次科举由温体仁主持，钱龙锡副之。</div>
+          </div>
+        </div>
+
+        <!-- 奏疏 -->
+        <div class="ji-record src-memo">
+          <div class="ji-rec-head">
+            <span class="ji-src-badge">奏疏</span>
+            <span class="ji-rec-char">卢象升<span class="title">宣大总督</span></span>
+            <span class="ji-rec-time">未时·留中</span>
+            <button class="ji-star-toggle">☆</button>
+          </div>
+          <div class="ji-dialog">
+            <div class="ji-line ji-line-npc">臣象升具奏：宣府兵员逃亡甚众，乞拨新兵五千。又请补造火器三千件……（留中未发）</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第 40 回合 -->
+      <div class="ji-turn-block">
+        <div class="ji-turn-hdr">
+          <span class="t-label">第 40 回 合</span>
+          <span class="t-date">崇 祯 元 年 丁 亥 七 月 廿 五</span>
+          <span class="t-count">2 条</span>
+        </div>
+
+        <div class="ji-record src-formal">
+          <div class="ji-rec-head">
+            <span class="ji-src-badge">问对·正式</span>
+            <span class="ji-rec-char">孙承宗<span class="title">兵部尚书</span></span>
+            <span class="ji-rec-time">卯时</span>
+            <button class="ji-star-toggle">☆</button>
+          </div>
+          <div class="ji-dialog">
+            <div class="ji-line ji-line-player">辽东军务，卿以为袁崇焕可堪此任？</div>
+            <div class="ji-line ji-line-npc">袁崇焕忠勇可嘉，然性格刚烈。陛下用之当予以信任，若疑之则不如不用。臣愿以项上人头保之。</div>
+          </div>
+          <div class="ji-delta">
+            <span class="ji-delta-item up">忠 +2</span>
+            <span class="ji-delta-item up">孙承宗·袁崇焕 关系+3</span>
+          </div>
+        </div>
+
+        <div class="ji-record src-record">
+          <div class="ji-rec-head">
+            <span class="ji-src-badge">记录</span>
+            <span class="ji-rec-char">曹化淳<span class="title">司礼监掌印</span></span>
+            <span class="ji-rec-time">午时</span>
+            <button class="ji-star-toggle">☆</button>
+          </div>
+          <div class="ji-dialog">
+            <div class="ji-line ji-line-npc">（密报）东厂侦得钱谦益与浙籍同乡十余人于私宅饮宴，席间颇多攻讦温相之语。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 分页 -->
+      <div class="ji-paging">
+        <button class="ji-pg-btn">‹</button>
+        <span class="ji-pg-info"><span class="n">1</span> / 8 · 共 <span class="n">87</span> 条</span>
+        <button class="ji-pg-btn">›</button>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="legend">
+    ★ 设计要点：<span class="k">宣纸纹+朱砂"纪事"半圆印</span> · 工具栏含 <span class="k">披览/视图切换/搜索⌕/人物筛选/来源筛选/星标/❖导出</span> · 6 类源图例色条（<span class="m">问对·正式青/私下紫/朝议靛/奏疏朱/求见金/记录墨</span>）· 回合分组·金色左竖条+日期副标 · 纪事卡左侧 <span class="k">6 色源色带</span>+源徽章（徽前一字 殿/私/议/奏/觐/录）· <span class="m">上：朱色渐变·臣：金色渐变</span> 对话气泡·左侧汉字角标 · <span class="k">私下</span>斜纹紫底+🔒徽记 · 星标卡金色渐变+右上 ★ · 变化指示器（忠/关系/心境/压力 升青降朱平金）· 分页金色数字<br>
+    <span style="color:var(--ink-300);margin-top:6px;display:inline-block;">这是纯预览页面。若满意我将此样式应用到 tm-index-world.js 的 renderJishi() 中。</span>
+  </div>
+
+</div>
+
+</body>
+</html>
