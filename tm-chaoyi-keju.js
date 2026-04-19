@@ -4763,36 +4763,108 @@ async function _cc2_genRoundSpeeches(item, picks, roundNum) {
   }
 
   var attendeeList = (CY._cc2.attendees||[]).map(function(a){return a.name;}).join('、');
-  var prompt = '朝会议论·第 ' + roundNum + ' 轮。\n';
-  prompt += '议程：' + (item.title||'') + '——' + (item.content||'') + '\n';
-  prompt += '奏报者：' + (item.presenter||'') + '\n';
-  prompt += '在场官员：' + attendeeList + '\n';
-  prompt += (CY._cc2._spokenThisAgenda.length ? '本议程已发言者：' + CY._cc2._spokenThisAgenda.join('、') + '（须换人）\n' : '');
-  prompt += '请为以下 ' + picks.length + ' 位官员生成各 1 条发言（文言/半文言，符合身份立场）：\n';
-  picks.forEach(function(p) {
-    var ch = findCharByName(p.a.name);
-    prompt += '  ' + p.a.name + '（' + (p.a.title||'') + (p.a.party?'·'+p.a.party:'') + '，性格:' + (ch&&ch.personality?ch.personality.slice(0,14):'') + (ch&&ch.loyalty!=null?',忠'+Math.round(ch.loyalty):'') + '）\n';
-  });
-  prompt += '\n发言类型须各不相同，可选：附议/反驳/弹劾/劝谏/讽喻/请旨/折中/冷眼。\n';
-  prompt += (typeof _aiDialogueWordHint === 'function' ? _aiDialogueWordHint('cy') + '（line 字段必须达到此字数范围，不得短于下限）\n' : '（每条约 150-300 字）\n');
-  prompt += '返回 JSON 数组：[{"name":"","type":"附议/反驳/弹劾/劝谏/讽喻/请旨/折中/冷眼","line":"内容"}]';
+  var speechHistoryThisRound = []; // 本轮前面 NPC 的发言·供后发言者引用
 
-  try {
-    var raw = await callAI(prompt, (typeof _aiDialogueTok==='function'?_aiDialogueTok("cy", picks.length):1200));
-    var arr = (typeof extractJSON === 'function') ? extractJSON(raw) : null;
-    if (!Array.isArray(arr)) return;
-    arr.forEach(function(r) {
-      if (!r || !r.name || !r.line) return;
-      var tcolor = { '附议':'var(--celadon-400)','反驳':'var(--vermillion-400)','弹劾':'var(--vermillion-400)','劝谏':'var(--amber-400)','讽喻':'var(--indigo-400)','请旨':'var(--gold-400)','折中':'var(--color-foreground)','冷眼':'var(--ink-300)' }[r.type] || 'var(--color-foreground)';
-      addCYBubble(r.name, '〔' + (r.type||'') + '〕<span style="color:' + tcolor + ';">' + escHtml(r.line) + '</span>', false, true);
-      CY._cc2._spokenThisAgenda.push(r.name);
-      // NPC 记忆
-      if (typeof NpcMemorySystem !== 'undefined') {
-        var emo = r.type==='附议'?'喜':(r.type==='反驳'||r.type==='弹劾')?'怒':(r.type==='劝谏'?'忧':'平');
-        NpcMemorySystem.remember(r.name, '常朝就「' + (item.title||'') + '」' + (r.type||'发言') + '：' + r.line.slice(0,40), emo, 4);
-      }
-    });
-  } catch(e){}
+  // 逐个 NPC·流式·同步阻塞（一个说完再下一个）
+  for (var i = 0; i < picks.length; i++) {
+    if (CY._abortChaoyi) break; // 玩家打断
+    var p = picks[i];
+    var name = p.a.name;
+    var ch = findCharByName(name);
+    if (!ch) continue;
+
+    // 1) 先添加空气泡，准备接收流式文本
+    var body = _$('cy-body'); if (!body) return;
+    var div = document.createElement('div');
+    div.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.8rem;animation:fi 0.3s ease;';
+    var avatar = ch.portrait ? '<img src="' + escHtml(ch.portrait) + '" style="width:28px;height:28px;object-fit:cover;border-radius:50%;flex-shrink:0;border:1.5px solid var(--gold-d);">'
+                             : '<div style="width:28px;height:28px;border-radius:50%;background:var(--bg-4);display:flex;align-items:center;justify-content:center;font-size:0.8rem;border:1.5px solid var(--gold-d);flex-shrink:0;">\uD83D\uDC64</div>';
+    div.innerHTML = avatar
+      + '<div style="flex:1;min-width:0;"><div style="font-size:0.7rem;color:var(--gold);">' + escHtml(name)
+      + (ch.title ? ' \u00B7 ' + escHtml(ch.title) : '') + '</div>'
+      + '<div class="cy-bubble cc2-stream-bubble" style="background:var(--bg-3);border:1px solid var(--bdr);border-radius:3px 10px 10px 10px;padding:0.4rem 0.7rem;font-size:0.85rem;line-height:1.6;color:var(--txt-d);">\u2026</div>'
+      + '<div class="cc2-stream-type-tag" style="font-size:0.64rem;color:var(--txt-d);margin-top:2px;display:none;"></div></div>';
+    body.appendChild(div); body.scrollTop = body.scrollHeight;
+    var bubbleEl = div.querySelector('.cy-bubble');
+    var typeTagEl = div.querySelector('.cc2-stream-type-tag');
+
+    // 2) 构建本 NPC 专属 prompt（带前文+本轮已发言）
+    var prompt = '朝会议论·第 ' + roundNum + ' 轮\u3002\n';
+    prompt += '议程：' + (item.title||'') + '——' + (item.content||'') + '\n';
+    prompt += '奏报者：' + (item.presenter||'') + '\n';
+    prompt += '在场官员：' + attendeeList + '\n';
+    if (CY._cc2._spokenThisAgenda.length) prompt += '本议程已发言者：' + CY._cc2._spokenThisAgenda.join('、') + '\n';
+    if (speechHistoryThisRound.length) {
+      prompt += '\n【本轮前面同僚发言（你应针对性回应或立场分野）】\n';
+      speechHistoryThisRound.forEach(function(s) {
+        prompt += '  ' + s.name + '〔' + s.type + '〕：' + s.line.slice(0, 80) + '\n';
+      });
+    }
+    prompt += '\n请为 ' + name + ' 生成一条朝堂发言：\n';
+    prompt += '身份：' + (p.a.title||'') + (p.a.party?'·'+p.a.party:'') + '\n';
+    prompt += '性格：' + (ch.personality||'').slice(0, 30) + '\n';
+    prompt += '忠诚：' + Math.round(ch.loyalty||50) + '，整廉：' + Math.round(ch.integrity||50) + '\n';
+    if (typeof NpcMemorySystem !== 'undefined') {
+      var mem = NpcMemorySystem.getMemoryContext(name);
+      if (mem) prompt += '个人记忆：' + mem.slice(0, 150) + '\n';
+    }
+    prompt += '\n发言类型（首行输出）：附议/反驳/弹劾/劝谏/讽喻/请旨/折中/冷眼\n';
+    prompt += '格式：第一行仅输出【类型】二字（如"附议"），从第二行起输出发言正文。\n';
+    prompt += (typeof _aiDialogueWordHint === 'function' ? _aiDialogueWordHint('cy') + '\n' : '（发言约 150-300 字）\n');
+    prompt += '文言/半文言·符合身份·针对前文·不空话套话。';
+
+    // 3) 流式生成
+    var tokens = (typeof _aiDialogueTok==='function' ? _aiDialogueTok("cy", 1) : 500);
+    CY.abortCtrl = new AbortController();
+    var full = '';
+    try {
+      full = await callAIMessagesStream(
+        [{ role: 'user', content: prompt }], tokens,
+        {
+          signal: CY.abortCtrl.signal,
+          onChunk: function(txt) {
+            if (!bubbleEl) return;
+            // 解析第一行类型
+            var lines = (txt||'').split(/\r?\n/);
+            var typeVal = (lines[0]||'').trim().replace(/[【】\[\]〔〕·:：\s]/g, '').slice(0, 4);
+            var bodyTxt = lines.slice(1).join('\n').trim() || txt;
+            var typeColors = { '附议':'var(--celadon-400)','反驳':'var(--vermillion-400)','弹劾':'var(--vermillion-400)','劝谏':'var(--amber-400)','讽喻':'var(--indigo-400)','请旨':'var(--gold-400)','折中':'var(--color-foreground)','冷眼':'var(--ink-300)' };
+            if (typeColors[typeVal]) {
+              if (typeTagEl) { typeTagEl.textContent = '〔' + typeVal + '〕'; typeTagEl.style.color = typeColors[typeVal]; typeTagEl.style.display = 'inline-block'; }
+              bubbleEl.textContent = bodyTxt;
+              bubbleEl.style.color = typeColors[typeVal];
+            } else {
+              bubbleEl.textContent = txt;
+              bubbleEl.style.color = '';
+            }
+            body.scrollTop = body.scrollHeight;
+          }
+        }
+      );
+    } catch(e) {
+      console.warn('[cc2 speech stream]', name, e);
+      if (bubbleEl) { bubbleEl.textContent = '（未能陈词）'; bubbleEl.style.color = 'var(--red)'; }
+      continue;
+    }
+    if (!full) { if (bubbleEl) bubbleEl.textContent = '（沉默不语）'; continue; }
+
+    // 4) 最终解析类型+正文
+    var _lines = full.split(/\r?\n/);
+    var _type = (_lines[0]||'').trim().replace(/[【】\[\]〔〕·:：\s]/g, '').slice(0, 4);
+    var _line = _lines.slice(1).join('\n').trim();
+    if (!_line) _line = full;
+    CY._cc2._spokenThisAgenda.push(name);
+    speechHistoryThisRound.push({ name: name, type: _type || '发言', line: _line });
+
+    // NPC 记忆
+    if (typeof NpcMemorySystem !== 'undefined') {
+      var emo = _type === '附议' ? '喜' : (_type === '反驳' || _type === '弹劾') ? '怒' : (_type === '劝谏' ? '忧' : '平');
+      try { NpcMemorySystem.remember(name, '常朝就「' + (item.title||'') + '」' + (_type||'发言') + '：' + _line.slice(0,40), emo, 4); } catch(_){}
+    }
+
+    // 每人之间 300ms 停顿·模拟朝堂节奏
+    if (i < picks.length - 1) await new Promise(function(r){ setTimeout(r, 300); });
+  }
 }
 
 // ─── 阶段 ④ 裁决 ───
@@ -5279,21 +5351,50 @@ async function _cc2_judgeSummonReaction(item) {
   prompt += '{\n  "reactions":[{"name":"官员名","type":"劝谏/弹劾/附议/冷眼/称善","line":"发言"}],\n';
   prompt += '  "overallTone":"平静/微议/激烈抗议/赞誉"\n}';
 
+  // 先一次性判定谁会抗议+整体氛围（schedule·非流式）·然后流式逐个生成发言
   try {
-    var raw = await callAI(prompt, 900);
+    var raw = await callAI(prompt, 400);
     var obj = (typeof extractJSON === 'function') ? extractJSON(raw) : null;
-    if (obj && Array.isArray(obj.reactions)) {
-      obj.reactions.forEach(function(r) {
-        if (!r || !r.name || !r.line) return;
-        var tcolor = { '劝谏':'var(--amber-400)','弹劾':'var(--vermillion-400)','附议':'var(--celadon-400)','冷眼':'var(--ink-300)','称善':'var(--gold-400)' }[r.type] || '';
-        addCYBubble(r.name, '〔' + (r.type||'') + '〕<span style="color:' + tcolor + ';">' + escHtml(r.line) + '</span>', false);
-        if (typeof NpcMemorySystem !== 'undefined') {
-          NpcMemorySystem.remember(r.name, '皇帝传召' + name + '——' + (r.type||'发言'), '平', 4);
-        }
-      });
-    }
-    var overallTone = obj && obj.overallTone || '平静';
+    var overallTone = (obj && obj.overallTone) || '平静';
     addCYBubble('内侍', '（朝堂' + overallTone + '。）', true);
+    if (obj && Array.isArray(obj.reactions)) {
+      // 改为逐人流式生成（每人单独 AI call）
+      for (var ri = 0; ri < obj.reactions.length; ri++) {
+        if (CY._abortChaoyi) break;
+        var r0 = obj.reactions[ri];
+        if (!r0 || !r0.name) continue;
+        var reactor = findCharByName(r0.name);
+        if (!reactor) continue;
+        var _body = _$('cy-body'); if (!_body) break;
+        var _div = document.createElement('div');
+        _div.style.cssText = 'display:flex;gap:0.5rem;margin-bottom:0.8rem;animation:fi 0.3s ease;';
+        var _av = reactor.portrait ? '<img src="' + escHtml(reactor.portrait) + '" style="width:28px;height:28px;object-fit:cover;border-radius:50%;flex-shrink:0;border:1.5px solid var(--gold-d);">'
+                                   : '<div style="width:28px;height:28px;border-radius:50%;background:var(--bg-4);display:flex;align-items:center;justify-content:center;font-size:0.8rem;border:1.5px solid var(--gold-d);flex-shrink:0;">\uD83D\uDC64</div>';
+        var _tcolor = { '劝谏':'var(--amber-400)','弹劾':'var(--vermillion-400)','附议':'var(--celadon-400)','冷眼':'var(--ink-300)','称善':'var(--gold-400)' }[r0.type] || 'var(--color-foreground)';
+        _div.innerHTML = _av + '<div style="flex:1;min-width:0;"><div style="font-size:0.7rem;color:var(--gold);">' + escHtml(r0.name)
+          + ' <span style="color:' + _tcolor + ';font-size:0.64rem;">〔' + escHtml(r0.type||'发言') + '〕</span></div>'
+          + '<div class="cy-bubble cc2-react-bubble" style="background:var(--bg-3);border:1px solid var(--bdr);border-radius:3px 10px 10px 10px;padding:0.4rem 0.7rem;font-size:0.85rem;line-height:1.6;color:' + _tcolor + ';">\u2026</div></div>';
+        _body.appendChild(_div); _body.scrollTop = _body.scrollHeight;
+        var _bubEl = _div.querySelector('.cy-bubble');
+
+        // 单人流式 AI：让 NPC 就传召 name 事件·按已判定的类型发言（约 40-100 字）
+        var _pp = '朝会中皇帝传召 ' + name + '（' + (ch.officialTitle||'') + '）入朝。\n';
+        _pp += '你是 ' + r0.name + '（' + (reactor.officialTitle||reactor.title||'') + '，性格' + (reactor.personality||'').slice(0,20) + '，忠' + Math.round(reactor.loyalty||50) + '），';
+        _pp += '你的立场倾向：' + (r0.type||'发言') + '。\n';
+        _pp += '请用文言/半文言生成一条 40-100 字的朝堂发言·直接输出发言正文·不要加类型标签。';
+        CY.abortCtrl = new AbortController();
+        try {
+          await callAIMessagesStream([{role:'user',content:_pp}], 250, {
+            signal: CY.abortCtrl.signal,
+            onChunk: function(t){ if (_bubEl) _bubEl.textContent = t; _body.scrollTop = _body.scrollHeight; }
+          });
+        } catch(_se){ if (_bubEl) _bubEl.textContent = r0.line || '（未能陈词）'; }
+        if (typeof NpcMemorySystem !== 'undefined') {
+          NpcMemorySystem.remember(r0.name, '皇帝传召' + name + '——' + (r0.type||'发言'), '平', 4);
+        }
+        if (ri < obj.reactions.length - 1) await new Promise(function(rr){ setTimeout(rr, 200); });
+      }
+    }
   } catch(e){}
 
   // 进入 ask 环节：皇帝问被召者所为何事
