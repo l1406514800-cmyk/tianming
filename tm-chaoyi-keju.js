@@ -4862,8 +4862,6 @@ async function _cc2_genRoundSpeeches(item, picks, roundNum) {
       try { NpcMemorySystem.remember(name, '常朝就「' + (item.title||'') + '」' + (_type||'发言') + '：' + _line.slice(0,40), emo, 4); } catch(_){}
     }
 
-    // 每人之间 300ms 停顿·模拟朝堂节奏
-    if (i < picks.length - 1) await new Promise(function(r){ setTimeout(r, 300); });
   }
 }
 
@@ -5392,7 +5390,6 @@ async function _cc2_judgeSummonReaction(item) {
         if (typeof NpcMemorySystem !== 'undefined') {
           NpcMemorySystem.remember(r0.name, '皇帝传召' + name + '——' + (r0.type||'发言'), '平', 4);
         }
-        if (ri < obj.reactions.length - 1) await new Promise(function(rr){ setTimeout(rr, 200); });
       }
     }
   } catch(e){}
