@@ -4584,7 +4584,7 @@ function renderOfficeTree(){
   }
 }
 
-/** SVG树状图渲染（游戏版——复用编辑器布局算法，节点卡片为游戏交互） */
+/** SVG树状图渲染（游戏版——宽卡片·显著操作按钮·清晰层级） */
 function _renderOfficeTreeSVG(container) {
   if (!GM._officeCollapsed) GM._officeCollapsed = {};
   // 临时将GM.officeTree赋给P.officeTree供布局算法读取
@@ -4592,7 +4592,8 @@ function _renderOfficeTreeSVG(container) {
   P.officeTree = GM.officeTree;
   var _origCollapsed = P._officeCollapsed;
   P._officeCollapsed = GM._officeCollapsed;
-  var layout = _officeBuildTree(GM._officeCollapsed);
+  // 游戏版·卡片更大·便于展示官职+在任者+操作按钮
+  var layout = _officeBuildTree(GM._officeCollapsed, { W: 210, H: 68, H_GAP: 22, V_GAP: 84 });
   P.officeTree = _origPTree;
   P._officeCollapsed = _origCollapsed;
 
@@ -4624,65 +4625,86 @@ function _renderOfficeTreeSVG(container) {
     var pathStr = JSON.stringify(fi.path);
 
     if (fi.isPos) {
-      // ── Position leaf card ──
+      // ── Position leaf card (v2·宽卡·清晰·单一主按钮) ──
       var _holder = nd.holder ? findCharByName(nd.holder) : null;
-      var _holderClr = !nd.holder ? 'var(--vermillion-400)' : (_holder && (_holder.loyalty||50) > 70 ? 'var(--celadon-400)' : _holder && (_holder.loyalty||50) < 30 ? 'var(--vermillion-400)' : 'var(--color-foreground-secondary)');
+      var _holderClr = !nd.holder ? 'var(--vermillion-400)' : (_holder && (_holder.loyalty||50) > 70 ? 'var(--celadon-400)' : _holder && (_holder.loyalty||50) < 30 ? 'var(--vermillion-400)' : 'var(--color-foreground)');
       var _holderName = nd.holder || '\u7A7A\u7F3A';
       var _lastEval = (nd._evaluations && nd._evaluations.length > 0) ? nd._evaluations[nd._evaluations.length-1] : null;
-      var _evalBadge = _lastEval ? '<span style="font-size:8px;padding:0 2px;border-radius:2px;background:rgba(184,154,83,0.2);color:var(--gold-400);">' + escHtml(_lastEval.grade||'') + '</span>' : '';
       var _tenureKey = '';
       if (fi.parent && fi.parent.node) _tenureKey = (fi.parent.node.name||'') + nd.name;
       var _tenureVal = (_holder && _holder._tenure && _tenureKey) ? (_holder._tenure[_tenureKey]||0) : 0;
-      var _tenureBadge = _tenureVal > 0 ? '<span style="font-size:8px;color:' + (_tenureVal > 12 ? 'var(--amber-400)' : 'var(--ink-300)') + ';">\u4EFB' + _tenureVal + (_tenureVal > 12 ? '\u26A0' : '') + '</span>' : '';
-      // 满意度
       var _deptName3 = fi.parent && fi.parent.node ? (fi.parent.node.name||'') : '';
       var _satisfaction = nd.holder && typeof calcOfficialSatisfaction === 'function' ? calcOfficialSatisfaction(nd.holder, nd.rank, _deptName3) : null;
-      var _satBadge = '';
-      if (_satisfaction && _satisfaction.score < 35) _satBadge = '<span style="font-size:7px;color:var(--vermillion-400);" title="' + escHtml(_satisfaction.label) + '">\u2639</span>';
-      else if (_satisfaction && _satisfaction.score < 55) _satBadge = '<span style="font-size:7px;color:var(--amber-400);" title="' + escHtml(_satisfaction.label) + '">\u2194</span>';
       // 品级颜色
       var _rankInfo = nd.rank && typeof getRankInfo === 'function' ? getRankInfo(nd.rank) : null;
-      var _rankClr = _rankInfo ? _rankInfo.color : 'var(--ink-300)';
-
-      nodesDivs += '<div style="position:absolute;left:' + fi.x + 'px;top:' + fi.y + 'px;width:' + NW + 'px;height:' + (NH+8) + 'px;box-sizing:border-box;border:1px solid var(--color-border-subtle);border-radius:5px;background:var(--color-surface);overflow:hidden;box-shadow:var(--shadow-xs);cursor:pointer;" onclick="var d=_$(\'goff-' + i + '\');if(d)d.style.display=d.style.display===\'block\'?\'none\':\'block\';">';
-      nodesDivs += '<div style="display:flex;align-items:center;gap:2px;padding:2px 4px;height:100%;box-sizing:border-box;">';
-      // 左侧：官职+在任者
-      nodesDivs += '<div style="flex:1;min-width:0;">';
-      nodesDivs += '<div style="font-size:11px;color:var(--celadon-400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(nd.name||'?');
-      if (nd.rank) nodesDivs += '<span style="font-size:9px;color:' + _rankClr + ';margin-left:2px;">' + escHtml(nd.rank) + '</span>';
-      nodesDivs += '</div>';
+      var _rankClr = _rankInfo ? _rankInfo.color : 'var(--gold-400)';
       // 编制/实有统计
       if (typeof _offMigratePosition === 'function') _offMigratePosition(nd);
       var _hc = nd.headCount || 1;
       var _ac = nd.actualCount || 0;
       var _mc = typeof _offMaterializedCount === 'function' ? _offMaterializedCount(nd) : (nd.holder ? 1 : 0);
-      var _countTag = _hc > 1 ? '<span style="font-size:8px;color:var(--ink-300);">' + _ac + '/' + _hc + '\u4EBA</span>' : '';
-      nodesDivs += '<div style="font-size:10px;color:' + _holderClr + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">';
-      if (nd.holder) nodesDivs += '<span style="cursor:pointer;text-decoration:underline dotted;" onclick="event.stopPropagation();_offShowCareer(\'' + escHtml(nd.holder).replace(/'/g,"\\'") + '\')">';
-      nodesDivs += escHtml(_holderName);
-      if (nd.holder) nodesDivs += '</span>';
-      nodesDivs += ' ' + _countTag + ' ' + _tenureBadge + ' ' + _evalBadge + ' ' + _satBadge + '</div>';
-      nodesDivs += '</div>';
-      // 右侧：操作按钮
-      var deptPath4 = fi.path.slice(0, fi.path.length - 2);
-      var _deptName4 = fi.parent && fi.parent.node ? (fi.parent.node.name||'') : '';
-      nodesDivs += '<div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0;">';
       var _vacant4 = (_hc||1) - (_ac||0);
       var _unmat4 = (_ac||0) - _mc;
-      if (_vacant4 > 0) {
-        // 有缺员——荐贤或有司递补
-        nodesDivs += '<button class="bt bp" style="font-size:7px;padding:0 2px;line-height:13px;" onclick="event.stopPropagation();_offRecommend(' + JSON.stringify(fi.path) + ',\'' + escHtml(_deptName4).replace(/'/g,"\\'") + '\',\'' + escHtml(nd.name||'').replace(/'/g,"\\'") + '\')">\u8350</button>';
-        nodesDivs += '<button class="bt" style="font-size:7px;padding:0 2px;line-height:13px;" onclick="event.stopPropagation();_offAutoFill(\'' + escHtml(_deptName4).replace(/'/g,"\\'") + '\',\'' + escHtml(nd.name||'').replace(/'/g,"\\'") + '\')" title="\u6709\u53F8\u81EA\u52A8\u9012\u8865\uFF08\u4E0D\u5177\u8C61\uFF09">\u9012</button>';
+
+      // 左侧品级色条
+      var _leftBar = '<div style="position:absolute;left:0;top:0;bottom:0;width:3px;background:' + _rankClr + ';"></div>';
+
+      // 状态徽章群（tenure/eval/satisfaction 合并成小色点）
+      var _badges = '';
+      if (_tenureVal > 12) _badges += '<span title="任期' + _tenureVal + '回合·久居需调" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber-400);margin-left:3px;"></span>';
+      if (_lastEval) {
+        var _gClr = /上|优|甲/.test(_lastEval.grade||'') ? 'var(--celadon-400)' : /下|劣|丁/.test(_lastEval.grade||'') ? 'var(--vermillion-400)' : 'var(--gold-400)';
+        _badges += '<span title="考评：' + escHtml(_lastEval.grade||'') + '" style="display:inline-block;font-size:9px;padding:0 3px;border-radius:3px;background:rgba(184,154,83,0.15);color:' + _gClr + ';margin-left:3px;">' + escHtml(_lastEval.grade||'') + '</span>';
       }
-      if (_unmat4 > 0) {
-        // 有未具象——可触发具象化
-        nodesDivs += '<button class="bt" style="font-size:7px;padding:0 2px;line-height:13px;color:var(--celadon-400);" onclick="event.stopPropagation();if(typeof _offMaterialize===\'function\')_offMaterialize(\'' + escHtml(_deptName4).replace(/'/g,"\\'") + '\',\'' + escHtml(nd.name||'').replace(/'/g,"\\'") + '\')" title="\u751F\u6210\u5177\u4F53\u89D2\u8272">\u5177</button>';
+      if (_satisfaction && _satisfaction.score < 35) _badges += '<span title="' + escHtml(_satisfaction.label) + '·不满" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--vermillion-400);margin-left:3px;"></span>';
+      else if (_satisfaction && _satisfaction.score < 55) _badges += '<span title="' + escHtml(_satisfaction.label) + '·略不满" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--amber-400);margin-left:3px;"></span>';
+      if (_vacant4 > 0 && _hc > 1) _badges += '<span title="缺员 ' + _vacant4 + '/' + _hc + '" style="display:inline-block;font-size:9px;padding:0 3px;border-radius:3px;background:rgba(192,64,48,0.15);color:var(--vermillion-400);margin-left:3px;">缺' + _vacant4 + '</span>';
+
+      // 能力速览
+      var _statLine = '';
+      if (_holder) {
+        var _loyClr = (_holder.loyalty||50) > 70 ? 'var(--celadon-400)' : (_holder.loyalty||50) < 40 ? 'var(--vermillion-400)' : 'var(--gold-400)';
+        _statLine = '<span style="font-size:9px;color:var(--ink-300);">\u667A' + (_holder.intelligence||50) + ' \u653F' + (_holder.administration||50) + ' \u519B' + (_holder.military||50) + ' </span><span style="font-size:9px;color:' + _loyClr + ';">\u5FE0' + (_holder.loyalty||50) + '</span>';
+      } else {
+        _statLine = '<span style="font-size:9px;color:var(--vermillion-400);font-style:italic;">\u6B64\u804C\u65E0\u4EBA\u00B7\u6076\u653F\u6709\u52E2</span>';
       }
+
+      // 主操作按钮（任命/改换/具象）——单一大按钮·不再一排小字
+      var _safeDept = escHtml(_deptName3).replace(/'/g,"\\'");
+      var _safePos = escHtml(nd.name||'').replace(/'/g,"\\'");
+      var _safePath = JSON.stringify(fi.path).replace(/"/g,'&quot;');
+      var _mainBtn = '';
       if (nd.holder) {
-        nodesDivs += '<button class="bt" style="font-size:7px;padding:0 2px;line-height:13px;color:var(--vermillion-400);" onclick="event.stopPropagation();_offDismissToEdict(\'' + escHtml(nd.holder||'').replace(/'/g,"\\'") + '\',\'' + escHtml(_deptName4).replace(/'/g,"\\'") + '\',\'' + escHtml(nd.name||'').replace(/'/g,"\\'") + '\')">\u514D</button>';
+        _mainBtn = '<button class="bt" style="font-size:10px;padding:2px 6px;line-height:16px;border-color:var(--amber-400);color:var(--amber-400);background:rgba(217,151,71,0.06);white-space:nowrap;" onclick="event.stopPropagation();_offOpenPicker(' + _safePath + ',\'' + _safeDept + '\',\'' + _safePos + '\',\'' + escHtml(nd.holder||'').replace(/'/g,"\\'") + '\')" title="\u6539\u6362\u5F53\u524D\u5728\u4EFB\u8005">\u6539\u6362</button>';
+      } else if (_unmat4 > 0 && _ac > 0) {
+        _mainBtn = '<button class="bt" style="font-size:10px;padding:2px 6px;line-height:16px;border-color:var(--celadon-400);color:var(--celadon-400);background:rgba(121,175,135,0.06);white-space:nowrap;" onclick="event.stopPropagation();if(typeof _offMaterialize===\'function\')_offMaterialize(\'' + _safeDept + '\',\'' + _safePos + '\')" title="\u7531\u6709\u53F8\u9012\u8865\u540D\u5177\u8C61\u5316\u4E3A\u5177\u4F53\u4EBA\u7269">\u5177\u8C61</button>';
+      } else {
+        _mainBtn = '<button class="bt bp" style="font-size:10px;padding:2px 6px;line-height:16px;white-space:nowrap;" onclick="event.stopPropagation();_offOpenPicker(' + _safePath + ',\'' + _safeDept + '\',\'' + _safePos + '\',\'\')" title="\u4ECE\u672C\u52BF\u529B\u4EBA\u7269\u4E2D\u9009\u4EFB">\u4EFB\u547D</button>';
       }
+
+      nodesDivs += '<div style="position:absolute;left:' + fi.x + 'px;top:' + fi.y + 'px;width:' + NW + 'px;height:' + NH + 'px;box-sizing:border-box;border:1px solid var(--color-border-subtle);border-radius:6px;background:var(--color-surface);overflow:hidden;box-shadow:var(--shadow-xs);cursor:pointer;transition:box-shadow 0.15s ease,border-color 0.15s ease;" onmouseover="this.style.boxShadow=\'var(--shadow-md)\';this.style.borderColor=\'var(--gold-400)\';" onmouseout="this.style.boxShadow=\'var(--shadow-xs)\';this.style.borderColor=\'var(--color-border-subtle)\';" onclick="var d=_$(\'goff-' + i + '\');if(d)d.style.display=d.style.display===\'block\'?\'none\':\'block\';">';
+      nodesDivs += _leftBar;
+      // 上排：官职名 + 品级 + 操作按钮
+      nodesDivs += '<div style="display:flex;align-items:center;gap:4px;padding:5px 6px 2px 9px;">';
+      nodesDivs += '<div style="flex:1;min-width:0;">';
+      nodesDivs += '<div style="font-size:12px;font-weight:700;color:var(--color-foreground);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escHtml(nd.name||'?');
+      if (nd.rank) nodesDivs += '<span style="font-size:10px;font-weight:400;color:' + _rankClr + ';margin-left:4px;">' + escHtml(nd.rank) + '</span>';
+      nodesDivs += _badges + '</div></div>';
+      nodesDivs += _mainBtn;
       nodesDivs += '</div>';
-      nodesDivs += '</div></div>';
+      // 下排：在任者 + 能力/编制
+      nodesDivs += '<div style="padding:0 6px 4px 9px;">';
+      nodesDivs += '<div style="font-size:11px;color:' + _holderClr + ';overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.35;">';
+      if (nd.holder) {
+        nodesDivs += '<span style="cursor:pointer;text-decoration:underline dotted var(--ink-300);" onclick="event.stopPropagation();_offShowCareer(\'' + escHtml(nd.holder).replace(/'/g,"\\'") + '\')">' + escHtml(_holderName) + '</span>';
+      } else {
+        nodesDivs += '<span style="font-style:italic;">' + escHtml(_holderName) + '</span>';
+      }
+      if (_hc > 1) nodesDivs += '<span style="font-size:9px;color:var(--ink-300);margin-left:6px;">\u7F16' + _hc + '\u00B7\u5B9E' + _ac + '</span>';
+      nodesDivs += '</div>';
+      nodesDivs += '<div style="line-height:1.2;margin-top:1px;">' + _statLine + '</div>';
+      nodesDivs += '</div>';
+      nodesDivs += '</div>';
       // 展开详情浮层
       nodesDivs += '<div id="goff-' + i + '" style="display:none;position:absolute;left:' + fi.x + 'px;top:' + (fi.y + NH + 10) + 'px;width:' + (NW+40) + 'px;z-index:20;background:var(--color-elevated);border:1px solid var(--gold-500);border-radius:var(--radius-md);padding:var(--space-2);box-shadow:var(--shadow-lg);font-size:0.7rem;color:var(--color-foreground-secondary);">';
       if (_holder) {
@@ -5046,6 +5068,251 @@ function _offSelectCandidate(charName, deptName, posName) {
   });
   toast('已录入诏书建议库——请在诏令中正式下旨');
   if (typeof _renderEdictSuggestions === 'function') _renderEdictSuggestions();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   统一任命/改换选任器（v2）
+   · 列出全部本势力活人物
+   · 按匹配度+派系+忠诚综合排序
+   · 搜索 + 过滤(全部/文官/武官/忠诚/无官职/本派系/同籍贯)
+   · 选中 → 录入诏书建议库（替换时写"免旧+任新"两条）
+   ══════════════════════════════════════════════════════════════════ */
+var _OFF_PICKER = null;
+
+function _offOpenPicker(pathArr, deptName, posName, currentHolder) {
+  var pos = getOffNode(pathArr) || { name: posName, desc: '', duties: '', rank: '' };
+  var capital = GM._capital || '京城';
+  var dutyText = (pos.desc||'') + (pos.duties||'') + deptName + posName;
+  var isMilitary = /兵|军|卫|武|都督|将|都指挥|总兵|参将/.test(dutyText);
+  var isAdmin = /吏|铨|考|礼|户|度支|工|刑|御史/.test(dutyText);
+  var isClose = /学士|侍读|侍讲|翰林|中书|舍人/.test(dutyText);
+
+  // 玩家所在势力领袖
+  var playerFac = (GM.facs||[]).find(function(f){ return f.isPlayer; });
+  var playerFacName = playerFac ? playerFac.name : '';
+
+  // 候选池：本势力活人·非玩家·非已在此职
+  var cands = (GM.chars || []).filter(function(c) {
+    if (!c || c.alive === false || c.isPlayer) return false;
+    if (c.name === currentHolder) return false; // 现任不是候选
+    // 本势力判定：无 faction 字段视为中立可用；有 faction 须匹配玩家势力
+    if (c.faction && playerFacName && c.faction !== playerFacName) return false;
+    return true;
+  });
+
+  // 打分
+  cands.forEach(function(c) {
+    var score = 0;
+    if (isMilitary) score += (c.military||50) * 2 + (c.valor||50);
+    else if (isAdmin) score += (c.administration||50) * 2 + (c.intelligence||50);
+    else if (isClose) score += (c.intelligence||50) * 2 + (c.diplomacy||50);
+    else score += (c.intelligence||50) + (c.administration||50) + (c.diplomacy||50);
+    score += (c.loyalty||50) * 0.6;
+    if (c.officialTitle) score -= 15;            // 兼任扣分
+    if (c.location && c.location !== capital) score -= 10;  // 外地扣分（需赴任）
+    // 品级经验匹配
+    if (pos.rank && c._tenure) score += Math.min(30, Object.keys(c._tenure).length * 4);
+    c._pickerScore = score;
+    // 分类标签
+    c._pickerTags = [];
+    if (!c.officialTitle) c._pickerTags.push('vacant');
+    if ((c.administration||50) >= 65) c._pickerTags.push('civil');
+    if ((c.military||50) >= 65) c._pickerTags.push('military');
+    if ((c.loyalty||50) >= 75) c._pickerTags.push('loyal');
+    if (c.location && c.location !== capital) c._pickerTags.push('remote');
+  });
+  cands.sort(function(a,b){ return (b._pickerScore||0) - (a._pickerScore||0); });
+
+  _OFF_PICKER = { pathArr: pathArr, deptName: deptName, posName: posName, currentHolder: currentHolder, cands: cands, pos: pos, filter: 'all', kw: '' };
+
+  // 建 modal
+  var existing = document.getElementById('off-picker-modal');
+  if (existing) existing.remove();
+  var bg = document.createElement('div');
+  bg.id = 'off-picker-modal';
+  bg.style.cssText = 'position:fixed;inset:0;z-index:1200;background:rgba(0,0,0,0.72);display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px);';
+  bg.onclick = function(e) { if (e.target === bg) _offClosePicker(); };
+
+  var modeLbl = currentHolder ? '改换' : '任命';
+  var modeClr = currentHolder ? 'var(--amber-400)' : 'var(--gold-400)';
+
+  var html = ''
+    + '<div style="background:var(--color-surface);border:1px solid ' + modeClr + ';border-radius:var(--radius-lg);width:min(680px,94vw);max-height:86vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);overflow:hidden;">'
+    // 标题栏
+    +   '<div style="padding:0.9rem 1.2rem 0.7rem;border-bottom:1px solid var(--color-border-subtle);background:linear-gradient(180deg,rgba(184,154,83,0.04),transparent);">'
+    +     '<div style="display:flex;justify-content:space-between;align-items:baseline;">'
+    +       '<div>'
+    +         '<div style="font-size:0.72rem;color:var(--ink-300);letter-spacing:0.2em;">\u3014 \u9078 \u4EFB \u3015</div>'
+    +         '<div style="font-size:1.05rem;font-weight:700;color:' + modeClr + ';margin-top:3px;">' + modeLbl + escHtml(deptName) + '\u00B7' + escHtml(posName)
+    +           (pos.rank ? '<span style="font-size:0.7rem;font-weight:400;color:var(--ink-300);margin-left:6px;">' + escHtml(pos.rank) + '</span>' : '')
+    +         '</div>'
+    +       '</div>'
+    +       '<button class="bt bs bsm" onclick="_offClosePicker()" aria-label="\u5173\u95ED">\u2715</button>'
+    +     '</div>'
+    +     (currentHolder ? '<div style="font-size:0.74rem;color:var(--amber-400);margin-top:4px;">\u2192 \u73B0\u4EFB\uFF1A<strong>' + escHtml(currentHolder) + '</strong>\uFF08\u9009\u4EFB\u540E\u5C06\u81EA\u52A8\u51FB\u514D\u65E7\u4EFB\u00B7\u8D77\u7528\u65B0\u4EBA\uFF09</div>' : '')
+    +     (pos.desc ? '<div style="font-size:0.74rem;color:var(--ink-300);margin-top:4px;line-height:1.5;">' + escHtml(pos.desc) + '</div>' : '')
+    +   '</div>'
+    // 过滤栏
+    +   '<div style="padding:0.5rem 1rem;border-bottom:1px solid var(--color-border-subtle);display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">'
+    +     '<input id="off-picker-search" placeholder="\u641C\u59D3\u540D/\u5B98\u804C/\u7C4D\u8D2F\u2026" style="flex:1;min-width:160px;padding:5px 10px;font-size:0.8rem;background:var(--color-elevated);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-foreground);" oninput="_offPickerFilter()"/>'
+    +     _offPickerFilterChip('all', '\u5168\u90E8')
+    +     _offPickerFilterChip('civil', '\u6587\u5B98')
+    +     _offPickerFilterChip('military', '\u6B66\u5B98')
+    +     _offPickerFilterChip('loyal', '\u5FE0\u8BDA')
+    +     _offPickerFilterChip('vacant', '\u65E0\u5B98\u804C')
+    +   '</div>'
+    // 列表容器
+    +   '<div id="off-picker-list" style="flex:1;overflow-y:auto;padding:0.5rem 0.8rem;"></div>'
+    // 底部
+    +   '<div style="padding:0.5rem 1rem;border-top:1px solid var(--color-border-subtle);display:flex;justify-content:space-between;align-items:center;font-size:0.72rem;color:var(--ink-300);">'
+    +     '<span id="off-picker-count">\u5171 ' + cands.length + ' \u4EBA\u53EF\u9009</span>'
+    +     '<button class="bt" onclick="_offClosePicker()">\u53D6\u6D88</button>'
+    +   '</div>'
+    + '</div>';
+
+  bg.innerHTML = html;
+  document.body.appendChild(bg);
+  _offRenderPickerList();
+  var _ipt = document.getElementById('off-picker-search');
+  if (_ipt) setTimeout(function(){ _ipt.focus(); }, 50);
+}
+
+function _offPickerFilterChip(key, label) {
+  var st = _OFF_PICKER && _OFF_PICKER.filter === key;
+  var bg = st ? 'var(--gold-400)' : 'var(--color-elevated)';
+  var clr = st ? 'var(--color-bg)' : 'var(--color-foreground-muted)';
+  var bd = st ? 'var(--gold-400)' : 'var(--color-border)';
+  return '<button onclick="_offPickerSetFilter(\'' + key + '\')" style="font-size:0.72rem;padding:3px 10px;background:' + bg + ';border:1px solid ' + bd + ';border-radius:999px;color:' + clr + ';cursor:pointer;">' + label + '</button>';
+}
+
+function _offPickerSetFilter(key) {
+  if (!_OFF_PICKER) return;
+  _OFF_PICKER.filter = key;
+  // 重渲过滤栏
+  var modal = document.getElementById('off-picker-modal');
+  if (modal) {
+    var chips = modal.querySelectorAll('button[onclick^="_offPickerSetFilter"]');
+    chips.forEach(function(c){
+      var k = (c.getAttribute('onclick')||'').match(/'([^']+)'/);
+      if (k && k[1]) {
+        var isSel = k[1] === key;
+        c.style.background = isSel ? 'var(--gold-400)' : 'var(--color-elevated)';
+        c.style.color = isSel ? 'var(--color-bg)' : 'var(--color-foreground-muted)';
+        c.style.borderColor = isSel ? 'var(--gold-400)' : 'var(--color-border)';
+      }
+    });
+  }
+  _offRenderPickerList();
+}
+
+function _offPickerFilter() {
+  if (!_OFF_PICKER) return;
+  var inp = document.getElementById('off-picker-search');
+  _OFF_PICKER.kw = inp ? (inp.value || '').trim().toLowerCase() : '';
+  _offRenderPickerList();
+}
+
+function _offRenderPickerList() {
+  var root = document.getElementById('off-picker-list');
+  if (!root || !_OFF_PICKER) return;
+  var kw = _OFF_PICKER.kw || '';
+  var filter = _OFF_PICKER.filter || 'all';
+  var list = _OFF_PICKER.cands.filter(function(c) {
+    if (kw) {
+      var hay = (c.name + (c.officialTitle||'') + (c.title||'') + (c.hometown||'') + (c.faction||'')).toLowerCase();
+      if (hay.indexOf(kw) < 0) return false;
+    }
+    if (filter === 'all') return true;
+    if (filter === 'vacant') return !c.officialTitle;
+    return (c._pickerTags || []).indexOf(filter) >= 0;
+  });
+
+  var cnt = document.getElementById('off-picker-count');
+  if (cnt) cnt.textContent = '\u7B5B\u9009\u51FA ' + list.length + ' / ' + _OFF_PICKER.cands.length + ' \u4EBA';
+
+  if (list.length === 0) {
+    root.innerHTML = '<div style="text-align:center;color:var(--ink-300);padding:3rem 1rem;font-size:0.82rem;">\u65E0\u5339\u914D\u4EBA\u9009\u00B7\u8BF7\u8C03\u6574\u8FC7\u6EE4\u6216\u6DFB\u8350\u65B0\u4EBA</div>';
+    return;
+  }
+
+  var h = '';
+  var top = list.slice(0, 50); // 最多50条·防止性能问题
+  top.forEach(function(c) {
+    h += _offPickerRowHtml(c);
+  });
+  if (list.length > 50) {
+    h += '<div style="text-align:center;color:var(--ink-300);padding:0.5rem;font-size:0.72rem;">\u2026\u8FD8\u6709 ' + (list.length - 50) + ' \u4EBA\u00B7\u8BF7\u7F29\u5C0F\u641C\u7D22\u8303\u56F4</div>';
+  }
+  root.innerHTML = h;
+}
+
+function _offPickerRowHtml(c) {
+  var f1 = (typeof _fmtNum1 === 'function') ? _fmtNum1 : function(v){ return v; };
+  var loyClr = (c.loyalty||50) >= 70 ? 'var(--celadon-400)' : (c.loyalty||50) < 40 ? 'var(--vermillion-400)' : 'var(--gold-400)';
+  var scoreClr = c._pickerScore >= 150 ? 'var(--celadon-400)' : c._pickerScore >= 100 ? 'var(--gold-400)' : 'var(--ink-300)';
+  var nameSafe = escHtml(c.name).replace(/'/g,"\\'");
+  var deptSafe = escHtml(_OFF_PICKER.deptName||'').replace(/'/g,"\\'");
+  var posSafe = escHtml(_OFF_PICKER.posName||'').replace(/'/g,"\\'");
+  var oldSafe = escHtml(_OFF_PICKER.currentHolder||'').replace(/'/g,"\\'");
+  var tags = [];
+  if (c.officialTitle) tags.push('<span style="font-size:0.68rem;padding:1px 6px;border-radius:3px;background:rgba(184,154,83,0.12);color:var(--gold-400);">\u73B0\u4EFB ' + escHtml(c.officialTitle) + '</span>');
+  else tags.push('<span style="font-size:0.68rem;padding:1px 6px;border-radius:3px;background:rgba(121,175,135,0.12);color:var(--celadon-400);">\u5E03\u8863</span>');
+  if (c.location && c.location !== (GM._capital||'京城')) tags.push('<span style="font-size:0.68rem;padding:1px 6px;border-radius:3px;background:rgba(192,64,48,0.1);color:var(--vermillion-400);">\u5728 ' + escHtml(c.location) + '</span>');
+  if (c.party && c.party !== '\u65E0\u515A') tags.push('<span style="font-size:0.68rem;padding:1px 6px;border-radius:3px;background:rgba(107,93,79,0.2);color:var(--ink-300);">' + escHtml(c.party) + '</span>');
+  if (c.hometown) tags.push('<span style="font-size:0.68rem;color:var(--ink-300);">\u7C4D\uFF1A' + escHtml(c.hometown) + '</span>');
+
+  return ''
+    + '<div style="padding:10px 12px;margin-bottom:6px;background:var(--color-elevated);border:1px solid var(--color-border-subtle);border-radius:6px;cursor:pointer;transition:all 0.12s ease;" '
+    +   'onmouseover="this.style.borderColor=\'var(--gold-400)\';this.style.transform=\'translateX(2px)\';" '
+    +   'onmouseout="this.style.borderColor=\'var(--color-border-subtle)\';this.style.transform=\'translateX(0)\';" '
+    +   'onclick="_offPickerConfirm(\'' + nameSafe + '\',\'' + deptSafe + '\',\'' + posSafe + '\',\'' + oldSafe + '\')">'
+    +   '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.8rem;">'
+    +     '<div style="flex:1;min-width:0;">'
+    +       '<div style="display:flex;align-items:baseline;gap:0.4rem;margin-bottom:4px;">'
+    +         '<span style="font-size:1rem;font-weight:700;color:var(--color-foreground);">' + escHtml(c.name) + '</span>'
+    +         (c.title ? '<span style="font-size:0.74rem;color:var(--ink-300);">' + escHtml(c.title) + '</span>' : '')
+    +         (c.age ? '<span style="font-size:0.7rem;color:var(--ink-300);">\u00B7' + c.age + '\u5C81</span>' : '')
+    +       '</div>'
+    +       '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:5px;">' + tags.join('') + '</div>'
+    +       '<div style="font-size:0.75rem;color:var(--color-foreground-muted);">'
+    +         '\u667A<span style="color:var(--celadon-400);font-weight:600;">' + f1(c.intelligence||50) + '</span> '
+    +         '\u653F<span style="color:var(--celadon-400);font-weight:600;">' + f1(c.administration||50) + '</span> '
+    +         '\u519B<span style="color:var(--amber-400);font-weight:600;">' + f1(c.military||50) + '</span> '
+    +         '\u5FE0<span style="color:' + loyClr + ';font-weight:600;">' + f1(c.loyalty||50) + '</span>'
+    +         (c.ambition ? ' <span style="color:var(--ink-300);">\u91CE' + f1(c.ambition) + '</span>' : '')
+    +       '</div>'
+    +     '</div>'
+    +     '<div style="flex-shrink:0;text-align:center;min-width:58px;">'
+    +       '<div style="font-size:1.3rem;font-weight:700;color:' + scoreClr + ';line-height:1;">' + Math.round(c._pickerScore||0) + '</div>'
+    +       '<div style="font-size:0.65rem;color:var(--ink-300);letter-spacing:0.1em;">\u5339\u914D</div>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>';
+}
+
+function _offPickerConfirm(charName, deptName, posName, oldHolder) {
+  if (!GM._edictSuggestions) GM._edictSuggestions = [];
+  if (oldHolder) {
+    GM._edictSuggestions.push({
+      source: '\u5B98\u5236', from: '\u94E8\u66F9',
+      content: '\u514D ' + oldHolder + ' ' + deptName + posName + '\u4E4B\u804C',
+      turn: GM.turn, used: false
+    });
+  }
+  GM._edictSuggestions.push({
+    source: '\u5B98\u5236', from: '\u94E8\u66F9',
+    content: (oldHolder ? '\u6539\u6362\uFF1A' : '\u4EFB\u547D\uFF1A') + charName + ' \u4E3A ' + deptName + posName,
+    turn: GM.turn, used: false
+  });
+  toast((oldHolder ? '\u5DF2\u5F55\u5165\u8BCF\u4E66\u5EFA\u8BAE\u5E93\uFF08\u514D\u65E7\u4EFB+\u4EFB\u65B0\u4EBA\uFF09' : '\u5DF2\u5F55\u5165\u8BCF\u4E66\u5EFA\u8BAE\u5E93'));
+  _offClosePicker();
+  if (typeof _renderEdictSuggestions === 'function') _renderEdictSuggestions();
+}
+
+function _offClosePicker() {
+  _OFF_PICKER = null;
+  var m = document.getElementById('off-picker-modal');
+  if (m) m.remove();
 }
 
 /** 廷推——高品级职位由多位大臣联名推荐 */

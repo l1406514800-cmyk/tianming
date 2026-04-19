@@ -2450,10 +2450,10 @@ function _officeGetParentArr(path) {
   if (!parent.subs) parent.subs = [];
   return parent.subs;
 }
-function _officeBuildTree(collapsed) {
+function _officeBuildTree(collapsed, opts) {
   if (!P.officeTree) P.officeTree = [];
-  var W = 150, H = 44;
-  var H_GAP = 30, V_GAP = 90;
+  var W = (opts && opts.W) || 150, H = (opts && opts.H) || 44;
+  var H_GAP = (opts && opts.H_GAP) || 30, V_GAP = (opts && opts.V_GAP) || 90;
 
   // Build a virtual Emperor root that wraps all top-level depts
   var rootData = {name: '皇帝', desc: '', positions: [], subs: P.officeTree};
