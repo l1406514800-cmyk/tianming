@@ -5593,6 +5593,13 @@ function enterGame(){
     if (typeof CascadeTax !== 'undefined' && typeof CascadeTax.collect === 'function') {
       try { CascadeTax.collect(); } catch(_ctInitE) { console.warn('[enterGame] CascadeTax.collect init', _ctInitE); }
     }
+    // 固定支出：俸禄+军饷+宫廷（endTurn 本来每回合跑·此处补首回合）
+    if (typeof FixedExpense !== 'undefined' && typeof FixedExpense.collect === 'function') {
+      try {
+        var _feR = FixedExpense.collect();
+        if (GM.turn === 1) console.log('[enterGame-T1] FixedExpense 首回合结算:', _feR && _feR.turnExpense);
+      } catch(_feInitE) { console.warn('[enterGame] FixedExpense.collect init', _feInitE); }
+    }
     if (typeof IntegrationBridge !== 'undefined' && typeof IntegrationBridge.aggregateRegionsToVariables === 'function') {
       try { IntegrationBridge.aggregateRegionsToVariables(); } catch(_agInitE) { console.warn('[enterGame] bridge aggregate init', _agInitE); }
     }
@@ -5938,7 +5945,16 @@ if (sc.culturalConfig && sc.culturalConfig.enabled && Array.isArray(sc.culturalC
   }
 
   // 加载剧本的其他配置到 P 对象
-  if(sc.military) P.military = deepClone(sc.military);
+  if(sc.military) {
+    P.military = deepClone(sc.military);
+    // 给 initialTroops sid-tag（编辑器新 schema·剧本注册时未打 sid）
+    if (Array.isArray(P.military.initialTroops)) {
+      P.military.initialTroops.forEach(function(t) {
+        if (!t.sid) t.sid = sid;
+        if (!t.id)  t.id  = 'troop_' + Math.random().toString(36).slice(2, 8);
+      });
+    }
+  }
   if(sc.rules) P.rules = deepClone(sc.rules);
   if(sc.timeline) P.timeline = deepClone(sc.timeline);
   if(sc.map) P.map = deepClone(sc.map);
@@ -6096,7 +6112,22 @@ if (sc.culturalConfig && sc.culturalConfig.enabled && Array.isArray(sc.culturalC
     return faction;
   });
   GM.items=(P.items||[]).filter(function(t){return t.sid===sid;}).map(function(t){var c=deepClone(t);c.acquired=false;return c;});
-  GM.armies=(P.military&&P.military.armies||[]).filter(function(a){return a.sid===sid;}).map(function(a){return deepClone(a);});
+  // GM.armies：优先用 initialTroops（编辑器新 schema，完整字段），fallback 到旧 armies 字段
+  // 并统一字段：soldiers/size 互相补齐，garrison/location 互相补齐
+  var _initTroops = (P.military && P.military.initialTroops || []).filter(function(a){return a.sid===sid;});
+  var _legacyArmies = (P.military && P.military.armies || []).filter(function(a){return a.sid===sid;});
+  var _troopSrc = _initTroops.length > 0 ? _initTroops : _legacyArmies;
+  GM.armies = _troopSrc.map(function(a) {
+    var c = deepClone(a);
+    // 字段对齐——FixedExpense 读 soldiers；渲染读 size；location/garrison 等同
+    if (c.soldiers == null && c.size != null) c.soldiers = c.size;
+    if (c.size == null && c.soldiers != null) c.size = c.soldiers;
+    if (c.strength == null && c.soldiers != null) c.strength = c.soldiers;
+    if (c.location == null && c.garrison != null) c.location = c.garrison;
+    if (c.garrison == null && c.location != null) c.garrison = c.location;
+    return c;
+  });
+  if (GM.turn === 1) console.log('[startGame] GM.armies 载入 ' + GM.armies.length + ' 支部队·总兵力=' + GM.armies.reduce(function(s,a){return s+(a.soldiers||0);},0));
 
   // 应用编辑器预设的封臣关系
   if (P.vassalSystem && P.vassalSystem.vassalRelations && P.vassalSystem.vassalRelations.length > 0) {

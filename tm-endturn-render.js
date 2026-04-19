@@ -970,6 +970,35 @@ function _renderUnifiedChanges(oldVars) {
       !/\u56FD\u5E93|\u5185\u5E91|\u8D22\u4EA7/.test(name);
   }
 
+  // —— 岁入岁出总览（每回合固定显示，优先级最高） ——
+  (function _collectFiscalSummary() {
+    try {
+      var g = GM.guoku;
+      if (!g) return;
+      var turnIn = g.turnIncome || 0;
+      var turnInG = g.turnGrainIncome || 0;
+      var turnOut = g.turnExpense || 0;
+      var turnOutG = g.turnGrainExpense || 0;
+      var net = turnIn - turnOut;
+      var unit = (typeof CurrencyUnit !== 'undefined' && CurrencyUnit.getUnit) ? CurrencyUnit.getUnit() : { money: '两', grain: '石' };
+      var _fmt = function(v) { v = Math.round(v); if (Math.abs(v) >= 1e4) return (v/1e4).toFixed(1) + '万'; return String(v); };
+      if (turnIn > 0 || turnOut > 0) {
+        groups['\u8D22\u653F'].push('本回合岁入 ' + _fmt(turnIn) + unit.money + (turnInG > 0 ? ' ' + _fmt(turnInG) + unit.grain : '') + '（税收级联上解中央）');
+        var feBreakdown = GM._lastFixedExpense;
+        if (feBreakdown) {
+          var sal = feBreakdown.salary && feBreakdown.salary.money || 0;
+          var arm = feBreakdown.army && feBreakdown.army.money || 0;
+          var imp = feBreakdown.imperial && feBreakdown.imperial.money || 0;
+          groups['\u8D22\u653F'].push('本回合岁出 ' + _fmt(turnOut) + unit.money + ' ：俸禄 ' + _fmt(sal) + ' · 军饷 ' + _fmt(arm) + ' · 宫廷 ' + _fmt(imp));
+        } else {
+          groups['\u8D22\u653F'].push('本回合岁出 ' + _fmt(turnOut) + unit.money + '（俸禄+军饷+宫廷）');
+        }
+        var netLbl = net >= 0 ? '结余' : '亏空';
+        groups['\u8D22\u653F'].push(netLbl + ' ' + _fmt(Math.abs(net)) + unit.money + '（' + (net >= 0 ? '+' : '−') + '入库）');
+      }
+    } catch(_fsE) {}
+  })();
+
   // —— 财政（核心指标+财务明细）——
   var _fiscalKeys = /\u56FD\u5E93|\u5185\u5E91|\u8D22\u4EA7|\u8C0B\u8FC6|\u6536\u5165|\u652F\u51FA|\u7A0E\u6536\u7387/;
   if (GM.turnChanges && GM.turnChanges.variables) {
