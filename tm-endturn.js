@@ -11770,28 +11770,88 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         tp07 += _cogCtx + '\n\u3010\u76EE\u6807 NPC\uFF08\u4EC5\u4E0B\u5217\u4EBA\u3001\u5E0C\u671B\u5168\u76D6\uFF09\u3011\n' + _cogNpcList + '\n';
         if (_cogPlayerName) tp07 += '\n\u73A9\u5BB6\u89D2\u8272\uFF1A' + _cogPlayerName + '\uFF08\u4E0D\u5728\u6B64\u63A8\u6F14\u8303\u56F4\u5185\uFF09\n';
 
+        // 注入各 NPC 深化字段（供 AI 为稳定画像参考）+ 已有稳定画像（避免重复生成）
+        var _npcFullCtx = '';
+        try {
+          _cogTargets.forEach(function(c){
+            var _lines = [c.name + ':'];
+            if (c.family) _lines.push('  \u5BB6\u65CF\uFF1A' + c.family);
+            if (c.aspiration || c.goal || c.lifeGoal) _lines.push('  \u5FD7\u5411\uFF1A' + (c.aspiration||c.goal||c.lifeGoal));
+            if (c.personality) _lines.push('  \u6027\u683C\uFF1A' + String(c.personality).slice(0,60));
+            if (c.birthplace) _lines.push('  \u7C4D\u8D2F\uFF1A' + c.birthplace);
+            if (c.ethnicity) _lines.push('  \u6C11\u65CF\uFF1A' + c.ethnicity);
+            if (c.faith) _lines.push('  \u4FE1\u4EF0\uFF1A' + c.faith);
+            if (c.learning) _lines.push('  \u5B66\u8BC6\uFF1A' + c.learning);
+            if (c.speechStyle) _lines.push('  \u53E3\u540B\uFF1A' + c.speechStyle);
+            // 五常十维
+            var _fv = [];
+            if (c.ren != null) _fv.push('\u4EC1' + c.ren);
+            if (c.yi != null) _fv.push('\u4E49' + c.yi);
+            if (c.li != null) _fv.push('\u793C' + c.li);
+            if (c.zhi != null) _fv.push('\u667A' + c.zhi);
+            if (c.xin != null) _fv.push('\u4FE1' + c.xin);
+            if (_fv.length) _lines.push('  \u4E94\u5E38\uFF1A' + _fv.join('/'));
+            // 能力
+            var _ab = [];
+            if (c.intelligence != null) _ab.push('\u667A' + c.intelligence);
+            if (c.valor != null) _ab.push('\u52C7' + c.valor);
+            if (c.military != null) _ab.push('\u519B' + c.military);
+            if (c.administration != null) _ab.push('\u653F' + c.administration);
+            if (c.charisma != null) _ab.push('\u9B45' + c.charisma);
+            if (c.diplomacy != null) _ab.push('\u4EA4' + c.diplomacy);
+            if (c.benevolence != null) _ab.push('\u4EC1' + c.benevolence);
+            if (_ab.length) _lines.push('  \u80FD\u529B\uFF1A' + _ab.join('/'));
+            if (Array.isArray(c.traits) && c.traits.length) _lines.push('  \u7279\u8D28\uFF1A' + c.traits.slice(0,4).join('/'));
+            if (c.isHistorical || c.isHistoric) _lines.push('  \u26A0 \u53F2\u5B9E\u4EBA\u7269\u2014\u2014\u6240\u6709\u5185\u5BB9\u5FC5\u987B\u7B26\u5408\u6B63\u53F2\u8BB0\u8F7D\u3002');
+            // 已有稳定画像
+            if (GM._npcCognition && GM._npcCognition[c.name] && GM._npcCognition[c.name]._identityInitialized) {
+              var _ex = GM._npcCognition[c.name];
+              _lines.push('  \u26BF \u5DF2\u751F\u6210\u7A33\u5B9A\u753B\u50CF\uFF08\u4FDD\u7559\u4E0D\u53D8\uFF09\uFF1A');
+              if (_ex.selfIdentity) _lines.push('    \u81EA\u8BC6\uFF1A' + _ex.selfIdentity);
+              if (_ex.personalityCore) _lines.push('    \u4EBA\u683C\u6838\u5FC3\uFF1A' + _ex.personalityCore);
+              if (_ex.speechThread) _lines.push('    \u53E3\u543B\u4E3B\u7EBF\uFF1A' + _ex.speechThread);
+            }
+            _npcFullCtx += _lines.join('\n') + '\n';
+          });
+        } catch(_e){}
+        if (_npcFullCtx) tp07 += '\n\u3010NPC \u6DF1\u5316\u5C5E\u6027\uFF08\u751F\u6210\u7A33\u5B9A\u753B\u50CF\u7684\u4F9D\u636E\uFF09\u3011\n' + _npcFullCtx;
+
         tp07 += '\n\u3010\u8FD4\u56DE JSON\u3011{\n';
         tp07 += '  "npc_cognition":[{\n';
         tp07 += '    "name":"\u89D2\u8272\u540D",\n';
-        tp07 += '    "knows":["3-5 \u6761\u4ED6/\u5979\u672C\u56DE\u5408\u901A\u8FC7\u90B8\u62A5/\u8033\u76EE/\u540C\u50DA\u8DDF\u4EAB/\u8033\u62A5/\u79C1\u4FE1\u4E86\u89E3\u5230\u7684\u5177\u4F53\u4FE1\u606F\uFF0C\u6BCF\u6761 20-40 \u5B57"],\n';
-        tp07 += '    "doesntKnow":["1-3 \u6761\u88AB\u8499\u5728\u9F13\u91CC\u7684\u4E8B\u60C5\uFF08\u9AD8\u4F4D\u5916\u5B98\u4E0D\u77E5\u4EAC\u4E2D\u5C0F\u4E8B/\u6E05\u6D41\u4E0D\u77E5\u6697\u5BAB\u8BD5\u9A70/\u5B66\u8005\u4E0D\u77E5\u519B\u60C5/\u6B66\u5C06\u4E0D\u77E5\u6587\u8361\u91C7\uFF09"],\n';
-        tp07 += '    "currentFocus":"\u4ED6\u6B64\u65F6\u5FC3\u601D\u6240\u7CFB\u7684\u4E3B\u8981\u4E8B\u52A1\uFF081\u53E5 20-30 \u5B57\uFF09",\n';
-        tp07 += '    "worldviewShift":"\u672C\u56DE\u5408\u4ED6\u5BF9\u5C40\u52BF/\u540C\u50DA/\u672A\u6765\u7684\u7701\u610F\u53D8\u5316\uFF081\u53E5 20-30 \u5B57\uFF09",\n';
-        tp07 += '    "attitudeTowardsPlayer":"\u5BF9\u73A9\u5BB6\u6700\u65B0\u6001\u5EA6\uFF081\u53E5\uFF0C\u4FE1\u670D/\u7586\u6012/\u7EA0\u7ED3/\u7593\u6167/\u654C\u5BF9/\u6177\u614C/\u5FC5\u62F5\u7B49\uFF09",\n';
-        tp07 += '    "unspokenConcern":"\u85CF\u5728\u5FC3\u5E95\u6CA1\u8BF4\u7684\u62C5\u5FE7\u62D6\u75E8\uFF081\u53E5\uFF09",\n';
-        tp07 += '    "infoAsymmetry":"\u4ED6\u4E0E\u540C\u50DA\u4FE1\u606F\u4E0D\u5BF9\u79F0\u4E4B\u5904\uFF081\u53E5\uFF0C\u5982\u4ED6\u77E5\u9053\u67D0\u4E8B\u4F46\u540C\u50DA\u4E0D\u77E5/\u540C\u50DA\u77E5\u9053\u4F46\u4ED6\u4E0D\u77E5\uFF09"\n';
+        tp07 += '    /* \u2500\u2500 \u7A33\u5B9A\u81EA\u6211\u753B\u50CF\uFF08\u9996\u6B21\u751F\u6210\u540E\u6C38\u4E0D\u6539\u53D8\u00B7\u6570\u91CF\u5E0C\u671B\u5168\u8986\u76D6\uFF09\u2500\u2500 */\n';
+        tp07 += '    "selfIdentity":"\u4ED6\u6709\u4ED6\u5BF9\u81EA\u5DF1\u8EAB\u4EFD/\u5BB6\u65CF/\u5FD7\u5411\u7684\u4E00\u53E5\u8BDD\u81EA\u6211\u8BA4\u77E5\uFF0825-50\u5B57\uFF0C\u5982\u201C\u8428\u6EE1\u6B63\u9EC4\u65D7\u7684\u9A97\u9A91\u4F5B\u957F\u5B50\u00B7\u4E3A\u67D0\u67D0\u6218\u5DF1\u7B79\u7684\u661F\u5C90\u9A86\u00B7\u6B64\u751F\u4F7F\u547D\u662F\u51FA\u5973\u534F\u671D\u5EF7\u201D\u6216\u201C\u51FA\u8EAB\u5BD2\u95E8\u7684\u4EEE\u58EB\u00B7\u6731\u5B50\u6B63\u5B66\u4E4B\u540E\u5B66\u00B7\u6240\u8FFD\u6C42\u2018\u6210\u4EC1\u53D6\u4E49\u800C\u6B7B\u2019\u2019\uFF09",\n';
+        tp07 += '    "personalityCore":"\u6838\u5FC3\u6027\u683C\uFF081\u53E5 20-40\u5B57\uFF0C\u5982\u201C\u7CBE\u660E\u80FD\u5E72\u4F46\u6027\u5B50\u7579\u5F29\u00B7\u65E2\u6052\u5F97\u91CD\u4EE3\u65A5\u8D23\u4E5F\u5F88\u5C0F\u82B9\u91CD\u201D\uFF09",\n';
+        tp07 += '    "abilityAwareness":"\u4ED6\u5BF9\u81EA\u5DF1\u80FD\u529B\u957F\u77ED\u7684\u8BA4\u77E5\uFF08\u5982\u201C\u81EA\u8D1F\u7B79\u7565\u4F46\u77E5\u8287\u5565\u5CD1\uFF0C\u4E0D\u5584\u7528\u5175\u201D\u3001\u201C\u81EA\u8BA4\u6587\u7457\u4E0D\u5982\u67D0\u67D0\u4F46\u6211\u547D\u8FD0\u6B8B\u5FCD\u201D\uFF09",\n';
+        tp07 += '    "fiveVirtues":"\u4E94\u5E38\u4F53\u73B0/\u7F3A\u5931\uFF08\u5982\u201C\u4EC1\u6C10\u4E49\u91CD\u4F46\u4FE1\u7F3A\uFF0C\u66FE\u5C0F\u7F6A\u4E0D\u517B\u3001\u4F60\u6478\u7F32\u4FA7\u5224\u65F6\u6613\u8981\u5220\u6885\u201D\uFF09",\n';
+        tp07 += '    "historicalVoice":"\uFF08\u4EC5\u53F2\u5B9E\u4EBA\u7269\uFF0C\u975E\u5219\u7559\u7A7A\u4E32\uFF09\u5176\u53F2\u6599\u4E2D\u7684\u6807\u5FD7\u6027\u8BED\u8A00/\u8BCD\u6C47/\u5178\u6545/\u7F69\u95E8\u7981\u5FCC\u00B7\u53F8\u7B0A\u6211\u4E3E\u7ACB\u573A\uFF0820-50 \u5B57\uFF09",\n';
+        tp07 += '    "speechThread":"\u4ED6\u5728\u6240\u6709\u573A\u5408\u90FD\u4E00\u8D2F\u7684\u8BF4\u8BDD\u53E3\u543B\u00B7\u98CE\u683C\u00B7\u5E38\u5F15\u7684\u5178\u6545\u00B7\u53E3\u5934\u7985\u00B7\u8B6C\u6D88\u53E3\u4E60\uFF0850 \u5B57\uFF0C\u4F53\u73B0\u6BCF\u6B21\u53D1\u8A00\u90FD\u50CF\u4ED6\u3001\u4E0D\u662F\u5176\u4ED6\u4EBA\uFF09",\n';
+        tp07 += '    "partyClassFeeling":"\u4ED6\u5BF9\u81EA\u8EAB\u6240\u5C5E\u515A\u6D3E/\u52BF\u529B/\u9636\u5C42/\u5BB6\u65CF/\u540C\u4E61\u7684\u6DF1\u90E8\u611F\u53D7\u2014\u2014\u7684\u5F52\u5C5E\u611F/\u5F92\u6539\u611F/\u80CC\u53DB\u611F/\u65E0\u5947/\u5DE5\u5177\u4E3B\u4E49/\u53CD\u6F74\u8005\u7B49\uFF08\u4E00\u53E5 40-70\u5B57\uFF0C\u5982\u201C\u4E1C\u6797\u8A00\u6982\u4EE5\u4E3A\u7136\u00B7\u671D\u4EE3\u5FE0\u5FE0\u6D01\u4E4B\u58EB\u00B7\u5176\u5F0F\u6162\u8ECD\u8F7B\u5FB7\u4E00\u7B79\u6C31\u76F8\u4E2D\u7F72\u8054\u201D \u6216 \u201C\u5916\u628A\u5FB7\u635A\u5916\u6295\u6218\u7269\u00B7\u5E38\u4EA8\u8881\u5E45\u5546\u53F8\u5C06\u53E4\u529F\u540D\u4E3A\u4F26\u5C4F\u5916\u5988\u201D\uFF09",\n';
+        tp07 += '    /* \u2500\u2500 \u672C\u56DE\u5408\u52A8\u6001\u4FE1\u606F\u00B7\u6BCF\u56DE\u5408\u5237\u65B0 \u2500\u2500 */\n';
+        tp07 += '    "knows":["3-5 \u6761\u4ED6\u672C\u56DE\u5408\u901A\u8FC7\u90B8\u62A5/\u8033\u76EE/\u540C\u50DA\u8DDF\u4EAB/\u8033\u62A5/\u79C1\u4FE1\u4E86\u89E3\u5230\u7684\u5177\u4F53\u4FE1\u606F\uFF0C\u6BCF\u6761 20-40 \u5B57"],\n';
+        tp07 += '    "doesntKnow":["1-3 \u6761\u88AB\u8499\u5728\u9F13\u91CC\u7684\u4E8B\u60C5"],\n';
+        tp07 += '    "currentFocus":"\u4ED6\u6B64\u65F6\u5FC3\u601D\u6240\u7CFB\u7684\u4E3B\u8981\u4E8B\u52A1\uFF081\u53E5\uFF09",\n';
+        tp07 += '    "worldviewShift":"\u672C\u56DE\u5408\u7701\u610F\u53D8\u5316\uFF081\u53E5\uFF09",\n';
+        tp07 += '    "attitudeTowardsPlayer":"\u5BF9\u73A9\u5BB6\u6700\u65B0\u6001\u5EA6\uFF081\u53E5\uFF09",\n';
+        tp07 += '    "unspokenConcern":"\u85CF\u5728\u5FC3\u5E95\u6CA1\u8BF4\u7684\u62C5\u5FE7\uFF081\u53E5\uFF09",\n';
+        tp07 += '    "infoAsymmetry":"\u4ED6\u4E0E\u540C\u50DA\u4FE1\u606F\u4E0D\u5BF9\u79F0\u4E4B\u5904\uFF081\u53E5\uFF09",\n';
+        tp07 += '    "recentMood":"\u8FD1\u671F\u5FC3\u7EEA\u6CE2\u52A8\uFF081\u53E5\uFF0C\u5982\u201C\u6027\u6FC0\u6124\u60E0\u6B4C\u805A\u5973\u201D\u3001\u201D\u541C\u4EB2\u75C5\u9ED8\u4F9D\u7D95\u4FDD\u5377\u4F24\u5BEB\u201D\uFF09"\n';
         tp07 += '  }]\n}\n';
 
         tp07 += '\n\u3010\u786C\u89C4\u5219\u3011\n';
         tp07 += '\u00B7 \u4E3A\u4E0A\u8FF0\u6240\u6709\u76EE\u6807 NPC \u5168\u90E8\u8F93\u51FA\uFF0C\u4E00\u4E2A\u4E0D\u843D\u4E0B\n';
+        tp07 += '\u00B7 \u3010\u7A33\u5B9A\u753B\u50CF\u4E94\u5B57\u6BB5\u3011\uFF08selfIdentity/personalityCore/abilityAwareness/fiveVirtues/speechThread\uFF09\u00B7\u82E5\u4E0A\u65B9\u5DF2\u6807\u26BF \u5DF2\u751F\u6210\u00B7\u4E0D\u8981\u91CD\u65B0\u751F\u6210\uFF0C\u7ECD\u8FFD\u7B80\u5185\u5BB9\u3002\u672A\u751F\u6210\u7684\u2014\u2014\u8981\u4F9D\u636E\u4E0A\u65B9\u8BE6\u8FF0\u4EE5\u6DF1\u5316\u5B57\u6BB5\u8BA1\u5207\u4EBA\u8BA1\u751F\u6210\u3002\n';
+        tp07 += '\u00B7 \u3010\u52A8\u6001\u4FE1\u606F\u8FC7\u3011\uFF08knows/doesntKnow/currentFocus/worldviewShift/attitudeTowardsPlayer/unspokenConcern/infoAsymmetry/recentMood\uFF09\u00B7\u6BCF\u56DE\u5408\u91CD\u65B0\u5224\u5B9A\u3002\n';
         tp07 += '\u00B7 \u4FE1\u606F\u5185\u5BB9\u5FC5\u987B\u7B26\u5408\u8BE5 NPC \u7684\u804C\u4F4D/\u6D3E\u7CFB/\u5173\u7CFB\u7F51/\u5730\u70B9\u2014\u2014\u4F60\u51ED\u4EC0\u4E48\u77E5\u9053\u8FD9\u4EF6\uFF1F\n';
-        tp07 += '\u00B7 \u5178\u578B\u4EAC\u5B98\u77E5\u672C\u56DE\u5408\u7684\u671D\u8BAE/\u4EBA\u4E8B/\u594F\u758F\uFF0C\u5916\u5B98\u77E5\u672C\u5730\u4E8B\u52A1+\u90B8\u62A5\u6BB5\u843D\uFF1B\n';
+        tp07 += '\u00B7 \u5178\u578B\u4EAC\u5B98\u77E5\u672C\u56DE\u5408\u7684\u671D\u8BAE/\u4EBA\u4E8B/\u594F\u758F\uFF0C\u5916\u5B98\u77E5\u672C\u5730\u4E8B\u52A1+\u90B8\u62A5\u6BB5\u843D\uFF1B\u6EE1\u65CF\u4EAC\u5B98\u4E0E\u6C49\u65CF\u4EAC\u5B98\u77E5\u7684\u4E0D\u540C\u3002\n';
         tp07 += '\u00B7 \u4E0D\u8981\u8BA9\u6240\u6709 NPC \u90FD"\u77E5\u9053\u5168\u90E8"\u2014\u2014\u6709\u4EBA\u6D88\u606F\u7075\u901A\uFF0C\u6709\u4EBA\u6D88\u606F\u9ED8\u585E\n';
+        tp07 += '\u00B7 \u3010\u26A0 \u53F2\u5B9E NPC\u3011\u9009\u62E9\u4E94\u5B57\u6BB5\u65F6\u5FC5\u987B\u7B26\u5408\u6B63\u53F2\u8BB0\u8F7D\u2014\u2014\u5982\u4E2D\u6749\u4F5C\u4E94\u5E38\u6309\u300A\u660E\u53F2\u300B\u5217\u4F20\u7565\u4E66\uFF0C\u4F7F\u4E1C\u6797\u515A\u6309\u300A\u660E\u53F2\u7EAA\u4E8B\u672C\u672B\u300B\uFF0C\u4E0D\u51ED\u7A7A\u6DF7\u6DC6\u3002\n';
+        tp07 += '\u00B7 speechThread \u975E\u5E38\u5173\u952E\u2014\u2014\u5F62\u6BCF\u4EBA\u6BCF\u6B21\u53D1\u8A00\u90FD\u662F\u4ED6\u81EA\u5DF1\u7684\u58F0\u97F3\u3002\u5982\uFF1A\u660E\u4EE3\u76F4\u81E3\u5E38\u7528\u201C\u81E3\u5E79\u81E3\u2026\u2026\u201D\u5F00\u5934\u00B7\u8D3F\u8D3F\u82AE\u82AE\u96B6\u5F89\u00B7\u5F52\u6709\u5149\u00B7\u9A86\u4E0D\u9A86\u670D\uFF1B\u4E8B\u517B\u73A9\u97F3\u5E38\u5F15\u53E3\u5934\u7985\uFF1B\u4E1C\u6797\u5F31\u76F8\u516C\u5F00\u5B66\u6765\u5927\u3002\n';
         tp07 += '\u00B7 attitudeTowardsPlayer \u5FC5\u987B\u53CD\u6620\u672C\u56DE\u5408\u771F\u5B9E\u7684\u53D8\u5316\uFF08\u5982\u88AB\u8D2C\u2192\u51C4\u6167\uFF0C\u88AB\u52A0\u6069\u2192\u611F\u6FC0\uFF0C\u88AB\u8FC1\u2192\u6124\u6012\uFF09\n';
-        tp07 += '\u00B7 unspokenConcern \u8981\u771F\u7684\u85CF\u7740\u2014\u2014\u5982\u201C\u6016\u67D0\u67D0\u7690\u5BB3\u81EA\u5DF1\u4FDD\u5929\u5B50\u201D/\u201C\u5BB6\u4E2D\u7236\u8001\u75C5\u91CD\u5374\u65E0\u6CD5\u56DE\u9645\u201D/\u201C\u7EDF\u5144\u8BF7\u5B98\u6298\u8B66\u201D\n';
+        tp07 += '\u00B7 unspokenConcern \u8981\u771F\u7684\u85CF\u7740\u2014\u2014\u5982\u201C\u6016\u67D0\u67D0\u7690\u5BB3\u81EA\u5DF1\u4FDD\u5929\u5B50\u201D/\u201C\u5BB6\u4E2D\u7236\u8001\u75C5\u91CD\u5374\u65E0\u6CD5\u56DE\u9645\u201D\n';
         tp07 += '\u00B7 \u5C3D\u91CF\u6840\u5356\u201C\u6211\u77E5\u9053\u67D0\u4EBA\u5728\u7B79\u5212\u67D0\u4E8B\u300C\u4F46\u540C\u50DA\u4E0D\u77E5\u300D\u201D\u7684\u8F7D\u5FC3\u4E0D\u5BF9\u79F0\n';
 
-        var _sc07Body = {model:P.ai.model||'gpt-4o', messages:[{role:'system',content:sysP},{role:'user',content:tp07}], temperature:_modelTemp, max_tokens:_tok(8000)};
+        var _sc07Body = {model:P.ai.model||'gpt-4o', messages:[{role:'system',content:sysP},{role:'user',content:tp07}], temperature:_modelTemp, max_tokens:_tok(12000)};
         if (_modelFamily === 'openai') _sc07Body.response_format = { type:'json_object' };
 
         var resp07 = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+P.ai.key}, body:JSON.stringify(_sc07Body)});
@@ -11806,23 +11866,40 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
 
           if (p07 && Array.isArray(p07.npc_cognition)) {
             if (!GM._npcCognition) GM._npcCognition = {};
-            // 本回合覆盖旧数据（保留 _turn 供过期检测）
-            var _cogCount = 0;
+            var _cogCount = 0, _identInit = 0;
             p07.npc_cognition.forEach(function(ent){
               if (!ent || !ent.name) return;
-              GM._npcCognition[ent.name] = {
-                knows: Array.isArray(ent.knows) ? ent.knows.slice(0,6) : [],
-                doesntKnow: Array.isArray(ent.doesntKnow) ? ent.doesntKnow.slice(0,4) : [],
+              var _ex = GM._npcCognition[ent.name] || {};
+              var _rec = {
+                // ── 稳定画像：首次生成后不再覆盖（除非空） ──
+                selfIdentity: _ex.selfIdentity || String(ent.selfIdentity||'').slice(0,120),
+                personalityCore: _ex.personalityCore || String(ent.personalityCore||'').slice(0,80),
+                abilityAwareness: _ex.abilityAwareness || String(ent.abilityAwareness||'').slice(0,80),
+                fiveVirtues: _ex.fiveVirtues || String(ent.fiveVirtues||'').slice(0,100),
+                historicalVoice: _ex.historicalVoice || String(ent.historicalVoice||'').slice(0,100),
+                speechThread: _ex.speechThread || String(ent.speechThread||'').slice(0,120),
+                partyClassFeeling: _ex.partyClassFeeling || String(ent.partyClassFeeling||'').slice(0,120),
+                // ── 动态信息：每回合覆盖 ──
+                knows: Array.isArray(ent.knows) ? ent.knows.slice(0,6) : (_ex.knows||[]),
+                doesntKnow: Array.isArray(ent.doesntKnow) ? ent.doesntKnow.slice(0,4) : (_ex.doesntKnow||[]),
                 currentFocus: String(ent.currentFocus||'').slice(0,80),
                 worldviewShift: String(ent.worldviewShift||'').slice(0,80),
                 attitudeTowardsPlayer: String(ent.attitudeTowardsPlayer||'').slice(0,60),
                 unspokenConcern: String(ent.unspokenConcern||'').slice(0,80),
                 infoAsymmetry: String(ent.infoAsymmetry||'').slice(0,80),
+                recentMood: String(ent.recentMood||'').slice(0,80),
                 _turn: GM.turn
               };
+              if (!_ex._identityInitialized && (_rec.selfIdentity || _rec.personalityCore || _rec.speechThread)) {
+                _rec._identityInitialized = true;
+                _identInit++;
+              } else {
+                _rec._identityInitialized = _ex._identityInitialized || false;
+              }
+              GM._npcCognition[ent.name] = _rec;
               _cogCount++;
             });
-            _dbg('[sc07] NPC \u8BA4\u77E5\u753B\u50CF\uFF1A' + _cogCount + ' \u4EBA\u66F4\u65B0');
+            _dbg('[sc07] NPC \u8BA4\u77E5\u753B\u50CF\uFF1A' + _cogCount + ' \u4EBA\u66F4\u65B0\uFF0C' + _identInit + ' \u4EBA\u7A33\u5B9A\u753B\u50CF\u9996\u6B21\u751F\u6210');
           }
         } else {
           console.warn('[sc07] HTTP', resp07.status);

@@ -296,6 +296,17 @@ function getNpcCognitionSnippet(name, opts) {
   if (!cog) return '';
   var short = opts && opts.short;
   var bits = [];
+  // 稳定自我画像（无论 short 都注入——全场景口吻一致之关键）
+  if (cog.selfIdentity) bits.push('\u81EA\u8BC6\uFF1A' + cog.selfIdentity);
+  if (cog.personalityCore) bits.push('\u4EBA\u683C\uFF1A' + cog.personalityCore);
+  if (cog.speechThread) bits.push('\u53E3\u543B\uFF1A' + cog.speechThread);
+  if (!short) {
+    if (cog.abilityAwareness) bits.push('\u81EA\u77E5\uFF1A' + cog.abilityAwareness);
+    if (cog.fiveVirtues) bits.push('\u4E94\u5E38\uFF1A' + cog.fiveVirtues);
+    if (cog.historicalVoice) bits.push('\u53F2\u6807\uFF1A' + cog.historicalVoice);
+    if (cog.partyClassFeeling) bits.push('\u515A\u9636\uFF1A' + cog.partyClassFeeling);
+  }
+  // 动态信息
   if (cog.currentFocus) bits.push('\u5FC3\u5FF5\uFF1A' + cog.currentFocus);
   if (cog.attitudeTowardsPlayer) bits.push('\u5BF9\u5E1D\uFF1A' + cog.attitudeTowardsPlayer);
   if (!short) {
@@ -304,9 +315,10 @@ function getNpcCognitionSnippet(name, opts) {
     if (cog.worldviewShift) bits.push('\u5FC3\u5883\uFF1A' + cog.worldviewShift);
     if (cog.unspokenConcern) bits.push('\u6697\u62C5\uFF1A' + cog.unspokenConcern);
     if (cog.infoAsymmetry) bits.push('\u72EC\u77E5\uFF1A' + cog.infoAsymmetry);
+    if (cog.recentMood) bits.push('\u5FC3\u7EEA\uFF1A' + cog.recentMood);
   }
   if (bits.length === 0) return '';
-  return '\n\u3010\u8BE5\u81E3\u6B64\u65F6\u8BA4\u77E5\u3011\n' + bits.join('\n') + '\n';
+  return '\n\u3010\u8BE5\u81E3\u8BA4\u77E5\u00B7\u81EA\u6211\u753B\u50CF\u3011\n' + bits.join('\n') + '\n';
 }
 if (typeof window !== 'undefined') window.getNpcCognitionSnippet = getNpcCognitionSnippet;
 

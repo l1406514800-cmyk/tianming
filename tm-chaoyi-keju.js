@@ -1557,7 +1557,8 @@ async function _ccDoAsk(idx) {
     + (brief ? '你的性格：' + brief + '\n' : '')
     + (_cogPresenter || '')
     + (typeof _aiDialogueWordHint === 'function' ? _aiDialogueWordHint() + '\n' : '')
-    + '用臣子口吻直接输出回答（结合你的认知画像，若问及你不知道的事应坦言不知或推辞）。';
+    + '用臣子口吻直接输出回答（言语必须符合 speechThread 口吻，让人一听就是此人）。\n'
+    + '若问及 doesntKnow 中之事——按人物性格+五常+特质决定应对方式：忠义坦诚者直言"不知"请罪，机巧者敷衍转移，不懂装懂者模糊编造，心机深沉者似是而非，傲慢者拒答反问，自卑者过度解释。不要千篇一律！';
   try {
     var reply = await callAI(prompt, (typeof _aiDialogueTok==='function'?_aiDialogueTok("cy", 1):300));
     askEl.innerHTML = '<div style="font-size:var(--text-xs);color:var(--gold-400);margin-bottom:2px;">帝：' + escHtml(question) + '</div>'
