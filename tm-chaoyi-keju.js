@@ -1418,8 +1418,14 @@ async function _ccGenOpeningAtmosphere() {
   _sample.forEach(function(a) {
     var ch = findCharByName(a.name);
     prompt += '  ' + a.name + '（' + (a.title||'') + (a.faction?'·'+a.faction:'') + '，性格:' + ((ch && ch.personality)||'') + '）\n';
+    // 认知画像（由 sc07 生成）
+    if (typeof getNpcCognitionSnippet === 'function') {
+      var _snip = getNpcCognitionSnippet(a.name, { short: true });
+      if (_snip) prompt += '    ' + _snip.replace(/\n/g, ' ').replace(/\u3010\u8BE5\u81E3\u6B64\u65F6\u8BA4\u77E5\u3011/g, '\u8BA4\u77E5\uFF1A').trim() + '\n';
+    }
   });
   prompt += '内容类型：忧国/冷眼旁观/与同僚窃语/默念近况/期待奏事/玩味皇帝近日举措。不要议论具体政策（那是后续奏报的事）。\n';
+  prompt += '\u203B \u4E0A\u8FF0"\u8BA4\u77E5"\u662F\u6BCF\u4EBA\u7684\u771F\u5B9E\u4FE1\u606F\u638C\u63E1\u2014\u2014\u53F0\u8BCD\u8981\u4F53\u73B0\u8BE5\u4EBA\u5FC3\u5FF5\u4E0E\u4FE1\u606F\u4E0D\u5BF9\u79F0\uFF0C\u4E0D\u8981\u88C5\u4F5C\u77E5\u9053\u4E0D\u77E5\u7684\u4E8B\u3002\n';
   prompt += (typeof _aiDialogueWordHint === 'function' ? _aiDialogueWordHint() + '\n' : '');
   prompt += '返回 JSON 数组：[{"name":"...","line":"..."}]';
   try {
@@ -1487,8 +1493,13 @@ async function _ccTriggerCourtReactions(item, action) {
       var ch = findCharByName(a.name);
       var p = '朝堂即时反应（第' + _round + '轮）——皇帝刚对「' + (item.title||'') + '」（' + (presenter||'?') + '所奏）裁决：' + _actionLbl + '。\n';
       p += '当前发言者：' + a.name + '（' + (a.title||'') + (a.faction?'·'+a.faction:'') + '，性格:' + ((ch && ch.personality)||'') + (ch && ch.loyalty!=null?'，忠'+Math.round(ch.loyalty):'') + '）\n';
+      // 认知画像（sc07）
+      if (typeof getNpcCognitionSnippet === 'function') {
+        var _cogSnip = getNpcCognitionSnippet(a.name);
+        if (_cogSnip) p += _cogSnip;
+      }
       if (_turnTranscript) p += '\n已发生的对话：\n' + _turnTranscript.slice(-1500) + '\n';
-      p += '\n请以 ' + a.name + ' 的身份说出这一轮的话（文言或半文言，按其身份/立场/当前情绪）。\n';
+      p += '\n请以 ' + a.name + ' 的身份说出这一轮的话（文言或半文言，按其身份/立场/当前情绪·结合认知画像）。\n';
       p += (typeof _aiDialogueWordHint === 'function' ? _aiDialogueWordHint('cy') + '（发言必须达到此字数范围）\n' : '（约 150-300 字）\n');
       p += '可选类型：附议/反驳/弹劾/劝谏/讽喻/冷眼/窃笑。\n';
       p += '返回 JSON：{"type":"附议/反驳/弹劾/...","line":"此人发言（达到字数要求）"}';
@@ -1539,12 +1550,14 @@ async function _ccDoAsk(idx) {
   // AI生成回答
   var ch = findCharByName(item.presenter);
   var brief = ch ? (ch.personality || '') : '';
+  var _cogPresenter = (typeof getNpcCognitionSnippet === 'function') ? getNpcCognitionSnippet(item.presenter) : '';
   var prompt = '你扮演' + (item.presenter||'官员') + '（' + (item.dept||'') + '），皇帝在常朝上追问你的奏报。\n'
     + '你的奏报：' + item.title + '——' + item.content + '\n'
     + '皇帝问：' + question + '\n'
     + (brief ? '你的性格：' + brief + '\n' : '')
+    + (_cogPresenter || '')
     + (typeof _aiDialogueWordHint === 'function' ? _aiDialogueWordHint() + '\n' : '')
-    + '用臣子口吻直接输出回答。';
+    + '用臣子口吻直接输出回答（结合你的认知画像，若问及你不知道的事应坦言不知或推辞）。';
   try {
     var reply = await callAI(prompt, (typeof _aiDialogueTok==='function'?_aiDialogueTok("cy", 1):300));
     askEl.innerHTML = '<div style="font-size:var(--text-xs);color:var(--gold-400);margin-bottom:2px;">帝：' + escHtml(question) + '</div>'
@@ -5680,12 +5693,26 @@ async function _keyiGenAllStances() {
     var list = KEYI_STATE.attendees.map(function(a){
       return a.name + '(' + (a.title||'') + '\u00B7\u515A:' + (a.party||'\u65E0') + '\u00B7\u5FE0' + (a.loyalty||50) + ')';
     }).join('\u3001');
+    // 注入每位到会者的认知画像（由 sc07 生成·反映信息不对称）
+    var cognitionCtx = '';
+    if (typeof getNpcCognitionSnippet === 'function') {
+      var _cogBits = [];
+      KEYI_STATE.attendees.forEach(function(a){
+        var snip = getNpcCognitionSnippet(a.name, { short: true });
+        if (snip) {
+          _cogBits.push(a.name + '\uFF1A' + snip.replace(/\n/g, ' ').replace(/\u3010\u8BE5\u81E3\u6B64\u65F6\u8BA4\u77E5\u3011/g, '').trim());
+        }
+      });
+      if (_cogBits.length > 0) {
+        cognitionCtx = '\n\u3010\u5404\u4F4D\u8BA4\u77E5\u753B\u50CF\uFF08\u65AD\u6848\u7ACB\u573A\u7684\u4E2A\u4EBA\u8BA4\u77E5\u57FA\u7840\uFF09\u3011\n' + _cogBits.join('\n') + '\n';
+      }
+    }
     var playerStanceHint = '';
     if (KEYI_STATE.playerStance) {
       var lbl = KEYI_STATE.playerStance === 'support' ? '\u503E\u5411\u652F\u6301' : KEYI_STATE.playerStance === 'oppose' ? '\u503E\u5411\u53CD\u5BF9' : '\u7ACB\u573A\u4E2D\u7ACB';
       playerStanceHint = '\u2605 \u9661\u4E0B\u5723\u8C15\u5DF2\u4E0B\uFF1A' + lbl + '\u3002\u8868\u51B3\u65F6\u5FC5\u987B\u5145\u5206\u8003\u8651\u5723\u610F\u3002\n';
     }
-    var prompt = ctx + playerStanceHint +
+    var prompt = ctx + playerStanceHint + cognitionCtx +
       '\u8BF7\u4E3A\u4EE5\u4E0B ' + KEYI_STATE.attendees.length + ' \u540D\u5927\u81E3\u5404\u81EA\u5224\u5B9A\u6700\u7EC8\u7ACB\u573A\u5E76\u7ED9\u51FA 10-30 \u5B57\u7406\u7531\uFF1A\n' +
       list + '\n\n' +
       '\u3010\u786C\u89C4\u5219\u3011\u672C\u6B21\u8BAE\u8BBA\u5DF2\u51FA\u73B0\u7684\u7ACB\u573A\uFF1A' + _stanceStr + '\u3002\u53EA\u53EF\u5728\u8FD9\u4E9B\u7ACB\u573A\u4E2D\u9009\u62E9\u2014\u2014\u8BAE\u8BBA\u4E2D\u6CA1\u4EBA\u8868\u6001\u7684\u7ACB\u573A\u4E0D\u53EF\u4F7F\u7528\u3002\n' +

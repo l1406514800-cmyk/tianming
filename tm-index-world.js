@@ -4392,6 +4392,14 @@ function _wdBuildPrompt(ch, name) {
   }
   // JSON返回格式增加emotionState——显式追加而非regex替换
   p += '\n※ JSON返回中必须包含emotionState字段：镇定/从容/恭敬/紧张/不安/焦虑/恐惧/崩溃/激动/愤怒——反映此人当前情绪。';
+  // NPC 认知画像注入（由 sc07 在上回合 endturn 生成·反映此人"当下知道什么、想什么"）
+  if (typeof getNpcCognitionSnippet === 'function') {
+    var _cogSnip = getNpcCognitionSnippet(name);
+    if (_cogSnip) {
+      p += _cogSnip;
+      p += '\u25B2 \u4E0A\u8FF0\u8BA4\u77E5\u753B\u50CF\u662F\u6B64\u4EBA"\u771F\u5B9E\u77E5\u9053"\u7684\u4FE1\u606F\u8303\u56F4\u3002\u56DE\u7B54\u65F6\u4E0D\u5F97\u63D0\u53CA doesntKnow \u4E2D\u7684\u4E8B\uFF08\u4ED6\u771F\u4E0D\u77E5\uFF09\uFF0C\u4E5F\u4E0D\u5F97\u5047\u88C5\u4E0D\u77E5 knows \u4E2D\u7684\u4E8B\uFF08\u4ED6\u771F\u77E5\uFF09\u3002';
+    }
+  }
   return p;
 }
 

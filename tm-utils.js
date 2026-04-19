@@ -283,6 +283,33 @@ function restoreRng(state) {
   }
 }
 
+/**
+ * 读取 NPC 认知画像并生成 prompt 就绪片段（由 sc07 在 endturn 生成·随 GM 持久化）
+ * 用于回合内 AI 调用（问对/朝议/科议/奏疏回复）为该 NPC 注入"当下信息掌握"。
+ * @param {string} name 角色名
+ * @param {object} [opts] { short:true 返回 40-60字紧凑版；full 返回 150-200字完整版 }
+ * @returns {string} 可直接拼入 prompt 的段落；无数据则返回空字符串
+ */
+function getNpcCognitionSnippet(name, opts) {
+  if (!name || !window.GM || !window.GM._npcCognition) return '';
+  var cog = window.GM._npcCognition[name];
+  if (!cog) return '';
+  var short = opts && opts.short;
+  var bits = [];
+  if (cog.currentFocus) bits.push('\u5FC3\u5FF5\uFF1A' + cog.currentFocus);
+  if (cog.attitudeTowardsPlayer) bits.push('\u5BF9\u5E1D\uFF1A' + cog.attitudeTowardsPlayer);
+  if (!short) {
+    if (Array.isArray(cog.knows) && cog.knows.length) bits.push('\u77E5\uFF1A' + cog.knows.slice(0,3).join('\uFF1B'));
+    if (Array.isArray(cog.doesntKnow) && cog.doesntKnow.length) bits.push('\u4E0D\u77E5\uFF1A' + cog.doesntKnow.slice(0,2).join('\uFF1B'));
+    if (cog.worldviewShift) bits.push('\u5FC3\u5883\uFF1A' + cog.worldviewShift);
+    if (cog.unspokenConcern) bits.push('\u6697\u62C5\uFF1A' + cog.unspokenConcern);
+    if (cog.infoAsymmetry) bits.push('\u72EC\u77E5\uFF1A' + cog.infoAsymmetry);
+  }
+  if (bits.length === 0) return '';
+  return '\n\u3010\u8BE5\u81E3\u6B64\u65F6\u8BA4\u77E5\u3011\n' + bits.join('\n') + '\n';
+}
+if (typeof window !== 'undefined') window.getNpcCognitionSnippet = getNpcCognitionSnippet;
+
 /** @returns {number} 确定性随机数 [0, 1) */
 function random() { return _xorshift32(); }
 

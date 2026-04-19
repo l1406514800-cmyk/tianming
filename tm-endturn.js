@@ -5560,6 +5560,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         {id:'sc2', name:'叙事正文', minDepth:'lite', order:200},
         {id:'sc25', name:'伏笔记忆', minDepth:'lite', order:250},
         {id:'sc27', name:'叙事审查', minDepth:'standard', order:270},
+        {id:'sc07', name:'NPC认知整合', minDepth:'lite', order:275},
         {id:'sc28', name:'世界快照', minDepth:'full', order:280}
       ];
 
@@ -11711,6 +11712,123 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         }
       } catch(e27) { _dbg('[Narrative Review] fail:', e27); throw e27; }
       }); // end Sub-call 2.7 _runSubcall
+
+      // --- Sub-call 0.7: NPC 认知整合 ---
+      //   · 位置：所有推演完成之后，世界快照之前
+      //   · 职责：为每个关键 NPC 生成"当下此刻的信息掌握画像"
+      //   · 持久化：GM._npcCognition（与 GM 同命周期·随存档）
+      //   · 消费者：问对/朝议/科议/奏疏回复等回合内 AI 调用（通过 getNpcCognitionSnippet）
+      await _runSubcall('sc07', 'NPC认知整合', 'lite', async function() {
+      showLoading("NPC \u8BA4\u77E5\u6574\u5408", 89);
+      try {
+        var _liveCharsCog = (GM.chars||[]).filter(function(c){return c && c.alive!==false && !c.isPlayer;});
+        _liveCharsCog.sort(function(a,b){return (a.rank||99)-(b.rank||99);});
+        var _cogTargets = _liveCharsCog.slice(0, 22);
+        if (_cogTargets.length === 0) return;
+
+        var _cogCtx = '';
+        _cogCtx += '\u672C\u56DE\u5408\uFF1A' + (GM.turn||1) + ' \u00B7 ' + (typeof getTSText==='function'?getTSText(GM.turn):'') + '\n';
+        if (shizhengji) _cogCtx += '\n\u3010\u672C\u56DE\u5408\u65F6\u653F\u8BB0\u3011\n' + String(shizhengji).slice(0,1500) + '\n';
+        // 风闻摘要
+        if (Array.isArray(GM._fengwenRecord) && GM._fengwenRecord.length > 0) {
+          var _fwRecent = GM._fengwenRecord.slice(-20).reverse().map(function(fw){return '['+fw.type+'] '+(fw.text||'').slice(0,50);}).join('\n');
+          _cogCtx += '\n\u3010\u8FD1\u671F\u98CE\u95FB\u3011\n' + _fwRecent + '\n';
+        }
+        // 本回合主要事件
+        if (p1 && Array.isArray(p1.events) && p1.events.length > 0) {
+          _cogCtx += '\n\u3010\u672C\u56DE\u5408\u4E8B\u4EF6\u3011\n' + p1.events.slice(0,10).map(function(e){return '\u00B7 ['+(e.category||'')+'] '+(e.text||'').slice(0,60);}).join('\n') + '\n';
+        }
+        // NPC 交互
+        if (p1 && Array.isArray(p1.npc_interactions) && p1.npc_interactions.length > 0) {
+          _cogCtx += '\n\u3010\u672C\u56DE\u5408 NPC \u4E92\u52A8\u3011\n' + p1.npc_interactions.slice(0,12).map(function(it){return '\u00B7 '+it.actor+'\u2192'+it.target+' '+it.type+(it.publicKnown?'\u3010\u516C\u3011':'\u3010\u79C1\u3011');}).join('\n') + '\n';
+        }
+        // 势力暗流
+        if (Array.isArray(GM._factionUndercurrents) && GM._factionUndercurrents.length > 0) {
+          _cogCtx += '\n\u3010\u52BF\u529B\u6697\u6D41\u3011\n' + GM._factionUndercurrents.slice(0,6).map(function(u){return '\u00B7 '+(u.faction||'')+'\uFF1A'+(u.situation||'').slice(0,50);}).join('\n') + '\n';
+        }
+        // 进行中阴谋
+        if (Array.isArray(GM.activeSchemes) && GM.activeSchemes.length > 0) {
+          _cogCtx += '\n\u3010\u9634\u8C0B\u3011\n' + GM.activeSchemes.slice(-8).map(function(s){return '\u00B7 '+(s.schemer||'')+'\u8C0B'+(s.target||'')+' ['+(s.progress||'')+']';}).join('\n') + '\n';
+        }
+
+        var _cogNpcList = _cogTargets.map(function(c){
+          var _p = c.name;
+          if (c.officialTitle) _p += '\u00B7' + c.officialTitle;
+          if (c.location) _p += '@' + c.location;
+          if (c.faction) _p += '[' + c.faction + ']';
+          if (c.party) _p += '{' + c.party + '}';
+          _p += ' \u5FE0' + (c.loyalty||50) + '/\u667A' + (c.intelligence||50) + '/\u5FD7' + (c.ambition||50) + '/\u5EC9' + (c.integrity||50);
+          return _p;
+        }).join('\n');
+
+        var _cogPlayerName = (P.playerInfo && P.playerInfo.characterName) || '';
+        var _cogCap = GM._capital || '\u4EAC\u57CE';
+
+        var tp07 = '\u3010NPC \u8BA4\u77E5\u6574\u5408\u00B7\u4E13\u9879\u3011\n';
+        tp07 += '\u76EE\u7684\uFF1A\u4E3A\u6BCF\u4F4D\u5173\u952E NPC \u751F\u6210"\u5F53\u4E0B\u6B64\u523B\u7684\u4FE1\u606F\u638C\u63E1\u753B\u50CF"\uFF0C\u4EE5\u4F9B\u56DE\u5408\u5185\u95EE\u5BF9/\u671D\u8BAE/\u79D1\u8BAE/\u594F\u758F\u56DE\u590D\u6309\u56FE\u7D22\u9AA5\u3002\n';
+        tp07 += '\u539F\u5219\uFF1A\u4FE1\u606F\u4E0D\u5BF9\u79F0\u2014\u2014\u4EAC\u5B98\u77E5\u7684\u591A\u5F80\u6765\u7684\u9065\uFF0C\u5916\u5B98\u77E5\u672C\u9547\u7684\u591A\u4EAC\u4E2D\u7684\u5C11\uFF1B\u4E0E\u8C01\u4EB2\u8FD1\u5C31\u542C\u7684\u591A\uFF1B\u51FA\u8EAB/\u6D3E\u7CFB\u51B3\u5B9A\u4EC0\u4E48\u4F1A\u8FDB\u5165\u5176\u8033\u3002\n\n';
+        tp07 += _cogCtx + '\n\u3010\u76EE\u6807 NPC\uFF08\u4EC5\u4E0B\u5217\u4EBA\u3001\u5E0C\u671B\u5168\u76D6\uFF09\u3011\n' + _cogNpcList + '\n';
+        if (_cogPlayerName) tp07 += '\n\u73A9\u5BB6\u89D2\u8272\uFF1A' + _cogPlayerName + '\uFF08\u4E0D\u5728\u6B64\u63A8\u6F14\u8303\u56F4\u5185\uFF09\n';
+
+        tp07 += '\n\u3010\u8FD4\u56DE JSON\u3011{\n';
+        tp07 += '  "npc_cognition":[{\n';
+        tp07 += '    "name":"\u89D2\u8272\u540D",\n';
+        tp07 += '    "knows":["3-5 \u6761\u4ED6/\u5979\u672C\u56DE\u5408\u901A\u8FC7\u90B8\u62A5/\u8033\u76EE/\u540C\u50DA\u8DDF\u4EAB/\u8033\u62A5/\u79C1\u4FE1\u4E86\u89E3\u5230\u7684\u5177\u4F53\u4FE1\u606F\uFF0C\u6BCF\u6761 20-40 \u5B57"],\n';
+        tp07 += '    "doesntKnow":["1-3 \u6761\u88AB\u8499\u5728\u9F13\u91CC\u7684\u4E8B\u60C5\uFF08\u9AD8\u4F4D\u5916\u5B98\u4E0D\u77E5\u4EAC\u4E2D\u5C0F\u4E8B/\u6E05\u6D41\u4E0D\u77E5\u6697\u5BAB\u8BD5\u9A70/\u5B66\u8005\u4E0D\u77E5\u519B\u60C5/\u6B66\u5C06\u4E0D\u77E5\u6587\u8361\u91C7\uFF09"],\n';
+        tp07 += '    "currentFocus":"\u4ED6\u6B64\u65F6\u5FC3\u601D\u6240\u7CFB\u7684\u4E3B\u8981\u4E8B\u52A1\uFF081\u53E5 20-30 \u5B57\uFF09",\n';
+        tp07 += '    "worldviewShift":"\u672C\u56DE\u5408\u4ED6\u5BF9\u5C40\u52BF/\u540C\u50DA/\u672A\u6765\u7684\u7701\u610F\u53D8\u5316\uFF081\u53E5 20-30 \u5B57\uFF09",\n';
+        tp07 += '    "attitudeTowardsPlayer":"\u5BF9\u73A9\u5BB6\u6700\u65B0\u6001\u5EA6\uFF081\u53E5\uFF0C\u4FE1\u670D/\u7586\u6012/\u7EA0\u7ED3/\u7593\u6167/\u654C\u5BF9/\u6177\u614C/\u5FC5\u62F5\u7B49\uFF09",\n';
+        tp07 += '    "unspokenConcern":"\u85CF\u5728\u5FC3\u5E95\u6CA1\u8BF4\u7684\u62C5\u5FE7\u62D6\u75E8\uFF081\u53E5\uFF09",\n';
+        tp07 += '    "infoAsymmetry":"\u4ED6\u4E0E\u540C\u50DA\u4FE1\u606F\u4E0D\u5BF9\u79F0\u4E4B\u5904\uFF081\u53E5\uFF0C\u5982\u4ED6\u77E5\u9053\u67D0\u4E8B\u4F46\u540C\u50DA\u4E0D\u77E5/\u540C\u50DA\u77E5\u9053\u4F46\u4ED6\u4E0D\u77E5\uFF09"\n';
+        tp07 += '  }]\n}\n';
+
+        tp07 += '\n\u3010\u786C\u89C4\u5219\u3011\n';
+        tp07 += '\u00B7 \u4E3A\u4E0A\u8FF0\u6240\u6709\u76EE\u6807 NPC \u5168\u90E8\u8F93\u51FA\uFF0C\u4E00\u4E2A\u4E0D\u843D\u4E0B\n';
+        tp07 += '\u00B7 \u4FE1\u606F\u5185\u5BB9\u5FC5\u987B\u7B26\u5408\u8BE5 NPC \u7684\u804C\u4F4D/\u6D3E\u7CFB/\u5173\u7CFB\u7F51/\u5730\u70B9\u2014\u2014\u4F60\u51ED\u4EC0\u4E48\u77E5\u9053\u8FD9\u4EF6\uFF1F\n';
+        tp07 += '\u00B7 \u5178\u578B\u4EAC\u5B98\u77E5\u672C\u56DE\u5408\u7684\u671D\u8BAE/\u4EBA\u4E8B/\u594F\u758F\uFF0C\u5916\u5B98\u77E5\u672C\u5730\u4E8B\u52A1+\u90B8\u62A5\u6BB5\u843D\uFF1B\n';
+        tp07 += '\u00B7 \u4E0D\u8981\u8BA9\u6240\u6709 NPC \u90FD"\u77E5\u9053\u5168\u90E8"\u2014\u2014\u6709\u4EBA\u6D88\u606F\u7075\u901A\uFF0C\u6709\u4EBA\u6D88\u606F\u9ED8\u585E\n';
+        tp07 += '\u00B7 attitudeTowardsPlayer \u5FC5\u987B\u53CD\u6620\u672C\u56DE\u5408\u771F\u5B9E\u7684\u53D8\u5316\uFF08\u5982\u88AB\u8D2C\u2192\u51C4\u6167\uFF0C\u88AB\u52A0\u6069\u2192\u611F\u6FC0\uFF0C\u88AB\u8FC1\u2192\u6124\u6012\uFF09\n';
+        tp07 += '\u00B7 unspokenConcern \u8981\u771F\u7684\u85CF\u7740\u2014\u2014\u5982\u201C\u6016\u67D0\u67D0\u7690\u5BB3\u81EA\u5DF1\u4FDD\u5929\u5B50\u201D/\u201C\u5BB6\u4E2D\u7236\u8001\u75C5\u91CD\u5374\u65E0\u6CD5\u56DE\u9645\u201D/\u201C\u7EDF\u5144\u8BF7\u5B98\u6298\u8B66\u201D\n';
+        tp07 += '\u00B7 \u5C3D\u91CF\u6840\u5356\u201C\u6211\u77E5\u9053\u67D0\u4EBA\u5728\u7B79\u5212\u67D0\u4E8B\u300C\u4F46\u540C\u50DA\u4E0D\u77E5\u300D\u201D\u7684\u8F7D\u5FC3\u4E0D\u5BF9\u79F0\n';
+
+        var _sc07Body = {model:P.ai.model||'gpt-4o', messages:[{role:'system',content:sysP},{role:'user',content:tp07}], temperature:_modelTemp, max_tokens:_tok(8000)};
+        if (_modelFamily === 'openai') _sc07Body.response_format = { type:'json_object' };
+
+        var resp07 = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+P.ai.key}, body:JSON.stringify(_sc07Body)});
+        if (resp07.ok) {
+          var data07 = await resp07.json();
+          _checkTruncated(data07, 'NPC \u8BA4\u77E5');
+          if (data07.usage && typeof TokenUsageTracker !== 'undefined') TokenUsageTracker.record(data07.usage);
+          var c07 = (data07.choices && data07.choices[0] && data07.choices[0].message) ? data07.choices[0].message.content : '';
+          var p07 = extractJSON(c07);
+          GM._turnAiResults.subcall07_raw = c07;
+          GM._turnAiResults.subcall07 = p07;
+
+          if (p07 && Array.isArray(p07.npc_cognition)) {
+            if (!GM._npcCognition) GM._npcCognition = {};
+            // 本回合覆盖旧数据（保留 _turn 供过期检测）
+            var _cogCount = 0;
+            p07.npc_cognition.forEach(function(ent){
+              if (!ent || !ent.name) return;
+              GM._npcCognition[ent.name] = {
+                knows: Array.isArray(ent.knows) ? ent.knows.slice(0,6) : [],
+                doesntKnow: Array.isArray(ent.doesntKnow) ? ent.doesntKnow.slice(0,4) : [],
+                currentFocus: String(ent.currentFocus||'').slice(0,80),
+                worldviewShift: String(ent.worldviewShift||'').slice(0,80),
+                attitudeTowardsPlayer: String(ent.attitudeTowardsPlayer||'').slice(0,60),
+                unspokenConcern: String(ent.unspokenConcern||'').slice(0,80),
+                infoAsymmetry: String(ent.infoAsymmetry||'').slice(0,80),
+                _turn: GM.turn
+              };
+              _cogCount++;
+            });
+            _dbg('[sc07] NPC \u8BA4\u77E5\u753B\u50CF\uFF1A' + _cogCount + ' \u4EBA\u66F4\u65B0');
+          }
+        } else {
+          console.warn('[sc07] HTTP', resp07.status);
+        }
+      } catch(e07) { _dbg('[NPC Cognition] fail:', e07); }
+      }); // end Sub-call 0.7 _runSubcall
 
       // --- Sub-call 2.8: 世界状态深度快照 --- [full only]
       await _runSubcall('sc28', '世界快照', 'full', async function() {
