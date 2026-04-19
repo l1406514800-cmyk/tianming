@@ -1194,6 +1194,7 @@ function fullLoadGame(data){
     if (typeof IntegrationBridge !== 'undefined' && typeof IntegrationBridge.init === 'function') {
       try { IntegrationBridge.init(); } catch(_ibE) { console.warn('[bridge] init 失败', _ibE); }
     }
+
     // 同步剧本自定义预设（HistoricalPresets 动态 getter 读取 window.scriptData.customPresets）
     try {
       if (P && P.customPresets) {

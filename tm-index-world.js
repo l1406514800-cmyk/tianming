@@ -3433,6 +3433,7 @@ async function _wdNpcInitiateSpeak(name) {
     var parsed = (typeof extractJSON === 'function') ? extractJSON(reply) : null;
     var replyText = (parsed && parsed.reply) ? parsed.reply : reply;
     var bubble = _$('wd-init-bubble');
+    var _bubbleWrap = bubble; // 在 id 被移除前先捕获引用·供后面进言要点追加使用
     if (bubble) { bubble.textContent = replyText; bubble.removeAttribute('id'); }
     // 记录到历史
     if (!GM.wenduiHistory[name]) GM.wenduiHistory[name] = [];
@@ -3462,7 +3463,6 @@ async function _wdNpcInitiateSpeak(name) {
     }
     // 在 NPC 气泡下方追加"进言要点"展示（对齐普通问对路径）
     if (_wdSugs.length > 0) {
-      var _bubbleWrap = _$('wd-init-bubble');
       if (_bubbleWrap && _bubbleWrap.parentNode) {
         var _sugBox = document.createElement('div');
         _sugBox.style.cssText = 'margin-top:4px;padding:4px 6px;background:rgba(184,154,83,0.1);border-radius:4px;font-size:0.72rem;';
@@ -4493,6 +4493,8 @@ function renderJishi(){
     h += '</div>';
   }
   el.innerHTML = h;
+  // v5·C·装饰 pending 人名为可点击
+  try { if (typeof decoratePendingInDom === 'function') decoratePendingInDom(el); } catch(_){}
 }
 
 /** 渲染单条纪事记录 */

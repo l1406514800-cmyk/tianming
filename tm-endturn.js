@@ -2649,6 +2649,13 @@ function computeExecutionPipeline(edictText, edictCategory) {
 function processEdictEffects(allEdictText, edictCategory) {
   if (!allEdictText || !allEdictText.trim()) return { summary: '', executionSummary: '' };
 
+  // v5·人物生成 A：诏令征召识别（异步 fire-and-forget）
+  try {
+    if (typeof handleEdictTextForRecruit === 'function') {
+      handleEdictTextForRecruit(allEdictText).catch(function(e){ console.warn('[\u8BCF\u4EE4\u5F81\u8BCF] \u5F02\u5E38', e); });
+    }
+  } catch(_rE) { console.warn('[\u8BCF\u4EE4\u5F81\u8BCF]', _rE); }
+
   // 收集执行管线信息（如果有配置）
   var execResult = computeExecutionPipeline(allEdictText, edictCategory);
 
@@ -3573,6 +3580,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         tp += '  采纳方的提议者应积极推进落实，未被采纳方可能暗中抵制或转向求助皇帝（上奏疏）。\n';
         _recentCourt.forEach(function(cr) {
           var _phaseLbl = cr.phase === 'post-turn' ? '【朔朝·月初】' : '【月中】';
+          if (cr.mode === 'keyi') _phaseLbl = '【科议·廷推】';
           tp += _phaseLbl + '议题：' + cr.topic + '\n';
           Object.keys(cr.stances).forEach(function(name) {
             var s = cr.stances[name];
@@ -3584,6 +3592,19 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
             tp += '  ※ edict_feedback中应体现朝议决议的执行情况。npc_actions中提议者应积极推进。\n';
           } else {
             tp += '  结果：搁置，未采纳任何提议——各方可能继续私下串联推动自己的方案\n';
+          }
+          // 科议特殊说明
+          if (cr.mode === 'keyi' && cr._keyiMeta) {
+            var km = cr._keyiMeta;
+            tp += '  ※ 科议类型: ' + km.methodLabel + '·支持率 ' + Math.round((km.support||0)*100) + '%·门槛 ' + (km.threshold||50) + '%\n';
+            if (km.method === 'edict' || km.method === 'defy') {
+              tp += '  ※ 皇帝不顾多数意见强推科举，反对大臣应在 npc_actions 中体现不满（上疏、串联、私下议论、消极抵制）\n';
+              if ((km.opposingMinisters||[]).length > 0) tp += '    主要反对者: ' + km.opposingMinisters.slice(0,5).join('、') + '\n';
+              if ((km.opposingParties||[]).length > 0) tp += '    反对党派: ' + km.opposingParties.join('、') + '（影响度已下降）\n';
+            }
+            if (km.method === 'council') {
+              tp += '  ※ 科举顺朝议而开，礼部/吏部应积极配合，士林振奋\n';
+            }
           }
           // 御前密议泄密风险
           if (cr._secret) {
@@ -6131,6 +6152,29 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
             });
           }
         } catch(_applyErr) { console.warn('[endturn] applyAITurnChanges:', _applyErr); }
+
+        // v5·人物生成 B · 推演扫描+自动生成/pending
+        try {
+          if (typeof scanMentionedCharacters === 'function') {
+            // 合并 aiResult·提供扫描所需字段
+            var _scanInput = {
+              zhengwen: p1.shizhengji || p1.zhengwen || '',
+              xinglu: p1.xinglu || '',
+              events: Array.isArray(p1.events) ? p1.events : [],
+              npc_actions: Array.isArray(p1.npc_actions) ? p1.npc_actions : []
+            };
+            showLoading('\u8BB0\u8F7D\u65B0\u4EBA\u7269\u2026\u2026', 90);
+            scanMentionedCharacters(_scanInput).then(function(res){
+              if (res.generated && res.generated.length) {
+                if (typeof addEB === 'function') addEB('\u8BB0\u4E8B', '\u63A8\u6F14\u6D8C\u73B0\u65B0\u4EBA\u7269\uFF1A' + res.generated.join('\u3001'));
+                _dbg('[人物扫描] 自动生成', res.generated.length, '人：', res.generated);
+              }
+              if (res.pending && res.pending.length) {
+                _dbg('[人物扫描] 入 pending', res.pending.length, '人：', res.pending);
+              }
+            }).catch(function(e){ console.warn('[\u4EBA\u7269\u626B\u63CF]', e); });
+          }
+        } catch(_scE) { console.warn('[\u4EBA\u7269\u626B\u63CF] \u5F02\u5E38', _scE); }
 
         shizhengji=p1.shizhengji||"";
         turnSummary=p1.turn_summary||"";
@@ -11990,7 +12034,7 @@ function _showPostTurnCourtBanner() {
   var el = document.createElement('div');
   el.id = 'post-turn-court-banner';
   el.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:4900;background:linear-gradient(90deg,rgba(184,154,83,0.18),rgba(184,154,83,0.08));border-top:2px solid var(--gold-d);padding:6px 14px;display:flex;align-items:center;gap:10px;font-size:0.76rem;color:var(--gold);';
-  el.innerHTML = '<span style="font-weight:700;">\u3014\u5019\u6F14\u3015</span><span id="post-turn-court-banner-msg">\u6709\u53F8\u63A8\u6F14\u4E2D\u2026\u2026\u672C\u6714\u671D\u8BA1\u6B21\u56DE\u5408\u5E72\u7CFB</span><span style="margin-left:auto;font-size:0.68rem;color:var(--txt-d);">AI \u540E\u53F0\u63A8\u6F14</span>';
+  el.innerHTML = '<span style="font-weight:700;">〔朔朝〕</span><span id="post-turn-court-banner-msg">有司推演中……本朝决议施于次回合</span><span style="margin-left:auto;font-size:0.68rem;color:var(--txt-d);">AI 后台推演</span>';
   document.body.appendChild(el);
 }
 
@@ -12126,12 +12170,20 @@ async function _endTurnCore(){
   if (GM._pendingShijiModal && GM._pendingShijiModal.courtDone === false) {
     GM._pendingShijiModal.deferredPhase5 = async function() {
       try { await EndTurnHooks.execute('after'); } catch(_ph5e){ console.warn('[postTurn] phase5 hooks', _ph5e); }
+      // v5·科举时间化推进（每回合累天数）
+      if (P.keju && (P.keju.currentExam || P.keju.currentEnke) && typeof advanceKejuByDays === 'function') {
+        try { advanceKejuByDays((P.time && P.time.daysPerTurn) || 30); } catch(_kjA){ console.warn('[postTurn] keju advance', _kjA); }
+      }
       if (P.keju && P.keju.enabled && !P.keju.currentExam) {
         try { await checkKejuTrigger(); } catch(_kj){ console.warn('[postTurn] keju', _kj); }
       }
     };
   } else {
     await EndTurnHooks.execute('after');
+    // v5·科举时间化推进
+    if (P.keju && (P.keju.currentExam || P.keju.currentEnke) && typeof advanceKejuByDays === 'function') {
+      try { advanceKejuByDays((P.time && P.time.daysPerTurn) || 30); } catch(_kjA){ console.warn('[endTurn] keju advance', _kjA); }
+    }
     if (P.keju && P.keju.enabled && !P.keju.currentExam) {
       await checkKejuTrigger();
     }
@@ -12455,6 +12507,8 @@ function renderQiju(){
   h += '<button class="bt bs bsm" ' + (_qijuPage >= pages-1 ? 'disabled' : '') + ' onclick="_qijuPage++;renderQiju();">\u203A</button>';
   h += '</div>';
   el.innerHTML = h;
+  // v5·C·装饰 pending 人名
+  try { if (typeof decoratePendingInDom === 'function') decoratePendingInDom(el); } catch(_){}
 }
 
 /** 御批——为起居注条目添加批注 */

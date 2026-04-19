@@ -665,6 +665,8 @@ function showTurnResult(html){
     titleEl.innerHTML='📜 '+dateStr;
   }
   _$("turn-modal").classList.add("show");
+  // v5·C·装饰 pending 人名为可点击
+  try { if (typeof decoratePendingInDom === 'function') decoratePendingInDom(_$("turn-body")); } catch(_){}
 }
 function closeTurnResult(){_$("turn-modal").classList.remove("show");}
 function saveP(){
