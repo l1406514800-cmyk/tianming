@@ -5361,17 +5361,21 @@ function renderGameState(){
   gc.appendChild(wyP);
 
   // 起居注面板
-  var qjP=document.createElement("div");qjP.className="g-tab-panel";qjP.id="gt-qiju";qjP.style.cssText="flex:1;overflow-y:auto;padding:1rem;";
-  qjP.innerHTML='<div class="scroll-manager-header" style="padding:var(--space-2);font-size:var(--text-md);">\u3014 \u8D77\u5C45\u6CE8 \u3015</div>'
-    +'<div style="font-size:var(--text-xs);color:var(--color-foreground-muted);text-align:center;margin-bottom:var(--space-2);letter-spacing:0.08em;">\u8BB0\u5F55\u541B\u4E3B\u65E5\u5E38\u8D77\u5C45\u4E0E\u671D\u653F\u8981\u52A1</div>'
-    +'<hr class="ink-divider">'
-    +'<div style="display:flex;gap:var(--space-2);align-items:center;margin-bottom:var(--space-2);">'
-    +'<input id="qj-search" placeholder="\u641C\u7D22\u8D77\u5C45\u6CE8\u2026" style="flex:1;padding:3px 6px;font-size:var(--text-xs);background:var(--color-elevated);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-foreground);font-family:inherit;" oninput="_qijuKw=this.value;_qijuPage=0;renderQiju()">'
-    +'<select id="qj-cat-filter" style="font-size:var(--text-xs);padding:2px 4px;background:var(--color-elevated);border:1px solid var(--color-border);color:var(--color-foreground);border-radius:var(--radius-sm);" onchange="_qijuCat=this.value;_qijuPage=0;renderQiju()">'
-    +'<option value="all">\u5168\u90E8</option><option value="\u8BCF\u4EE4">\u8BCF\u4EE4</option><option value="\u594F\u758F">\u594F\u758F</option><option value="\u671D\u8BAE">\u671D\u8BAE</option><option value="\u9E3F\u96C1">\u9E3F\u96C1</option><option value="\u4EBA\u4E8B">\u4EBA\u4E8B</option><option value="\u884C\u6B62">\u884C\u6B62</option><option value="\u53D9\u4E8B">\u53D9\u4E8B</option></select>'
-    +'<button class="bt bsm" onclick="_qijuExport()" title="\u5BFC\u51FA">\u5BFC\u51FA</button>'
+  var qjP=document.createElement("div");qjP.className="g-tab-panel";qjP.id="gt-qiju";qjP.style.cssText="flex:1;overflow-y:auto;padding:0;";
+  qjP.innerHTML='<div class="qj-panel-wrap"><div class="qj-inner">'
+    +'<div class="qj-title"><div class="seal">\u8D77<br>\u5C45<br>\u6CE8</div><div class="main">\u8D77\u3000\u5C45\u3000\u6CE8</div><div class="sub">\u4E00 \u65E5 \u4E00 \u5F55\u3000\u3000\u8D77 \u5C45 \u996E \u98DF \u8A00 \u52A8 \u5FC5 \u4E66\u3000\u3000\u85CF \u4E4B \u91D1 \u532E \u77F3 \u5BA4</div></div>'
+    +'<div id="qj-statbar" class="qj-statbar"></div>'
+    +'<div class="qj-tools">'
+    +'<span class="qj-tools-lbl">\u62AB \u89C8</span>'
+    +'<div class="qj-search-wrap"><input id="qj-search" class="qj-search" placeholder="\u641C\u7D22\u8D77\u5C45\u6CE8\u00B7\u65E5\u671F\u00B7\u4EBA\u540D\u2026" oninput="_qijuKw=this.value;_qijuPage=0;renderQiju()"></div>'
+    +'<select id="qj-cat-filter" class="qj-filter" onchange="_qijuCat=this.value;_qijuPage=0;renderQiju()">'
+    +'<option value="all">\u5168\u90E8\u7C7B\u522B</option><option value="\u8BCF\u4EE4">\u8BCF\u4EE4</option><option value="\u594F\u758F">\u594F\u758F</option><option value="\u671D\u8BAE">\u671D\u8BAE</option><option value="\u9E3F\u96C1">\u9E3F\u96C1</option><option value="\u4EBA\u4E8B">\u4EBA\u4E8B</option><option value="\u884C\u6B62">\u884C\u6B62</option><option value="\u53D9\u4E8B">\u53D9\u4E8B</option></select>'
+    +'<label class="qj-chk"><input type="checkbox" id="qj-annot-only" onchange="_qijuAnnotOnly=this.checked;_qijuPage=0;renderQiju()">\u4EC5\u5FA1\u6279</label>'
+    +'<button class="qj-export" onclick="_qijuExport()">\u5BFC \u51FA \u7F16 \u5E74</button>'
     +'</div>'
-    +'<div id="qiju-history"></div>';
+    +'<div id="qj-legend" class="qj-legend"></div>'
+    +'<div id="qiju-history"></div>'
+    +'</div></div>';
   gc.appendChild(qjP);
 
   // 纪事面板

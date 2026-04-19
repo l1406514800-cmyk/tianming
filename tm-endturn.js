@@ -13396,7 +13396,7 @@ function _sjlDownload(txt){
   var a=document.createElement('a');a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(txt);
   a.download='shiji_'+(GM.saveName||'export')+'.txt';a.click();toast('已导出');
 }
-var _qijuPage=0,_qijuKw='',_qijuCat='all',_qijuPageSize=15;
+var _qijuPage=0,_qijuKw='',_qijuCat='all',_qijuPageSize=15,_qijuAnnotOnly=false;
 
 /** 统一获取起居注条目的显示文本和类别 */
 function _qijuNormalize(r) {
@@ -13429,31 +13429,95 @@ function _qijuNormalize(r) {
   return { text: text || '(无内容)', cat: cat || '\u5176\u4ED6' };
 }
 
+/** 类别→CSS 类 */
+function _qijuCatClass(cat) {
+  var map = {'\u8BCF\u4EE4':'c-edict','\u594F\u758F':'c-memo','\u671D\u8BAE':'c-chaoyi','\u9E3F\u96C1':'c-letter','\u4EBA\u4E8B':'c-person','\u884C\u6B62':'c-xingzhi','\u53D9\u4E8B':'c-narrative'};
+  return map[cat] || 'c-narrative';
+}
+/** 类别→统计键 */
+function _qijuCatKey(cat) {
+  var map = {'\u8BCF\u4EE4':'edict','\u594F\u758F':'memo','\u671D\u8BAE':'chaoyi','\u9E3F\u96C1':'letter','\u4EBA\u4E8B':'person','\u884C\u6B62':'xingzhi','\u53D9\u4E8B':'narrative'};
+  return map[cat] || 'narrative';
+}
+/** 人名高亮：把角色名包成 .name */
+function _qijuHighlight(text) {
+  if (!text) return '';
+  var out = escHtml(text);
+  var names = [];
+  (GM.chars||[]).forEach(function(c) { if (c.name && c.name.length >= 2 && c.name.length <= 6) names.push(c.name); });
+  (GM.allCharacters||[]).forEach(function(c) { if (c.name && c.name.length >= 2 && c.name.length <= 6 && names.indexOf(c.name) < 0) names.push(c.name); });
+  names.sort(function(a,b){return b.length - a.length;});
+  names.forEach(function(nm) {
+    if (!nm) return;
+    var safe = nm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    try { out = out.replace(new RegExp(safe, 'g'), '<span class="name">' + escHtml(nm) + '</span>'); } catch(_){}
+  });
+  return out;
+}
+
 function renderQiju(){
   var el=_$("qiju-history");if(!el)return;
-  var all=(GM.qijuHistory||[]).slice().reverse();
+  var sbar=_$("qj-statbar"), leg=_$("qj-legend");
+  var all=(GM.qijuHistory||[]).slice();
   var kw=(_qijuKw||'').trim().toLowerCase();
   var catFilter = _qijuCat || 'all';
 
-  // 统一化+过滤
+  // 统一化
   var normalized = all.map(function(r) {
     var n = _qijuNormalize(r);
-    return { raw: r, text: n.text, cat: n.cat, turn: r.turn, date: r.time || r.date || (typeof getTSText==='function'?getTSText(r.turn):'T'+(r.turn||'?')), annotation: r._annotation || '' };
+    return { raw: r, text: n.text, cat: n.cat, turn: r.turn||0, date: r.time || r.date || (typeof getTSText==='function'?getTSText(r.turn):'T'+(r.turn||'?')), annotation: r._annotation || '' };
   });
+
+  // 全量统计
+  var curTurn = GM.turn || 1;
+  var _stat = { all: normalized.length, month: 0, edict: 0, memo: 0, chaoyi: 0, letter: 0, person: 0, xingzhi: 0, narrative: 0, annot: 0 };
+  var _catCnt = {};
+  normalized.forEach(function(n) {
+    if (n.turn >= curTurn - 4) _stat.month++;
+    if (n.annotation) _stat.annot++;
+    var k = _qijuCatKey(n.cat);
+    _stat[k] = (_stat[k]||0) + 1;
+    _catCnt[n.cat] = (_catCnt[n.cat]||0) + 1;
+  });
+  if (sbar) {
+    sbar.innerHTML = ''
+      + '<div class="qj-stat-card s-all"><div class="qj-stat-lbl">\u603B \u5F55</div><div class="qj-stat-num">'+_stat.all+'</div><div class="qj-stat-sub">\u6761</div></div>'
+      + '<div class="qj-stat-card s-month"><div class="qj-stat-lbl">\u8FD1 \u65E5</div><div class="qj-stat-num">'+_stat.month+'</div><div class="qj-stat-sub">\u8FD1\u8BB0</div></div>'
+      + '<div class="qj-stat-card s-edict"><div class="qj-stat-lbl">\u8BCF \u4EE4</div><div class="qj-stat-num">'+_stat.edict+'</div><div class="qj-stat-sub">\u9053</div></div>'
+      + '<div class="qj-stat-card s-memo"><div class="qj-stat-lbl">\u594F \u758F</div><div class="qj-stat-num">'+_stat.memo+'</div><div class="qj-stat-sub">\u5C01</div></div>'
+      + '<div class="qj-stat-card s-chaoyi"><div class="qj-stat-lbl">\u671D \u8BAE</div><div class="qj-stat-num">'+_stat.chaoyi+'</div><div class="qj-stat-sub">\u6B21</div></div>'
+      + '<div class="qj-stat-card s-annot"><div class="qj-stat-lbl">\u5FA1 \u6279</div><div class="qj-stat-num">'+_stat.annot+'</div><div class="qj-stat-sub">\u6761</div></div>';
+  }
+
+  // 类别 legend（按现有数据）
+  if (leg) {
+    var _catOrder = ['\u8BCF\u4EE4','\u594F\u758F','\u671D\u8BAE','\u9E3F\u96C1','\u4EBA\u4E8B','\u884C\u6B62','\u53D9\u4E8B'];
+    var _lhtml = '<span class="qj-legend-lbl">\u7C7B \u522B</span>';
+    _catOrder.forEach(function(c) {
+      if (!_catCnt[c]) return;
+      _lhtml += '<span class="qj-legend-chip ' + _qijuCatClass(c) + '">' + escHtml(c) + '<span class="num">\u00B7' + _catCnt[c] + '</span></span>';
+    });
+    leg.innerHTML = _lhtml;
+  }
+
+  // 筛选
   var filtered = normalized;
-  if (kw) filtered = filtered.filter(function(n) { return n.text.toLowerCase().indexOf(kw) >= 0 || n.date.toLowerCase().indexOf(kw) >= 0; });
+  if (kw) filtered = filtered.filter(function(n) { return n.text.toLowerCase().indexOf(kw) >= 0 || (n.date||'').toLowerCase().indexOf(kw) >= 0; });
   if (catFilter !== 'all') filtered = filtered.filter(function(n) { return n.cat === catFilter; });
+  if (_qijuAnnotOnly) filtered = filtered.filter(function(n) { return n.annotation; });
 
   // 按回合分组
   var _byTurn = {};
   filtered.forEach(function(n) {
     var tk = n.turn || 0;
-    if (!_byTurn[tk]) _byTurn[tk] = { date: n.date, items: [] };
+    if (!_byTurn[tk]) _byTurn[tk] = { date: n.date, items: [], tally: {} };
     _byTurn[tk].items.push(n);
+    var k = _qijuCatKey(n.cat);
+    _byTurn[tk].tally[k] = (_byTurn[tk].tally[k]||0) + 1;
   });
-  var _turns = Object.keys(_byTurn).sort(function(a,b) { return b - a; }); // 最近在前
+  var _turns = Object.keys(_byTurn).sort(function(a,b) { return b - a; });
 
-  // 分页（按回合组数）
+  // 分页（按回合组）
   var total = _turns.length;
   var pages = Math.ceil(total / _qijuPageSize) || 1;
   if (_qijuPage >= pages) _qijuPage = pages - 1;
@@ -13462,37 +13526,56 @@ function renderQiju(){
 
   var h = '';
   if (pageTurns.length === 0) {
-    h = '<div style="color:var(--txt-d);text-align:center;padding:2rem;">\u6682\u65E0\u8BB0\u5F55</div>';
+    h = '<div class="qj-empty">\u672A \u5F55 \u4E4B \u65E5\u3000\u6682 \u65E0 \u8D77 \u5C45</div>';
   } else {
-    pageTurns.forEach(function(tk) {
+    h += '<div class="qj-timeline">';
+    pageTurns.forEach(function(tk, idx) {
       var group = _byTurn[tk];
-      h += '<div style="margin-bottom:var(--space-3);">';
-      h += '<div style="font-size:var(--text-xs);color:var(--gold-400);font-weight:var(--weight-bold);padding:var(--space-1) 0;border-bottom:1px solid var(--color-border-subtle);letter-spacing:0.08em;">\u2550 \u7B2C' + tk + '\u56DE\u5408 \u00B7 ' + escHtml(group.date) + ' \u2550</div>';
-      group.items.forEach(function(n, ni) {
-        var _catColors = {'\u8BCF\u4EE4':'var(--indigo-400)','\u594F\u758F':'var(--vermillion-400)','\u671D\u8BAE':'var(--purple,#9b59b6)','\u9E3F\u96C1':'var(--amber-400)','\u4EBA\u4E8B':'var(--celadon-400)','\u884C\u6B62':'var(--gold-400)','\u53D9\u4E8B':'var(--color-foreground-secondary)'};
-        var _cc = _catColors[n.cat] || 'var(--ink-300)';
-        h += '<div class="qiju-record" style="border-left-color:' + _cc + ';">';
-        h += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-        h += '<span class="qiju-turn" style="color:' + _cc + ';">[' + escHtml(n.cat) + ']</span>';
-        // 御批按钮
+      var _firstCls = (idx === 0 && _qijuPage === 0) ? ' first' : '';
+      h += '<div class="qj-day'+_firstCls+'" data-turn="' + (tk ? '#'+tk : '?') + '">';
+      // 日卷头
+      h += '<div class="qj-day-hdr">';
+      h += '<div class="qj-day-title">\u7B2C ' + escHtml(String(tk||'?')) + ' \u56DE\u5408</div>';
+      if (group.date) h += '<div class="qj-day-date">' + escHtml(group.date) + '</div>';
+      // 数件盘
+      var _tallyKeys = [['edict','\u8BCF'],['memo','\u758F'],['chaoyi','\u8BAE'],['letter','\u96C1'],['person','\u4E8B'],['xingzhi','\u6B62']];
+      var _tallyHtml = '';
+      _tallyKeys.forEach(function(tk2) {
+        var cnt = group.tally[tk2[0]]||0;
+        if (!cnt) return;
+        _tallyHtml += '<span class="qj-tally-dot ' + tk2[0] + '">' + tk2[1] + ' ' + cnt + '</span>';
+      });
+      if (_tallyHtml) h += '<div class="qj-day-tally">' + _tallyHtml + '</div>';
+      h += '</div>';
+      // 日课条目
+      h += '<div class="qj-day-body">';
+      group.items.forEach(function(n) {
+        var _cls = _qijuCatClass(n.cat);
         var _ridx = (GM.qijuHistory||[]).indexOf(n.raw);
-        h += '<button class="bt bsm" style="font-size:0.55rem;padding:0 3px;color:var(--vermillion-400);" onclick="_qijuAnnotate(' + _ridx + ')" title="\u5FA1\u6279">\u6279</button>';
+        h += '<div class="qj-rec ' + _cls + '">';
+        h += '<div class="qj-rec-hdr">';
+        h += '<span class="qj-cat-chip">' + escHtml(n.cat) + '</span>';
+        if (n.date) h += '<span class="qj-rec-time">' + escHtml(n.date) + '</span>';
+        h += '<div class="qj-rec-actions">';
+        h += '<button class="qj-rec-btn annot" onclick="_qijuAnnotate(' + _ridx + ')">\u5FA1 \u6279</button>';
         h += '</div>';
-        h += '<div class="qiju-text wd-selectable">' + escHtml(n.text) + '</div>';
-        if (n.annotation) h += '<div style="font-size:0.7rem;color:var(--vermillion-400);font-style:italic;margin-top:2px;padding-left:0.5rem;border-left:2px solid var(--vermillion-400);">\u5FA1\u6279\uFF1A' + escHtml(n.annotation) + '</div>';
+        h += '</div>';
+        h += '<div class="qj-rec-text wd-selectable">' + _qijuHighlight(n.text) + '</div>';
+        if (n.annotation) h += '<div class="qj-annot">' + escHtml(n.annotation) + '</div>';
         h += '</div>';
       });
-      h += '</div>';
+      h += '</div>'; // day-body
+      h += '</div>'; // day
     });
+    h += '</div>'; // timeline
   }
-  // 分页控件
-  h += '<div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;margin-top:var(--space-2);">';
-  h += '<button class="bt bs bsm" ' + (_qijuPage <= 0 ? 'disabled' : '') + ' onclick="_qijuPage--;renderQiju();">\u2039</button>';
-  h += '<span style="font-size:0.75rem;color:var(--txt-s);">' + (_qijuPage+1) + ' / ' + pages + ' (' + filtered.length + '\u6761)</span>';
-  h += '<button class="bt bs bsm" ' + (_qijuPage >= pages-1 ? 'disabled' : '') + ' onclick="_qijuPage++;renderQiju();">\u203A</button>';
+  // 分页
+  h += '<div class="qj-paging">';
+  h += '<button class="qj-pg-btn" ' + (_qijuPage <= 0 ? 'disabled' : '') + ' onclick="_qijuPage--;renderQiju();">\u2039 \u524D\u00A0\u9875</button>';
+  h += '<span class="qj-pg-info"><span class="cur">' + (_qijuPage+1) + '</span> / ' + pages + '\u3000\u5171 ' + filtered.length + ' \u6761 \u00B7 \u672C\u9875 ' + pageTurns.length + ' \u65E5</span>';
+  h += '<button class="qj-pg-btn" ' + (_qijuPage >= pages-1 ? 'disabled' : '') + ' onclick="_qijuPage++;renderQiju();">\u540E\u00A0\u9875 \u203A</button>';
   h += '</div>';
   el.innerHTML = h;
-  // v5·C·装饰 pending 人名
   try { if (typeof decoratePendingInDom === 'function') decoratePendingInDom(el); } catch(_){}
 }
 

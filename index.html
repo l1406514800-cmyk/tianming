@@ -2341,6 +2341,112 @@ input,textarea,select{pointer-events:auto!important;position:relative;z-index:10
 .wy-empty::before{content:"\2756";display:block;color:var(--gold-400);font-size:34px;margin-bottom:12px;opacity:0.5;}
 .wy-empty .sub{font-size:11px;color:var(--ink-300,#6b5d47);letter-spacing:0.15em;margin-top:10px;font-style:italic;}
 
+/* ═══════════ 起居注 (Qiju · Daily Chronicle) ═══════════ */
+.qj-panel-wrap{background-color:var(--color-surface,#241e18);background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.04) 2.5em,rgba(107,93,71,0.04) calc(2.5em + 1px)),repeating-linear-gradient(0deg,transparent 0,transparent 3em,rgba(107,93,71,0.02) 3em,rgba(107,93,71,0.02) calc(3em + 1px)),linear-gradient(to bottom,rgba(184,154,83,0.05) 0%,transparent 80px);position:relative;padding:var(--space-4) var(--space-5);min-height:500px;width:100%;box-sizing:border-box;}
+.qj-panel-wrap::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle at 15% 25%,rgba(139,90,50,0.025) 0.5px,transparent 1px),radial-gradient(circle at 80% 60%,rgba(139,90,50,0.03) 0.5px,transparent 1px);background-size:80px 80px,120px 120px;}
+.qj-inner{position:relative;z-index:1;}
+.qj-title{text-align:center;margin-bottom:20px;position:relative;padding:14px 0 18px;}
+.qj-title::before,.qj-title::after{content:"";position:absolute;left:50%;width:180px;height:1px;transform:translateX(-50%);background:linear-gradient(to right,transparent,var(--gold-d),transparent);}
+.qj-title::before{top:0;} .qj-title::after{bottom:0;}
+.qj-title .main{font-family:var(--font-serif);font-size:24px;letter-spacing:0.5em;color:var(--color-foreground);margin-bottom:6px;}
+.qj-title .sub{font-size:12px;color:var(--ink-300,#6b5d47);letter-spacing:0.3em;font-family:var(--font-serif);font-style:italic;}
+.qj-title .seal{position:absolute;right:28px;top:10px;width:46px;height:46px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(192,64,48,0.85),rgba(140,40,30,0.75));display:flex;align-items:center;justify-content:center;color:#f4eadd;font-size:10.5px;font-family:var(--font-serif);letter-spacing:0.05em;font-weight:bold;transform:rotate(-6deg);box-shadow:0 2px 6px rgba(140,40,30,0.4);opacity:0.88;line-height:1.1;text-align:center;}
+
+.qj-statbar{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;}
+.qj-stat-card{padding:10px 14px;background:var(--color-surface);border:1px solid var(--color-border-subtle);border-left:3px solid var(--sc-c,var(--gold-d));border-radius:3px;background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.025) 2.5em,rgba(107,93,71,0.025) calc(2.5em + 1px));}
+.qj-stat-card.s-all{--sc-c:var(--gold-400);}
+.qj-stat-card.s-month{--sc-c:var(--celadon-400);}
+.qj-stat-card.s-edict{--sc-c:var(--indigo-400,#5a6fa8);}
+.qj-stat-card.s-memo{--sc-c:var(--vermillion-400);}
+.qj-stat-card.s-chaoyi{--sc-c:var(--purple-400,#8e6aa8);}
+.qj-stat-card.s-annot{--sc-c:var(--vermillion-600,#8f3428);}
+.qj-stat-lbl{font-family:var(--font-serif);font-size:10.5px;color:var(--color-foreground-muted);letter-spacing:0.25em;margin-bottom:4px;}
+.qj-stat-num{font-family:var(--font-serif);font-size:22px;color:var(--sc-c);letter-spacing:0.05em;font-weight:700;line-height:1;}
+.qj-stat-sub{font-size:10.5px;color:var(--ink-300,#6b5d47);margin-top:3px;font-style:italic;}
+
+.qj-tools{display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(184,154,83,0.04);border:1px solid var(--color-border-subtle);border-radius:2px;margin-bottom:12px;flex-wrap:wrap;}
+.qj-tools-lbl{font-family:var(--font-serif);font-size:12px;color:var(--color-foreground-muted);letter-spacing:0.2em;padding-right:6px;border-right:1px solid var(--color-border-subtle);flex-shrink:0;}
+.qj-search-wrap{position:relative;flex:1;min-width:180px;max-width:260px;}
+.qj-search-wrap::before{content:"\2315";position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink-300,#6b5d47);font-size:14px;pointer-events:none;}
+.qj-search{width:100%;padding:5px 12px 5px 28px;background:var(--color-background,#1a1510);border:1px solid var(--color-border-subtle);color:var(--color-foreground);font-family:var(--font-song,"SimSun");font-size:12px;border-radius:2px;outline:none;}
+.qj-filter{padding:5px 12px;background:var(--color-background,#1a1510);border:1px solid var(--color-border-subtle);color:var(--color-foreground);font-family:var(--font-serif);font-size:12px;letter-spacing:0.1em;border-radius:2px;cursor:pointer;}
+.qj-chk{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--color-foreground-muted);font-family:var(--font-serif);letter-spacing:0.1em;cursor:pointer;}
+.qj-chk input{accent-color:var(--vermillion-400);}
+.qj-export{padding:5px 14px;background:linear-gradient(to bottom,rgba(184,154,83,0.1),rgba(184,154,83,0.02));border:1px solid var(--gold-d);color:var(--color-foreground-muted);font-family:var(--font-serif);font-size:12px;letter-spacing:0.15em;border-radius:2px;cursor:pointer;}
+.qj-export:hover{background:rgba(184,154,83,0.18);color:var(--gold-400);}
+.qj-export::before{content:"\2756";margin-right:4px;opacity:0.7;font-size:10px;}
+
+.qj-legend{display:flex;gap:6px 10px;padding:8px 14px;margin-bottom:16px;background:rgba(184,154,83,0.02);border:1px solid var(--color-border-subtle);border-radius:2px;font-size:11px;flex-wrap:wrap;align-items:center;}
+.qj-legend-lbl{font-family:var(--font-serif);font-size:11px;color:var(--color-foreground-muted);letter-spacing:0.2em;margin-right:4px;padding-right:6px;border-right:1px solid var(--color-border-subtle);}
+.qj-legend-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:2px;font-family:var(--font-serif);letter-spacing:0.08em;font-size:11px;border:1px solid var(--chip-c,var(--gold-d));color:var(--chip-c,var(--gold-400));background:rgba(var(--chip-rgb,184,154,83),0.06);}
+.qj-legend-chip .num{color:var(--chip-c,var(--gold-400));font-weight:500;font-size:10px;opacity:0.85;}
+.qj-legend-chip.c-edict{--chip-c:var(--indigo-400,#5a6fa8);--chip-rgb:90,111,168;}
+.qj-legend-chip.c-memo{--chip-c:var(--vermillion-400);--chip-rgb:184,71,56;}
+.qj-legend-chip.c-chaoyi{--chip-c:var(--purple-400,#8e6aa8);--chip-rgb:142,106,168;}
+.qj-legend-chip.c-letter{--chip-c:var(--amber-400,#c9a045);--chip-rgb:201,160,69;}
+.qj-legend-chip.c-person{--chip-c:var(--celadon-400);--chip-rgb:106,154,127;}
+.qj-legend-chip.c-xingzhi{--chip-c:var(--gold-400);--chip-rgb:184,154,83;}
+.qj-legend-chip.c-narrative{--chip-c:var(--ink-500,#a69470);--chip-rgb:166,148,112;}
+
+/* 时间线日课 */
+.qj-timeline{position:relative;padding-left:50px;}
+.qj-timeline::before{content:"";position:absolute;left:20px;top:10px;bottom:10px;width:2px;background:linear-gradient(to bottom,var(--gold-d),rgba(107,93,71,0.4));}
+.qj-day{position:relative;margin-bottom:24px;}
+.qj-day::before{content:attr(data-turn);position:absolute;left:-42px;top:4px;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(192,64,48,0.85),rgba(140,40,30,0.75));color:#f4eadd;display:flex;align-items:center;justify-content:center;font-family:var(--font-serif);font-size:11.5px;font-weight:bold;letter-spacing:0.02em;box-shadow:0 2px 6px rgba(140,40,30,0.4),0 0 0 3px var(--color-surface);transform:rotate(-4deg);line-height:1;text-align:center;}
+.qj-day.first::before{background:radial-gradient(circle at 35% 35%,var(--gold-300,#c9a85f),var(--gold-500));}
+.qj-day-hdr{display:flex;align-items:center;gap:12px;padding:8px 16px;background:linear-gradient(to right,rgba(184,154,83,0.12),rgba(184,154,83,0.02) 70%);border:1px solid rgba(184,154,83,0.35);border-left:4px solid var(--gold-400);border-radius:3px;margin-bottom:8px;position:relative;flex-wrap:wrap;}
+.qj-day-hdr::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(to bottom,var(--vermillion-400),var(--gold-400));}
+.qj-day-title{font-family:var(--font-serif);font-size:15px;color:var(--gold-300,#c9a85f);letter-spacing:0.15em;}
+.qj-day-date{font-family:var(--font-serif);font-size:11.5px;color:var(--ink-500,#a69470);letter-spacing:0.1em;font-style:italic;}
+.qj-day-tally{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;}
+.qj-tally-dot{display:inline-flex;align-items:center;gap:3px;font-family:var(--font-serif);font-size:10.5px;padding:1px 6px;border-radius:10px;border:1px solid var(--td-c,var(--gold-d));color:var(--td-c,var(--gold-400));background:rgba(var(--td-rgb,184,154,83),0.06);letter-spacing:0.08em;}
+.qj-tally-dot.edict{--td-c:var(--indigo-400,#5a6fa8);--td-rgb:90,111,168;}
+.qj-tally-dot.memo{--td-c:var(--vermillion-400);--td-rgb:184,71,56;}
+.qj-tally-dot.chaoyi{--td-c:var(--purple-400,#8e6aa8);--td-rgb:142,106,168;}
+.qj-tally-dot.letter{--td-c:var(--amber-400,#c9a045);--td-rgb:201,160,69;}
+.qj-tally-dot.person{--td-c:var(--celadon-400);--td-rgb:106,154,127;}
+.qj-tally-dot.xingzhi{--td-c:var(--gold-400);--td-rgb:184,154,83;}
+
+.qj-day-body{padding-left:12px;border-left:1px dashed var(--color-border-subtle);margin-left:4px;}
+.qj-rec{position:relative;padding:8px 12px 8px 14px;background:rgba(107,93,71,0.04);border:1px solid var(--color-border-subtle);border-left:3px solid var(--cat-c,var(--ink-300));border-radius:0 3px 3px 0;margin-bottom:6px;transition:all 0.2s;}
+.qj-rec:hover{background:rgba(184,154,83,0.06);border-color:rgba(184,154,83,0.35);}
+.qj-rec.c-edict{--cat-c:var(--indigo-400,#5a6fa8);--cat-rgb:90,111,168;}
+.qj-rec.c-memo{--cat-c:var(--vermillion-400);--cat-rgb:184,71,56;}
+.qj-rec.c-chaoyi{--cat-c:var(--purple-400,#8e6aa8);--cat-rgb:142,106,168;}
+.qj-rec.c-letter{--cat-c:var(--amber-400,#c9a045);--cat-rgb:201,160,69;}
+.qj-rec.c-person{--cat-c:var(--celadon-400);--cat-rgb:106,154,127;}
+.qj-rec.c-xingzhi{--cat-c:var(--gold-400);--cat-rgb:184,154,83;}
+.qj-rec.c-narrative{--cat-c:var(--ink-500,#a69470);--cat-rgb:166,148,112;}
+
+.qj-rec-hdr{display:flex;align-items:center;gap:6px;margin-bottom:4px;flex-wrap:wrap;}
+.qj-cat-chip{display:inline-flex;align-items:center;gap:3px;font-family:var(--font-serif);font-size:10.5px;padding:1px 7px;background:linear-gradient(to bottom,var(--cat-c,var(--gold-400)),rgba(0,0,0,0.08));color:#1a1410;border-radius:2px;letter-spacing:0.12em;font-weight:500;line-height:14px;}
+.qj-cat-chip::before{content:"\3010";color:rgba(0,0,0,0.5);font-size:8px;margin-right:1px;}
+.qj-cat-chip::after{content:"\3011";color:rgba(0,0,0,0.5);font-size:8px;margin-left:1px;}
+.qj-rec-time{font-size:10.5px;color:var(--ink-300,#6b5d47);font-family:var(--font-serif);font-style:italic;letter-spacing:0.08em;margin-left:auto;}
+.qj-rec-actions{display:flex;gap:3px;}
+.qj-rec-btn{background:transparent;border:1px solid transparent;color:var(--ink-300,#6b5d47);font-family:var(--font-serif);font-size:10.5px;padding:1px 7px;border-radius:2px;cursor:pointer;letter-spacing:0.08em;}
+.qj-rec-btn:hover{color:var(--vermillion-400);border-color:var(--vermillion-400);background:rgba(192,64,48,0.06);}
+.qj-rec-btn.zoom:hover{color:var(--gold-400);border-color:var(--gold-400);background:rgba(184,154,83,0.06);}
+
+.qj-rec-text{font-family:var(--font-song,"SimSun");font-size:13.5px;color:var(--color-foreground);line-height:1.85;letter-spacing:0.04em;word-break:break-word;white-space:pre-wrap;}
+.qj-rec-text .hl{color:var(--color-foreground);font-weight:500;}
+.qj-rec-text .name{color:var(--gold-300,#c9a85f);font-family:var(--font-serif);letter-spacing:0.05em;}
+
+.qj-annot{margin-top:6px;padding:6px 10px 6px 44px;background:linear-gradient(to right,rgba(192,64,48,0.08),rgba(192,64,48,0.02) 60%);border-left:2px solid var(--vermillion-400);border-radius:0 2px 2px 0;font-family:var(--font-serif);font-size:12px;color:var(--vermillion-400);font-style:italic;letter-spacing:0.05em;line-height:1.7;position:relative;}
+.qj-annot::before{content:"\5FA1\u00A0\u6279";position:absolute;left:6px;top:50%;transform:translateY(-50%);font-size:10px;color:#f4eadd;background:radial-gradient(circle at 35% 35%,rgba(192,64,48,0.9),rgba(140,40,30,0.8));padding:2px 5px;border-radius:2px;letter-spacing:0.1em;font-weight:bold;box-shadow:0 1px 2px rgba(140,40,30,0.4);white-space:nowrap;font-style:normal;}
+
+.qj-quote{margin:4px 0 2px 0;padding:4px 8px;background:rgba(107,93,71,0.06);border-left:1px dashed var(--cat-c,var(--gold-d));border-radius:0 2px 2px 0;font-family:var(--font-song,"SimSun");font-size:12.5px;color:var(--ink-700,#d9c9a9);font-style:italic;letter-spacing:0.03em;line-height:1.7;white-space:pre-wrap;}
+
+.qj-paging{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px;padding:10px;background:rgba(184,154,83,0.02);border:1px solid var(--color-border-subtle);border-radius:2px;}
+.qj-pg-btn{padding:4px 14px;background:linear-gradient(to bottom,rgba(184,154,83,0.1),rgba(184,154,83,0.02));border:1px solid var(--gold-d);color:var(--gold-400);font-family:var(--font-serif);font-size:12px;letter-spacing:0.1em;border-radius:2px;cursor:pointer;}
+.qj-pg-btn:hover:not(:disabled){background:rgba(184,154,83,0.18);}
+.qj-pg-btn:disabled{opacity:0.35;cursor:default;}
+.qj-pg-info{font-family:var(--font-serif);font-size:12px;color:var(--ink-500,#a69470);letter-spacing:0.12em;}
+.qj-pg-info .cur{color:var(--gold-400);font-weight:700;}
+
+.qj-empty{text-align:center;padding:64px 24px;font-family:var(--font-serif);font-size:15px;color:var(--color-foreground-muted);letter-spacing:0.2em;line-height:2.2;}
+.qj-empty::before{content:"\2756";display:block;color:var(--gold-400);font-size:34px;margin-bottom:12px;opacity:0.5;}
+
 /* 史记（旧·保留兼容） */
 .qiju-record{background:var(--bg-2);border:1px solid var(--bdr);border-radius:var(--r);padding:0.7rem;margin-bottom:0.5rem;border-left:3px solid var(--gold-d);}
 .qiju-turn{font-size:0.72rem;color:var(--gold);margin-bottom:0.3rem;}
@@ -3361,7 +3467,7 @@ console.log('天命游戏脚本开始加载...');
 <script src="tm-change-queue.js"></script>
 <script src="tm-index-world.js?v=20260419v"></script>
 <script src="tm-npc-engine.js"></script>
-<script src="tm-game-engine.js?v=20260420f"></script>
+<script src="tm-game-engine.js?v=20260420g"></script>
 <script src="tm-map-system.js"></script>
 <script src="tm-dynamic-systems.js"></script>
 <script src="tm-economy-military.js"></script>
@@ -3369,7 +3475,7 @@ console.log('天命游戏脚本开始加载...');
 <script src="tm-storage.js"></script>
 <script src="tm-endturn-helpers.js"></script>
 <script src="tm-endturn-province.js?v=20260419i"></script>
-<script src="tm-endturn.js?v=20260420d"></script>
+<script src="tm-endturn.js?v=20260420e"></script>
 <script src="tm-endturn-render.js?v=20260420b"></script>
 <script src="tm-patches.js?v=20260419k"></script>
 <script src="tm-chaoyi-keju.js?v=20260419F"></script>
