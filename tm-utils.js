@@ -505,6 +505,64 @@ function escHtml(s){
   if(s===null||s===undefined)return'';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
+/**
+ * 所在地别名表：同一城市/宫城的多种叫法。
+ * 用于 _isSameLocation 匹配——"紫禁城·乾清宫"/"坤宁宫"/"京师·文渊阁"视为同城。
+ * 值为 canonical key，key 方有多个别名。
+ */
+var _LOC_ALIASES = {
+  '京城': '京城', '京师': '京城', '北京': '京城', '燕京': '京城', '顺天府': '京城',
+  '紫禁城': '京城', '皇城': '京城', '宫中': '京城', '内廷': '京城', '禁中': '京城',
+  '南京': '南京', '应天府': '南京', '建康': '南京', '金陵': '南京', '陪都': '南京',
+  '盛京': '盛京', '沈阳': '盛京', '赫图阿拉': '盛京', '辽阳': '盛京',
+  '杭州': '杭州', '临安': '杭州', '西湖': '杭州',
+  '苏州': '苏州', '姑苏': '苏州', '吴中': '苏州',
+  '洛阳': '洛阳', '东都': '洛阳',
+  '西安': '西安', '长安': '西安',
+  '成都': '成都', '蜀京': '成都',
+  '汉城': '汉城', '汉阳': '汉城', '首尔': '汉城'
+};
+/**
+ * 把地点字符串规范化到"主地点"——取首段（按 · , /、空格等分割）后查别名表。
+ * 例："紫禁城·乾清宫" → "紫禁城" → 查表得 "京城"
+ *     "京师·文渊阁" → "京师" → "京城"
+ *     "南京·户部衙门" → "南京" → "南京"
+ *     "陕西·西安" → "陕西"（未在表中，返回自身）
+ */
+function _normalizeLocation(loc) {
+  if (!loc || typeof loc !== 'string') return '';
+  var s = String(loc).trim();
+  if (!s) return '';
+  // 取首段——按常见分隔符拆分
+  var parts = s.split(/[·・\/\,，、\s\-—>→→]+/);
+  for (var i = 0; i < parts.length; i++) {
+    var p = (parts[i] || '').trim();
+    if (!p) continue;
+    if (_LOC_ALIASES[p]) return _LOC_ALIASES[p];
+    // 别名表覆盖更长前缀（如 "紫禁城·乾清宫"）
+    var keys = Object.keys(_LOC_ALIASES);
+    for (var k = 0; k < keys.length; k++) {
+      if (p.indexOf(keys[k]) === 0) return _LOC_ALIASES[keys[k]];
+    }
+    return p; // 首段未匹配即返回
+  }
+  return s;
+}
+/**
+ * 判定两地是否"视为同地"——同城/同宫室都算。
+ * 规则：规范化后首段相等；或一方包含另一方的主键（如两者都含"紫禁城"或"京师"）。
+ */
+function _isSameLocation(a, b) {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  var na = _normalizeLocation(a);
+  var nb = _normalizeLocation(b);
+  if (na === nb) return true;
+  // 原串相互包含亦算（兜底宽松匹配）
+  if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) return true;
+  return false;
+}
+
 /** 模糊查找角色（精确→去空格标点→前2字唯一→别名→null） */
 function _fuzzyFindChar(name) {
   if (!name || !GM.chars) return null;

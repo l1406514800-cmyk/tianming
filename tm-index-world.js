@@ -3166,7 +3166,8 @@ function _wdIsAtCapital(ch) {
   var playerLoc = (typeof _getPlayerLocation === 'function') ? _getPlayerLocation() : (GM._capital || '京城');
   var loc = ch.location || (GM._capital || '京城');
   if (ch._travelTo) return false;
-  return loc === playerLoc;
+  // 宽松匹配——紫禁城·乾清宫 / 坤宁宫 / 京师·文渊阁 视为同地
+  return (typeof _isSameLocation === 'function') ? _isSameLocation(loc, playerLoc) : (loc === playerLoc);
 }
 
 /**
