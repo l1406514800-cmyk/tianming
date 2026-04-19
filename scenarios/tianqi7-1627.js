@@ -1241,7 +1241,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v40-2026.04.19-europe-deep+she-an-faction';
+  var SCENARIO_VERSION = 'v41-2026.04.19-vars-slim+events-conditional';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -3860,7 +3860,7 @@
         chongzhen1_lunar: { turn: 5, type: 'heavenSign', name: '月食', narrative: '崇祯元年正月戊寅朔，月食。', effect: { '皇威': -2 } },
         chongzhen1_eclipse: { turn: 11, type: 'heavenSign', name: '日食', narrative: '崇祯元年六月甲午朔，日食。钦天监言"帝室之象，警戒在躬"。', effect: { '皇威': -5, '皇权': -3 } },
         chongzhen2_earthquake: { turn: 19, type: 'heavenSign', name: '北京地震', narrative: '崇祯二年春，京师地震。', effect: { '民心': -3, '皇威': -3 } },
-        chongzhen3_locust: { turn: 32, type: 'disaster', name: '河南蝗灾', narrative: '崇祯三年夏，河南大蝗。', effect: { '西北灾荒怨气': +5, '流民数量': +100000 } },
+        chongzhen3_locust: { turn: 32, type: 'disaster', name: '河南蝗灾', narrative: '崇祯三年夏，河南大蝗。', effect: { '民心': -5, '流民数量': +100000, '小冰河凛冬指数': +3 } },
         chongzhen_great_plague: { turn: 120, type: 'disaster', name: '华北大疫', narrative: '崇祯十四年起华北大疫（推测为鼠疫），死亡不计其数。', effect: { '人口': -500000, '小冰河凛冬指数': +5 } }
       },
 
@@ -3896,21 +3896,18 @@
       },
 
       // ──── 变量（编辑器 scriptData.variables · {base:[], other:[], formulas:[]}） ────
-      // 七大核心变量(帑廪/内帑/皇权/皇威/民心/腐败/环境/人口)由游戏系统自管理，base 为空
-      // 本剧本 26 项"专题变量"都在 other；formulas 为变量间关联
-      // 运行时 global.P.variables 通过下方 buildScenario _registerVars 自动注册
+      // 七大核心变量(帑廪/内帑/户口/吏治/民心/皇权/皇威)由游戏系统自管理，base 为空
+      // 本剧本 21 项"专题变量"都在 other，不与七大重叠
+      // 删除：宦官干政度/太仓粮实存/西北灾荒怨气/官场冗员指数/诏狱案件积压/宗族兼并度(分别并入皇权/帑廪/民心区域/吏治/皇威/户口豪强)
       variables: {
         base: [],
         other: [
           { name: '阉党权势值', value: 92, min: 0, max: 100, cat: '党派', desc: '魏忠贤集团的朝堂支配度。内阁、六部、都察院过半阉党或附阉者。', inversed: true },
           { name: '东林党复苏进度', value: 4, min: 0, max: 100, cat: '党派', desc: '东林骨干多在籍或戍边，归朝尚需圣旨。' },
           { name: '党争烈度', value: 58, min: 0, max: 100, cat: '党派', desc: '阉党打压东林尚未终结。东林反扑将爆发。', inversed: true },
-          { name: '宦官干政度', value: 85, min: 0, max: 100, cat: '皇权', desc: '司礼监批红直达天听，内外阁票拟形同虚设。', inversed: true },
-          { name: '士人风骨指数', value: 30, min: 0, max: 100, cat: '皇权', desc: '东林六君子诏狱血案后，士林多噤声。' },
           { name: '辽饷积欠', value: 460, min: 0, max: 1000, unit: '万两', cat: '财政', desc: '辽东欠饷累计。袁崇焕去后更甚。宁远、锦州戍卒哗变警报不断。', inversed: true },
           { name: '九边欠饷总数', value: 720, min: 0, max: 2000, unit: '万两', cat: '财政', desc: '九边总欠饷。超 1000 万引全面哗变。', inversed: true },
           { name: '宗禄拖欠', value: 280, min: 0, max: 1000, unit: '万石', cat: '财政', desc: '宗室禄米历年拖欠。万历末宗室逾 20 万，岁禄理论 600 万石，实际拨发不足一半。', inversed: true },
-          { name: '太仓粮实存', value: 130, min: 0, max: 1000, unit: '万石', cat: '财政', desc: '太仓米粮实有。漕运岁运 400 万石，多虚报。京通仓存粮难支半年。', inversed: true },
           { name: '银荒指数', value: 55, min: 0, max: 100, cat: '财政', desc: '白银流通紧张度。超 70 即钱贱谷贵民不聊生。', inversed: true },
           { name: '宝泉局铸钱量', value: 40, min: 0, max: 100, cat: '财政', desc: '工部宝源局/户部宝泉局岁铸制钱数量。明末铸币减少，私铸盛行。' },
           { name: '海贸银流入', value: 28, min: 0, max: 100, cat: '财政', desc: '马尼拉-月港-澳门海贸流入白银。天启七年荷西竞争影响流速。' },
@@ -3918,24 +3915,23 @@
           { name: '海商势力', value: 25, min: 0, max: 100, cat: '经济', desc: '郑芝龙为首的海商集团崛起程度。' },
           { name: '漕运通畅度', value: 58, min: 0, max: 100, cat: '经济', desc: '京杭大运河江南至通州段。淤堵频发。' },
           { name: '辽东防线稳固度', value: 42, min: 0, max: 100, cat: '军事', desc: '袁崇焕去后，辽东经略未定。王之臣老病。关宁锦防线核心未失。' },
-          { name: '流民数量', value: 900000, min: 0, max: 50000000, unit: '口', cat: '民生', desc: '北直隶/陕西/山东流民估数。三年连旱将加速。', inversed: true },
-          { name: '小冰河凛冬指数', value: 68, min: 0, max: 100, cat: '环境', desc: '1627 冬寒异常。未来三年将更严酷。', inversed: true },
-          { name: '西北灾荒怨气', value: 76, min: 0, max: 100, cat: '民生', desc: '陕北已三年大旱，观音土食尽，草根掘尽。民变在即。', inversed: true },
           { name: '卫所虚额率', value: 62, min: 0, max: 100, cat: '军事', desc: '九边卫所"在册"与"实存"差距。>60 即战事无可用兵。', inversed: true },
-          { name: '官场冗员指数', value: 55, min: 0, max: 100, cat: '政治', desc: '超定员的闲散官。阉党"恩荫"泛滥，卖官鬻爵。', inversed: true },
+          { name: '流民数量', value: 900000, min: 0, max: 50000000, unit: '口', cat: '民生', desc: '北直隶/陕西/山东流民估数。三年连旱将加速。', inversed: true },
+          { name: '小冰河凛冬指数', value: 68, min: 0, max: 100, cat: '环境', desc: '1627 冬寒异常。未来三年将更严酷。触发旱/蝗/瘟三灾之源。', inversed: true },
+          { name: '黄河水利失修度', value: 68, min: 0, max: 100, cat: '环境', desc: '黄河淮河堤防失修。万历末至天启连年溃决，田卢漂没。', inversed: true },
+          { name: '士人风骨指数', value: 30, min: 0, max: 100, cat: '政治', desc: '东林六君子诏狱血案后，士林多噤声。高则敢言清议，低则谄媚俯伏。' },
           { name: '言路通塞', value: 22, min: 0, max: 100, cat: '政治', desc: '科道敢言度。阉党时"讳言国事、谏者必诛"。高则言路畅，低则噤声。' },
           { name: '科举选士质量', value: 45, min: 0, max: 100, cat: '政治', desc: '会试/殿试取中者之素质与独立性。阉党座主门生勾结严重。' },
-          { name: '诏狱案件积压', value: 78, min: 0, max: 100, cat: '政治', desc: '锦衣卫北镇抚司未决案件。天启朝诏狱杀人无数，积压亦重。', inversed: true },
-          { name: '黄河水利失修度', value: 68, min: 0, max: 100, cat: '环境', desc: '黄河淮河堤防失修。万历末至天启连年溃决，田卢漂没。', inversed: true },
-          { name: '宗族兼并度', value: 72, min: 0, max: 100, cat: '经济', desc: '宗藩/缙绅侵占民田之烈度。福王田 4 万顷即典型。', inversed: true },
-          { name: '天下文社数', value: 18, min: 0, max: 100, cat: '政治', desc: '文人社团（将孕育复社）。以士子议政、讲学、联属试卷为名。' }
+          { name: '天下文社数', value: 18, min: 0, max: 100, cat: '文化', desc: '文人社团（将孕育复社）。以士子议政、讲学、联属试卷为名。' }
         ],
         formulas: [
           { name: '辽饷 × 民心', expression: '民心变化 = -(辽饷积欠/100) × 加派因子', relatedVars: ['辽饷积欠', '民心', '加派因子'], description: '辽饷每累积欠 100 万两，民心月降 1-2 点' },
-          { name: '小冰河 → 流民', expression: '月流民增量 = 小冰河凛冬指数 × 1.2 × 陕西饥荒系数', relatedVars: ['小冰河凛冬指数', '流民数量', '西北灾荒怨气'], description: '小冰河每升 10，流民月增 1.2 万' },
+          { name: '小冰河 → 流民', expression: '月流民增量 = 小冰河凛冬指数 × 1.2 × 地方饥荒系数', relatedVars: ['小冰河凛冬指数', '流民数量', '民心'], description: '小冰河每升 10，流民月增 1.2 万' },
           { name: '九边欠饷 → 哗变', expression: 'if (九边欠饷>1000 && 月>3) { 关宁军哗变概率 += 0.15 }', relatedVars: ['九边欠饷总数', '辽东防线稳固度'], description: '累欠 1000 万两+欠饷 3 月以上时必哗' },
           { name: '宗禄拖欠 → 宗室离心', expression: '宗室满意度 = 100 - 宗禄拖欠/10', relatedVars: ['宗禄拖欠'], description: '拖欠 500 万石时宗室满意降至 50 以下' },
-          { name: '阉党权势 → 言路', expression: '言路通塞 = max(5, 100 - 阉党权势值)', relatedVars: ['阉党权势值', '言路通塞'], description: '阉党权势与言路成反比' }
+          { name: '阉党权势 → 言路', expression: '言路通塞 = max(5, 100 - 阉党权势值)', relatedVars: ['阉党权势值', '言路通塞'], description: '阉党权势与言路成反比' },
+          { name: '小冰河 → 黄河', expression: '黄河水利失修度 += 小冰河凛冬指数/40', relatedVars: ['小冰河凛冬指数', '黄河水利失修度'], description: '小冰河凛冬导致上游冰凌堵塞·下游溃决' },
+          { name: '海贸银 → 银荒', expression: '银荒指数 = 80 - 海贸银流入 × 0.7', relatedVars: ['海贸银流入', '银荒指数'], description: '海贸银流入少则银荒加剧' }
         ]
       },
 
@@ -5510,19 +5506,21 @@
     //   · 人口：由 adminHierarchy 叶子 populationDetail.mouths 自动汇总
     //   · 环境承载力：由 adminHierarchy carryingCapacity 自动汇总
     //   此处 P.variables 只定义本剧本额外的"专题变量"——避免与七大核心重复。
+    // ═══════════════════════════════════════════════════════════════════
+    // 变量设计原则：不重复七大官方变量(帑廪/内帑/户口/吏治/民心/皇权/皇威)
+    // 已删除：宦官干政度(并入皇权)·太仓粮实存(并入帑廪grain)·西北灾荒怨气(并入民心byRegion)
+    //        官场冗员指数(并入吏治)·诏狱案件积压(并入皇威)·宗族兼并度(并入户口豪强)
+    // 保留：党派专项、财政专项(欠饷/银钱/海贸)、军事专项、环境、政治风气、文化
+    // ═══════════════════════════════════════════════════════════════════
     var variables = [
-      // ──── 党派·权阉 ────
+      // ──── 党派（不重复皇权） ────
       { name: '阉党权势值', value: 92, min: 0, max: 100, cat: '党派', desc: '魏忠贤集团的朝堂支配度。内阁、六部、都察院过半阉党或附阉者。', inversed: true },
       { name: '东林党复苏进度', value: 4, min: 0, max: 100, cat: '党派', desc: '东林骨干多在籍或戍边，归朝尚需圣旨。' },
       { name: '党争烈度', value: 58, min: 0, max: 100, cat: '党派', desc: '阉党打压东林尚未终结。东林反扑将爆发。', inversed: true },
-      { name: '宦官干政度', value: 85, min: 0, max: 100, cat: '皇权', desc: '司礼监批红直达天听，内外阁票拟形同虚设。', inversed: true },
-      { name: '士人风骨指数', value: 30, min: 0, max: 100, cat: '皇权', desc: '东林六君子诏狱血案后，士林多噤声。' },
-      // ──── 财政·专项欠饷 ────
+      // ──── 财政·专项欠饷（不重复帑廪money/grain） ────
       { name: '辽饷积欠', value: 460, min: 0, max: 1000, unit: '万两', cat: '财政', desc: '辽东欠饷累计。袁崇焕去后更甚。宁远、锦州戍卒哗变警报不断。', inversed: true },
       { name: '九边欠饷总数', value: 720, min: 0, max: 2000, unit: '万两', cat: '财政', desc: '九边（辽东/蓟州/宣府/大同/山西/延绥/宁夏/甘肃/固原）总欠饷。超 1000 万引全面哗变。', inversed: true },
       { name: '宗禄拖欠', value: 280, min: 0, max: 1000, unit: '万石', cat: '财政', desc: '宗室禄米历年拖欠。万历末宗室逾 20 万，岁禄理论 600 万石，实际拨发不足一半。', inversed: true },
-      { name: '太仓粮实存', value: 130, min: 0, max: 1000, unit: '万石', cat: '财政', desc: '太仓米粮实有。漕运岁运 400 万石，多虚报。京通仓存粮难支半年。', inversed: true },
-      // (太仓银储量比已删除——与七大核心中的国库资金功能重叠)
       { name: '银荒指数', value: 55, min: 0, max: 100, cat: '财政', desc: '白银流通紧张度。一条鞭法后民间银两需求激增，美洲银流入放缓则银价昂贵。超 70 即钱贱谷贵民不聊生。', inversed: true },
       { name: '宝泉局铸钱量', value: 40, min: 0, max: 100, cat: '财政', desc: '工部宝源局/户部宝泉局岁铸制钱(铜钱)数量。明末铸币减少，私铸盛行。' },
       { name: '海贸银流入', value: 28, min: 0, max: 100, cat: '财政', desc: '马尼拉-月港-澳门海贸流入白银。天启七年荷西竞争影响流速。' },
@@ -5530,22 +5528,18 @@
       { name: '江南商税抵制度', value: 75, min: 0, max: 100, cat: '经济', desc: '江南缙绅对商税/矿税的抵制程度。矿税于 1625 年罢。', inversed: true },
       { name: '海商势力', value: 25, min: 0, max: 100, cat: '经济', desc: '郑芝龙为首的海商集团崛起程度。' },
       { name: '漕运通畅度', value: 58, min: 0, max: 100, cat: '经济', desc: '京杭大运河江南至通州段。淤堵频发。' },
-      // ──── 军事 ────
+      // ──── 军事（不重复兵威；仅专项） ────
       { name: '辽东防线稳固度', value: 42, min: 0, max: 100, cat: '军事', desc: '袁崇焕去后，辽东经略未定。王之臣老病。关宁锦防线核心未失。' },
-      // ──── 民生/环境 ────
-      { name: '流民数量', value: 900000, min: 0, max: 50000000, unit: '口', cat: '民生', desc: '北直隶/陕西/山东流民估数。三年连旱将加速。', inversed: true },
-      { name: '小冰河凛冬指数', value: 68, min: 0, max: 100, cat: '环境', desc: '1627 冬寒异常。未来三年将更严酷。', inversed: true },
-      { name: '西北灾荒怨气', value: 76, min: 0, max: 100, cat: '民生', desc: '陕北已三年大旱，观音土食尽，草根掘尽。民变在即。', inversed: true },
-      // ──── 制度/风气 ────
       { name: '卫所虚额率', value: 62, min: 0, max: 100, cat: '军事', desc: '九边卫所"在册"与"实存"差距。>60 即战事无可用兵。', inversed: true },
-      { name: '官场冗员指数', value: 55, min: 0, max: 100, cat: '政治', desc: '超定员的闲散官。阉党"恩荫"泛滥，卖官鬻爵。', inversed: true },
+      // ──── 民生/环境（不重复户口·民心） ────
+      { name: '流民数量', value: 900000, min: 0, max: 50000000, unit: '口', cat: '民生', desc: '北直隶/陕西/山东流民估数。三年连旱将加速。', inversed: true },
+      { name: '小冰河凛冬指数', value: 68, min: 0, max: 100, cat: '环境', desc: '1627 冬寒异常。未来三年将更严酷。触发旱蝗瘟三灾之源。', inversed: true },
+      { name: '黄河水利失修度', value: 68, min: 0, max: 100, cat: '环境', desc: '黄河淮河堤防失修。万历末至天启连年溃决，田卢漂没。', inversed: true },
+      // ──── 政治风气（不重复皇威·吏治） ────
+      { name: '士人风骨指数', value: 30, min: 0, max: 100, cat: '政治', desc: '东林六君子诏狱血案后，士林多噤声。高则敢言清议，低则谄媚俯伏。' },
       { name: '言路通塞', value: 22, min: 0, max: 100, cat: '政治', desc: '科道敢言度。阉党时"讳言国事、谏者必诛"。高则言路畅，低则噤声。' },
       { name: '科举选士质量', value: 45, min: 0, max: 100, cat: '政治', desc: '会试/殿试取中者之素质与独立性。阉党座主门生勾结严重。' },
-      { name: '诏狱案件积压', value: 78, min: 0, max: 100, cat: '政治', desc: '锦衣卫北镇抚司未决案件。天启朝诏狱杀人无数，积压亦重。', inversed: true },
-      // ──── 社会/水利 ────
-      { name: '黄河水利失修度', value: 68, min: 0, max: 100, cat: '环境', desc: '黄河淮河堤防失修。万历末至天启连年溃决，田卢漂没。', inversed: true },
-      { name: '宗族兼并度', value: 72, min: 0, max: 100, cat: '经济', desc: '宗藩/缙绅侵占民田之烈度。福王田 4 万顷即典型。', inversed: true },
-      { name: '天下文社数', value: 18, min: 0, max: 100, cat: '政治', desc: '文人社团（将孕育复社）。以士子议政、讲学、联属试卷为名。' }
+      { name: '天下文社数', value: 18, min: 0, max: 100, cat: '文化', desc: '文人社团（将孕育复社）。以士子议政、讲学、联属试卷为名。' }
     ];
     variables.forEach(function (v) { v.sid = SID; v.id = _uid('var_'); v.color = '#c9a84c'; v.icon = ''; v.visible = true; global.P.variables.push(v); });
 
@@ -5628,8 +5622,16 @@
     // ═══════════════════════════════════════════════════════════════════
     // § 8. 事件（18 条开局/早期触发）
     // ═══════════════════════════════════════════════════════════════════
+    // 编辑器用·分类事件（scenario.events.{historical,random,conditional,story,chain}）
+    scenario.events = buildCategorizedEvents();
+    // 运行时用·扁平事件（P.events·GM.events 由其过滤）
     var events = buildEvents();
-    events.forEach(function (e) { e.sid = SID; e.id = _uid('evt_'); e.triggered = false; e.type = 'scripted'; global.P.events.push(e); });
+    events.forEach(function (e) {
+      e.sid = SID; e.id = _uid('evt_'); e.triggered = false;
+      // e.type 保留分类用的 historical/conditional/random/story/chain，category 字段副本
+      if (!e.type) e.type = e.category || 'scripted';
+      global.P.events.push(e);
+    });
 
     console.log('[scenario] 天启七年·九月（v2 扩充版）已注册，sid=' + SID + '，人物' + chars.length + '·势力' + facs.length + '·党派' + parties.length + '·阶层' + classes.length + '·变量' + variables.length + '·关系' + relations.length + '·事件' + events.length);
   }
@@ -6169,185 +6171,675 @@
   // ═══════════════════════════════════════════════════════════════════
   // § 事件构建
   // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════
+  // § 事件构建
+  //   编辑器 schema：scriptData.events.{historical, random, conditional, story, chain}
+  //   原则：除「天灾」与「已发生事件」外不设 triggerTurn；以 trigger 条件 + 随机性驱动
+  //   字段：{name, type, importance, trigger(文本条件), effect(文本摘要),
+  //         description, narrative, linkedChars[], linkedFactions[],
+  //         choices[], chainNext(chain 专用)}
+  // ═══════════════════════════════════════════════════════════════════
+  function buildCategorizedEvents() {
+    return {
+      // ──── 已发生的事件（背景板，不再触发，供 AI 参考） ────
+      historical: [
+        {
+          name: '萨尔浒之战(1619)', type: 'historical', importance: '关键',
+          trigger: '已发生', effect: '辽东主动权丧失',
+          description: '万历四十七年三月，杨镐四路进剿后金于萨尔浒。三路败没，刘綎战死。明失辽东主动。',
+          linkedChars: ['努尔哈赤'], linkedFactions: ['明朝廷', '后金']
+        },
+        {
+          name: '广宁之变(1622)', type: 'historical', importance: '关键',
+          trigger: '已发生', effect: '明军弃辽西四十余卫所退入关内',
+          description: '天启二年正月，王化贞弃广宁。熊廷弼受连累死于诏狱。关外精华沦失。',
+          linkedChars: ['熊廷弼'], linkedFactions: ['明朝廷', '后金']
+        },
+        {
+          name: '天启四年东林六君子血案(1624-1625)', type: 'historical', importance: '关键',
+          trigger: '已发生', effect: '士林溃散·阉党当国',
+          description: '杨涟劾魏忠贤二十四大罪不报。次年杨涟、左光斗、魏大中、袁化中、周朝瑞、顾大章等六君子被阉党罗织入诏狱拷死。五虎五彪借此大肆屠戮。',
+          linkedChars: ['魏忠贤', '杨涟', '左光斗'], linkedFactions: ['明朝廷']
+        },
+        {
+          name: '高攀龙自沉(1625)', type: 'historical', importance: '重要',
+          trigger: '已发生', effect: '东林之厄',
+          description: '天启五年三月，东林党魁高攀龙被阉党诬陷。闻讯自沉止水，临终词曰"心如太虚、本无生死"。',
+          linkedChars: ['高攀龙', '魏忠贤'], linkedFactions: ['明朝廷']
+        },
+        {
+          name: '宁远大捷(1626)', type: 'historical', importance: '关键',
+          trigger: '已发生', effect: '袁崇焕红衣炮退努尔哈赤',
+          description: '天启六年正月。袁崇焕独守宁远城，以葡制红衣炮击退努尔哈赤大军。破金不败神话。',
+          linkedChars: ['袁崇焕', '努尔哈赤'], linkedFactions: ['明朝廷', '后金']
+        },
+        {
+          name: '柳河之败(1625)', type: 'historical', importance: '普通',
+          trigger: '已发生', effect: '孙承宗辞督师·阉党排挤',
+          description: '天启五年秋，孙承宗部马世龙误渡柳河遇伏败。阉党借机逼孙承宗辞督师。',
+          linkedChars: ['孙承宗', '马世龙'], linkedFactions: ['明朝廷']
+        },
+        {
+          name: '江都兄弟盟(1627 春·丁卯之役)', type: 'historical', importance: '关键',
+          trigger: '已发生', effect: '明失朝鲜一东藩·东江镇后勤断',
+          description: '天启七年正月皇太极亲征朝鲜。朝鲜仁祖败走江华岛。三月被迫签"江都盟"兄弟之约。',
+          linkedChars: ['皇太极', '仁祖·李倧'], linkedFactions: ['后金', '朝鲜']
+        },
+        {
+          name: '宁锦大捷(1627/5)', type: 'historical', importance: '关键',
+          trigger: '已发生', effect: '袁崇焕据宁锦退皇太极',
+          description: '天启七年五月皇太极攻宁锦。袁崇焕督宁远、赵率教守锦州。十余日战皇太极不得破。阉党论功偏袒王之臣，袁崇焕辞归广东。',
+          linkedChars: ['袁崇焕', '皇太极', '赵率教'], linkedFactions: ['明朝廷', '后金']
+        },
+        {
+          name: '熹宗崩(1627/8/22)', type: 'historical', importance: '关键',
+          trigger: '已发生·开局起点', effect: '信王朱由检入继大统',
+          description: '天启七年八月二十二日熹宗朱由校崩于乾清宫，年二十三。遗命"吾弟当为尧舜"。信王朱由检八月二十四日入继大统。本剧本九月开局。',
+          linkedChars: ['朱由校', '朱由检'], linkedFactions: ['明朝廷']
+        },
+        {
+          name: '客氏遣出宫外(1627/8)', type: 'historical', importance: '重要',
+          trigger: '已发生·本剧本开局前', effect: '魏忠贤闻风胆寒',
+          description: '熹宗乳母客氏，阉党内援。新帝即位后随即诏命出宫。本剧本开局时已经发生。',
+          linkedChars: ['客氏', '朱由检'], linkedFactions: ['明朝廷']
+        },
+        {
+          name: '奢安之乱起事(1621-1622)', type: 'historical', importance: '关键',
+          trigger: '已发生·仍在进行', effect: '川贵糜烂·耗千万两',
+          description: '天启元年九月四川永宁宣抚使奢崇明于重庆起兵。天启二年二月贵州水西宣慰司同知安邦彦联反围贵阳。至本开局仍在第七年。',
+          linkedChars: ['奢崇明', '安邦彦', '朱燮元'], linkedFactions: ['奢安之乱联军', '明朝廷']
+        },
+        {
+          name: '徐鸿儒白莲教叛(1622)', type: 'historical', importance: '普通',
+          trigger: '已发生', effect: '山东骚动·四月平定',
+          description: '天启二年五月山东郓城徐鸿儒以白莲教名义聚众数万。四月即被剿。',
+          linkedChars: ['徐鸿儒'], linkedFactions: ['明朝廷']
+        }
+      ],
+
+      // ──── 条件触发（依变量/状态条件触发·无固定回合） ────
+      conditional: [
+        // ─── 朝局·阉党 ───
+        {
+          name: '阉党请加魏忠贤上公号', type: 'conditional', importance: '关键',
+          trigger: '阉党权势值 > 80 且 皇威 < 60（阉党未受打击时主动加码）',
+          effect: '若准则皇威-5·阉党+3；若驳则皇威+3·党争+3',
+          description: '黄立极率内阁阉党诸员，联名请加魏忠贤"上公"之号，请天下立生祠、免跪拜。',
+          narrative: '黄立极率内阁阉党诸员，联名请加魏忠贤"上公"之号，请陛下旨意天下立生祠、免其跪拜。',
+          linkedChars: ['黄立极', '魏忠贤'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '准(示弱观变)', effect: { '皇威': -5, '阉党权势值': +3, '皇权': -2 } },
+            { text: '驳·此非臣下所当议', effect: { '皇威': +3, '阉党权势值': -2, '党争烈度': +3 } },
+            { text: '留中不发', effect: {} }
+          ]
+        },
+        {
+          name: '皇嫂张懿安密进言', type: 'conditional', importance: '重要',
+          trigger: '阉党权势值 > 75 且 皇权 < 55（新帝立足未稳时）',
+          effect: '速图则阉党-3·党争+10；缓则皇权-2',
+          description: '懿安皇后密召于坤宁宫：魏忠贤当速除。若过冬，其党羽在京营、东厂、各镇皆已定盘。',
+          narrative: '懿安皇后密召于坤宁宫：魏忠贤当速除。若过冬，则其党羽在京营军、在东厂、在各镇皆已定盘，发难必败。',
+          linkedChars: ['张懿安', '朱由检', '魏忠贤'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '速图之', effect: { '阉党权势值': -3, '党争烈度': +10 } },
+            { text: '姑徐之，观其势', effect: { '皇权': -2 } }
+          ]
+        },
+        {
+          name: '御史钱嘉徵劾魏忠贤十大罪', type: 'conditional', importance: '关键',
+          trigger: '阉党权势值 < 85 且 士人风骨指数 > 32（阉党出现裂痕则有言者）',
+          effect: '召质则皇威+10·阉党-15；黜之则皇威-10·民心-5',
+          description: '贡士钱嘉徵上疏，劾魏忠贤十大罪：并帝、蔑后、弄兵、无二祖列宗、克削藩封、无圣、滥爵、掩边功、朘民、通关节。',
+          narrative: '贡士钱嘉徵上疏，劾魏忠贤十大罪：并帝、蔑后、弄兵、无二祖列宗、克削藩封、无圣、滥爵、掩边功、朘民、通关节。',
+          linkedChars: ['钱嘉徵', '魏忠贤'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '留中不发', effect: { '党争烈度': +3 } },
+            { text: '召魏忠贤面质十罪', effect: { '皇威': +10, '阉党权势值': -15, '皇权': +5 } },
+            { text: '黜钱嘉徵以安魏忠贤', effect: { '皇威': -10, '党争烈度': -5, '民心': -5 } }
+          ]
+        },
+        {
+          name: '阉党立祠去留', type: 'conditional', importance: '重要',
+          trigger: '阉党权势值 < 70（阉党疲态显时）',
+          effect: '尽毁则阉党-10·皇威+8；部分毁则阉党-5·皇威+4',
+          description: '魏忠贤生祠自天启六年起遍立天下。自浙江到九边，计有生祠二十五处。科道请毁，士民观望。',
+          narrative: '魏忠贤生祠自天启六年起遍立天下。自浙江到九边，计有生祠二十五处。科道请毁，士民观望。',
+          linkedChars: ['魏忠贤'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '诏令尽毁', effect: { '阉党权势值': -10, '皇威': +8, '士人风骨指数': +10 } },
+            { text: '毁北直辽东，南者留以观望', effect: { '阉党权势值': -5, '皇威': +4 } },
+            { text: '留中不发', effect: {} }
+          ]
+        },
+
+        // ─── 财政·军饷 ───
+        {
+          name: '户部告急·辽饷无出', type: 'conditional', importance: '关键',
+          trigger: '辽饷积欠 > 500 或 帑廪余银 < 100 万两',
+          effect: '加派则帑+80万·民心-5；发内帑则皇威+5；廷议则党争+5',
+          description: '户部尚书郭允厚奏：太仓现银二百万，辽饷岁需四百万，九边合计岁支八百万。',
+          narrative: '户部尚书郭允厚奏：太仓现银二百万，辽饷岁需四百万，九边合计岁支八百万。如此缺口，非加派不能补。',
+          linkedChars: ['郭允厚'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '准加派辽饷(饮鸩止渴)', effect: { '帑廪': +800000, '民心': -5, '流民数量': +100000, '辽饷积欠': -20 } },
+            { text: '先发内帑五十万济急', effect: { '内帑': -500000, '帑廪': +500000, '皇威': +5 } },
+            { text: '发廷议各抒己见', effect: { '党争烈度': +5 } }
+          ]
+        },
+        {
+          name: '宁远/蓟镇哗变警报', type: 'conditional', importance: '关键',
+          trigger: '辽饷积欠 > 600 或 九边欠饷总数 > 1200',
+          effect: '内帑急救则辽饷-30·防线+5；加派则民心-4',
+          description: '边镇兵无饷五月，昨夜军士鼓噪街头，挟参将入衙索饷。本将率亲兵弹压，暂定。',
+          narrative: '辽东宁远卫报：兵无饷五月，昨夜军士鼓噪街头，挟参将入衙索饷。满桂率亲兵弹压，暂定。',
+          linkedChars: ['满桂'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '急拨内帑五十万', effect: { '内帑': -500000, '辽饷积欠': -30, '辽东防线稳固度': +5 } },
+            { text: '催户部加派辽饷', effect: { '辽饷积欠': -20, '民心': -4 } },
+            { text: '令本镇就地处置', effect: { '辽东防线稳固度': -5, '皇威': -3 } }
+          ]
+        },
+        {
+          name: '东江毛文龙请饷', type: 'conditional', importance: '重要',
+          trigger: '毛文龙在职 且 （辽饷积欠 > 300 或 东江空饷被举发）',
+          effect: '照请则帑-15万·防线+2；按实则帑-5万',
+          description: '东江总兵毛文龙奏：皮岛孤悬海外，兵十万需饷。然朝廷查实其兵不过三万。',
+          narrative: '东江总兵毛文龙奏：皮岛孤悬海外，兵十万需饷。然朝廷查实其兵不过三万。如何处？',
+          linkedChars: ['毛文龙'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '如数拨饷', effect: { '帑廪': -150000, '辽东防线稳固度': +2 } },
+            { text: '按实数拨饷五万', effect: { '帑廪': -50000, '辽东防线稳固度': +1 } },
+            { text: '遣科道查实', effect: { '吏治': +3 } }
+          ]
+        },
+        {
+          name: '福王奏请加增禄米', type: 'conditional', importance: '重要',
+          trigger: '福王·朱常洵存在 且 宗禄拖欠 > 200',
+          effect: '准则帑-20万·皇威-3；驳则皇威+5',
+          description: '福王朱常洵（神宗爱子，就国洛阳）奏：宗禄拖欠三年，请加岁禄三万石、增田一万顷。',
+          narrative: '福王朱常洵（神宗爱子，就国洛阳）奏：宗禄拖欠三年，请加岁禄三万石、增田一万顷。',
+          linkedChars: ['朱常洵'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '准所请', effect: { '帑廪': -200000, '皇威': -3, '吏治': -3 } },
+            { text: '驳回·宗禄当依祖制', effect: { '皇威': +5 } },
+            { text: '令河南自筹', effect: { '民心': -3, '流民数量': +50000 } }
+          ]
+        },
+
+        // ─── 辽东·外敌 ───
+        {
+          name: '辽东经略王之臣告老', type: 'conditional', importance: '关键',
+          trigger: '王之臣在职 且 （辽东防线稳固度 < 50 或 新帝亲政数月后）',
+          effect: '召孙承宗则防线+10；召袁崇焕则防线+8·党争+5',
+          description: '辽东经略王之臣奏：精力不济，乞骸骨归里。关宁无主，急需择人。',
+          narrative: '辽东经略王之臣奏：精力不济，乞骸骨归里。关宁无主，急需择人。',
+          linkedChars: ['王之臣', '孙承宗', '袁崇焕'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '召孙承宗再督', effect: { '辽东防线稳固度': +10, '皇威': +3 } },
+            { text: '召袁崇焕督师', effect: { '辽东防线稳固度': +8, '党争烈度': +5 } },
+            { text: '升王在晋稳守', effect: { '辽东防线稳固度': -3 } },
+            { text: '令王之臣再勉一年', effect: { '辽东防线稳固度': -2 } }
+          ]
+        },
+        {
+          name: '皇太极遣使议和', type: 'conditional', importance: '关键',
+          trigger: '后金战事优势 或 辽东防线稳固度 < 40',
+          effect: '斩使则皇威+5·防线-3；许岁币则防线+5·皇威-8',
+          description: '后金汗皇太极遣使来书：欲约兄弟之国，岁输银帛，互开马市。书中字迹倨傲，称明为"南朝"。',
+          narrative: '后金汗皇太极遣方金纳来书：欲约兄弟之国，岁输银帛，互开马市。书中字迹倨傲，称明为"南朝"。',
+          linkedChars: ['皇太极'], linkedFactions: ['后金', '明朝廷'],
+          choices: [
+            { text: '斩使以示天威', effect: { '皇威': +5, '辽东防线稳固度': -3 } },
+            { text: '扣使观望', effect: {} },
+            { text: '许岁币暂缓辽事', effect: { '帑廪': -200000, '辽东防线稳固度': +5, '皇威': -8 } }
+          ]
+        },
+        {
+          name: '林丹汗遣使乞援', type: 'conditional', importance: '重要',
+          trigger: '察哈尔被后金压 且 与察哈尔关系 > 0',
+          effect: '结盟则防线+8；许市则小获',
+          description: '察哈尔林丹汗遣使至宣府：欲与明共抗后金，乞岁赐银八万两、粟米万石。',
+          narrative: '察哈尔林丹汗遣使至宣府：欲与明共抗后金，乞岁赐银八万两、粟米万石。',
+          linkedChars: ['林丹汗'], linkedFactions: ['察哈尔', '后金'],
+          choices: [
+            { text: '准·结盟共击后金', effect: { '帑廪': -100000, '辽东防线稳固度': +8 } },
+            { text: '许市不许盟', effect: { '帑廪': -50000 } },
+            { text: '斥之·夷狄非我族类', effect: { '皇威': +3 } }
+          ]
+        },
+
+        // ─── 西北民变 ───
+        {
+          name: '陕西洪承畴请剿饥民', type: 'conditional', importance: '关键',
+          trigger: '流民数量 > 100 万 或 陕西民变初起',
+          effect: '剿则流民-5万·帑-3万；抚则流民-10万·帑-6万',
+          description: '陕西参政洪承畴奏：饥民聚啸于延安府谷，有王嘉胤、吴延贵等数百人。请拨兵千人剿之。',
+          narrative: '陕西参政洪承畴奏：饥民聚啸于延安府谷，有王嘉胤、吴延贵等数百人。请拨兵千人剿之。',
+          linkedChars: ['洪承畴', '王嘉胤'], linkedFactions: ['明朝廷', '陕北饥民(将起)'],
+          choices: [
+            { text: '准剿', effect: { '流民数量': -50000, '帑廪': -30000, '民心': -3 } },
+            { text: '抚之·发饥民粮', effect: { '帑廪': -60000, '流民数量': -100000, '民心': +4 } },
+            { text: '抚剿并举', effect: { '帑廪': -40000, '流民数量': -80000 } }
+          ]
+        },
+
+        // ─── 经济·海商 ───
+        {
+          name: '郑芝龙乞抚', type: 'conditional', importance: '重要',
+          trigger: '海商势力 > 35 或 福建水师主动（郑芝龙实力达一定阈值）',
+          effect: '准抚则海商+10·帑+10万；拒则海商-5',
+          description: '福建海商郑芝龙遣人至京：愿受招抚，献舟船百艘、银十万两。请授海防游击。',
+          narrative: '福建海商郑芝龙遣人至京：愿受招抚，献舟船百艘、银十万两。请授海防游击。',
+          linkedChars: ['郑芝龙'], linkedFactions: ['郑氏海商', '明朝廷'],
+          choices: [
+            { text: '准抚·授海防游击', effect: { '帑廪': +100000, '海商势力': +10 } },
+            { text: '遣官招抚·不授官衔', effect: { '海商势力': +3 } },
+            { text: '斥海寇不可容', effect: { '海商势力': -5, '江南商税抵制度': +3 } }
+          ]
+        },
+        {
+          name: '江南请禁矿税余毒', type: 'conditional', importance: '普通',
+          trigger: '东林党复苏进度 > 20 或 江南商税抵制度 > 70',
+          effect: '准则抵制度-8·民心+3',
+          description: '南京户部尚书毕自严奏：矿税已罢，然各地仍有以督矿为名巧立课款者。请严查以安商民。',
+          narrative: '南京户部尚书毕自严奏：矿税已罢，然各地仍有以督矿为名巧立课款者。请严查以安商民。',
+          linkedChars: ['毕自严'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '准其所奏·严旨禁革', effect: { '江南商税抵制度': -8, '民心': +3, '吏治': +3 } },
+            { text: '付廷议', effect: { '党争烈度': +3 } }
+          ]
+        },
+
+        // ─── 东林·贤臣召用 ───
+        {
+          name: '孙承宗上疏辞荐', type: 'conditional', importance: '重要',
+          trigger: '阉党权势值 < 70 或 辽东防线稳固度 < 50',
+          effect: '用其荐则防线+8·东林+5',
+          description: '原辽东督师孙承宗自高阳上疏：老臣衰朽，不堪再起；然愿荐毕自严掌户部，袁崇焕督辽东。',
+          narrative: '原辽东督师孙承宗自高阳上疏：老臣衰朽，不堪再起；然愿荐毕自严掌户部，袁崇焕督辽东。',
+          linkedChars: ['孙承宗', '毕自严', '袁崇焕'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '准所荐·一体召用', effect: { '辽东防线稳固度': +8, '帑廪': +100000, '东林党复苏进度': +5 } },
+            { text: '留用毕自严·辽事再议', effect: { '帑廪': +80000 } },
+            { text: '慰谕·未用其荐', effect: { '士人风骨指数': -3 } }
+          ]
+        },
+        {
+          name: '徐光启献《农政全书》稿', type: 'conditional', importance: '重要',
+          trigger: '徐光启在朝 或 东林党复苏进度 > 15',
+          effect: '试行则环境+3·民心+3；复职则东林+5',
+          description: '前礼部左侍郎徐光启遣门生呈《农政全书》稿，论救荒、水利、屯田之法。内言红薯、马铃薯等新作物宜广植北方。',
+          narrative: '前礼部左侍郎徐光启遣门生呈《农政全书》稿，论救荒、水利、屯田之法。内言红薯、马铃薯等新作物宜广植北方。',
+          linkedChars: ['徐光启'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '诏发工部试行', effect: { '民心': +3, '士人风骨指数': +5 } },
+            { text: '召徐光启复职', effect: { '东林党复苏进度': +5, '士人风骨指数': +8 } },
+            { text: '置之不理', effect: { '士人风骨指数': -3 } }
+          ]
+        },
+
+        // ─── 西南土司 ───
+        {
+          name: '奢安余部大反扑', type: 'conditional', importance: '关键',
+          trigger: '奢安之乱联军仍存 且 （朱燮元未再起 或 西南明军空虚）',
+          effect: '川贵震动·需调兵',
+          description: '水西安邦彦残部联合乌撒乌蒙呼应，大举反扑川南。秦良玉白杆兵苦战。',
+          narrative: '贵州水西安邦彦联合乌撒乌蒙呼应，大举反扑川南。朱燮元若不再起督军，则川贵糜烂。',
+          linkedChars: ['奢崇明', '安邦彦', '朱燮元', '秦良玉'], linkedFactions: ['奢安之乱联军', '明朝廷'],
+          choices: [
+            { text: '召朱燮元再督川贵', effect: { '帑廪': -200000, '皇威': +5 } },
+            { text: '专任秦良玉征之', effect: { '帑廪': -100000, '皇威': +3 } },
+            { text: '遣使招抚水西', effect: { '皇威': -5 } }
+          ]
+        },
+
+        // ─── 外交·天主教 ───
+        {
+          name: '天主教入京辩论', type: 'conditional', importance: '普通',
+          trigger: '徐光启/孙元化在朝 且 保守派反对',
+          effect: '准入则海贸+5·士林中争·葡关系+5',
+          description: '耶稣会传教士汤若望（Johann Adam Schall von Bell）请入京协修历法，并设堂传教。保守派以"礼仪"事大为由抵制。',
+          narrative: '耶稣会传教士汤若望请入京协修历法，并设堂传教。保守派以夷夏之大防为由抵制。',
+          linkedChars: ['徐光启', '孙元化'], linkedFactions: ['明朝廷', '葡萄牙·澳门'],
+          choices: [
+            { text: '准入·诏修历法', effect: { '海贸银流入': +5, '言路通塞': +3 } },
+            { text: '设限制·仅容历局', effect: {} },
+            { text: '禁入·驱之澳门', effect: { '海贸银流入': -5 } }
+          ]
+        },
+
+        // ─── 清议·钱谦益案 ───
+        {
+          name: '钱谦益会推首辅案起', type: 'conditional', importance: '重要',
+          trigger: '阉党试图反扑 或 党争烈度 > 60（崇祯初温体仁借此起）',
+          effect: '视处置定党局·温体仁将凭此入阁',
+          description: '会推礼部侍郎钱谦益为首辅，温体仁、周延儒借天启元年科场钱千秋案攻讦钱谦益。',
+          narrative: '会推礼部侍郎钱谦益为首辅，温体仁、周延儒借天启元年科场钱千秋案攻讦钱谦益——曰"关节受贿"。',
+          linkedChars: ['钱谦益', '温体仁', '周延儒'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '驳温体仁所讦·用钱谦益', effect: { '东林党复苏进度': +8, '党争烈度': -5 } },
+            { text: '两罢之', effect: { '党争烈度': -3 } },
+            { text: '黜钱谦益·用温体仁', effect: { '东林党复苏进度': -10, '士人风骨指数': -5 } }
+          ]
+        },
+
+        // ─── 天灾类（允许季节性触发·天灾之可变仅在爆发烈度） ───
+        {
+          name: '陕北大旱·饥民聚啸', type: 'conditional', importance: '关键',
+          trigger: '小冰河凛冬指数 > 60 且 陕西灾情累积（季节性自动）·已持续三年',
+          effect: '赈则帑-10万·民心+4；免赋则帑-30万·民心+6；不理则流民+20万',
+          description: '陕西巡抚胡廷宴、三边总督武之望联名奏：陕北延安、榆林三年大旱，民食观音土，饥民逃亡者十万。赈之则无银，不赈则必为盗。',
+          narrative: '陕西巡抚胡廷宴、三边总督武之望联名奏：陕北延安、榆林三年大旱，民食观音土，饥民逃亡者十万。赈之则无银，不赈则必为盗。',
+          linkedChars: ['胡廷宴', '武之望'], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '拨内帑十万赈之', effect: { '内帑': -100000, '民心': +4, '流民数量': -50000 } },
+            { text: '免陕西本年田赋', effect: { '帑廪': -300000, '民心': +6, '流民数量': -100000 } },
+            { text: '令地方自赈', effect: { '民心': -8, '流民数量': +200000 } }
+          ]
+        },
+        {
+          name: '黄河溃决', type: 'conditional', importance: '关键',
+          trigger: '黄河水利失修度 > 70 或 小冰河凛冬指数 > 75（夏秋）',
+          effect: '赈灾则帑-15万·民心+3；不理则民心-10·流民+15万',
+          description: '黄河于河南/山东段溃决。田庐漂没，漕运阻断。',
+          narrative: '河南/山东黄河段某处溃决，田庐漂没。漕运阻断。河官奏请急赈。',
+          linkedChars: [], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '发帑修堤·赈灾民', effect: { '帑廪': -150000, '民心': +3, '黄河水利失修度': -10 } },
+            { text: '令地方自筹', effect: { '民心': -5, '流民数量': +80000 } },
+            { text: '置之·先顾辽东', effect: { '民心': -10, '流民数量': +150000 } }
+          ]
+        },
+        {
+          name: '蝗灾·河南/北直', type: 'conditional', importance: '重要',
+          trigger: '小冰河凛冬指数 > 65 且 陕北旱灾已成（夏）',
+          effect: '帑赈则民心+3；不理则流民+10万',
+          description: '蝗虫蔽日蔽天，田禾尽损。蝗灾常伴旱灾而来。',
+          narrative: '河南/北直某府报蝗灾——蝗虫蔽日蔽天，田禾尽损。往往继大旱而至。',
+          linkedChars: [], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '发帑赈灾·督捕蝗', effect: { '帑廪': -80000, '民心': +3 } },
+            { text: '免受灾府田赋', effect: { '帑廪': -40000, '民心': +2 } },
+            { text: '令地方自理', effect: { '民心': -4, '流民数量': +100000 } }
+          ]
+        },
+        {
+          name: '瘟疫·华北', type: 'conditional', importance: '重要',
+          trigger: '流民数量 > 200 万 或 小冰河凛冬指数 > 80',
+          effect: '发医赈则户口保·帑-10万；不理则户口-大',
+          description: '流民聚集，疫病大行。万历年间"大头瘟"、崇祯末"鼠疫"皆此类。',
+          narrative: '北直/山东某府大疫。死者相枕藉。医者奏请发官药赈济。',
+          linkedChars: [], linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '发惠民药局赈医', effect: { '帑廪': -100000, '民心': +2 } },
+            { text: '封城隔疫', effect: { '帑廪': -50000, '流民数量': -50000 } },
+            { text: '令地方自治', effect: { '民心': -6, '流民数量': +50000 } }
+          ]
+        }
+      ],
+
+      // ──── 随机触发（小概率·丰富变数） ────
+      random: [
+        {
+          name: '钦天监奏天象异', type: 'random', importance: '普通',
+          trigger: '每年冬·概率 5%',
+          effect: '罪己诏则皇威+3·民心+2；避讳则皇威-2',
+          description: '钦天监奏彗星见于东方/太白昼见/荧惑守心。阴阳家议"主兵·主帝忧"。',
+          narrative: '钦天监奏夜观彗星见于东方。群臣议下"罪己诏"以答天谴。',
+          linkedFactions: ['明朝廷'],
+          choices: [
+            { text: '下罪己诏', effect: { '皇威': +3, '民心': +2 } },
+            { text: '禁讳不语', effect: { '皇威': -2, '言路通塞': -3 } }
+          ]
+        },
+        {
+          name: '某大臣突染重病', type: 'random', importance: '普通',
+          trigger: '每月·概率 3%（随机选一高级官员）',
+          effect: '赐药抚慰则士林+2；冷处理则-2',
+          description: '某位重臣突染重病，或告老，或卒于任上。',
+          narrative: '某位朝臣突染风寒/卒中，告假调养。',
+          choices: [
+            { text: '赐太医并药·慰问', effect: { '士人风骨指数': +2, '帑廪': -5000 } },
+            { text: '准假·静养', effect: {} },
+            { text: '免其官·另用人', effect: { '党争烈度': +2 } }
+          ]
+        },
+        {
+          name: '江南粮船沉没', type: 'random', importance: '重要',
+          trigger: '漕运季·概率 4%',
+          effect: '帑粮减 20 万石·漕运通畅度-5',
+          description: '漕运粮船在运河某段遇险沉没。涉及漕弁贪污案。',
+          narrative: '漕运总督奏：粮船一队在淮安段沉没，损米三十万石。疑漕弁与本地豪商通倒卖。',
+          choices: [
+            { text: '严查漕弁', effect: { '吏治': +3, '漕运通畅度': +2 } },
+            { text: '从地方补调', effect: { '帑廪': -100000 } },
+            { text: '置之', effect: { '漕运通畅度': -5 } }
+          ]
+        },
+        {
+          name: '某乡绅献粮万石', type: 'random', importance: '普通',
+          trigger: '太平时·概率 3%',
+          effect: '帑粮+万石·树典范',
+          description: '某地乡绅为救荒或求官，自愿献粮/银若干。',
+          narrative: '山东/江南某乡绅上献米万石（或银数万），求加恩典或免徭役。',
+          choices: [
+            { text: '赐匾额·免徭役', effect: { '帑廪': +80000, '民心': +2 } },
+            { text: '赐散官', effect: { '帑廪': +100000, '吏治': -2 } },
+            { text: '纳之不赐', effect: { '帑廪': +50000 } }
+          ]
+        },
+        {
+          name: '漕运船队劫案', type: 'random', importance: '普通',
+          trigger: '漕运季·概率 3%·流民或盗匪所为',
+          effect: '督查则平;不理则漕运损',
+          description: '漕运船队在山东/北直段遭劫。',
+          narrative: '漕运船队在山东段遭土匪劫掠，损米数万石。',
+          choices: [
+            { text: '发兵剿匪', effect: { '帑廪': -30000, '漕运通畅度': +3 } },
+            { text: '令地方自办', effect: { '漕运通畅度': -3, '流民数量': +5000 } }
+          ]
+        },
+        {
+          name: '某藩王不法', type: 'random', importance: '普通',
+          trigger: '每年·概率 5%',
+          effect: '惩则皇威+3·宗禄-损；纵则民心-5',
+          description: '某藩王（宗室）在地方不法——圈田/奸淫/杀人/贩盐。',
+          narrative: '某藩王被当地官员举发——圈田万顷/奸淫民女/劫夺商旅。',
+          choices: [
+            { text: '发刑部严审·削爵', effect: { '皇威': +3, '党争烈度': +2 } },
+            { text: '训斥罚俸', effect: { '皇威': +1 } },
+            { text: '置之以全宗谊', effect: { '民心': -5 } }
+          ]
+        },
+        {
+          name: '文人社团崛起', type: 'random', importance: '普通',
+          trigger: '东林党复苏进度 > 20 且 概率 3%/月',
+          effect: '天下文社数+3·孕育复社',
+          description: '江南某地文人结社，以议政/讲学/联属试卷为名。',
+          narrative: '苏州/常州/松江某地文人结社，名"应社""几社"之属。以议政讲学为名。',
+          choices: [
+            { text: '不预·听其自然', effect: { '天下文社数': +3, '士人风骨指数': +3 } },
+            { text: '令地方官约束', effect: { '天下文社数': -2, '言路通塞': -3 } },
+            { text: '旌表领袖', effect: { '天下文社数': +5, '东林党复苏进度': +3 } }
+          ]
+        },
+        {
+          name: '日本倭寇残部骚扰', type: 'random', importance: '普通',
+          trigger: '浙江/福建沿海·概率 2%',
+          effect: '剿则海商+2；不理则沿海怨',
+          description: '万历以来倭寇虽衰，然浙闽沿海仍有日本浪人/九州海盗骚扰。',
+          narrative: '浙江沿海某县报倭寇三十余人登岸劫掠。',
+          choices: [
+            { text: '令福建水师剿之', effect: { '海商势力': +2, '帑廪': -20000 } },
+            { text: '令地方自办', effect: { '民心': -2 } }
+          ]
+        },
+        {
+          name: '某省大水/蝗/疫', type: 'random', importance: '重要',
+          trigger: '每年夏秋·概率依小冰河',
+          effect: '赈则民心+3；不理则流民+10万',
+          description: '某省报地方性灾异（水/蝗/疫之一）。与小冰河强耦合。',
+          narrative: '某省报：某府夏大水/秋蝗灾/冬大疫，田损/人亡若干。',
+          choices: [
+            { text: '发帑赈之', effect: { '帑廪': -80000, '民心': +3 } },
+            { text: '免本年田赋', effect: { '帑廪': -40000, '民心': +2 } },
+            { text: '令地方自办', effect: { '民心': -4, '流民数量': +50000 } }
+          ]
+        },
+        {
+          name: '欧洲火器/天文书进贡', type: 'random', importance: '普通',
+          trigger: '澳门关系 > 40·概率 2%',
+          effect: '纳之则火器+·与葡关系+',
+          description: '葡萄牙/耶稣会献欧洲新式火器、望远镜、钟表或天文历法书。',
+          narrative: '澳门葡人/耶稣会神父献新式火器（铸红衣炮/鸟铳）、望远镜、自鸣钟、或《几何原本》续卷。',
+          choices: [
+            { text: '纳之·令孙元化试造', effect: { '与葡萄牙': +5, '辽东防线稳固度': +2 } },
+            { text: '纳之·置禁中不用', effect: {} },
+            { text: '斥之·夷狄奇技淫巧', effect: { '与葡萄牙': -5 } }
+          ]
+        }
+      ],
+
+      // ──── 故事线（多步剧情·AI 按状态推进） ────
+      story: [
+        {
+          name: '东林复起·清算阉党', type: 'story', importance: '关键',
+          trigger: '阉党权势值 < 50 且 皇威 > 55',
+          effect: '平反→追赃→入阁→肃清',
+          description: '多幕故事：(1)平反东林六君子诏狱 → (2)追赃阉党崔田许等 → (3)召用韩爌/钱龙锡入阁 → (4)肃清阉党"逆案"二百六十余人。',
+          linkedChars: ['韩爌', '钱龙锡', '魏忠贤', '崔呈秀'], linkedFactions: ['明朝廷']
+        },
+        {
+          name: '辽东中兴·关宁锦铁三角', type: 'story', importance: '关键',
+          trigger: '辽东防线稳固度 < 50 或 辽饷积欠 > 500',
+          effect: '选帅→筑防→平金',
+          description: '多幕故事：(1)选督师(孙承宗/袁崇焕/王在晋) → (2)发饷/筑防/屯田 → (3)松锦大战决定关外存亡。',
+          linkedChars: ['孙承宗', '袁崇焕', '皇太极'], linkedFactions: ['明朝廷', '后金']
+        },
+        {
+          name: '救陕荒·断流寇之根', type: 'story', importance: '关键',
+          trigger: '流民数量 > 80 万 且 小冰河凛冬指数 > 65',
+          effect: '调粮→抚民→安屯',
+          description: '多幕故事：(1)调江南粮赈陕北 → (2)免赋抚饥民 → (3)屯田安置流民。若失败则演变为"流寇燎原链"。',
+          linkedChars: ['洪承畴', '杨鹤'], linkedFactions: ['明朝廷']
+        },
+        {
+          name: '改革三饷·重建财政', type: 'story', importance: '关键',
+          trigger: '辽饷积欠 > 400 或 九边欠饷总数 > 900',
+          effect: '查弊→改制→定铜钱',
+          description: '多幕故事：(1)毕自严掌户部查弊 → (2)改一条鞭至考成法/卫所归并 → (3)铸宝泉制钱定铜钱银价。',
+          linkedChars: ['毕自严', '温体仁'], linkedFactions: ['明朝廷']
+        },
+        {
+          name: '宗藩削弱·削禄限田', type: 'story', importance: '重要',
+          trigger: '宗禄拖欠 > 300 或 宗室兼并重（户口豪强）',
+          effect: '查田→限禄→分封',
+          description: '多幕故事：(1)查天下藩王庄田 → (2)限郡王以下岁禄 → (3)分封出籍令宗室自谋。涉福王等神宗爱子。',
+          linkedChars: ['朱常洵'], linkedFactions: ['明朝廷']
+        }
+      ],
+
+      // ──── 连锁（chainNext 指向触发完成后的下一环） ────
+      chain: [
+        {
+          name: '阉党覆灭·第一环·罢魏', type: 'chain', importance: '关键',
+          trigger: '阉党权势值 < 70 且 皇威 > 55',
+          effect: '罢魏凤阳·启动覆灭链',
+          description: '罢魏忠贤凤阳祖陵司香。此为崇祯除阉第一步。',
+          chainNext: '阉党覆灭·第二环·自缢阜城',
+          linkedChars: ['魏忠贤'], linkedFactions: ['明朝廷']
+        },
+        {
+          name: '阉党覆灭·第二环·自缢阜城', type: 'chain', importance: '关键',
+          trigger: '罢魏已下 且 皇威 > 60',
+          effect: '魏忠贤自缢·阉党溃散',
+          description: '魏忠贤赴凤阳途中闻钱嘉徵奏被下锦衣卫校尉追拿，夜宿阜城，闻童谣"歌小曲骂九千岁"，遂自缢。',
+          chainNext: '阉党覆灭·第三环·清算逆案',
+          linkedChars: ['魏忠贤'], linkedFactions: ['明朝廷']
+        },
+        {
+          name: '阉党覆灭·第三环·清算逆案', type: 'chain', importance: '关键',
+          trigger: '魏忠贤已死 且 东林党复苏进度 > 30',
+          effect: '钦定逆案 260 余人·士林复苏',
+          description: '崇祯二年钦定"逆案"——魏党崔呈秀磔尸·田尔耕许显纯磔死·阎鸣泰阮大铖等充军·附阉者 260 余人依等定罪。',
+          linkedChars: ['崔呈秀', '田尔耕', '许显纯', '阮大铖'], linkedFactions: ['明朝廷']
+        },
+        {
+          name: '后金叩关·第一环·绕蒙古', type: 'chain', importance: '关键',
+          trigger: '辽东防线稳固度 < 40 且 皇太极优势',
+          effect: '后金取蒙古察哈尔',
+          description: '皇太极趁林丹汗西迁·漠南蒙古倒向后金。蒙古诸部（科尔沁/察哈尔）归附或降。',
+          chainNext: '后金叩关·第二环·破塞入华北',
+          linkedChars: ['皇太极', '林丹汗'], linkedFactions: ['后金', '察哈尔']
+        },
+        {
+          name: '后金叩关·第二环·破塞入华北(己巳之变)', type: 'chain', importance: '关键',
+          trigger: '蒙古归金 且 辽东防线稳固度 < 35',
+          effect: '后金十万大军破长城至北京城下',
+          description: '皇太极绕蒙古突破喜峰口/遵化。十万骑南下至北京城下。袁崇焕从辽东回援被中反间死。',
+          chainNext: '后金叩关·第三环·议和或决战',
+          linkedChars: ['皇太极', '袁崇焕'], linkedFactions: ['后金', '明朝廷']
+        },
+        {
+          name: '后金叩关·第三环·议和或决战', type: 'chain', importance: '关键',
+          trigger: '后金至京·城下战',
+          effect: '视选择·议和则后金退·决战则待定',
+          description: '后金兵临城下·皇太极议和。或议和输银·或决战并募天下勤王。',
+          linkedFactions: ['后金', '明朝廷']
+        },
+        {
+          name: '流寇燎原·第一环·陕起', type: 'chain', importance: '关键',
+          trigger: '流民数量 > 150 万 且 西北民变已成',
+          effect: '王嘉胤于府谷起事',
+          description: '王嘉胤率饥民于府谷起事。裹挟饥民数千至数万。',
+          chainNext: '流寇燎原·第二环·合流',
+          linkedChars: ['王嘉胤', '高迎祥'], linkedFactions: ['陕北饥民(将起)']
+        },
+        {
+          name: '流寇燎原·第二环·高迎祥闯王', type: 'chain', importance: '关键',
+          trigger: '流民合流 且 明军分兵',
+          effect: '高迎祥号闯王·诸部合流',
+          description: '各股饥民合流。高迎祥被推为"闯王"。下辖李自成/张献忠/罗汝才等十三家七十二营。',
+          chainNext: '流寇燎原·第三环·入河南湖广',
+          linkedChars: ['高迎祥', '李自成', '张献忠'], linkedFactions: ['陕北饥民(将起)']
+        },
+        {
+          name: '流寇燎原·第三环·闯王破京', type: 'chain', importance: '关键',
+          trigger: '明军溃 且 闯军入河南湖广',
+          effect: '李自成破潼关至北京',
+          description: '李自成取高迎祥之号继为闯王。1643 年破西安建大顺。1644 年三月破北京。崇祯自缢煤山。',
+          linkedChars: ['李自成', '朱由检'], linkedFactions: ['陕北饥民(将起)', '明朝廷']
+        },
+        {
+          name: '奢安终平·第一环·朱燮元再督', type: 'chain', importance: '重要',
+          trigger: '奢安之乱联军仍存 且 朱燮元被起用',
+          effect: '朱燮元再督川贵云贵军务',
+          description: '召朱燮元再督川贵云贵军务。秦良玉白杆兵集结。大军齐向水西。',
+          chainNext: '奢安终平·第二环·红崖决战',
+          linkedChars: ['朱燮元', '秦良玉'], linkedFactions: ['明朝廷', '奢安之乱联军']
+        },
+        {
+          name: '奢安终平·第二环·红崖决战(1629 八月)', type: 'chain', importance: '关键',
+          trigger: '朱燮元兵至水西',
+          effect: '奢崇明安邦彦战死·奢安之乱平',
+          description: '朱燮元、秦良玉会攻奢崇明于永宁红崖大坝。奢崇明、安邦彦、奢崇辉皆战死。奢安之乱终平。',
+          linkedChars: ['奢崇明', '安邦彦', '朱燮元', '秦良玉'], linkedFactions: ['明朝廷', '奢安之乱联军']
+        }
+      ]
+    };
+  }
+
+  // 将分类事件展平为运行时需要的 flat array
   function buildEvents() {
-    return [
-      {
-        name: '阉党请加魏忠贤上公号',
-        narrative: '黄立极率内阁阉党诸员，联名请加魏忠贤"上公"之号，请陛下旨意天下立生祠、免其跪拜。',
-        triggerTurn: 1, oneTime: true, priority: 'urgent',
-        choices: [
-          { text: '准。(示弱以观其变)', effect: { '皇威': -5, '阉党权势值': +3, '皇权': -2 } },
-          { text: '驳。此非臣下所当议。', effect: { '皇威': +3, '阉党权势值': -2, '党争烈度': +3 } },
-          { text: '留中不发。', effect: {} }
-        ]
-      },
-      {
-        name: '客氏遣出宫外',
-        narrative: '熹宗乳母客氏，阉党内援。陛下即位后诏命出宫。此举已令魏忠贤闻风胆寒。',
-        triggerTurn: 1, oneTime: true, priority: 'normal',
-        choices: [{ text: '诏命已下。', effect: { '皇威': +5, '阉党权势值': -5, '宦官干政度': -4 } }]
-      },
-      {
-        name: '户部告急：辽饷无出',
-        narrative: '户部尚书郭允厚奏：太仓现银二百万，辽饷岁需四百万，九边合计岁支八百万。如此缺口，非加派不能补。',
-        triggerTurn: 2, oneTime: true, priority: 'urgent',
-        choices: [
-          { text: '准加派辽饷。(饮鸩止渴)', effect: { '国库资金': +800000, '民心': -5, '流民数量': +100000, '辽饷积欠': -20 } },
-          { text: '先发内帑五十万济急。', effect: { '国库资金': +500000, '皇威': +5, '阉党权势值': -2 } },
-          { text: '发廷议。令百官各抒己见。', effect: { '党争烈度': +5 } }
-        ]
-      },
-      {
-        name: '东江毛文龙请饷十五万',
-        narrative: '东江总兵毛文龙奏：皮岛孤悬海外，兵十万需饷。然朝廷查实其兵不过三万。如何处？',
-        triggerTurn: 2, oneTime: true, priority: 'normal',
-        choices: [
-          { text: '如数拨饷。', effect: { '国库资金': -150000, '辽东防线稳固度': +2 } },
-          { text: '按实数拨饷五万。', effect: { '国库资金': -50000, '辽东防线稳固度': +1 } },
-          { text: '遣科道查实。', effect: { '全局腐败': -3 } }
-        ]
-      },
-      {
-        name: '陕西抚按奏饥',
-        narrative: '陕西巡抚胡廷宴、三边总督武之望联名奏：陕北延安、榆林三年大旱，民食观音土，饥民逃亡者十万。赈之则无银，不赈则必为盗。',
-        triggerTurn: 3, oneTime: true, priority: 'urgent',
-        choices: [
-          { text: '拨内帑十万赈之。', effect: { '国库资金': -100000, '西北灾荒怨气': -10, '民心': +4 } },
-          { text: '免陕西本年田赋。', effect: { '国库资金': -300000, '西北灾荒怨气': -15, '民心': +6 } },
-          { text: '令地方自赈。', effect: { '西北灾荒怨气': +8, '流民数量': +200000 } }
-        ]
-      },
-      {
-        name: '皇嫂张懿安密进言',
-        narrative: '懿安皇后密召于坤宁宫：魏忠贤当速除。若过冬，则其党羽在京营军、在东厂、在各镇皆已定盘，发难必败。',
-        triggerTurn: 1, oneTime: true, priority: 'normal',
-        choices: [
-          { text: '速图之。', effect: { '阉党权势值': -3, '党争烈度': +10 } },
-          { text: '姑徐之，观其势。', effect: { '皇权': -2 } }
-        ]
-      },
-      {
-        name: '御史钱嘉徵劾魏忠贤十大罪',
-        narrative: '贡士钱嘉徵上疏，劾魏忠贤十大罪：并帝、蔑后、弄兵、无二祖列宗、克削藩封、无圣、滥爵、掩边功、朘民、通关节。',
-        triggerTurn: 4, oneTime: true, priority: 'urgent',
-        choices: [
-          { text: '留中不发。', effect: { '党争烈度': +3 } },
-          { text: '召魏忠贤面质十罪。', effect: { '皇威': +10, '阉党权势值': -15, '皇权': +5 } },
-          { text: '黜钱嘉徵以安魏忠贤。', effect: { '皇威': -10, '党争烈度': -5, '民心': -5 } }
-        ]
-      },
-      {
-        name: '皇太极遣使议和',
-        narrative: '后金汗皇太极遣方金纳来书：欲约兄弟之国，岁输银帛，互开马市。书中字迹倨傲，称明为"南朝"。',
-        triggerTurn: 5, oneTime: true, priority: 'normal',
-        choices: [
-          { text: '斩使以示天威。', effect: { '皇威': +5, '辽东防线稳固度': -3 } },
-          { text: '扣使观望。', effect: {} },
-          { text: '许岁币暂缓辽事。', effect: { '国库资金': -200000, '辽东防线稳固度': +5, '皇威': -8 } }
-        ]
-      },
-      // ──── 新增事件 ────
-      {
-        name: '辽东王之臣告老',
-        narrative: '辽东经略王之臣奏：精力不济，乞骸骨归里。关宁无主，急需择人。',
-        triggerTurn: 3, oneTime: true, priority: 'urgent',
-        choices: [
-          { text: '召孙承宗再督。', effect: { '辽东防线稳固度': +10, '皇威': +3 } },
-          { text: '召袁崇焕督师。', effect: { '辽东防线稳固度': +8, '党争烈度': +5 } },
-          { text: '升王在晋稳守。', effect: { '辽东防线稳固度': -3 } },
-          { text: '令王之臣再勉一年。', effect: { '辽东防线稳固度': -2 } }
-        ]
-      },
-      {
-        name: '福王奏请加增禄米',
-        narrative: '福王朱常洵（神宗爱子，就国洛阳）奏：宗禄拖欠三年，请加岁禄三万石、增田一万顷。',
-        triggerTurn: 4, oneTime: true, priority: 'normal',
-        choices: [
-          { text: '准所请。', effect: { '国库资金': -200000, '皇威': -3, '全局腐败': +3 } },
-          { text: '驳回。宗禄当依祖制。', effect: { '皇威': +5 } },
-          { text: '令河南自筹。', effect: { '西北灾荒怨气': +5 } }
-        ]
-      },
-      {
-        name: '徐光启献《农政全书》稿',
-        narrative: '前礼部左侍郎徐光启遣门生呈《农政全书》稿，论救荒、水利、屯田之法。内言红薯、马铃薯等新作物宜广植北方。',
-        triggerTurn: 3, oneTime: true, priority: 'normal',
-        choices: [
-          { text: '诏发工部试行。', effect: { '环境承载力': +3, '民心': +3, '士人风骨指数': +5 } },
-          { text: '召徐光启复职。', effect: { '东林党复苏进度': +5, '士人风骨指数': +8 } },
-          { text: '置之不理。', effect: { '士人风骨指数': -3 } }
-        ]
-      },
-      {
-        name: '宁远哗变警报',
-        narrative: '辽东宁远卫报：兵无饷五月，昨夜军士鼓噪街头，挟参将入衙索饷。满桂率亲兵弹压，暂定。',
-        triggerTurn: 4, oneTime: true, priority: 'urgent',
-        choices: [
-          { text: '急拨内帑五十万。', effect: { '国库资金': -500000, '辽饷积欠': -30, '辽东防线稳固度': +5 } },
-          { text: '催户部加派辽饷。', effect: { '辽饷积欠': -20, '民心': -4 } },
-          { text: '令满桂就地处置。', effect: { '辽东防线稳固度': -5, '皇威': -3 } }
-        ]
-      },
-      {
-        name: '林丹汗遣使乞援',
-        narrative: '察哈尔林丹汗遣使至宣府：欲与明共抗后金，乞岁赐银八万两、粟米万石。',
-        triggerTurn: 6, oneTime: true, priority: 'normal',
-        choices: [
-          { text: '准。结盟共击后金。', effect: { '国库资金': -100000, '辽东防线稳固度': +8 } },
-          { text: '许市不许盟。', effect: { '国库资金': -50000 } },
-          { text: '斥之。夷狄非我族类。', effect: { '皇威': +3 } }
-        ]
-      },
-      {
-        name: '江南奏请罢矿税（已罢）查禁',
-        narrative: '南京户部尚书毕自严奏：矿税已罢，然各地仍有以督矿为名巧立课款者。请严查以安商民。',
-        triggerTurn: 5, oneTime: true, priority: 'normal',
-        choices: [
-          { text: '准其所奏，严旨禁革。', effect: { '江南商税抵制度': -8, '民心': +3, '全局腐败': -3 } },
-          { text: '付廷议。', effect: { '党争烈度': +3 } }
-        ]
-      },
-      {
-        name: '郑芝龙乞抚',
-        narrative: '福建海商郑芝龙遣人至京：愿受招抚，献舟船百艘、银十万两。请授海防游击。',
-        triggerTurn: 8, oneTime: true, priority: 'normal',
-        choices: [
-          { text: '准抚，授海防游击。', effect: { '国库资金': +100000, '海商势力': +10 } },
-          { text: '遣官招抚，不授官衔。', effect: { '海商势力': +3 } },
-          { text: '斥海寇不可容。', effect: { '海商势力': -5, '江南商税抵制度': +3 } }
-        ]
-      },
-      {
-        name: '阉党立祠二十五处——毁还是留？',
-        narrative: '魏忠贤生祠自天启六年起遍立天下。自浙江到九边，计有生祠二十五处。科道请毁，士民观望。',
-        triggerTurn: 4, oneTime: true, priority: 'normal',
-        choices: [
-          { text: '诏令尽毁。', effect: { '阉党权势值': -10, '皇威': +8, '士人风骨指数': +10 } },
-          { text: '毁北直/辽东者，南者留以观望。', effect: { '阉党权势值': -5, '皇威': +4 } },
-          { text: '留中不发。', effect: {} }
-        ]
-      },
-      {
-        name: '孙承宗上疏辞荐',
-        narrative: '原辽东督师孙承宗自高阳上疏：老臣衰朽，不堪再起；然愿荐毕自严掌户部，袁崇焕督辽东。',
-        triggerTurn: 6, oneTime: true, priority: 'normal',
-        choices: [
-          { text: '准所荐，一体召用。', effect: { '辽东防线稳固度': +8, '国库资金': +100000, '东林党复苏进度': +5 } },
-          { text: '留用毕自严，辽事再议。', effect: { '国库资金': +80000 } },
-          { text: '慰谕，未用其荐。', effect: { '士人风骨指数': -3 } }
-        ]
-      },
-      {
-        name: '陕西洪承畴请剿饥民',
-        narrative: '陕西参政洪承畴奏：饥民聚啸于延安府谷，有王嘉胤、吴延贵等数百人。请拨兵千人剿之。',
-        triggerTurn: 8, oneTime: true, priority: 'urgent',
-        choices: [
-          { text: '准剿。', effect: { '西北灾荒怨气': +5, '流民数量': -50000, '国库资金': -30000 } },
-          { text: '抚之。发饥民粮。', effect: { '国库资金': -60000, '西北灾荒怨气': -10, '流民数量': -100000 } },
-          { text: '抚剿并举。', effect: { '国库资金': -40000, '西北灾荒怨气': -5, '流民数量': -80000 } }
-        ]
-      }
-    ];
+    var cat = buildCategorizedEvents();
+    var flat = [];
+    ['historical', 'conditional', 'random', 'story', 'chain'].forEach(function(k) {
+      (cat[k] || []).forEach(function(e) {
+        e.category = k; // 记录分类
+        flat.push(e);
+      });
+    });
+    return flat;
   }
 
   // ═══════════════════════════════════════════════════════════════════
