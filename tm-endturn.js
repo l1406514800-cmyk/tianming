@@ -13122,6 +13122,164 @@ function openPartyDetailPanel() {
   openGenericModal('\u515A\u6D3E\u8BE6\u60C5', html, null);
 }
 
+// ── 军事力量详情面板 ──
+function openMilitaryDetailPanel() {
+  var armies = (GM.armies || []).filter(function(a){return !a.destroyed;});
+  if (armies.length === 0) { toast('\u6682\u65E0\u519B\u961F\u6570\u636E'); return; }
+
+  // 按 armyType 分组
+  var grouped = {};
+  armies.forEach(function(a) {
+    var t = a.armyType || a.type || '\u5176\u4ED6';
+    if (!grouped[t]) grouped[t] = [];
+    grouped[t].push(a);
+  });
+
+  var totalSoldiers = armies.reduce(function(s,a){return s+(a.soldiers||a.size||a.strength||0);},0);
+  var totalArmies = armies.length;
+  var avgMorale = armies.reduce(function(s,a){return s+(a.morale||50);},0) / totalArmies;
+  var avgTraining = armies.reduce(function(s,a){return s+(a.training||50);},0) / totalArmies;
+
+  // 类型图标映射
+  var typeIcons = {
+    '\u7981\u519B': '\uD83C\uDFF0', '\u8FB9\u519B': '\u2694\uFE0F', '\u6C34\u5E08': '\u2693',
+    '\u9A91\u5175': '\uD83D\uDC0E', '\u6B65\u5175': '\u2694\uFE0F', '\u706B\u5668\u5175': '\uD83D\uDCA5',
+    '\u571F\u53F8\u5175': '\uD83C\uDF04', '\u6C11\u5175': '\u26CF\uFE0F', '\u5BB6\u4E01': '\uD83D\uDEE1\uFE0F',
+    '\u5176\u4ED6': '\u2694\uFE0F'
+  };
+
+  var html = '<div class="military-detail-wrap" style="padding:1rem;max-height:80vh;overflow-y:auto;">';
+
+  // ═══ 总览卡片 ═══
+  html += '<div style="background:linear-gradient(135deg,rgba(184,154,83,0.15),rgba(139,46,37,0.1));border:1px solid var(--gold-d);border-radius:8px;padding:0.8rem;margin-bottom:1rem;display:grid;grid-template-columns:repeat(4,1fr);gap:0.6rem;">';
+  html += '<div><div style="font-size:0.64rem;color:var(--txt-d);">\u603B\u519B\u961F</div><div style="font-size:1.1rem;font-weight:700;color:var(--gold);">' + totalArmies + '</div></div>';
+  html += '<div><div style="font-size:0.64rem;color:var(--txt-d);">\u603B\u5175\u529B</div><div style="font-size:1.1rem;font-weight:700;color:var(--gold);">' + totalSoldiers.toLocaleString() + '</div></div>';
+  html += '<div><div style="font-size:0.64rem;color:var(--txt-d);">\u5E73\u5747\u58EB\u6C14</div><div style="font-size:1.1rem;font-weight:700;color:' + (avgMorale>65?'var(--green)':avgMorale<40?'var(--red)':'var(--gold)') + ';">' + Math.round(avgMorale) + '</div></div>';
+  html += '<div><div style="font-size:0.64rem;color:var(--txt-d);">\u5E73\u5747\u8BAD\u7EC3</div><div style="font-size:1.1rem;font-weight:700;color:' + (avgTraining>65?'var(--green)':avgTraining<40?'var(--red)':'var(--gold)') + ';">' + Math.round(avgTraining) + '</div></div>';
+  html += '</div>';
+
+  // ═══ 分组展示 ═══
+  Object.keys(grouped).forEach(function(groupName) {
+    var list = grouped[groupName];
+    var gTotal = list.reduce(function(s,a){return s+(a.soldiers||a.size||a.strength||0);},0);
+    var icon = typeIcons[groupName] || '\u2694\uFE0F';
+    html += '<div style="margin-bottom:0.8rem;">';
+    html += '<div style="font-size:0.82rem;font-weight:700;color:var(--gold-400);margin-bottom:0.5rem;padding:4px 8px;background:rgba(184,154,83,0.08);border-left:3px solid var(--gold-d);border-radius:3px;">';
+    html += icon + ' ' + escHtml(groupName) + ' <span style="font-size:0.68rem;color:var(--txt-d);font-weight:400;">(' + list.length + '\u652F\u00B7\u5408\u8BA1' + gTotal.toLocaleString() + ')</span>';
+    html += '</div>';
+
+    list.forEach(function(a) {
+      var sol = a.soldiers || a.size || a.strength || 0;
+      var mor = a.morale || 0, tra = a.training || 0, loy = a.loyalty || 50, ctrl = a.control || 50;
+      var morClr = mor>65?'var(--green)':mor<40?'var(--red)':'var(--gold)';
+      var traClr = tra>65?'var(--green)':tra<40?'var(--red)':'var(--gold)';
+      var loyClr = loy>65?'var(--green)':loy<40?'var(--red)':'var(--gold)';
+      var ctrlClr = ctrl>70?'var(--green)':ctrl<45?'var(--red)':'var(--gold)';
+      var quality = a.quality || '';
+      var qualClr = /精锐|精兵/.test(quality)?'var(--gold-400)':/普通|一般/.test(quality)?'var(--txt-s)':/弱|老/.test(quality)?'var(--red)':'var(--txt-d)';
+
+      html += '<div style="background:var(--bg-2);border-radius:6px;padding:0.7rem;margin-bottom:0.6rem;border-left:3px solid ' + morClr + ';">';
+
+      // 标题行：名称 + 兵力 + 品质
+      html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem;gap:0.5rem;">';
+      html += '<div style="flex:1;min-width:0;">';
+      html += '<div style="font-weight:700;font-size:0.92rem;color:var(--gold);">' + escHtml(a.name||'\u65E0\u540D') + '</div>';
+      if (quality) html += '<div style="font-size:0.68rem;color:' + qualClr + ';margin-top:2px;">' + escHtml(quality) + '</div>';
+      html += '</div>';
+      html += '<div style="text-align:right;flex-shrink:0;">';
+      html += '<div style="font-size:1.05rem;font-weight:700;color:var(--gold);">' + sol.toLocaleString() + '</div>';
+      html += '<div style="font-size:0.6rem;color:var(--txt-d);">\u5175</div>';
+      html += '</div>';
+      html += '</div>';
+
+      // 统帅+驻地
+      var metaLines = [];
+      if (a.commander) metaLines.push(['\uD83E\uDD34 \u7EDF\u5E05', (a.commanderTitle?a.commanderTitle+'\u00B7':'')+a.commander]);
+      if (a.garrison || a.location) metaLines.push(['\uD83D\uDCCD \u9A7B\u5730', String(a.garrison||a.location)]);
+      if (a.activity) metaLines.push(['\uD83D\uDCCB \u52A8\u6001', a.activity]);
+      if (a.ethnicity) metaLines.push(['\uD83C\uDFF4 \u65CF\u7FA4', a.ethnicity]);
+      if (a.equipmentCondition) metaLines.push(['\uD83D\uDEE1\uFE0F \u88C5\u5907', a.equipmentCondition]);
+      if (metaLines.length > 0) {
+        html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;font-size:0.72rem;margin-bottom:0.5rem;">';
+        metaLines.forEach(function(m) {
+          html += '<div><span style="color:var(--txt-d);">' + m[0] + ':</span> <span style="color:var(--txt);">' + escHtml(String(m[1])) + '</span></div>';
+        });
+        html += '</div>';
+      }
+
+      // 四项状态条：士气/训练/忠诚/控制
+      html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:0.5rem;">';
+      [['\u58EB\u6C14',mor,morClr],['\u8BAD\u7EC3',tra,traClr],['\u5FE0\u8BDA',loy,loyClr],['\u63A7\u5236',ctrl,ctrlClr]].forEach(function(s) {
+        html += '<div style="text-align:center;">';
+        html += '<div style="font-size:0.62rem;color:var(--txt-d);">' + s[0] + '</div>';
+        html += '<div style="height:4px;background:var(--bg-3);border-radius:2px;margin:2px 0;overflow:hidden;"><div style="height:100%;width:' + s[1] + '%;background:' + s[2] + ';transition:width 0.3s;"></div></div>';
+        html += '<div style="font-size:0.68rem;color:' + s[2] + ';font-weight:600;">' + s[1] + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+
+      // 兵种构成
+      if (Array.isArray(a.composition) && a.composition.length > 0) {
+        html += '<div style="margin-bottom:0.5rem;">';
+        html += '<div style="font-size:0.64rem;color:var(--txt-d);margin-bottom:3px;">\u5175\u79CD\u6784\u6210</div>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
+        a.composition.forEach(function(c) {
+          if (!c || !c.type) return;
+          html += '<div style="font-size:0.68rem;background:var(--bg-3);border:1px solid var(--gold-d);border-radius:10px;padding:2px 8px;">';
+          html += '<span style="color:var(--txt);">' + escHtml(c.type) + '</span>';
+          html += ' <span style="color:var(--gold);font-weight:600;">' + (c.count||0).toLocaleString() + '</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+        html += '</div>';
+      }
+
+      // 装备
+      if (Array.isArray(a.equipment) && a.equipment.length > 0) {
+        html += '<div style="margin-bottom:0.5rem;">';
+        html += '<div style="font-size:0.64rem;color:var(--txt-d);margin-bottom:3px;">\u88C5\u5907\u6E05\u5355</div>';
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:3px;">';
+        a.equipment.forEach(function(e) {
+          if (!e || !e.name) return;
+          var condClr = e.condition==='\u7CBE\u826F'?'var(--green)':e.condition==='\u4E00\u822C'?'var(--txt-s)':e.condition==='\u7F3A\u635F'||e.condition==='\u788E'?'var(--red)':'var(--txt-d)';
+          html += '<div style="font-size:0.68rem;padding:2px 6px;background:var(--bg-3);border-radius:3px;display:flex;justify-content:space-between;gap:4px;">';
+          html += '<span style="color:var(--txt);">' + escHtml(e.name) + '</span>';
+          html += '<span><span style="color:var(--gold);">' + (e.count||0).toLocaleString() + '</span>';
+          if (e.condition) html += ' <span style="color:' + condClr + ';font-size:0.6rem;">' + escHtml(e.condition) + '</span>';
+          html += '</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+        html += '</div>';
+      }
+
+      // 岁饷
+      if (Array.isArray(a.salary) && a.salary.length > 0) {
+        html += '<div style="margin-bottom:0.5rem;">';
+        html += '<div style="font-size:0.64rem;color:var(--txt-d);margin-bottom:3px;">\u5C81\u9972</div>';
+        html += '<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:0.7rem;">';
+        a.salary.forEach(function(s) {
+          if (!s || !s.resource) return;
+          html += '<span style="color:var(--txt);"><span style="color:var(--txt-d);">' + escHtml(s.resource) + ':</span> <span style="color:var(--gold);font-weight:600;">' + (s.amount||0).toLocaleString() + '</span> <span style="color:var(--txt-d);font-size:0.62rem;">' + escHtml(s.unit||'') + '</span></span>';
+        });
+        html += '</div>';
+        html += '</div>';
+      }
+
+      // 描述
+      if (a.description) {
+        html += '<div style="font-size:0.7rem;color:var(--txt-s);line-height:1.5;padding-top:4px;border-top:1px dashed var(--bg-4);">' + escHtml(a.description) + '</div>';
+      }
+
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+
+  html += '</div>';
+  openGenericModal('\u2694\uFE0F \u519B\u4E8B\u8BE6\u60C5\u00B7\u90E8\u961F\u4E0E\u88C5\u5907', html, null);
+}
+
 //  左侧面板扩展：阶层/党派/官制消耗
 // ============================================================
 function renderSidePanels(){
@@ -13186,13 +13344,15 @@ function renderSidePanels(){
     gl.appendChild(fp);
   }
 
-  // 军事力量
+  // 军事力量（点击打开详情）
   if(GM.armies&&GM.armies.length>0){
     var activeA=GM.armies.filter(function(a){return !a.destroyed;});
     if(activeA.length>0){
-      var mp=document.createElement("div");mp.style.marginBottom="0.8rem";
+      var mp=document.createElement("div");mp.style.marginBottom="0.8rem";mp.style.cursor="pointer";
+      mp.onclick=function(){openMilitaryDetailPanel();};
+      mp.title='\u70B9\u51FB\u67E5\u770B\u5404\u519B\u5B8C\u6574\u8BE6\u60C5';
       var totalSol=activeA.reduce(function(s,a){return s+(a.soldiers||0);},0);
-      mp.innerHTML="<div class=\"pt\">\u2694\uFE0F \u519B\u4E8B\u529B\u91CF <span style=\"font-size:0.65rem;color:var(--txt-d);\">\u603B\u5175\u529B"+totalSol+"</span></div>"+activeA.map(function(a){
+      mp.innerHTML="<div class=\"pt\">\u2694\uFE0F \u519B\u4E8B\u529B\u91CF <span style=\"font-size:0.65rem;color:var(--txt-d);\">\u603B\u5175\u529B"+totalSol+"\u00B7"+activeA.length+"\u652F</span></div>"+activeA.map(function(a){
         var sol=a.soldiers||0;
         var pct=totalSol>0?Math.round(sol/totalSol*100):0;
         var morClr=(a.morale||0)>70?'var(--green)':(a.morale||0)>40?'var(--gold)':'var(--red)';
