@@ -943,13 +943,15 @@ function _peBuiltContent() {
     if (_pf) playerFacName = _pf.name;
   }
 
+  // 优先读 GM.adminHierarchy（运行时 live 数据，CascadeTax/aggregate 写入处），回退到 P.adminHierarchy
+  var _adminSrc = (GM.adminHierarchy && Object.keys(GM.adminHierarchy).length > 0) ? GM.adminHierarchy : P.adminHierarchy;
   var adminTree = null;
-  if (P.adminHierarchy) {
-    adminTree = P.adminHierarchy.player || null;
+  if (_adminSrc) {
+    adminTree = _adminSrc.player || null;
     if (!adminTree || !adminTree.divisions || adminTree.divisions.length === 0) {
-      var _keys = Object.keys(P.adminHierarchy);
+      var _keys = Object.keys(_adminSrc);
       for (var k = 0; k < _keys.length; k++) {
-        var _ah = P.adminHierarchy[_keys[k]];
+        var _ah = _adminSrc[_keys[k]];
         if (_ah && _ah.divisions && _ah.divisions.length > 0) {
           var _fac = GM.facs ? GM.facs.find(function(f) { return f.id === _keys[k] || f.name === _keys[k]; }) : null;
           if (_fac && (_fac.isPlayer || _fac.name === playerFacName)) { adminTree = _ah; break; }
