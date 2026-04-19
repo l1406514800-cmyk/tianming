@@ -494,8 +494,19 @@
     _reconcileParentToChildren(topLevel);
 
     // 1. 户口 = 所有叶子户口总和；本回合变化 = 各顶级区划变化之和
+    // 兼容三种形式：population 对象/数字；populationDetail 对象（剧本 buildAdminHierarchy 用此）
     var totalHH = 0, totalMouths = 0, totalDing = 0, totalFug = 0, totalHidden = 0;
     leaves.forEach(function(div) {
+      // 优先读 populationDetail（剧本规范字段）
+      var pd = div.populationDetail;
+      if (pd && typeof pd === 'object' && (pd.mouths || pd.households)) {
+        totalHH += pd.households || 0;
+        totalMouths += pd.mouths || 0;
+        totalDing += pd.ding || 0;
+        totalFug += pd.fugitives || 0;
+        totalHidden += pd.hiddenCount || 0;
+        return;
+      }
       if (div.population && typeof div.population === 'object') {
         totalHH += div.population.households || 0;
         totalMouths += div.population.mouths || 0;

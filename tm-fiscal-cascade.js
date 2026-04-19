@@ -165,12 +165,22 @@
   // ═══════════════════════════════════════════════════════════════════
 
   function _taxBase(div, tax) {
-    // 兼容：div.population 可能是对象（新）或数字（老/AI 生成）
+    // 兼容三种形态：populationDetail 对象（剧本 buildAdminHierarchy）/population 对象/population 数字
+    var pd = div.populationDetail;
     var popNum = (typeof div.population === 'number') ? div.population : 0;
-    var pop = (div.population && typeof div.population === 'object') ? div.population : { mouths: popNum };
+    var pop;
+    if (pd && typeof pd === 'object' && (pd.mouths || pd.households)) {
+      pop = pd; // 优先用 populationDetail
+    } else if (div.population && typeof div.population === 'object') {
+      pop = div.population;
+    } else {
+      pop = { mouths: popNum };
+    }
     var effectiveMouths = pop.mouths || popNum || 0;
     if (tax.base === 'arableLand') {
-      var arable = (div.environment && div.environment.arableLand) || 0;
+      var arable = (div.environment && div.environment.arableLand)
+                 || (div.carryingCapacity && div.carryingCapacity.arable)
+                 || 0;
       if (arable <= 0 && tax.baseFallback === 'mouths') arable = effectiveMouths * 0.3;
       return arable;
     }
