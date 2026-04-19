@@ -723,6 +723,24 @@ input,textarea,select{pointer-events:auto!important;position:relative;z-index:10
 .ed-archive-group-title{font-size:11.5px;color:var(--gold-400);font-family:var(--font-serif);letter-spacing:0.1em;margin-bottom:6px;}
 /* 结束回合按钮区 */
 .ed-action-bar{margin-top:28px;text-align:center;display:flex;gap:12px;justify-content:center;}
+/* ═════════ 诏书润色·卷轴式（ed-scroll-*）═════════ */
+.ed-scroll{position:relative;margin:32px 6px 0 6px;padding:28px 40px 32px;background-color:#f4eadd;background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.08) 2.5em,rgba(107,93,71,0.08) calc(2.5em + 1px)),radial-gradient(circle at 20% 30%,rgba(139,90,50,0.05) 1px,transparent 2px),radial-gradient(circle at 75% 60%,rgba(139,90,50,0.04) 1px,transparent 2px),radial-gradient(circle at 50% 85%,rgba(139,90,50,0.03) 1px,transparent 2px);background-size:auto,130px 130px,150px 150px,110px 110px;border-radius:2px;box-shadow:0 6px 20px rgba(0,0,0,0.5),inset 0 0 60px rgba(139,90,50,0.08);color:#1a1410;font-family:var(--font-serif);line-height:2;font-size:15px;}
+.ed-scroll::before,.ed-scroll::after{content:"";position:absolute;left:-12px;right:-12px;height:16px;background:linear-gradient(to bottom,#6b5a30 0%,#8d7640 40%,#6b5a30 100%);border:1px solid #3d2e18;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.15);}
+.ed-scroll::before{top:-8px;}
+.ed-scroll::after{bottom:-8px;}
+.ed-scroll-title{text-align:center;font-size:24px;letter-spacing:0.4em;color:#4a2818;margin-bottom:18px;padding-bottom:12px;border-bottom:1px solid rgba(107,60,40,0.2);position:relative;}
+.ed-scroll-title::before{content:"\5949";position:absolute;left:8px;top:4px;font-size:14px;color:rgba(192,64,48,0.6);letter-spacing:0;}
+.ed-scroll-title::after{content:"\627F";position:absolute;right:8px;top:4px;font-size:14px;color:rgba(192,64,48,0.6);}
+.ed-scroll-text{width:100%;min-height:180px;color:#2a1810;font-family:var(--font-serif);font-size:15px;line-height:2;background:transparent;border:none;resize:vertical;outline:none;padding:0;text-indent:2em;}
+.ed-scroll-text::placeholder{color:rgba(74,40,24,0.4);}
+.ed-scroll-seal{position:absolute;bottom:22px;right:36px;width:56px;height:56px;border-radius:3px;background:linear-gradient(to bottom right,rgba(192,64,48,0.92),rgba(140,40,30,0.95));display:flex;align-items:center;justify-content:center;flex-direction:column;color:#f4eadd;font-size:10px;font-family:var(--font-serif);line-height:1.2;letter-spacing:0.05em;transform:rotate(-4deg);box-shadow:0 2px 6px rgba(140,40,30,0.5);text-align:center;padding:6px;pointer-events:none;}
+.ed-scroll-seal .top,.ed-scroll-seal .bot{font-size:8px;opacity:0.85;}
+.ed-scroll-seal .main{font-size:14px;font-weight:bold;margin:2px 0;}
+.ed-scroll-actions{margin-top:20px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap;}
+.ed-scroll-btn{background:rgba(244,234,221,0.04);border:1px solid var(--color-border-strong,rgba(184,154,83,0.35));color:var(--color-foreground);padding:6px 18px;border-radius:2px;font-family:var(--font-serif);letter-spacing:0.15em;font-size:13px;cursor:pointer;transition:all 0.2s;}
+.ed-scroll-btn:hover{background:rgba(184,154,83,0.08);border-color:var(--gold-400);color:var(--gold-400);}
+.ed-scroll-btn.primary{background:linear-gradient(to bottom,var(--gold-400),var(--gold-500));color:var(--bg-1,#0f0d0a);border-color:var(--gold-500);font-weight:500;}
+.ed-scroll-btn.primary:hover{background:linear-gradient(to bottom,var(--gold-300,#c9a85f),var(--gold-400));color:var(--bg-1,#0f0d0a);}
 
 /* ═════════ 问对标签页·美化版 v2（.wdp-*）═════════ */
 .wdp-panel-wrap{background-color:var(--color-surface,#241e18);background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.04) 2.5em,rgba(107,93,71,0.04) calc(2.5em + 1px)),repeating-linear-gradient(0deg,transparent 0,transparent 3em,rgba(107,93,71,0.02) 3em,rgba(107,93,71,0.02) calc(3em + 1px)),linear-gradient(to bottom,rgba(184,154,83,0.05) 0%,transparent 80px);position:relative;padding:var(--space-4) var(--space-5);}
@@ -1874,7 +1892,7 @@ console.log('天命游戏脚本开始加载...');
 <script src="tm-change-queue.js"></script>
 <script src="tm-index-world.js?v=20260419r"></script>
 <script src="tm-npc-engine.js"></script>
-<script src="tm-game-engine.js?v=20260419s"></script>
+<script src="tm-game-engine.js?v=20260419t"></script>
 <script src="tm-map-system.js"></script>
 <script src="tm-dynamic-systems.js"></script>
 <script src="tm-economy-military.js"></script>

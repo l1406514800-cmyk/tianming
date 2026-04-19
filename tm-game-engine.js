@@ -5379,22 +5379,18 @@ async function _polishEdicts() {
 }
 
 function _renderPolishedEdict(panel, text) {
+  // 卷轴式·宣纸底+上下木轴+朱砂御玺+颁行天下
   panel.innerHTML = ''
-    // 诏书视觉容器（宣纸风格）
-    + '<div style="background:linear-gradient(to bottom,rgba(184,154,83,0.06),rgba(184,154,83,0.02));border:1px solid var(--gold-500);border-radius:var(--radius-md);padding:var(--space-4);position:relative;">'
-    // 朱印装饰
-    + '<div style="position:absolute;top:12px;right:16px;width:40px;height:40px;border-radius:50%;background:radial-gradient(circle at 40% 40%,rgba(192,64,48,0.15),rgba(140,40,30,0.25));display:flex;align-items:center;justify-content:center;color:rgba(192,64,48,0.6);font-size:11px;font-weight:bold;transform:rotate(-8deg);">\u5236</div>'
-    // 标题
-    + '<div style="text-align:center;letter-spacing:0.3em;font-size:var(--text-md);color:var(--gold-400);font-weight:var(--weight-bold);margin-bottom:var(--space-3);">\u8BCF \u2003 \u4E66</div>'
-    // 正文可编辑
-    + '<textarea id="edict-polished-text" style="width:100%;min-height:180px;font-size:var(--text-sm);line-height:1.8;resize:vertical;background:transparent;border:none;color:var(--color-foreground);font-family:inherit;outline:none;" rows="12">' + escHtml(text) + '</textarea>'
+    + '<div class="ed-scroll">'
+    +   '<div class="ed-scroll-title">\u8BCF\u3000\u4E66</div>'
+    +   '<textarea id="edict-polished-text" class="ed-scroll-text" rows="12">' + escHtml(text) + '</textarea>'
+    +   '<div class="ed-scroll-seal"><div class="top">\u7687 \u5E1D</div><div class="main">\u5236\u5B9D</div><div class="bot">\u4E4B \u5B9D</div></div>'
     + '</div>'
-    // 操作按钮
-    + '<div style="display:flex;gap:var(--space-2);margin-top:var(--space-2);justify-content:center;flex-wrap:wrap;">'
-    + '<button class="bt bp bsm" onclick="_applyPolishedEdict(\'replace\')" title="\u5C06\u8BCF\u4E66\u66FF\u6362\u5230\u653F\u4EE4\u680F\uFF0C\u6E05\u7A7A\u5176\u4ED6\u5206\u7C7B">\u7528\u6B64\u8BCF\u4E66\uFF08\u66FF\u6362\u539F\u6587\uFF09</button>'
-    + '<button class="bt bs bsm" onclick="_applyPolishedEdict(\'keep\')" title="\u4FDD\u7559\u5404\u7C7B\u8BCF\u4EE4\u539F\u6587\u4E0D\u53D8\uFF0C\u8BCF\u4E66\u4EC5\u4F5C\u5C55\u793A">\u4EC5\u4F5C\u5C55\u793A\uFF08\u4FDD\u7559\u5206\u7C7B\uFF09</button>'
-    + '<button class="bt bs bsm" onclick="_polishEdicts()">\u91CD\u65B0\u6DA6\u8272</button>'
-    + '<button class="bt bs bsm" onclick="_$(\'edict-polished\').style.display=\'none\'">\u6536\u8D77</button>'
+    + '<div class="ed-scroll-actions">'
+    +   '<button class="ed-scroll-btn" onclick="_polishEdicts()" title="\u91CD\u65B0\u7531\u6709\u53F8\u6DA6\u8272">\u91CD \u65B0 \u6DA6 \u8272</button>'
+    +   '<button class="ed-scroll-btn" onclick="_applyPolishedEdict(\'keep\')" title="\u4FDD\u7559\u5206\u7C7B\u539F\u6587\u4E0D\u53D8\uFF0C\u8BCF\u4E66\u4EC5\u5B58\u6863\u5C55\u793A">\u7F16 \u8BA2 \u5B58 \u6863</button>'
+    +   '<button class="ed-scroll-btn primary" onclick="_applyPolishedEdict(\'replace\')" title="\u5C06\u8BCF\u4E66\u66FF\u6362\u5230\u653F\u4EE4\u680F">\u9881 \u884C \u5929 \u4E0B</button>'
+    +   '<button class="ed-scroll-btn" onclick="_$(\'edict-polished\').style.display=\'none\'">\u6536 \u8D77</button>'
     + '</div>';
 }
 
