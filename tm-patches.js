@@ -1151,11 +1151,10 @@ function doActualStart(sid){
     return faction;
   });
   GM.items=(P.items||[]).filter(function(t){return t.sid===sid;}).map(function(t){var c=deepClone(t);c.acquired=false;return c;});
-  // 军队加载：优先 armies，兜底用 initialTroops（编辑器生成的部队数据）
-  var _rawArmies = (P.military && P.military.armies) || [];
-  if (_rawArmies.length === 0 && P.military && P.military.initialTroops && P.military.initialTroops.length > 0) {
-    _rawArmies = P.military.initialTroops;
-  }
+  // 军队加载：优先 initialTroops（编辑器新 schema 完整部队表），armies 仅作兜底（旧字段通常只有少量代表部队）
+  var _initTroops = (P.military && P.military.initialTroops) || [];
+  var _legacyArmies = (P.military && P.military.armies) || [];
+  var _rawArmies = (_initTroops.length > 0) ? _initTroops : _legacyArmies;
   GM.armies = _rawArmies.filter(function(a) { return !a.sid || a.sid === sid; }).map(function(a) {
     var army = deepClone(a);
     // 字段兼容映射
