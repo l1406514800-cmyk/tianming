@@ -1884,7 +1884,7 @@
   }
 
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
-  var SCENARIO_VERSION = 'v45-2026.04.19-guoku-neitang-officeTree-audit';
+  var SCENARIO_VERSION = 'v46-2026.04.19-popConfig-envConfig-topLevel-fix';
 
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
@@ -2230,40 +2230,42 @@
             toNational: { enabled: true, condition: '边饷极急时户部借内帑', cumulativeDebt: 1800000, interestFree: true }
           }
         },
-        // ──── 户口配置（对齐 aiGenPopulationConfig schema） ────
-        populationConfig: {
-          initial: { nationalHouseholds: 9700000, nationalMouths: 60000000, nationalDing: 18000000, hiddenPopulation: 90000000, note: '明天启朝在籍户约 970 万、口 6000 万；然隐户、逃户估 9000 万。合计接近 1.5 亿。' },
-          dingAgeRange: [16, 60],
-          categoryEnabled: ['bianhu', 'junhu', 'jianghu', 'yuehu', 'jihu', 'shihu', 'daohu'],  // 编户/军户/匠户/乐户/畿户/世匠户/灶户
-          categoryDescriptions: {
-            bianhu: '编户齐民(自耕农+佃农)',
-            junhu: '军户(世袭卫所)，约 200 万',
-            jianghu: '匠户(工部/内府)，约 400 万',
-            yuehu: '乐户(贱籍)',
-            jihu: '畿辅户',
-            shihu: '世匠户',
-            daohu: '灶户(盐场)'
-          },
-          gradeSystem: 'ming_10',  // 上上/上中/上下…下下 十等
-          mobility: { shangSheng: '由匠籍军籍入科举极罕', xiangxia: '破产沦佃农常见' }
+      },
+
+      // ──── 户口配置（顶层·对齐 aiGenPopulationConfig schema） ────
+      populationConfig: {
+        initial: { nationalHouseholds: 9700000, nationalMouths: 60000000, nationalDing: 18000000, hiddenPopulation: 90000000, note: '明天启朝在籍户约 970 万、口 6000 万；然隐户、逃户估 9000 万。合计接近 1.5 亿。' },
+        dingAgeRange: [16, 60],
+        categoryEnabled: ['bianhu', 'junhu', 'jianghu', 'yuehu', 'jihu', 'shihu', 'daohu'],  // 编户/军户/匠户/乐户/畿户/世匠户/灶户
+        categoryDescriptions: {
+          bianhu: '编户齐民(自耕农+佃农)',
+          junhu: '军户(世袭卫所)，约 200 万',
+          jianghu: '匠户(工部/内府)，约 400 万',
+          yuehu: '乐户(贱籍)',
+          jihu: '畿辅户',
+          shihu: '世匠户',
+          daohu: '灶户(盐场)'
         },
-        // ──── 环境承载力（对齐 aiGenEnvironmentConfig schema） ────
-        environmentConfig: {
-          globalClimate: { trend: 'cooling', factor: 0.85, description: '小冰河期(1580-1680)。年均气温较明初低 1.5°C；霜冻南移；江南冬可冰封运河。' },
-          majorDisasterTypes: ['旱', '蝗', '水', '疫', '霜冻', '地震'],
-          regionCapacity: {
-            '北直隶': { landCapacity: 8500000, waterAvailable: 7000000, climate: 0.82 },
-            '南直隶': { landCapacity: 18000000, waterAvailable: 17500000, climate: 1.00 },
-            '浙江': { landCapacity: 8500000, waterAvailable: 8500000, climate: 1.00 },
-            '陕西': { landCapacity: 6000000, waterAvailable: 5500000, climate: 0.62, note: '3 年连旱' },
-            '河南': { landCapacity: 5500000, waterAvailable: 4500000, climate: 0.75 },
-            '湖广': { landCapacity: 7000000, waterAvailable: 7500000, climate: 1.00 },
-            '四川': { landCapacity: 4000000, waterAvailable: 4200000, climate: 0.98 },
-            '山西': { landCapacity: 5000000, waterAvailable: 4200000, climate: 0.82 },
-            '山东': { landCapacity: 5800000, waterAvailable: 4600000, climate: 0.78 }
-          },
-          yellowRiverRisk: { level: 'high', note: '黄河夺淮入海已两百年，明末堤防失修。每 2-3 年必有大溃。' }
-        }
+        gradeSystem: 'ming_10',  // 上上/上中/上下…下下 十等
+        mobility: { shangSheng: '由匠籍军籍入科举极罕', xiangxia: '破产沦佃农常见' }
+      },
+
+      // ──── 环境承载力（顶层·对齐 aiGenEnvironmentConfig schema） ────
+      environmentConfig: {
+        globalClimate: { trend: 'cooling', factor: 0.85, description: '小冰河期(1580-1680)。年均气温较明初低 1.5°C；霜冻南移；江南冬可冰封运河。' },
+        majorDisasterTypes: ['旱', '蝗', '水', '疫', '霜冻', '地震'],
+        regionCapacity: {
+          '北直隶': { landCapacity: 8500000, waterAvailable: 7000000, climate: 0.82 },
+          '南直隶': { landCapacity: 18000000, waterAvailable: 17500000, climate: 1.00 },
+          '浙江': { landCapacity: 8500000, waterAvailable: 8500000, climate: 1.00 },
+          '陕西': { landCapacity: 6000000, waterAvailable: 5500000, climate: 0.62, note: '3 年连旱' },
+          '河南': { landCapacity: 5500000, waterAvailable: 4500000, climate: 0.75 },
+          '湖广': { landCapacity: 7000000, waterAvailable: 7500000, climate: 1.00 },
+          '四川': { landCapacity: 4000000, waterAvailable: 4200000, climate: 0.98 },
+          '山西': { landCapacity: 5000000, waterAvailable: 4200000, climate: 0.82 },
+          '山东': { landCapacity: 5800000, waterAvailable: 4600000, climate: 0.78 }
+        },
+        yellowRiverRisk: { level: 'high', note: '黄河夺淮入海已两百年，明末堤防失修。每 2-3 年必有大溃。' }
       },
 
       // ──── 吏治初值（编辑器 scriptData.corruption · 对齐 editor-corruption.js · 明·末世偏上）────
