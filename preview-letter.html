@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>鸿雁标签页·美化预览</title>
+<style>
+:root {
+  --bg-1: #0f0d0a;
+  --bg-2: #1a1510;
+  --bg-paper: #241e18;
+  --bg-sunken: #1a1410;
+  --ink-900: #f4eadd;
+  --ink-700: #d9c9a9;
+  --ink-500: #a69470;
+  --ink-300: #6b5d47;
+  --ink-100: #3d342a;
+  --gold-300: #c9a85f;
+  --gold-400: #b89a53;
+  --gold-500: #9d8244;
+  --gold-d: #6b5a30;
+  --vermillion-300: #d15c47;
+  --vermillion-400: #b84738;
+  --vermillion-600: #8f3428;
+  --celadon-400: #6a9a7f;
+  --celadon-600: #4a7a5f;
+  --indigo-400: #5a6fa8;
+  --amber-400: #c9a045;
+  --purple-400: #8e6aa8;
+  --blue-400: #5a8fb8;
+  --border-subtle: rgba(184,154,83,0.15);
+  --border-strong: rgba(184,154,83,0.35);
+  --font-serif: "STKaiti","KaiTi","楷体","Georgia",serif;
+  --font-song: "STSong","SimSun","宋体",serif;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: radial-gradient(ellipse at top, #1a1510 0%, #0f0d0a 70%), var(--bg-1);
+  color: var(--ink-700);
+  font-family: var(--font-song);
+  font-size: 14px;
+  line-height: 1.7;
+  min-height: 100vh;
+}
+.preview-frame {
+  max-width: 1280px;
+  margin: 32px auto;
+  background: var(--bg-2);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+}
+.preview-header {
+  background: linear-gradient(to bottom, rgba(184,154,83,0.04), transparent);
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex; align-items: center; gap: 12px;
+  font-size: 11px; color: var(--ink-500); letter-spacing: 0.1em;
+}
+.preview-header .dot { width: 10px; height: 10px; border-radius: 50%; }
+.preview-header .dot.r{background:#d15c47;}
+.preview-header .dot.y{background:#c9a85f;}
+.preview-header .dot.g{background:#6a9a7f;}
+.preview-header .title{margin-left:auto;font-family:var(--font-serif);letter-spacing:0.3em;color:var(--ink-300);}
+
+.tab-bar{display:flex;background:var(--bg-1);border-bottom:1px solid var(--border-subtle);overflow-x:auto;}
+.tab-btn{padding:10px 16px;background:transparent;border:none;color:var(--ink-300);font-family:var(--font-serif);font-size:14px;letter-spacing:0.1em;cursor:pointer;border-bottom:2px solid transparent;position:relative;}
+.tab-btn:hover{color:var(--ink-700);}
+.tab-btn.active{color:var(--gold-400);border-bottom-color:var(--gold-400);}
+.tab-btn.active::before{content:"";position:absolute;top:6px;right:6px;width:5px;height:5px;background:var(--vermillion-400);border-radius:1px;transform:rotate(12deg);}
+
+/* ═══ 鸿雁主区 ═══ */
+.lt-panel {
+  padding: 24px 28px;
+  min-height: 900px;
+  background-color: var(--bg-paper);
+  background-image:
+    repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.04) 2.5em,rgba(107,93,71,0.04) calc(2.5em + 1px)),
+    repeating-linear-gradient(0deg,transparent 0,transparent 3em,rgba(107,93,71,0.02) 3em,rgba(107,93,71,0.02) calc(3em + 1px)),
+    linear-gradient(to bottom,rgba(184,154,83,0.05) 0%,transparent 80px);
+  position: relative;
+}
+.lt-panel::before{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(circle at 15% 25%,rgba(139,90,50,0.025) 0.5px,transparent 1px),radial-gradient(circle at 80% 60%,rgba(139,90,50,0.03) 0.5px,transparent 1px);background-size:80px 80px,120px 120px;}
+.lt-inner{position:relative;z-index:1;}
+
+/* 标题 */
+.lt-title{text-align:center;margin-bottom:20px;position:relative;padding:14px 0 18px;}
+.lt-title::before,.lt-title::after{content:"";position:absolute;left:50%;width:180px;height:1px;transform:translateX(-50%);background:linear-gradient(to right,transparent,var(--gold-d),transparent);}
+.lt-title::before{top:0;} .lt-title::after{bottom:0;}
+.lt-title .main{font-family:var(--font-serif);font-size:24px;letter-spacing:0.5em;color:var(--ink-900);margin-bottom:6px;}
+.lt-title .sub{font-size:12px;color:var(--ink-300);letter-spacing:0.3em;font-family:var(--font-serif);}
+.lt-title .seal{position:absolute;right:28px;top:10px;width:44px;height:44px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(192,64,48,0.85),rgba(140,40,30,0.75));display:flex;align-items:center;justify-content:center;color:#f4eadd;font-size:11px;font-family:var(--font-serif);letter-spacing:0.05em;font-weight:bold;transform:rotate(-6deg);box-shadow:0 2px 6px rgba(140,40,30,0.4);opacity:0.88;line-height:1.2;text-align:center;}
+
+/* 驿路阻断提示 */
+.lt-route-warn{display:flex;gap:8px;flex-wrap:wrap;padding:10px 14px;background:rgba(192,64,48,0.06);border:1px dashed var(--vermillion-400);border-left:3px solid var(--vermillion-400);border-radius:3px;margin-bottom:14px;font-size:12px;}
+.lt-route-warn-lbl{color:var(--vermillion-400);letter-spacing:0.1em;font-family:var(--font-serif);margin-right:4px;}
+.lt-route-warn-item{display:inline-block;padding:2px 8px;background:rgba(192,64,48,0.1);border:1px solid var(--vermillion-400);border-radius:2px;color:var(--vermillion-300);font-size:11px;letter-spacing:0.05em;}
+
+/* 两栏主布局 */
+.lt-main{display:grid;grid-template-columns:320px 1fr;gap:16px;}
+
+/* ═══ 左侧：臣子选择 ═══ */
+.lt-left{display:flex;flex-direction:column;gap:10px;align-self:flex-start;max-height:80vh;}
+.lt-left-header{display:flex;align-items:center;gap:8px;}
+.lt-left-title{font-family:var(--font-serif);font-size:13px;letter-spacing:0.2em;color:var(--ink-700);padding:3px 12px 4px;background:linear-gradient(to bottom,rgba(157,130,68,0.12),rgba(157,130,68,0.03));border-top:1px solid var(--gold-d);border-bottom:1px solid var(--gold-d);}
+.lt-left-title::before,.lt-left-title::after{content:"❖";color:var(--gold-400);font-size:9px;margin:0 4px;opacity:0.6;}
+.lt-multi-btn{margin-left:auto;font-size:10.5px;padding:3px 10px;background:rgba(184,154,83,0.08);border:1px solid var(--gold-d);color:var(--ink-500);border-radius:2px;font-family:var(--font-serif);letter-spacing:0.1em;cursor:pointer;}
+.lt-multi-btn.active{background:linear-gradient(to bottom,var(--vermillion-400),var(--vermillion-600));color:#f4eadd;border-color:var(--vermillion-600);}
+
+.lt-npc-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;padding-right:4px;}
+.lt-npc-card{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;
+  background:var(--bg-paper);
+  background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.025) 2.5em,rgba(107,93,71,0.025) calc(2.5em + 1px));
+  border:1px solid var(--border-subtle);
+  border-left:3px solid var(--npc-clr,var(--gold-d));
+  border-radius:2px;
+  cursor:pointer;
+  transition:all 0.2s;
+  position:relative;
+}
+.lt-npc-card:hover{border-color:var(--gold-400);background:linear-gradient(to right,rgba(184,154,83,0.05),var(--bg-paper));}
+.lt-npc-card.active{
+  border-color:var(--gold-400);
+  border-left-color:var(--vermillion-400);
+  border-left-width:4px;
+  background:linear-gradient(to right,rgba(192,64,48,0.06),var(--bg-paper));
+  box-shadow:0 1px 3px rgba(0,0,0,0.3);
+}
+.lt-npc-portrait{
+  width:36px;height:36px;border-radius:50%;
+  background:linear-gradient(135deg,var(--npc-clr,var(--gold-400)),var(--ink-100));
+  border:2px solid var(--npc-clr,var(--gold-d));
+  display:flex;align-items:center;justify-content:center;
+  color:#f4eadd;font-family:var(--font-serif);font-size:14px;font-weight:500;
+  flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,0.3);
+}
+.lt-npc-info{flex:1;min-width:0;}
+.lt-npc-name{font-family:var(--font-serif);font-size:13.5px;color:var(--ink-900);letter-spacing:0.06em;}
+.lt-npc-title{font-size:10.5px;color:var(--ink-500);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lt-npc-loc{font-size:10px;color:var(--amber-400);margin-top:2px;letter-spacing:0.05em;}
+.lt-npc-badges{display:flex;flex-direction:column;gap:2px;align-items:flex-end;flex-shrink:0;}
+.lt-badge{font-size:9.5px;padding:1px 5px;border-radius:2px;font-family:var(--font-serif);letter-spacing:0.05em;white-space:nowrap;border:1px solid currentColor;}
+.lt-badge.unread{color:var(--vermillion-400);background:rgba(192,64,48,0.1);}
+.lt-badge.npc-new{color:var(--amber-400);background:rgba(201,160,69,0.1);}
+.lt-badge.transit{color:var(--blue-400);background:rgba(90,143,184,0.1);}
+.lt-badge.lost{color:var(--ink-500);background:rgba(0,0,0,0.2);}
+.lt-badge.blocked{color:var(--vermillion-400);background:rgba(192,64,48,0.15);border-style:dashed;}
+
+/* NPC 卡片颜色 */
+.lt-c-loyal{--npc-clr:var(--celadon-400);}
+.lt-c-normal{--npc-clr:var(--gold-400);}
+.lt-c-mili{--npc-clr:var(--vermillion-400);}
+.lt-c-scholar{--npc-clr:var(--celadon-400);}
+.lt-c-remote{--npc-clr:var(--amber-400);}
+
+/* ═══ 中间：信件往来 + 撰写 ═══ */
+.lt-center{display:flex;flex-direction:column;gap:14px;}
+
+/* 信件历史头部 */
+.lt-hist-head{display:flex;align-items:center;gap:12px;padding:10px 14px;background:rgba(184,154,83,0.04);border:1px solid var(--border-subtle);border-radius:3px;}
+.lt-hist-title-wrap{display:flex;align-items:center;gap:10px;flex:1;}
+.lt-hist-portrait{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,var(--celadon-400),var(--ink-100));border:2px solid var(--celadon-400);display:flex;align-items:center;justify-content:center;color:#f4eadd;font-family:var(--font-serif);font-size:14px;flex-shrink:0;}
+.lt-hist-name{font-family:var(--font-serif);font-size:15px;color:var(--gold-400);letter-spacing:0.08em;}
+.lt-hist-sub{font-size:11px;color:var(--ink-500);margin-top:1px;}
+.lt-filter-btns{display:flex;gap:3px;flex-shrink:0;}
+.lt-filter-btn{padding:3px 10px;font-size:10.5px;background:transparent;border:1px solid var(--border-subtle);color:var(--ink-500);font-family:var(--font-serif);letter-spacing:0.1em;cursor:pointer;border-radius:2px;}
+.lt-filter-btn.active{background:linear-gradient(to bottom,rgba(184,154,83,0.15),rgba(184,154,83,0.05));border-color:var(--gold-400);color:var(--gold-400);}
+
+/* 信件列表容器 */
+.lt-hist-body{
+  min-height:380px;max-height:60vh;overflow-y:auto;
+  padding:16px 12px;
+  background-color:var(--bg-sunken);
+  background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.03) 2.5em,rgba(107,93,71,0.03) calc(2.5em + 1px));
+  border:1px solid var(--border-subtle);
+  border-radius:3px;
+  display:flex;flex-direction:column;gap:12px;
+}
+
+/* 日期分隔 */
+.lt-date-div{text-align:center;position:relative;margin:6px 0;}
+.lt-date-div::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:linear-gradient(to right,transparent,var(--gold-d),transparent);}
+.lt-date-div span{position:relative;padding:2px 14px;font-size:11px;color:var(--gold-400);letter-spacing:0.2em;font-family:var(--font-serif);background:var(--bg-sunken);}
+
+/* 信件笺札（公共）*/
+.lt-letter{
+  max-width:78%;
+  padding:12px 16px 14px;
+  background-color:#f4eadd;
+  background-image:
+    repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.08) 2.5em,rgba(107,93,71,0.08) calc(2.5em + 1px)),
+    radial-gradient(circle at 20% 30%,rgba(139,90,50,0.04) 1px,transparent 2px),
+    radial-gradient(circle at 75% 60%,rgba(139,90,50,0.03) 1px,transparent 2px);
+  background-size:auto,130px 130px,150px 150px;
+  border:1px solid rgba(107,60,40,0.2);
+  border-radius:2px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.35),inset 0 0 30px rgba(139,90,50,0.06);
+  color:#2a1810;
+  font-family:var(--font-serif);
+  font-size:13.5px;
+  line-height:1.9;
+  position:relative;
+}
+.lt-letter .header{
+  display:flex;align-items:center;gap:8px;
+  padding-bottom:6px;margin-bottom:8px;
+  border-bottom:1px solid rgba(107,60,40,0.2);
+  font-size:11px;color:#6b4030;
+  letter-spacing:0.1em;
+  font-family:var(--font-serif);
+}
+.lt-letter .header .type-pill{padding:1px 6px;border:1px solid currentColor;border-radius:2px;font-size:10px;}
+.lt-letter .header .date{margin-left:auto;font-size:10.5px;color:#8a5a40;}
+.lt-letter .body{text-indent:2em;color:#1a1410;}
+.lt-letter .reply{
+  margin-top:10px;padding:8px 10px;
+  background:rgba(192,64,48,0.05);
+  border-left:2px solid var(--vermillion-600);
+  border-radius:2px;
+  font-size:12.5px;
+  font-style:italic;
+  color:#8f3428;
+}
+.lt-letter .reply-label{font-size:10px;color:#8f3428;letter-spacing:0.2em;margin-bottom:3px;font-family:var(--font-serif);font-style:normal;}
+.lt-letter .seal{
+  position:absolute;top:12px;right:-10px;
+  width:32px;height:32px;border-radius:2px;
+  display:flex;align-items:center;justify-content:center;
+  color:#f4eadd;font-size:11px;font-family:var(--font-serif);
+  transform:rotate(-8deg);
+  box-shadow:0 2px 4px rgba(0,0,0,0.3);
+  letter-spacing:0.05em;
+  line-height:1;
+  font-weight:bold;
+}
+.lt-letter .seal.secret{background:var(--vermillion-600);}
+.lt-letter .seal.military{background:linear-gradient(to br,#4a2818,#2a1410);color:var(--amber-400);}
+.lt-letter .seal.personal{background:var(--celadon-600);}
+
+/* 玩家发出（右对齐·金色信笺）*/
+.lt-msg-player{align-self:flex-end;}
+.lt-msg-player .lt-letter{
+  background-color:#ebddc0;
+  background-image:
+    repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(139,90,50,0.1) 2.5em,rgba(139,90,50,0.1) calc(2.5em + 1px)),
+    radial-gradient(circle at 20% 30%,rgba(139,90,50,0.05) 1px,transparent 2px);
+  border-color:rgba(139,90,50,0.3);
+}
+.lt-msg-player .lt-letter::before{
+  content:"御笔";
+  position:absolute;top:-8px;left:12px;
+  padding:1px 6px 2px;
+  background:var(--vermillion-600);
+  color:#f4eadd;
+  font-size:9.5px;font-family:var(--font-serif);
+  letter-spacing:0.15em;
+  border-radius:2px;
+}
+
+/* NPC 来函（左对齐）*/
+.lt-msg-npc{align-self:flex-start;}
+.lt-msg-npc .lt-letter::before{
+  content:"\8FDC\6765\4E66";position:absolute;top:-8px;left:12px;
+  padding:1px 6px 2px;
+  background:var(--celadon-600);
+  color:#f4eadd;
+  font-size:9.5px;font-family:var(--font-serif);
+  letter-spacing:0.1em;
+  border-radius:2px;
+}
+
+/* 截获密信（朱砂虚框居中）*/
+.lt-msg-intercept{align-self:center;max-width:90%;}
+.lt-msg-intercept .lt-letter{
+  background:repeating-linear-gradient(45deg,rgba(192,64,48,0.05),rgba(192,64,48,0.05) 8px,transparent 8px,transparent 16px),#f4eadd;
+  border:1.5px dashed var(--vermillion-400);
+  box-shadow:none;
+}
+.lt-msg-intercept .lt-letter::before{
+  content:"\88AB\622A\83B7";position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+  padding:1px 10px 2px;
+  background:var(--vermillion-600);
+  color:#f4eadd;
+  font-size:9.5px;font-family:var(--font-serif);
+  letter-spacing:0.15em;
+  border-radius:2px;
+}
+
+/* 在途（米色虚线）*/
+.lt-msg-transit .lt-letter{opacity:0.8;border-style:dashed;box-shadow:none;}
+.lt-msg-transit .lt-letter::before{
+  content:"\4FE1\4F7F\5728\9014";position:absolute;top:-8px;left:12px;
+  padding:1px 6px 2px;
+  background:var(--blue-400);
+  color:#f4eadd;
+  font-size:9.5px;font-family:var(--font-serif);
+  letter-spacing:0.1em;
+  border-radius:2px;
+}
+.lt-msg-transit .lt-letter .body{color:#4a3a2a;font-style:italic;}
+
+/* 失踪（灰色）*/
+.lt-msg-lost .lt-letter{
+  filter:grayscale(80%);opacity:0.55;
+  background-color:#d0c8b8;
+}
+.lt-msg-lost .lt-letter::before{
+  content:"\4FE1\4F7F\5931\8E2A";position:absolute;top:-8px;left:12px;
+  padding:1px 6px 2px;
+  background:#6b4030;
+  color:#f4eadd;
+  font-size:9.5px;font-family:var(--font-serif);
+  letter-spacing:0.1em;
+  border-radius:2px;
+}
+
+/* 暗示/气泡 */
+.lt-intercept-imply{
+  margin-top:6px;padding:6px 10px;
+  font-size:10.5px;color:var(--amber-400);
+  background:rgba(201,160,69,0.08);
+  border-left:2px solid var(--amber-400);
+  border-radius:2px;
+  font-style:italic;
+}
+
+/* 空状态 */
+.lt-hist-empty{
+  text-align:center;padding:40px 20px;
+  color:var(--ink-500);font-family:var(--font-serif);
+  font-size:14px;letter-spacing:0.15em;
+}
+.lt-hist-empty::before{content:"✉";display:block;color:var(--gold-400);font-size:32px;margin-bottom:10px;opacity:0.5;}
+
+/* ═══ 撰写区 ═══ */
+.lt-compose-area{
+  padding:14px 16px;
+  background-color:var(--bg-paper);
+  background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.03) 2.5em,rgba(107,93,71,0.03) calc(2.5em + 1px));
+  border:1px solid var(--gold-d);
+  border-radius:3px;
+}
+.lt-compose-title{font-family:var(--font-serif);font-size:13px;letter-spacing:0.25em;color:var(--gold-400);margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.lt-compose-title::before{content:"❖";font-size:10px;opacity:0.6;}
+.lt-compose-title .target{font-size:11px;color:var(--celadon-400);letter-spacing:0.08em;margin-left:auto;font-family:var(--font-song);}
+
+.lt-compose-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+.lt-compose-row > select{
+  flex:1;min-width:120px;
+  padding:6px 10px;
+  background:var(--bg-sunken);
+  border:1px solid var(--border-subtle);
+  color:var(--ink-700);
+  font-family:var(--font-serif);
+  font-size:12.5px;
+  border-radius:2px;
+  letter-spacing:0.05em;
+  cursor:pointer;
+}
+.lt-compose-row > select:hover{border-color:var(--gold-d);}
+
+/* 书信纸样 textarea */
+.lt-compose-paper{
+  width:100%;
+  padding:14px 18px;
+  min-height:110px;
+  background-color:#ebddc0;
+  background-image:repeating-linear-gradient(0deg,transparent 0,transparent 32px,rgba(139,90,50,0.15) 32px,rgba(139,90,50,0.15) calc(32px + 1px));
+  border:1px solid rgba(139,90,50,0.3);
+  border-radius:2px;
+  color:#2a1810;
+  font-family:var(--font-serif);
+  font-size:14px;
+  line-height:32px;
+  resize:vertical;
+  outline:none;
+  box-shadow:inset 0 0 10px rgba(139,90,50,0.08);
+  text-indent:2em;
+}
+.lt-compose-paper::placeholder{color:rgba(74,40,24,0.4);font-style:italic;}
+
+.lt-compose-bot{display:flex;justify-content:flex-end;align-items:center;gap:12px;margin-top:10px;}
+.lt-compose-hint{font-size:10.5px;color:var(--ink-300);flex:1;text-align:left;letter-spacing:0.05em;font-style:italic;}
+.lt-send-btn{
+  background:linear-gradient(to bottom,var(--vermillion-400),var(--vermillion-600));
+  color:#f4eadd;
+  border:1px solid var(--vermillion-600);
+  padding:8px 28px;
+  font-family:var(--font-serif);
+  font-size:14px;
+  letter-spacing:0.3em;
+  border-radius:2px;
+  cursor:pointer;
+  box-shadow:0 1px 3px rgba(140,40,30,0.4),inset 0 1px 0 rgba(255,255,255,0.1);
+  position:relative;
+}
+.lt-send-btn:hover{transform:translateY(-1px);box-shadow:0 2px 6px rgba(140,40,30,0.5);}
+.lt-send-btn::before{content:"❖";margin-right:6px;opacity:0.7;}
+
+.legend{padding:14px 20px;background:var(--bg-2);border-top:1px solid var(--border-subtle);font-size:11px;color:var(--ink-500);text-align:center;letter-spacing:0.08em;line-height:1.8;}
+.legend .k{color:var(--gold-400);}
+.legend .mark{color:var(--vermillion-400);}
+</style>
+</head>
+<body>
+
+<div class="preview-frame">
+  <div class="preview-header">
+    <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+    <span>tianming · 鸿雁标签页美化预览</span>
+    <span class="title">〔 鸿 雁 传 书 〕</span>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab-btn">朝政</button>
+    <button class="tab-btn">诏令</button>
+    <button class="tab-btn">奏疏</button>
+    <button class="tab-btn">问对</button>
+    <button class="tab-btn active">鸿雁</button>
+    <button class="tab-btn">编年</button>
+    <button class="tab-btn">官制</button>
+    <button class="tab-btn">文苑</button>
+    <button class="tab-btn">起居注</button>
+    <button class="tab-btn">纪事</button>
+    <button class="tab-btn">史记</button>
+  </div>
+
+  <div class="lt-panel">
+    <div class="lt-inner">
+
+      <!-- 标题 -->
+      <div class="lt-title">
+        <div class="seal">鱼<br>雁</div>
+        <div class="main">鸿 雁 传 书</div>
+        <div class="sub">笺 札 往 来　　驿 使 传 递</div>
+      </div>
+
+      <!-- 驿路阻断提示 -->
+      <div class="lt-route-warn">
+        <span class="lt-route-warn-lbl">⚠ 驿路告急：</span>
+        <span class="lt-route-warn-item">京师 → 辽东 · 叛军占据</span>
+        <span class="lt-route-warn-item">太原 → 大同 · 大雪封山</span>
+      </div>
+
+      <!-- 两栏 -->
+      <div class="lt-main">
+
+        <!-- 左侧臣子选择 -->
+        <div class="lt-left">
+          <div class="lt-left-header">
+            <span class="lt-left-title">远 方 臣 子</span>
+            <button class="lt-multi-btn">群发</button>
+          </div>
+          <div class="lt-npc-list">
+
+            <div class="lt-npc-card lt-c-loyal active">
+              <div class="lt-npc-portrait">袁</div>
+              <div class="lt-npc-info">
+                <div class="lt-npc-name">袁崇焕</div>
+                <div class="lt-npc-title">兵部尚书衔督师</div>
+                <div class="lt-npc-loc">宁远 · 辽东</div>
+              </div>
+              <div class="lt-npc-badges">
+                <span class="lt-badge unread">2 未读</span>
+                <span class="lt-badge npc-new">来函 1</span>
+              </div>
+            </div>
+
+            <div class="lt-npc-card lt-c-mili">
+              <div class="lt-npc-portrait">卢</div>
+              <div class="lt-npc-info">
+                <div class="lt-npc-name">卢象升</div>
+                <div class="lt-npc-title">宣大总督</div>
+                <div class="lt-npc-loc">大同</div>
+              </div>
+              <div class="lt-npc-badges">
+                <span class="lt-badge transit">在途 1</span>
+                <span class="lt-badge blocked">驿路断</span>
+              </div>
+            </div>
+
+            <div class="lt-npc-card lt-c-scholar">
+              <div class="lt-npc-portrait">洪</div>
+              <div class="lt-npc-info">
+                <div class="lt-npc-name">洪承畴</div>
+                <div class="lt-npc-title">陕西三边总督</div>
+                <div class="lt-npc-loc">西安</div>
+              </div>
+              <div class="lt-npc-badges">
+                <span class="lt-badge npc-new">来函 2</span>
+              </div>
+            </div>
+
+            <div class="lt-npc-card lt-c-mili">
+              <div class="lt-npc-portrait">毛</div>
+              <div class="lt-npc-info">
+                <div class="lt-npc-name">毛文龙</div>
+                <div class="lt-npc-title">左都督挂镇东将军印</div>
+                <div class="lt-npc-loc">皮岛</div>
+              </div>
+              <div class="lt-npc-badges">
+                <span class="lt-badge lost">信使逾期</span>
+              </div>
+            </div>
+
+            <div class="lt-npc-card lt-c-scholar">
+              <div class="lt-npc-portrait">秦</div>
+              <div class="lt-npc-info">
+                <div class="lt-npc-name">秦良玉</div>
+                <div class="lt-npc-title">石柱宣抚使</div>
+                <div class="lt-npc-loc">四川 → 京师</div>
+              </div>
+              <div class="lt-npc-badges"></div>
+            </div>
+
+            <div class="lt-npc-card lt-c-normal">
+              <div class="lt-npc-portrait">郑</div>
+              <div class="lt-npc-info">
+                <div class="lt-npc-name">郑芝龙</div>
+                <div class="lt-npc-title">海商·受招抚</div>
+                <div class="lt-npc-loc">福建</div>
+              </div>
+              <div class="lt-npc-badges"></div>
+            </div>
+
+            <div class="lt-npc-card lt-c-normal">
+              <div class="lt-npc-portrait">杨</div>
+              <div class="lt-npc-info">
+                <div class="lt-npc-name">杨鹤</div>
+                <div class="lt-npc-title">三边总督</div>
+                <div class="lt-npc-loc">延绥</div>
+              </div>
+              <div class="lt-npc-badges"></div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 中间：信件往来 + 撰写 -->
+        <div class="lt-center">
+
+          <!-- 信件历史头部 -->
+          <div class="lt-hist-head">
+            <div class="lt-hist-title-wrap">
+              <div class="lt-hist-portrait">袁</div>
+              <div>
+                <div class="lt-hist-name">与袁崇焕的书信</div>
+                <div class="lt-hist-sub">宁远 · 辽东　共 8 封往来</div>
+              </div>
+            </div>
+            <div class="lt-filter-btns">
+              <button class="lt-filter-btn active">全部</button>
+              <button class="lt-filter-btn">未读</button>
+              <button class="lt-filter-btn">在途</button>
+              <button class="lt-filter-btn">失踪</button>
+            </div>
+          </div>
+
+          <!-- 信件列表 -->
+          <div class="lt-hist-body">
+
+            <div class="lt-date-div"><span>崇祯元年二月初七</span></div>
+
+            <div class="lt-msg-player">
+              <div class="lt-letter">
+                <div class="seal secret">密</div>
+                <div class="header">
+                  <span class="type-pill">密旨</span>
+                  <span>八百里加急</span>
+                  <span>阴符加密</span>
+                  <span class="date">初七辰时</span>
+                </div>
+                <div class="body">卿镇辽东，责重而饷缺，朕深知之。着户部即拨内帑三十万两，驿递星驰递解辽东。卿当勉励将士，早复失地。朕倚卿如柱石，望毋负朕望。</div>
+              </div>
+            </div>
+
+            <div class="lt-date-div"><span>崇祯元年二月十五</span></div>
+
+            <div class="lt-msg-npc">
+              <div class="lt-letter">
+                <div class="seal military">边</div>
+                <div class="header">
+                  <span class="type-pill">塘报</span>
+                  <span>加急</span>
+                  <span class="date">十五巳时 · 抵达</span>
+                </div>
+                <div class="body">臣袁崇焕谨启陛下：内帑银三十万两已至宁远，三军欢腾，扣甲而跪。现已分发各部，补发欠饷，并购置新军械。唯女真近日频扰锦州，臣拟率精骑五千往救。乞陛下明鉴。</div>
+                <div class="reply">
+                  <div class="reply-label">朱 笔 批 注</div>
+                  准奏。卿见机行事，务必保锦州不失。
+                </div>
+              </div>
+            </div>
+
+            <div class="lt-date-div"><span>崇祯元年二月廿二</span></div>
+
+            <div class="lt-msg-player">
+              <div class="lt-letter">
+                <div class="seal personal">谕</div>
+                <div class="header">
+                  <span class="type-pill">问安函</span>
+                  <span>普通驿递</span>
+                  <span class="date">廿二</span>
+                </div>
+                <div class="body">辽东苦寒，闻卿体抱旧疾。朕派御医携药物随驿递赴宁远。卿当保重贵体，以报朝廷。另赐貂裘一件、御笔书法一幅，聊表朕意。</div>
+              </div>
+            </div>
+
+            <div class="lt-msg-transit">
+              <div class="lt-letter">
+                <div class="header">
+                  <span class="type-pill">征调令</span>
+                  <span>加急</span>
+                  <span class="date">廿九 · 预计 3 日抵达</span>
+                </div>
+                <div class="body">着袁崇焕即刻调宁远精骑八千入关勤王。军情紧急，不得延误。</div>
+              </div>
+            </div>
+
+            <div class="lt-msg-intercept">
+              <div class="lt-letter">
+                <div class="header">
+                  <span class="type-pill">私函</span>
+                  <span>袁崇焕 → 钱龙锡</span>
+                  <span class="date">廿五夜</span>
+                </div>
+                <div class="body">兄台：京中传言朕疑我拥兵自重，望兄台从中转圜。我纵有千般不是，断不敢负国。</div>
+                <div class="lt-intercept-imply">暗含：袁对帝心疑有所察觉，欲结援朝中</div>
+              </div>
+            </div>
+
+            <div class="lt-msg-lost">
+              <div class="lt-letter">
+                <div class="header">
+                  <span class="type-pill">密札</span>
+                  <span>密使携行 · 已失踪 5 日</span>
+                  <span class="date">廿</span>
+                </div>
+                <div class="body">臣袁崇焕谨奏：后金近日有异动，金使已三次往蒙古讨盟，恐欲西入大同……</div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- 撰写区 -->
+          <div class="lt-compose-area">
+            <div class="lt-compose-title">
+              书 札 拟 稿
+              <span class="target">→ 致袁崇焕</span>
+            </div>
+            <div class="lt-compose-row">
+              <select>
+                <option>密旨（加盖御玺）</option>
+                <option>征调令（调兵）</option>
+                <option>问安函（慰勉）</option>
+                <option>私函（家常）</option>
+                <option>檄文（告示）</option>
+              </select>
+              <select>
+                <option>普通驿递（日行五十里）</option>
+                <option>加急驿递（日行三百里）</option>
+                <option>八百里加急</option>
+              </select>
+            </div>
+            <div class="lt-compose-row">
+              <select>
+                <option>不加密</option>
+                <option>阴符（暗号体系）</option>
+                <option>阴书（拆分三路）</option>
+                <option>蜡丸密函</option>
+                <option>帛书缝衣</option>
+              </select>
+              <select>
+                <option>普通信使</option>
+                <option>多路信使（截获率降低）</option>
+                <option>密使（不走驿站）</option>
+              </select>
+            </div>
+            <textarea class="lt-compose-paper" placeholder="致书远方臣子……">卿前日塘报已悉。辽东苦寒，军情危急，朕心甚忧。着卿相机行事，守锦州为上。朕命户部再拨银十万两星夜递解辽东。</textarea>
+            <div class="lt-compose-bot">
+              <span class="lt-compose-hint">※ 加密/密使可降低截获率；八百里加急耗费更多邮费</span>
+              <button class="lt-send-btn">遣　使</button>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <div class="legend">
+    ★ 设计要点：<span class="k">宣纸底纹</span> · 朱砂「鱼雁」半圆印 · 副标「笺札往来　驿使传递」<br>
+    左栏臣子卡：头像圈+姓名+官衔+所在地+多种徽记(未读/来函/在途/失踪/<span class="mark">驿路断</span>)·active 双边朱金<br>
+    中栏<span class="k">笺札式信件</span>：米色纸纹+朱印+顶部悬浮标签（御笔/远来书/<span class="mark">被截获</span>/信使在途/<span class="mark">信使失踪</span>）<br>
+    玩家发出=金色信笺右对齐 · NPC来函=常色左对齐 · 截获密信=朱砂斜纹居中 · 在途=虚线 · 失踪=灰化<br>
+    撰写区 = 5 类信件+3 紧急度+5 加密+3 派送方式 · 书信纸 textarea（横线纹） · 朱砂「遣使」大按钮<br>
+    <span style="color:var(--ink-300);margin-top:6px;display:inline-block;">纯预览。确认后应用到 renderLetterPanel + letter panel init。</span>
+  </div>
+
+</div>
+</body>
+</html>
