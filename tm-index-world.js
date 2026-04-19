@@ -4547,17 +4547,69 @@ function _wdAddToEdict() {
 }
 
 function setWenduiMode(mode) { _wenduiMode = mode; }
-var _jishiPage=0,_jishiKw='',_jishiPageSize=12,_jishiView='time',_jishiCharFilter='all',_jishiStarredOnly=false;
+var _jishiPage=0,_jishiKw='',_jishiPageSize=10,_jishiView='time',_jishiCharFilter='all',_jishiStarredOnly=false,_jishiSrcFilter='';
 
-/** 推断纪事来源标签 */
+/** 推断纪事来源 · v2 · 12 类 返回 {key,label,icon} */
 function _jishiSource(r) {
-  if (r.playerSaid && r.playerSaid.indexOf('\u671D\u8BAE') >= 0) return '\u671D\u8BAE';
-  if (r.playerSaid && r.playerSaid.indexOf('NPC\u4E3B\u52A8\u6C42\u89C1') >= 0) return '\u6C42\u89C1';
-  if (r.playerSaid && r.playerSaid.indexOf('\u594F\u758F') >= 0) return '\u594F\u758F';
-  if (r.mode === 'private') return '\u95EE\u5BF9\u00B7\u79C1\u4E0B';
-  if (r.mode === 'formal') return '\u95EE\u5BF9\u00B7\u6B63\u5F0F';
-  if (r.mode) return '\u95EE\u5BF9';
-  return '\u8BB0\u5F55';
+  var mode = r.mode || '';
+  var ps = r.playerSaid || '';
+  // 1. 朝议类 5 种（直接从 mode 判断）
+  if (mode === 'changchao') return { key:'changchao', label:'\u5E38\u3000\u671D',       icon:'\u671D' };
+  if (mode === 'yuqian')    return { key:'yuqian',    label:'\u5FA1\u524D\u4F1A\u8BAE', icon:'\u5FA1' };
+  if (mode === 'tinyi' || mode === 'tingyi') return { key:'tingyi', label:'\u5EF7\u3000\u8BAE', icon:'\u5EF7' };
+  if (mode === 'keyi')      return { key:'keyi',      label:'\u79D1\u3000\u8BAE',       icon:'\u79D1' };
+  if (mode === 'jingyan')   return { key:'jingyan',   label:'\u7ECF\u3000\u7B75',       icon:'\u7ECF' };
+  // 2. 科举事件 → 并入科议
+  if (mode === 'keju_event') return { key:'keyi', label:'\u79D1\u4E3E\u4E8B\u4EF6', icon:'\u79D1' };
+  // 3. 对话类 2 种
+  if (mode === 'private') return { key:'private', label:'\u95EE\u5BF9\u00B7\u79C1\u4E0B', icon:'\u79C1' };
+  if (mode === 'formal')  return { key:'formal',  label:'\u95EE\u5BF9\u00B7\u6B63\u5F0F', icon:'\u6BBF' };
+  // 4. 文书类（从 playerSaid 关键字推断）
+  if (/\u6297\u758F/.test(ps)) return { key:'kangshu', label:'\u6297\u3000\u758F', icon:'\u6297' };
+  if (/\u594F\u758F/.test(ps)) return { key:'memo', label:'\u594F\u3000\u758F', icon:'\u594F' };
+  if (/\u9E3F\u96C1|\u4E66\u51FD|\u6765\u51FD|\u5F80\u6765\u4E66\u4FE1/.test(ps)) return { key:'letter', label:'\u9E3F\u3000\u96C1', icon:'\u96C1' };
+  // 5. 杂类
+  if (/\u5BC6\u62A5|\u4E1C\u5382|\u4FA6\u8BE2/.test(ps)) return { key:'mibao', label:'\u5BC6\u3000\u62A5', icon:'\u5BC6' };
+  if (/NPC\u4E3B\u52A8\u6C42\u89C1|\u6C42\u89C1/.test(ps)) return { key:'audience', label:'\u6C42\u3000\u89C1', icon:'\u89C9' };
+  // 6. 旧朝议（fallback·如 mode 为空但含 "朝议"）
+  if (/\u671D\u8BAE/.test(ps)) return { key:'tingyi', label:'\u5EF7\u3000\u8BAE', icon:'\u5EF7' };
+  // 7. 默认·杂录
+  return { key:'record', label:'\u6742\u3000\u5F55', icon:'\u5F55' };
+}
+
+/** 推断重要度：带 _starred / major 字段 或含关键字则 major，其余 normal */
+function _jishiImportance(r) {
+  if (r._importance) return r._importance;
+  if (r.final || r.mediation || (r.playerSaid && /\u91CD\u5927|\u6218\u548C|\u7ACB\u50A8|\u5E1D\u4F4D/.test(r.playerSaid))) return 'major';
+  if (r.mode === 'changchao' && !r.action) return 'minor';
+  return 'normal';
+}
+
+/** 推断氛围（仅朝议/廷议/御前 等群议场景） */
+function _jishiMood(r) {
+  if (r.mood) return r.mood;
+  var mode = r.mode || '';
+  if (mode === 'yuqian') {
+    if (r.secret) return 'solemn';
+    return 'tense';
+  }
+  if (mode === 'tinyi' || mode === 'tingyi') {
+    if (r.mediation) return 'harmonic';
+    var ns = r.stances || {};
+    if (Object.keys(ns).length > 0) return 'hostile';
+    return 'tense';
+  }
+  if (mode === 'jingyan' || mode === 'keyi') return 'solemn';
+  if (mode === 'changchao') return 'harmonic';
+  return null;
+}
+
+/** 查角色头衔 */
+function _jishiCharTitle(name) {
+  if (!name || name === '\u79D1\u4E3E' || name === '\u7687\u5E1D' || name === '\u673A\u5BC6' || name === '\u5EF7') return '';
+  var ch = findCharByName(name);
+  if (!ch) return '';
+  return (ch.officialTitle || ch.title || '').slice(0, 10);
 }
 
 function renderJishi(){
@@ -4566,7 +4618,7 @@ function renderJishi(){
   var kw=(_jishiKw||'').trim().toLowerCase();
   var charF=_jishiCharFilter||'all';
 
-  // 填充人物下拉
+  // 人物下拉填充
   var _charSel = _$('jishi-char-filter');
   if (_charSel && _charSel.options.length <= 1) {
     var _chars = {};
@@ -4579,82 +4631,289 @@ function renderJishi(){
     });
   }
 
+  // 统计栏
+  var statEl = _$('jishi-statbar');
+  if (statEl) {
+    var total = (GM.jishiRecords||[]).length;
+    var starCnt = (GM.jishiRecords||[]).filter(function(r){return r._starred;}).length;
+    var thisTurn = (GM.jishiRecords||[]).filter(function(r){return r.turn === GM.turn;});
+    var _charsAll = {};
+    var _srcTypes = {};
+    (GM.jishiRecords||[]).forEach(function(r) {
+      if (r.char) _charsAll[r.char] = 1;
+      var s = _jishiSource(r);
+      _srcTypes[s.key] = (_srcTypes[s.key]||0) + 1;
+    });
+    var charCnt = Object.keys(_charsAll).length;
+    var srcTypeCnt = Object.keys(_srcTypes).length;
+    var earliestTurn = (GM.jishiRecords||[]).reduce(function(m,r){return Math.min(m, r.turn||Infinity);}, Infinity);
+    var spanTurns = isFinite(earliestTurn) ? (GM.turn - earliestTurn + 1) : 0;
+    var thisTurnBreakdown = '';
+    if (thisTurn.length > 0) {
+      var tb = {};
+      thisTurn.forEach(function(r){ var s = _jishiSource(r); tb[s.label.replace(/\s/g,'')] = (tb[s.label.replace(/\s/g,'')]||0) + 1; });
+      thisTurnBreakdown = Object.keys(tb).slice(0,3).map(function(k){return k + tb[k];}).join('\u00B7');
+    }
+
+    var sh = '';
+    sh += '<div class="ji-stat-card s-total"><div class="ji-stat-lbl">\u603B \u7EAA \u4E8B</div>';
+    sh += '<div class="ji-stat-num">' + total + '</div>';
+    sh += '<div class="ji-stat-sub">' + srcTypeCnt + ' \u7C7B \u00B7 \u6D89 ' + charCnt + ' \u4EBA</div></div>';
+    sh += '<div class="ji-stat-card s-starred"><div class="ji-stat-lbl">\u2605 \u661F \u6807</div>';
+    sh += '<div class="ji-stat-num">' + starCnt + '</div>';
+    sh += '<div class="ji-stat-sub">\u91CD\u5927\u51B3\u7B56\u4E0E\u5BC6\u8C08</div></div>';
+    sh += '<div class="ji-stat-card s-today"><div class="ji-stat-lbl">\u672C \u56DE \u5408</div>';
+    sh += '<div class="ji-stat-num">' + thisTurn.length + '</div>';
+    sh += '<div class="ji-stat-sub">' + escHtml(thisTurnBreakdown || '\u65E0\u65B0\u7EAA\u4E8B') + '</div></div>';
+    sh += '<div class="ji-stat-card s-date"><div class="ji-stat-lbl">\u65F6 \u95F4 \u8DE8 \u5EA6</div>';
+    sh += '<div class="ji-stat-num">' + spanTurns + ' <span style="font-size:14px;">\u56DE\u5408</span></div>';
+    sh += '<div class="ji-stat-sub">' + (spanTurns > 0 ? 'T' + earliestTurn + ' \u2192 T' + GM.turn : '\u672A\u5F00\u59CB') + '</div></div>';
+    statEl.innerHTML = sh;
+  }
+
+  // 源图例（12 类 + 计数 + on-click 切换筛选）
+  var legendEl = _$('jishi-legend');
+  if (legendEl) {
+    var _legendSrcs = [
+      {key:'changchao', label:'\u5E38\u3000\u671D',       icon:'\u671D'},
+      {key:'yuqian',    label:'\u5FA1\u524D\u4F1A\u8BAE', icon:'\u5FA1'},
+      {key:'tingyi',    label:'\u5EF7\u3000\u8BAE',       icon:'\u5EF7'},
+      {key:'keyi',      label:'\u79D1\u3000\u8BAE',       icon:'\u79D1'},
+      {key:'jingyan',   label:'\u7ECF\u3000\u7B75',       icon:'\u7ECF'},
+      {key:'formal',    label:'\u95EE\u5BF9\u00B7\u6B63\u5F0F', icon:'\u6BBF'},
+      {key:'private',   label:'\u95EE\u5BF9\u00B7\u79C1\u4E0B', icon:'\u79C1'},
+      {key:'memo',      label:'\u594F\u3000\u758F',       icon:'\u594F'},
+      {key:'kangshu',   label:'\u6297\u3000\u758F',       icon:'\u6297'},
+      {key:'letter',    label:'\u9E3F\u3000\u96C1',       icon:'\u96C1'},
+      {key:'audience',  label:'\u6C42\u3000\u89C1',       icon:'\u89C9'},
+      {key:'mibao',     label:'\u5BC6\u3000\u62A5',       icon:'\u5BC6'},
+      {key:'record',    label:'\u6742\u3000\u5F55',       icon:'\u5F55'}
+    ];
+    var srcCount = {};
+    (GM.jishiRecords||[]).forEach(function(r){ var s = _jishiSource(r); srcCount[s.key] = (srcCount[s.key]||0) + 1; });
+
+    var lh = '<span class="ji-legend-title">\u6E90 \u7C7B</span>';
+    _legendSrcs.forEach(function(s){
+      if (!srcCount[s.key]) return; // 隐藏0计数
+      var on = (_jishiSrcFilter === s.key) ? ' on' : '';
+      lh += '<span class="ji-legend-chip src-' + s.key + on + '" onclick="_jishiSrcFilter=(_jishiSrcFilter===\'' + s.key + '\'?\'\':\'' + s.key + '\');_jishiPage=0;renderJishi();" title="\u70B9\u51FB\u7B5B\u9009">';
+      lh += '<span class="ic">' + s.icon + '</span>' + s.label;
+      lh += '<span class="num">' + srcCount[s.key] + '</span></span>';
+    });
+    legendEl.innerHTML = lh;
+  }
+
   // 筛选
   var filtered = all;
-  if (kw) filtered = filtered.filter(function(r) { return (r.char||'').toLowerCase().indexOf(kw)>=0||(r.playerSaid||'').toLowerCase().indexOf(kw)>=0||(r.npcSaid||'').toLowerCase().indexOf(kw)>=0; });
+  if (kw) filtered = filtered.filter(function(r) { return (r.char||'').toLowerCase().indexOf(kw)>=0||(r.playerSaid||'').toLowerCase().indexOf(kw)>=0||(r.npcSaid||'').toLowerCase().indexOf(kw)>=0||(r.topic||'').toLowerCase().indexOf(kw)>=0; });
   if (charF !== 'all') filtered = filtered.filter(function(r) { return r.char === charF; });
   if (_jishiStarredOnly) filtered = filtered.filter(function(r) { return r._starred; });
+  if (_jishiSrcFilter) filtered = filtered.filter(function(r){ return _jishiSource(r).key === _jishiSrcFilter; });
 
   var h = '';
+
   if (_jishiView === 'char') {
     // ── 按人物视图 ──
     var _byChar = {};
-    filtered.forEach(function(r) { var c = r.char||'?'; if (!_byChar[c]) _byChar[c] = []; _byChar[c].push(r); });
+    filtered.forEach(function(r) { var c = r.char||'\u65E0\u540D'; if (!_byChar[c]) _byChar[c] = []; _byChar[c].push(r); });
     var _charKeys = Object.keys(_byChar).sort(function(a,b) { return _byChar[b].length - _byChar[a].length; });
-    if (_charKeys.length === 0) { h = '<div style="color:var(--txt-d);text-align:center;padding:2rem;">\u5C1A\u65E0\u8BB0\u5F55</div>'; }
+    if (_charKeys.length === 0) h = '<div class="ji-empty">\u5C1A\u65E0\u7B26\u5408\u6761\u4EF6\u7684\u7EAA\u4E8B</div>';
     else {
-      _charKeys.forEach(function(ck) {
+      _charKeys.forEach(function(ck, ckIdx) {
         var items = _byChar[ck];
-        h += '<details style="margin-bottom:var(--space-2);">';
-        h += '<summary style="cursor:pointer;font-size:var(--text-sm);color:var(--gold-400);font-weight:var(--weight-bold);padding:var(--space-1) 0;">' + escHtml(ck) + ' <span style="font-size:0.65rem;color:var(--ink-300);">(' + items.length + '\u6B21\u4EA4\u4E92)</span></summary>';
-        items.forEach(function(r, ri) { h += _jishiRenderRecord(r); });
+        var ch = findCharByName(ck);
+        var title = _jishiCharTitle(ck);
+        var _initial = escHtml(String(ck||'?').charAt(0));
+        var _portrait = (ch && ch.portrait) ? '<img src="'+escHtml(ch.portrait)+'">' : _initial;
+        h += '<details class="ji-char-block"' + (ckIdx===0?' open':'') + '>';
+        h += '<summary class="ji-char-summary">';
+        h += '<div class="ji-char-portrait">' + _portrait + '</div>';
+        h += '<span class="ji-char-nm">' + escHtml(ck) + '</span>';
+        if (title) h += '<span class="ji-char-title">' + escHtml(title) + '</span>';
+        h += '<span class="cnt">' + items.length + ' \u6761</span>';
+        h += '</summary>';
+        items.forEach(function(r) { h += _jishiRenderRecord(r); });
         h += '</details>';
       });
     }
+  } else if (_jishiView === 'type') {
+    // ── 按事类视图 ──
+    var _byType = {};
+    filtered.forEach(function(r) { var k = _jishiSource(r).key; if (!_byType[k]) _byType[k] = []; _byType[k].push(r); });
+    var _typeOrder = ['changchao','yuqian','tingyi','keyi','jingyan','formal','private','memo','kangshu','letter','audience','mibao','record'];
+    var _typeLabels = {changchao:'\u5E38\u3000\u671D',yuqian:'\u5FA1\u524D\u4F1A\u8BAE',tingyi:'\u5EF7\u3000\u8BAE',keyi:'\u79D1\u3000\u8BAE',jingyan:'\u7ECF\u3000\u7B75',formal:'\u95EE\u5BF9\u00B7\u6B63\u5F0F',private:'\u95EE\u5BF9\u00B7\u79C1\u4E0B',memo:'\u594F\u3000\u758F',kangshu:'\u6297\u3000\u758F',letter:'\u9E3F\u3000\u96C1',audience:'\u6C42\u3000\u89C1',mibao:'\u5BC6\u3000\u62A5',record:'\u6742\u3000\u5F55'};
+    var _hasAny = false;
+    _typeOrder.forEach(function(k){
+      if (!_byType[k]) return;
+      _hasAny = true;
+      var items = _byType[k];
+      h += '<details class="ji-char-block" open>';
+      h += '<summary class="ji-char-summary src-' + k + '" style="border-left-color:var(--sw-c);">';
+      h += '<span class="ji-char-nm" style="color:var(--sw-c);">' + escHtml(_typeLabels[k]||k) + '</span>';
+      h += '<span class="cnt">' + items.length + ' \u6761</span>';
+      h += '</summary>';
+      items.forEach(function(r) { h += _jishiRenderRecord(r); });
+      h += '</details>';
+    });
+    if (!_hasAny) h = '<div class="ji-empty">\u5C1A\u65E0\u7B26\u5408\u6761\u4EF6\u7684\u7EAA\u4E8B</div>';
   } else {
     // ── 时间线视图（按回合分组） ──
     var _byTurn = {};
     filtered.forEach(function(r) { var t = r.turn||0; if (!_byTurn[t]) _byTurn[t] = { date: r.date||(typeof getTSText==='function'?getTSText(r.turn):''), items: [] }; _byTurn[t].items.push(r); });
     var _turnKeys = Object.keys(_byTurn).sort(function(a,b){ return b - a; });
-    // 分页
     var total = _turnKeys.length;
     var pages = Math.ceil(total / _jishiPageSize) || 1;
     if (_jishiPage >= pages) _jishiPage = pages - 1;
     if (_jishiPage < 0) _jishiPage = 0;
     var pageTurns = _turnKeys.slice(_jishiPage * _jishiPageSize, (_jishiPage + 1) * _jishiPageSize);
-    if (pageTurns.length === 0) { h = '<div style="color:var(--txt-d);text-align:center;padding:2rem;">\u5C1A\u65E0\u8BB0\u5F55</div>'; }
+    if (pageTurns.length === 0) h = '<div class="ji-empty">\u5C1A\u65E0\u7B26\u5408\u6761\u4EF6\u7684\u7EAA\u4E8B</div>';
     else {
       pageTurns.forEach(function(tk) {
         var group = _byTurn[tk];
-        h += '<div style="margin-bottom:var(--space-3);">';
-        h += '<div style="font-size:var(--text-xs);color:var(--gold-400);font-weight:var(--weight-bold);padding:var(--space-1) 0;border-bottom:1px solid var(--color-border-subtle);">\u7B2C' + tk + '\u56DE\u5408 \u00B7 ' + escHtml(group.date) + '</div>';
+        h += '<div class="ji-turn-block">';
+        h += '<div class="ji-turn-hdr">';
+        h += '<span class="t-label">\u7B2C ' + tk + ' \u56DE \u5408</span>';
+        if (group.date) h += '<span class="t-date">' + escHtml(group.date) + '</span>';
+        h += '<span class="t-count">' + group.items.length + ' \u6761\u7EAA\u4E8B</span>';
+        h += '</div>';
         group.items.forEach(function(r) { h += _jishiRenderRecord(r); });
         h += '</div>';
       });
+      // 分页
+      h += '<div class="ji-paging">';
+      h += '<button class="ji-pg-btn" ' + (_jishiPage<=0?'disabled':'') + ' onclick="_jishiPage--;renderJishi();">\u2039</button>';
+      h += '<span class="ji-pg-info"><span class="n">' + (_jishiPage+1) + '</span> / ' + pages + ' \u00B7 \u5171 <span class="n">' + filtered.length + '</span> \u6761</span>';
+      h += '<button class="ji-pg-btn" ' + (_jishiPage>=pages-1?'disabled':'') + ' onclick="_jishiPage++;renderJishi();">\u203A</button>';
+      h += '</div>';
     }
-    // 分页控件
-    h += '<div style="display:flex;align-items:center;justify-content:center;gap:0.5rem;margin-top:var(--space-2);">';
-    h += '<button class="bt bs bsm" ' + (_jishiPage<=0?'disabled':'') + ' onclick="_jishiPage--;renderJishi();">\u2039</button>';
-    h += '<span style="font-size:0.75rem;color:var(--txt-s);">' + (_jishiPage+1) + '/' + pages + ' (' + filtered.length + '\u6761)</span>';
-    h += '<button class="bt bs bsm" ' + (_jishiPage>=pages-1?'disabled':'') + ' onclick="_jishiPage++;renderJishi();">\u203A</button>';
-    h += '</div>';
   }
   el.innerHTML = h;
-  // v5·C·装饰 pending 人名为可点击
   try { if (typeof decoratePendingInDom === 'function') decoratePendingInDom(el); } catch(_){}
 }
 
-/** 渲染单条纪事记录 */
+/** 渲染单条纪事记录 · v2 */
 function _jishiRenderRecord(r) {
-  var _src = _jishiSource(r);
-  var _isPrivate = r.mode === 'private';
-  var _srcColors = {'\u95EE\u5BF9\u00B7\u6B63\u5F0F':'var(--celadon-400)','\u95EE\u5BF9\u00B7\u79C1\u4E0B':'var(--purple,#9b59b6)','\u671D\u8BAE':'var(--indigo-400)','\u594F\u758F':'var(--vermillion-400)','\u6C42\u89C1':'var(--gold-400)','\u95EE\u5BF9':'var(--celadon-400)'};
-  var _sc = _srcColors[_src] || 'var(--ink-300)';
-  var _bgExtra = _isPrivate ? 'background:rgba(155,89,182,0.04);' : '';
+  var src = _jishiSource(r);
   var _ridx = (GM.jishiRecords||[]).indexOf(r);
-  var _dt = r.date || (typeof getTSText==='function' ? getTSText(r.turn) : '');
-  var h = '<div class="qiju-record" style="border-left-color:' + _sc + ';' + _bgExtra + '">';
-  h += '<div style="display:flex;justify-content:space-between;align-items:center;">';
-  h += '<div>';
-  h += '<span class="qiju-turn" style="color:' + _sc + ';">[' + escHtml(_src) + ']</span>';
-  h += ' <span style="font-size:0.7rem;color:var(--color-foreground);">' + escHtml(r.char||'') + '</span>';
-  if (_isPrivate) h += ' <span style="font-size:0.6rem;color:var(--purple,#9b59b6);">\uD83D\uDD12\u79C1</span>';
+  var imp = _jishiImportance(r);
+  var mood = _jishiMood(r);
+  var isPrivate = r.mode === 'private';
+  var isGroup = ['changchao','yuqian','tinyi','tingyi','keyi','jingyan'].indexOf(r.mode) >= 0;
+
+  // 议题提取：从 playerSaid 的 【xxx·议题】或 topic 字段
+  var topic = r.topic || '';
+  if (!topic && r.playerSaid) {
+    var tm = r.playerSaid.match(/\u3010([^\u3011]+)\u3011/);
+    if (tm) topic = tm[1];
+  }
+
+  // cls 组合
+  var cls = 'ji-record src-' + src.key;
+  if (r._starred) cls += ' starred';
+  if (isPrivate) cls += ' private';
+  if (imp === 'major') cls += ' major';
+
+  var h = '<div class="' + cls + '">';
+
+  // ── head ──
+  h += '<div class="ji-rec-head">';
+  h += '<span class="ji-src-badge"><span class="ic">' + src.icon + '</span><span class="nm">' + src.label + '</span></span>';
+  if (imp === 'major') h += '<span class="ji-importance major">\u5927\u3000\u4E8B</span>';
+  else if (imp === 'minor') h += '<span class="ji-importance minor">\u95F2\u3000\u4E8B</span>';
+  else h += '<span class="ji-importance normal">\u5E38\u3000\u4E8B</span>';
+  // 人物 + 头衔
+  var charNm = r.char || '';
+  var charTitle = _jishiCharTitle(charNm);
+  h += '<span class="ji-rec-char">' + escHtml(charNm);
+  if (charTitle) h += '<span class="title">\u00B7' + escHtml(charTitle) + '</span>';
+  h += '</span>';
+  if (isPrivate) h += '<span class="ji-private-mark">\u79C1\u4E0B</span>';
+  if (mood) {
+    var moodLabels = {harmonic:'\u8083\u7A46', tense:'\u7D27\u5F20', hostile:'\u6FC0\u8FA9', solemn:'\u5E84\u91CD'};
+    h += '<span class="ji-mood ' + mood + '">' + (moodLabels[mood] || mood) + '</span>';
+  }
+  var dt = r.date || (typeof getTSText==='function' ? getTSText(r.turn) : '');
+  if (dt) h += '<span class="ji-rec-time">' + escHtml(dt) + '</span>';
+  h += '<button class="ji-star-toggle' + (r._starred?' on':'') + '" onclick="_jishiStar(' + _ridx + ')" title="' + (r._starred?'\u53D6\u6D88\u661F\u6807':'\u661F\u6807') + '">' + (r._starred?'\u2605':'\u2606') + '</button>';
   h += '</div>';
-  h += '<div style="display:flex;gap:2px;">';
-  h += '<button class="bt bsm" style="font-size:0.55rem;padding:0 3px;color:' + (r._starred ? 'var(--gold-400)' : 'var(--ink-300)') + ';" onclick="_jishiStar(' + _ridx + ')">' + (r._starred ? '\u2605' : '\u2606') + '</button>';
-  h += '</div></div>';
-  h += '<div style="font-size:0.78rem;color:var(--color-foreground-muted);margin-top:2px;">\u4E0A\uFF1A' + escHtml(r.playerSaid||'') + '</div>';
-  h += '<div style="font-size:0.78rem;color:var(--color-foreground);margin-top:1px;">' + escHtml(r.char||'') + '\uFF1A' + escHtml(r.npcSaid||'') + '</div>';
+
+  // ── topic ──
+  if (topic) h += '<div class="ji-topic">' + escHtml(topic) + '</div>';
+
+  // ── attendees（若是朝议且 r.attendees 存在） ──
+  if (isGroup && Array.isArray(r.attendees) && r.attendees.length > 0) {
+    h += '<div class="ji-attendees"><span class="lbl">\u4E0E\u8BAE\uFF1A</span>';
+    r.attendees.slice(0,8).forEach(function(a){
+      var nm = typeof a === 'string' ? a : (a.name || '');
+      var stance = typeof a === 'object' && a.stance ? a.stance : '';
+      var stCls = stance === 'pos' || stance === 'for' ? ' pos' : stance === 'neg' || stance === 'against' ? ' neg' : stance ? ' neu' : '';
+      h += '<span class="ji-atd-chip' + stCls + '">';
+      if (stance) h += '<span class="dot"></span>';
+      h += escHtml(nm);
+      h += '</span>';
+    });
+    h += '</div>';
+  }
+
+  // ── dialog ──
+  h += '<div class="ji-dialog">';
+  // 玩家言
+  if (r.playerSaid) {
+    var ps = r.playerSaid;
+    // 剥除【xxx·】前缀（已显示为 topic）
+    if (topic) ps = ps.replace(/^\u3010[^\u3011]+\u3011/, '').trim();
+    if (ps) {
+      if (/^\uFF08|^\u300A/.test(ps) || ps.length < 10 && /\u8BB0|\u62A5|\u5F55/.test(src.label)) {
+        h += '<div class="ji-line ji-line-nar">' + escHtml(ps) + '</div>';
+      } else {
+        h += '<div class="ji-line ji-line-player">' + escHtml(ps) + '</div>';
+      }
+    }
+  }
+  // NPC 言
+  if (r.npcSaid) {
+    // 群议场景显示 speaker 角标
+    if (isGroup && r.char && r.char !== '\u7687\u5E1D') {
+      h += '<div class="ji-line-speaker">' + escHtml(r.char) + (charTitle?'\u00B7'+escHtml(charTitle):'') + '</div>';
+    }
+    // 密报/杂录：叙述体
+    if (src.key === 'mibao' || src.key === 'record') {
+      h += '<div class="ji-line ji-line-nar">' + escHtml(r.npcSaid) + '</div>';
+    } else {
+      h += '<div class="ji-line ji-line-npc">' + escHtml(r.npcSaid) + '</div>';
+    }
+  }
+  h += '</div>';
+
+  // ── outcome（决议/朱批/留中/颁诏） ──
+  if (r.outcome || r.finalRuling || r.decree || r.approval) {
+    var outTxt = r.outcome || r.finalRuling || r.decree || r.approval;
+    var outCls = r.final ? ' decision' : (src.key === 'memo' || src.key === 'kangshu') ? '' : '';
+    if (r.decree) outCls = ' decree';
+    if (r.held || /\u7559\u4E2D|\u6682\u641C/.test(String(outTxt))) outCls = ' delay';
+    h += '<div class="ji-outcome' + outCls + '">' + escHtml(outTxt) + '</div>';
+  }
+
+  // ── delta 变化 ──
+  var deltas = [];
+  if (typeof r.loyaltyDelta === 'number' && r.loyaltyDelta !== 0) {
+    deltas.push({cls: r.loyaltyDelta > 0 ? 'up' : 'dn', txt: escHtml(r.char||'') + ' \u00B7 \u5FE0 ' + (r.loyaltyDelta > 0 ? '+' : '') + r.loyaltyDelta});
+  }
+  if (r.relationDelta) {
+    deltas.push({cls: 'mid', txt: '\u5173\u7CFB ' + escHtml(String(r.relationDelta))});
+  }
+  if (r.stressDelta && r.stressDelta > 0) {
+    deltas.push({cls: 'dn', txt: '\u538B\u529B +' + r.stressDelta});
+  }
+  if (Array.isArray(r.deltas)) {
+    r.deltas.forEach(function(d){ deltas.push({cls: d.cls || 'mid', txt: escHtml(d.txt||'')}); });
+  }
+  if (deltas.length > 0) {
+    h += '<div class="ji-delta"><span class="ji-delta-lbl">\u53D8 \u52A8</span>';
+    deltas.forEach(function(d){ h += '<span class="ji-delta-item ' + d.cls + '">' + d.txt + '</span>'; });
+    h += '</div>';
+  }
+
   h += '</div>';
   return h;
 }
@@ -4678,8 +4937,8 @@ function _jishiToggleStarred() {
 function _jishiExport(){
   var txt=(GM.jishiRecords||[]).map(function(r){
     var src = _jishiSource(r);
-    var star = r._starred ? ' ★' : '';
-    return '[T'+(r.turn||'')+'] '+escHtml(r.char||'')+' ['+src+']'+star+'\n\u4E0A: '+(r.playerSaid||'')+'\n'+(r.char||'')+': '+(r.npcSaid||'');
+    var star = r._starred ? ' \u2605' : '';
+    return '[T'+(r.turn||'')+'] '+(r.char||'')+' ['+src.label.replace(/\s/g,'')+']'+star+'\n\u4E0A: '+(r.playerSaid||'')+'\n'+(r.char||'')+': '+(r.npcSaid||'');
   }).join('\n\n---\n\n');
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){toast('\u5DF2\u590D\u5236');}).catch(function(){_jishiDownload(txt);});}
   else _jishiDownload(txt);

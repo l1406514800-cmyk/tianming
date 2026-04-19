@@ -5133,19 +5133,25 @@ function renderGameState(){
   gc.appendChild(qjP);
 
   // 纪事面板
-  var jsP=document.createElement("div");jsP.className="g-tab-panel";jsP.id="gt-jishi";jsP.style.cssText="flex:1;overflow-y:auto;padding:1rem;";
-  jsP.innerHTML='<div class="scroll-manager-header" style="padding:var(--space-2);font-size:var(--text-md);">\u3014 \u7EAA\u4E8B\u672C\u672B \u3015</div>'
-    +'<div style="font-size:var(--text-xs);color:var(--color-foreground-muted);text-align:center;margin-bottom:var(--space-2);letter-spacing:0.08em;">\u4EE5\u4E8B\u7CFB\u65E5\uFF0C\u4EE5\u65E5\u7CFB\u6708\uFF0C\u4EE5\u6708\u7CFB\u65F6\uFF0C\u4EE5\u65F6\u7CFB\u5E74</div>'
-    +'<hr class="ink-divider">'
-    +'<div style="display:flex;gap:var(--space-1);align-items:center;margin-bottom:var(--space-2);flex-wrap:wrap;">'
-    +'<button class="bt bsm js-view-btn active" id="js-view-time" onclick="_jishiView=\'time\';document.querySelectorAll(\'.js-view-btn\').forEach(function(b){b.classList.remove(\'active\',\'bp\');b.classList.add(\'bs\');});this.classList.add(\'active\',\'bp\');this.classList.remove(\'bs\');renderJishi();">\u65F6\u95F4\u7EBF</button>'
-    +'<button class="bt bs bsm js-view-btn" id="js-view-char" onclick="_jishiView=\'char\';document.querySelectorAll(\'.js-view-btn\').forEach(function(b){b.classList.remove(\'active\',\'bp\');b.classList.add(\'bs\');});this.classList.add(\'active\',\'bp\');this.classList.remove(\'bs\');renderJishi();">\u6309\u4EBA\u7269</button>'
-    +'<input id="jishi-kw" placeholder="\u641C\u7D22\u2026" style="flex:1;min-width:80px;padding:3px 6px;font-size:var(--text-xs);background:var(--color-elevated);border:1px solid var(--color-border);border-radius:var(--radius-sm);color:var(--color-foreground);font-family:inherit;" oninput="_jishiKw=this.value;_jishiPage=0;renderJishi();">'
-    +'<select id="jishi-char-filter" style="font-size:var(--text-xs);padding:2px 4px;background:var(--color-elevated);border:1px solid var(--color-border);color:var(--color-foreground);border-radius:var(--radius-sm);" onchange="_jishiCharFilter=this.value;_jishiPage=0;renderJishi();"><option value="all">\u5168\u90E8\u4EBA\u7269</option></select>'
-    +'<button class="bt bsm" onclick="_jishiToggleStarred()" id="js-star-toggle" title="\u53EA\u770B\u6807\u8BB0\u9879">\u2606</button>'
-    +'<button class="bt bsm" onclick="_jishiExport()" title="\u5BFC\u51FA">\u5BFC\u51FA</button>'
+  var jsP=document.createElement("div");jsP.className="g-tab-panel";jsP.id="gt-jishi";jsP.style.cssText="flex:1;overflow-y:auto;padding:0;";
+  jsP.innerHTML='<div class="ji-panel-wrap"><div class="ji-inner">'
+    +'<div class="ji-title"><div class="seal">\u7EAA<br>\u4E8B</div><div class="main">\u7EAA \u4E8B \u672C \u672B</div><div class="sub">\u4EE5 \u4E8B \u7CFB \u65E5\u3000\u3000\u4EE5 \u65E5 \u7CFB \u6708\u3000\u3000\u4EE5 \u6708 \u7CFB \u65F6\u3000\u3000\u4EE5 \u65F6 \u7CFB \u5E74</div></div>'
+    +'<div id="jishi-statbar" class="ji-statbar"></div>'
+    +'<div class="ji-tools">'
+    +'<span class="ji-tools-lbl">\u62AB\u3000\u89C8</span>'
+    +'<div class="ji-view-switch">'
+    +'<button class="ji-view-btn active" id="js-view-time" onclick="_jishiView=\'time\';_jishiPage=0;document.querySelectorAll(\'.ji-view-btn\').forEach(function(b){b.classList.remove(\'active\');});this.classList.add(\'active\');renderJishi();">\u65F6 \u95F4 \u7EBF</button>'
+    +'<button class="ji-view-btn" id="js-view-char" onclick="_jishiView=\'char\';_jishiPage=0;document.querySelectorAll(\'.ji-view-btn\').forEach(function(b){b.classList.remove(\'active\');});this.classList.add(\'active\');renderJishi();">\u6309 \u4EBA \u7269</button>'
+    +'<button class="ji-view-btn" id="js-view-type" onclick="_jishiView=\'type\';_jishiPage=0;document.querySelectorAll(\'.ji-view-btn\').forEach(function(b){b.classList.remove(\'active\');});this.classList.add(\'active\');renderJishi();">\u6309 \u4E8B \u7C7B</button>'
     +'</div>'
-    +'<div id="jishi-list"></div>';
+    +'<div class="ji-search-wrap"><input id="jishi-kw" class="ji-search" placeholder="\u641C\u7D22\u8BAE\u9898\u00B7\u4EBA\u7269\u00B7\u5BF9\u8BDD\u2026\u2026" oninput="_jishiKw=this.value;_jishiPage=0;renderJishi();"></div>'
+    +'<select id="jishi-char-filter" class="ji-filter" onchange="_jishiCharFilter=this.value;_jishiPage=0;renderJishi();"><option value="all">\u5168\u90E8\u4EBA\u7269</option></select>'
+    +'<button class="ji-star-btn" onclick="_jishiToggleStarred()" id="js-star-toggle" title="\u4EC5\u770B\u661F\u6807">\u2606</button>'
+    +'<button class="ji-export-btn" onclick="_jishiExport()" title="\u5BFC\u51FA\u7EB5\u7EAA\u5B8C\u6574\u8BB0\u5F55">\u5BFC \u51FA</button>'
+    +'</div>'
+    +'<div id="jishi-legend" class="ji-legend"></div>'
+    +'<div id="jishi-list"></div>'
+    +'</div></div>';
   gc.appendChild(jsP);
 
   // 史记面板
