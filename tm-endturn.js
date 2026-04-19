@@ -3566,6 +3566,73 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       delete GM._successionEvent; // 只注入一次
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // 【玩家圣意·本回合·次高优先级】（低于上方"问天"直接指令·高于常规背景）
+    // 汇总玩家通过朝议/科议/诏令/奏疏/问对作出的治国决策·
+    // AI 推演须：(1) 叙事必回应 (2) 相关 NPC 必响应 (3) 执行受挫必交代原因
+    // 不可假装没发生·但可根据现实（财政/距离/史实/人员）推演成功/部分/受阻/失败
+    // ═══════════════════════════════════════════════════════════════════
+    tp += '\n\n═══ 【玩家圣意·次高优先级】═══\n';
+    tp += '以下是本回合玩家通过正常治国手段作出的决策·必须在推演中得到体现与响应：\n';
+    tp += '※ 此级别低于上方"问天"直接指令·但高于一切常规背景。推演效果可受现实约束·但不得被忽略。\n';
+    tp += '※ 每条决策须在回合输出的各字段中体现——例如：\n';
+    tp += '    · zhengwen（时政记·当月朝堂叙事）要有对应段落说明诏令颁行、朝议落实、奏疏批复执行情况\n';
+    tp += '    · events（事件/实录）要记下引发的重大动作（如派员、起兵、征召、工程开工）\n';
+    tp += '    · npc_actions（后人戏说/个人行止）要让相关官员作出对应响应（推进/抵制/规避/上疏申辩）\n';
+    tp += '    · edict_feedback（数值变化说明）要给出受挫/成功的原因与影响\n';
+    tp += '※ 不必采用固定模板·分工呈现即可；但不得假装没发生·不得让玩家决策淹没在背景叙事中。\n\n';
+
+    // ═══════════════════════════════════════════════════════════════════
+    // 【叙事-状态同步·核心原则】——推演叙事必须落回真实游戏数据
+    // ═══════════════════════════════════════════════════════════════════
+    tp += '\n═══ 【叙事-状态同步·核心原则】═══\n';
+    tp += '※ 凡推演叙事中描写的"实际发生的变化"·均须通过对应的语义通道落回游戏状态字段·不得只停留在文字描述：\n';
+    tp += '  · 皇帝赐名/改名 X 为 Y → char_updates:[{name:"X",updates:{name:"Y",原名:"X"}}]·同步刷新 careerHistory 标题\n';
+    tp += '  · 玩家改官职名（例"户部尚书"→"度支令"）→ anyPathChanges 改 P.officeTree 对应节点·并对所有 officialTitle==旧名 的 char 同步 char_updates.updates.officialTitle\n';
+    tp += '  · 授官 → office_assignments:[{name,post,dept,action:"appoint",toLocation?,reason}]·若需赴任则留走位；同时 careerEvent 自动追加，无需单独写\n';
+    tp += '  · 罢免/贬谪/外放 → office_assignments action:"dismiss"/"transfer"；如外放须 toLocation+走位\n';
+    tp += '  · 封爵/赐号/追谥 → char_updates.updates 里更新 title/爵位/封号·并 careerEvent 记录\n';
+    tp += '  · 赐死/诛戮/抄家 → char_updates.updates.alive:false 或 onDismissal reason:"execute"\n';
+    tp += '  · 新设/裁撤衙门 → anyPathChanges 改 P.officeTree；同时建立/解除对应 publicTreasury 绑定\n';
+    tp += '  · 财政调整（赐金/征发/专款）→ fiscal_adjustments:[{target:"guoku/neitang/province:X",kind:"income/expense",amount,item,reason}]·不得只写"拨银若干"而不落账\n';
+    tp += '  · 势力/党派/阶层/区域变化 → faction_updates / party_updates / class_updates / region_updates\n';
+    tp += '  · 工程/运动/战役启动 → project_updates 保存进度；相应 fiscal_adjustments 记支出\n';
+    tp += '  · 任何其他深层字段（人物属性、忠诚、好感、记忆、派系关系、异象、科举阶段等）→ anyPathChanges op:"set/delta/push/merge"\n';
+    tp += '※ 叙事与数据一一对应·宁可不写·不可写而不改·也不可改而不叙。zhengwen/events 里出现的"实际变化"在本回合结束时必须真的落到 GM 状态。\n';
+    tp += '※ 连锁义务：授某人为某官 → 该官 officialTitle 必新；给官职改名 → 所有持此官者同步改名；移驻某地 → location+_travelTo；仕途 careerHistory 必须追加（appoint/transfer/dismiss 类动作自动写入·但 AI 若写了"赐进太师衔"之类额外身份也要手动 careerEvent）。\n\n';
+
+    // ═══════════════════════════════════════════════════════════════════
+    // 【执行阻力·代价约束·非机械原则】
+    // ═══════════════════════════════════════════════════════════════════
+    tp += '═══ 【执行阻力与代价约束·非机械原则】═══\n';
+    tp += '※ 【阻力原则·核心】AI 推演必须尽可能给玩家制造阻力——阻力必须合理·符合逻辑·符合剧本历史背景·符合官场/人情/派系现实·不曲解玩家意思。\n';
+    tp += '    · 决不可让玩家决策一帆风顺——多数真诏令在真实历史上都会遇到：人事阻力、财政掣肘、党争反扑、言路封驳、下情不达、阳奉阴违、吏治败坏、地方观望\n';
+    tp += '    · 但阻力必须正当——不得无中生有·不得违反当时历史风俗·不得莫名其妙地抵制合情合理的政策·不得让清明盛世也遍地抗旨\n';
+    tp += '    · 玩家原本意图要忠实解读——不得故意曲解玩家字面意思去制造阻力（如玩家说"赐银五千"·AI不得硬说"玩家要征收"）\n';
+    tp += '    · 阻力程度随当下朝局：盛世吏治清明时阻力温和·末世党争激烈时阻力巨大·改革变法时必有既得利益反扑\n';
+    tp += '※ 玩家核心决策（诏令/玩家行止/鸿雁传书/奏折批示/廷议/科议/朝议）的执行效果·必须严格受制于：\n';
+    tp += '    ① 财政能力（帑廪/内帑/地方库存是否支撑此举）\n';
+    tp += '    ② 官僚执行力（对应衙门是否健全·主官是否在任·吏治腐败度）\n';
+    tp += '    ③ 人物意愿（被命令者的忠诚·派系·个人利益·健康·年岁）\n';
+    tp += '    ④ 派系博弈（他党是否会阻挠·言路是否封驳·抗疏有无）\n';
+    tp += '    ⑤ 资源/时间/距离约束（路程天数·物资筹措·季节·天气·战事）\n';
+    tp += '※ 严禁机械执行玩家指令——必须如实反馈：成功/部分成功/受挫/失败/反效果·并说明具体原因。\n';
+    tp += '※ 决策代价原则：任何决策都必须匹配对应的代价、收益与风险——没有免费的午餐·每一纸诏书都要有后果。\n';
+    tp += '    · 大赦 → 刑狱空转/士绅震怒/治安短期滑坡\n';
+    tp += '    · 加税 → 财政增长但民心下滑/流民增多/风险民变\n';
+    tp += '    · 任用亲信 → 派系失衡·他党反弹·言路抗疏\n';
+    tp += '    · 征发徭役/兵役 → 人口减损·生产下滑·逃亡\n';
+    tp += '    · 改革 → 既得利益集团抵制·执行层打折·长期收益需数回合才显\n';
+    tp += '※ 禁止人物建议/发言超出其能力、人设、阵营立场——文官不应给出专业军事部署·武将不应精通金融改革·清流不应建言党同伐异·阉党不应倡导宽刑省狱。\n';
+    tp += '※ NPC 行为完全受其性格、利益、派系、忠诚度驱动——可能出现（且应在 npc_actions 中体现）：\n';
+    tp += '    · 叛变·通敌·私通外镇\n';
+    tp += '    · 抗命·告病·托疾不行·阳奉阴违\n';
+    tp += '    · 暗杀·构陷·下毒·阴谋\n';
+    tp += '    · 结盟·串联·拜门·密谋\n';
+    tp += '    · 挂冠·致仕·归隐\n';
+    tp += '    · 上疏抗辩·伏阙请命·集体抗疏\n';
+    tp += '※ 这些行为须经过合理动机链条（忠诚低+派系冲突+利益受损 → 抵制；野心高+机会窗口 → 结党）·不是为了戏剧性而戏剧性。\n\n';
+
     // 朝议记录注入（让AI知道本回合谁在朝议中主张了什么——叙事必须保持一致）
     //   targetTurn == GM.turn 的记录算"影响本回合"：
     //   · phase='post-turn' 的是"月初朔朝"（上回合过回合时所开）
@@ -5854,7 +5921,24 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         "\"route_disruptions\":[{\"route\":\"\u8D77\u70B9-\u7EC8\u70B9\",\"reason\":\"\u963B\u65AD\u539F\u56E0(\u6218\u4E71/\u6D2A\u6C34/\u53DB\u519B\u5360\u636E)\",\"resolved\":false}],"+
         "\"foreshadowing\":[{\"action\":\"plant/resolve\",\"content\":\"\u4F0F\u7B14\u5185\u5BB9\",\"type\":\"threat/opportunity/mystery/romance\",\"resolveCondition\":\"\u56DE\u6536\u6761\u4EF6(plant\u65F6\u586B)\"}],"+
         "\"current_issues_update\":[{\"action\":\"add/resolve/update\",\"title\":\"\u65F6\u653F\u8BAE\u9898\u6807\u9898(\u5982:\u6CB3\u5317\u5175\u997F\u62D6\u6B20\u3001\u6C34\u5229\u5E74\u4E45\u5931\u4FEE\u3001\u67D0\u5DDE\u523A\u53F2\u8D2A\u8150\u88AB\u52BE)\",\"category\":\"\u519B\u653F/\u8D22\u8D4B/\u6C34\u5229/\u5409\u51F6/\u8FB9\u9632/\u5F62\u52BF/\u4EBA\u4E8B/\u6C11\u751F\",\"description\":\"\u534A\u6587\u8A00200-500\u5B57\uFF0C\u7ED3\u5408\u63A8\u6F14\u5B9E\u9645\u7EC6\u5316\u63CF\u8FF0\u5177\u4F53\u65F6\u653F\u95EE\u9898\u7684\u6765\u7531\u3001\u6D89\u53CA\u4EBA\u7269\u3001\u5F53\u524D\u6001\u52BF\",\"id\":\"\u66F4\u65B0/\u89E3\u51B3\u65F6\u586B\u5DF2\u6709\u8981\u52A1id\"}],"+
-        "\"map_changes\":{\"ownership_changes\":[],\"development_changes\":[]}}";
+        "\"map_changes\":{\"ownership_changes\":[],\"development_changes\":[]},"+
+        // ═══ AI 至高权力·v2 新增语义通道（可选·按需使用）═══
+        // char_updates 条目可混搭传统 delta 字段 + 以下扩展字段：
+        "\"char_updates\":[{\"name\":\"角色名(必填)\",\"loyalty_delta\":0,\"ambition_delta\":0,\"new_location\":\"简单改位置\",\"updates\":{\"officialTitle\":\"新官职\",\"title\":\"新头衔\",\"age\":45,\"任何字段\":\"任何值\"},\"careerEvent\":{\"title\":\"新职\",\"dept\":\"部门\",\"action\":\"appoint/dismiss/transfer\",\"reason\":\"原因\",\"summary\":\"仕途概要(会附加到 ch.careerHistory)\"},\"travelTo\":{\"toLocation\":\"目的地\",\"estimatedDays\":30,\"reason\":\"赴任/召回/出使\",\"assignPost\":\"到达后就任的官职(可选)\"}}],"+
+        // 任命+走位（若 toLocation ≠ ch.location 会自动启动走位·到期自动就任）
+        "\"office_assignments\":[{\"name\":\"角色名\",\"post\":\"职位\",\"dept\":\"部门\",\"action\":\"appoint/dismiss/transfer\",\"fromLocation\":\"原地(可选)\",\"toLocation\":\"任职地(不同于原地则走位)\",\"estimatedDays\":30,\"reason\":\"原因\"}],"+
+        // 岁入岁出动态增删（派人经商、大工程、新税目等）
+        "\"fiscal_adjustments\":[{\"target\":\"guoku/neitang/province:某省\",\"kind\":\"income/expense\",\"category\":\"商贸/工程/赈济/军饷/杂税\",\"name\":\"项目名(如:派郑和下西洋商队)\",\"amount\":50000,\"reason\":\"依据/推演得出\",\"recurring\":true,\"stopAfterTurn\":null}],"+
+        // 势力/党派/阶层/区划任意字段修改（补充既有 xxx_changes 的不足）
+        "\"faction_updates\":[{\"name\":\"势力名\",\"updates\":{\"任何字段\":\"任何值\"}}],"+
+        "\"party_updates\":[{\"name\":\"党派名\",\"updates\":{\"任何字段\":\"任何值\"}}],"+
+        "\"class_updates\":[{\"name\":\"阶层名\",\"updates\":{\"任何字段\":\"任何值\"}}],"+
+        "\"region_updates\":[{\"id或name\":\"行政区划\",\"updates\":{\"任何字段\":\"任何值\"}}],"+
+        // 长期工程/商队/学堂·跨回合追踪
+        "\"project_updates\":[{\"name\":\"工程名\",\"type\":\"工程/商队/学堂/道路/造船\",\"status\":\"planning/active/completed/abandoned\",\"cost\":10000,\"progress\":30,\"leader\":\"负责人\",\"region\":\"地点\",\"description\":\"概述\",\"endTurn\":50}],"+
+        // 兜底·可用 dotted.path 改任意字段（除禁区：P.ai P.conf GM.saveName turn/year/month/day/sid _开头）
+        "\"anyPathChanges\":[{\"path\":\"GM.任意嵌套路径\",\"op\":\"set/push/delta/merge/delete\",\"value\":\"值\",\"reason\":\"原因\"}]" +
+        "}";
       // 注入待追踪诏令（让AI知道本回合有哪些诏令需要反馈）
       if (GM._edictTracker) {
         var _pendingEdicts = GM._edictTracker.filter(function(e) { return e.turn === GM.turn && e.status === 'pending'; });
@@ -12165,6 +12249,9 @@ async function _endTurnCore(){
 
   // Phase 4.5: 勤政 streak 结算
   try { if (typeof _settleCourtMeter === 'function') _settleCourtMeter(); } catch(_ccE) { console.warn('[endTurn] courtMeter', _ccE); }
+
+  // Phase 4.6: 角色路程推进·到达自动就任（AI 至高权力·Step 4）
+  try { if (typeof advanceCharTravelByDays === 'function') advanceCharTravelByDays((P.time && P.time.daysPerTurn) || 30); } catch(_trvE){ console.warn('[endTurn] char travel tick', _trvE); }
 
   // Phase 5: 后续钩子——后朝进行中则全部延后（避免 keju 等弹窗覆盖朝会）
   if (GM._pendingShijiModal && GM._pendingShijiModal.courtDone === false) {

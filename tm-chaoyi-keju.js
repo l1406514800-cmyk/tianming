@@ -4969,11 +4969,13 @@ function openKeyiSession() {
     attendees: attendees.map(function(c){ return { name: c.name, title: c.officialTitle || c.title || '', party: c.party || '', loyalty: c.loyalty || 50, _ch: c }; }),
     speakers: [],
     round: 0,
+    totalRounds: 2,
     phase: 'discuss',  // discuss → vote → decide
     speeches: [],
     stances: {},
     support: 0,
-    abort: false
+    abort: false,
+    _discussDone: false
   };
 
   // 挑发言人：礼部尚书 + 高智高忠前 4 人
@@ -4989,8 +4991,8 @@ function openKeyiSession() {
   KEYI_STATE.round = 1;
 
   _renderKeyiModal();
-  // 立刻开始流式讨论
-  _keyiStreamRound();
+  // v3·立刻自动跑两轮流式讨论
+  _keyiRunBothRounds();
 }
 
 /** 创建 modal 容器 */
@@ -5022,11 +5024,15 @@ function _keyiRender() {
   else if (KEYI_STATE.phase === 'decide') _keyiRenderDecide(body, footer);
 }
 
-/** 发言阶段 UI（v2·流式·无发言框·支持气泡内部 streaming 更新） */
+/** 发言阶段 UI（v3·自动两轮·玩家可插言·流式气泡） */
 function _keyiRenderDiscuss(body, footer) {
+  var rounds = KEYI_STATE.totalRounds || 2;
+  var statusTxt = KEYI_STATE._busy
+    ? (KEYI_STATE._busyText || '\u8BAE\u8BBA\u4E2D\u2026')
+    : (KEYI_STATE._discussDone ? '\u4E24\u8F6E\u8BAE\u8BBA\u5DF2\u5B8C\u00B7\u53EF\u4ED8\u8868\u51B3' : '\u8BAE\u8BBA\u8FDB\u884C\u4E2D\u2026');
   var html = '<div style="margin-bottom:0.6rem;">'+
-    '<div style="font-weight:700;color:var(--gold);">\u7B2C ' + KEYI_STATE.round + ' / 2 \u8F6E\u8BAE\u8BBA</div>'+
-    '<div style="font-size:0.72rem;color:var(--txt-d);">\u00B7 ' + KEYI_STATE.speakers.length + ' \u4EBA\u8F6E\u6D41\u9648\u8A00\u00B7' + KEYI_STATE.attendees.length + ' \u4EBA\u5728\u573A\u542C\u8BAE</div>'+
+    '<div style="font-weight:700;color:var(--gold);">\u7B2C ' + KEYI_STATE.round + ' / ' + rounds + ' \u8F6E\u8BAE\u8BBA</div>'+
+    '<div style="font-size:0.72rem;color:var(--txt-d);">\u00B7 ' + KEYI_STATE.speakers.length + ' \u4EBA\u8F6E\u6D41\u9648\u8A00\u00B7' + KEYI_STATE.attendees.length + ' \u4EBA\u5728\u573A\u542C\u8BAE\u00B7' + statusTxt + '</div>'+
     '</div><div id="keyi-chat" style="min-height:220px;">';
   KEYI_STATE.speeches.forEach(function(sp){
     html += _keyiBubbleHtml(sp);
@@ -5034,19 +5040,76 @@ function _keyiRenderDiscuss(body, footer) {
   html += '</div>';
   body.innerHTML = html;
 
-  if (KEYI_STATE._busy) {
-    footer.innerHTML = '<div style="text-align:center;color:var(--txt-d);font-size:0.8rem;">\u2026 ' + (KEYI_STATE._busyText||'\u53D1\u8A00\u4E2D') + '</div>';
-  } else if (KEYI_STATE.round < 2) {
-    footer.innerHTML = '<div style="display:flex;gap:0.5rem;justify-content:center;">'+
-      '<button class="bt bp" onclick="_keyiNextRound()">\u518D\u8BAE\u4E00\u8F6E</button>'+
-      '<button class="bt" onclick="_keyiProceedToVote()">\u4ED8\u8868\u51B3</button>'+
-      '</div>';
-  } else {
-    footer.innerHTML = '<div style="display:flex;gap:0.5rem;justify-content:center;">'+
-      '<button class="bt bp" onclick="_keyiProceedToVote()">\u8BAE\u5DF2\u5145\u5206\u00B7\u4ED8\u8868\u51B3</button>'+
-      '</div>';
+  // v3·始终显示玩家发言框（busy 时也可插言·插言会打断当前轮并重开2轮）
+  var inputVal = '';
+  var isBusy = !!KEYI_STATE._busy;
+  var hint = isBusy
+    ? '\u9661\u4E0B\u5982\u6709\u5723\u8C15\u00B7\u8F93\u5165\u540E\u4F17\u81E3\u5373\u9000\u4E0B\u00B7\u91CD\u65B0\u8BAE 2 \u8F6E\u2026'
+    : (KEYI_STATE._discussDone ? '\u4E24\u8F6E\u8BAE\u8BBA\u5DF2\u7ED3\u00B7\u5982\u6709\u5723\u8C15\u4ECD\u53EF\u8F93\u5165\u00B7\u5C06\u91CD\u5F00 2 \u8F6E' : '\u9661\u4E0B\u53EF\u968F\u65F6\u63D2\u8A00\u00B7\u8F93\u5165\u540E\u4F17\u81E3\u505C\u8BED\u00B7\u91CD\u5F00 2 \u8F6E');
+  var footerHtml = ''
+    + '<div style="display:flex;gap:0.4rem;align-items:stretch;">'
+    +   '<textarea id="keyi-player-input" rows="2" placeholder="' + hint + '" style="flex:1;background:var(--bg-2);border:1px solid var(--bdr);border-radius:4px;padding:0.4rem 0.6rem;font-size:0.82rem;color:var(--color-foreground);resize:vertical;"></textarea>'
+    +   '<button class="bt bp" style="min-width:72px;" onclick="_keyiPlayerSpeak()">\u5723\u8C15</button>'
+    + '</div>';
+  if (KEYI_STATE._discussDone && !isBusy) {
+    footerHtml += '<div style="text-align:center;margin-top:0.5rem;">'
+      + '<button class="bt bp" onclick="_keyiProceedToVote()">\u4ED8\u8868\u51B3</button>'
+      + '</div>';
   }
+  footer.innerHTML = footerHtml;
   var chat = _$('keyi-chat'); if (chat) chat.scrollTop = chat.scrollHeight;
+}
+
+/** 玩家插言·打断当前轮并重开 2 轮（v3） */
+async function _keyiPlayerSpeak() {
+  if (!KEYI_STATE) return;
+  var inp = _$('keyi-player-input');
+  var text = inp && inp.value ? inp.value.trim() : '';
+  if (!text) { toast('\u8BF7\u5148\u8F93\u5165\u5723\u8C15'); return; }
+  // 打断当前轮
+  KEYI_STATE.abort = true;
+  KEYI_STATE._interrupted = true;
+  // 清掉正在流式的占位气泡（没写完的）
+  KEYI_STATE.speeches = KEYI_STATE.speeches.filter(function(sp){ return !sp._streaming; });
+  // 推入玩家气泡
+  KEYI_STATE.speeches.push({
+    name: '\u9661\u4E0B',
+    title: '\u5723\u8C15',
+    stance: 'support',
+    line: text,
+    _isPlayer: true
+  });
+  if (inp) inp.value = '';
+  KEYI_STATE._discussDone = false;
+  // 等当前 busy 循环真正退出
+  var waitCount = 0;
+  while (KEYI_STATE._busy && waitCount < 30) {
+    await new Promise(function(r){ setTimeout(r, 100); });
+    waitCount++;
+  }
+  // 重开 2 轮（从 round=1 开始，再走 2 轮）
+  KEYI_STATE.abort = false;
+  KEYI_STATE._interrupted = false;
+  KEYI_STATE.round = 1;
+  _keyiRender();
+  await _keyiRunBothRounds();
+}
+
+/** 连续跑两轮·中间无需玩家按键（v3） */
+async function _keyiRunBothRounds() {
+  if (!KEYI_STATE) return;
+  var rounds = KEYI_STATE.totalRounds || 2;
+  while (KEYI_STATE.round <= rounds) {
+    await _keyiStreamRound();
+    if (KEYI_STATE.abort) return; // 被玩家打断
+    if (KEYI_STATE.round < rounds) {
+      KEYI_STATE.round++;
+    } else {
+      break;
+    }
+  }
+  KEYI_STATE._discussDone = true;
+  _keyiRender();
 }
 
 /** 发言气泡 HTML */
@@ -5054,6 +5117,12 @@ function _keyiBubbleHtml(sp) {
   var stance = sp.stance || 'abstain';
   var typeColor = stance==='support' ? 'var(--celadon-400)' : stance==='oppose' ? 'var(--vermillion-400)' : 'var(--ink-300)';
   var typeLbl = stance==='support' ? '\u8D5E\u6210' : stance==='oppose' ? '\u53CD\u5BF9' : '\u89C2\u671B';
+  if (sp._isPlayer) {
+    return '<div style="background:linear-gradient(135deg,rgba(184,154,83,0.18),rgba(184,154,83,0.05));border:1px solid var(--gold-d);border-radius:10px 3px 10px 10px;padding:0.5rem 0.8rem;margin:6px 0 6px 40px;box-shadow:0 1px 3px rgba(184,154,83,0.25);">'+
+      '<div style="font-size:0.72rem;color:var(--gold);"><strong>\u9661\u4E0B</strong> <span style="color:var(--txt-d);">\u00B7 \u5723\u8C15</span></div>'+
+      '<div style="font-size:0.82rem;line-height:1.7;margin-top:3px;color:var(--color-foreground);">' + escHtml(sp.line || '') + '</div>'+
+      '</div>';
+  }
   return '<div style="background:var(--bg-3);border:1px solid var(--bdr);border-radius:3px 10px 10px 10px;padding:0.5rem 0.8rem;margin-bottom:6px;"' + (sp._streamId ? ' id="'+sp._streamId+'"' : '') + '>'+
     '<div style="font-size:0.72rem;color:var(--gold);"><strong>' + escHtml(sp.name) + '</strong>' +
     ' <span style="color:var(--txt-d);">\u00B7 ' + escHtml(sp.title||'') + '</span>' +
@@ -5095,12 +5164,17 @@ async function _keyiStreamRound() {
     KEYI_STATE.speeches.push(placeholder);
     _keyiRender();
 
-    var prev = KEYI_STATE.speeches.slice(-6, -1).map(function(x){ return x.name+'['+(x.stance||'')+']\uFF1A'+(x.line||'').slice(0,40); }).join('\n');
+    var prev = KEYI_STATE.speeches.slice(-8, -1).map(function(x){
+      var who = x._isPlayer ? '\u9661\u4E0B(\u5723\u8C15)' : x.name;
+      return who + '[' + (x.stance||'') + ']\uFF1A' + (x.line||'').slice(0,60);
+    }).join('\n');
+    var hasPlayerRecent = KEYI_STATE.speeches.slice(-6).some(function(x){ return x._isPlayer; });
     var prompt = ctxBase + '\n' +
       '\u4F60\u662F\u4E0A\u671D\u5EAD\u8BAE\u7684\u5927\u81E3 ' + s.name + '\uFF08' + (s.title||'') + '\uFF09\u3002\n' +
       '\u6027\u683C\uFF1A' + ((ch&&ch.personality)||'').slice(0,30) + '\n' +
       '\u5FE0\u8BDA ' + (s.loyalty||50) + '\u3001\u515A\u6D3E ' + (s.party||'\u65E0\u515A') + '\u3001\u8EAB\u4EFD ' + (ch && ch.class || '') + '\n' +
       (prev ? '\u5DF2\u53D1\u8A00\uFF1A\n' + prev + '\n' : '') +
+      (hasPlayerRecent ? '\u2605 \u9661\u4E0B\u521A\u521A\u9F99\u97F3\u5F00\u53E3\u00B7\u4F60\u5FC5\u987B\u606D\u656C\u56DE\u5E94\u5723\u8C15\u00B7\u53EF\u5927\u7EB2\u987A\u5723\u610F\u4E5F\u53EF\u59D4\u5A49\u9648\u8BF4\u96BE\u5904\uFF08\u4F46\u9700\u4FDD\u6301\u81EA\u5DF1\u672C\u6765\u7684\u515A\u6D3E\u7ACB\u573A\uFF09\u3002\n' : '') +
       '\u8BF7\u5C31\u300C\u5F00\u79D1\u4E3E\u300D\u7ACB\u573A\u53D1\u8868 80-160 \u5B57\u534A\u6587\u8A00\u5EAD\u8BAE\u3002\n' +
       '\u683C\u5F0F\uFF1A\u7B2C\u4E00\u884C\u4EC5\u8F93\u51FA\u7ACB\u573A\u6807\u8BB0 support\u3001oppose \u6216 abstain \u4E09\u8BCD\u4E4B\u4E00\u3002\u4ECE\u7B2C\u4E8C\u884C\u8D77\u8F93\u51FA\u53D1\u8A00\u6B63\u6587\u3002';
 
@@ -5188,12 +5262,29 @@ function _keyiInferStance(a) {
   return 'abstain';
 }
 
-/** 进入表决 */
+/** 进入表决（v3·显式进度条·完成后停留在 vote 页·等用户点继续进 decide） */
 async function _keyiProceedToVote() {
   if (!KEYI_STATE) return;
   KEYI_STATE.phase = 'vote';
+  KEYI_STATE._voteDone = false;
+  KEYI_STATE._voteProgress = 0;
   _keyiRender();
-  await _keyiGenAllStances();
+  // 视觉进度条·异步推进到 90%·AI 返回后归 100%
+  var progTicker = setInterval(function(){
+    if (!KEYI_STATE) { clearInterval(progTicker); return; }
+    if (KEYI_STATE._voteProgress < 90) {
+      KEYI_STATE._voteProgress = Math.min(90, (KEYI_STATE._voteProgress||0) + 4 + Math.random()*5);
+      _keyiRender();
+    }
+  }, 260);
+  try {
+    await _keyiGenAllStances();
+  } catch(e) {
+    console.warn('[\u79D1\u8BAE] \u8868\u51B3 AI \u5931\u8D25', e);
+  }
+  clearInterval(progTicker);
+  KEYI_STATE._voteProgress = 100;
+  KEYI_STATE._voteDone = true;
   _keyiRender();
 }
 
@@ -5274,23 +5365,40 @@ function _keyiComputeSupport() {
   KEYI_STATE._breakdown = { support:s, oppose:o, abstain:ab, total:total };
 }
 
-/** 表决阶段 UI */
+/** 表决阶段 UI（v3·先显式进度条·完成后显示结果+继续按钮） */
 function _keyiRenderVote(body, footer) {
+  // 未完成·显示进度条
+  if (!KEYI_STATE._voteDone) {
+    var prog = Math.max(0, Math.min(100, KEYI_STATE._voteProgress || 0));
+    var barHtml = ''
+      + '<div style="text-align:center;margin:1.2rem 0 0.8rem;">'
+      +   '<div style="font-size:2rem;">\u2696</div>'
+      +   '<h3 style="color:var(--gold);margin:0.4rem 0;">\u767E\u5B98\u4ED8\u8868\u51B3</h3>'
+      +   '<div style="font-size:0.82rem;color:var(--txt-d);">\u6B63\u6536\u96C6\u4F17\u81E3\u7ACB\u573A\u00B7AI \u63A8\u6F14\u8868\u51B3\u8D70\u52BF\u2026</div>'
+      + '</div>'
+      + '<div style="background:var(--bg-2);padding:1rem 1.2rem;border-radius:6px;margin:0.8rem 0;">'
+      +   '<div style="background:var(--bg-3);border-radius:12px;height:16px;position:relative;overflow:hidden;">'
+      +     '<div style="width:' + Math.round(prog) + '%;height:100%;background:linear-gradient(90deg,var(--celadon-400),var(--gold));transition:width 0.3s;"></div>'
+      +   '</div>'
+      +   '<div style="text-align:center;font-size:0.82rem;color:var(--txt-d);margin-top:0.5rem;">' + Math.round(prog) + '% \u00B7 ' + (KEYI_STATE._busyText || '\u8868\u51B3\u8FDB\u884C\u4E2D') + '</div>'
+      + '</div>';
+    body.innerHTML = barHtml;
+    footer.innerHTML = '<div style="text-align:center;color:var(--txt-d);font-size:0.78rem;">\u8ACB\u5019\u00B7\u8868\u51B3\u5B8C\u6BD5\u81EA\u52A8\u51FA\u7ED3\u679C\u2026</div>';
+    return;
+  }
+  // 完成·显示结果
   var bd = KEYI_STATE._breakdown || {};
   var pct = Math.round((KEYI_STATE.support || 0) * 100);
   var libu = _kejuQueryLibuStance();
   var threshold = libu === 'support' ? 30 : libu === 'oppose' ? 70 : 50;
   var passed = pct >= threshold;
+  KEYI_STATE._passed = passed;
+  KEYI_STATE._threshold = threshold;
+
   var html = '<div style="text-align:center;margin-bottom:0.8rem;">'+
     '<div style="font-size:2rem;">\u2696</div>'+
     '<h3 style="color:var(--gold);">\u8868\u51B3\u7ED3\u679C</h3>'+
     '</div>';
-
-  if (KEYI_STATE._busy) {
-    html += '<div style="text-align:center;color:var(--txt-d);">\u2026 ' + (KEYI_STATE._busyText||'') + '</div>';
-    body.innerHTML = html; footer.innerHTML = ''; return;
-  }
-
   html += '<div style="background:var(--bg-2);padding:0.8rem;border-radius:6px;margin-bottom:0.6rem;">'+
     '<div style="font-size:0.85rem;margin-bottom:0.4rem;">\u652F\u6301\uFF1A<span style="color:var(--celadon-400);font-weight:700;">'+(bd.support||0)+'</span> \u4EBA\u00B7\u53CD\u5BF9\uFF1A<span style="color:var(--vermillion-400);font-weight:700;">'+(bd.oppose||0)+'</span> \u4EBA\u00B7\u89C2\u671B\uFF1A<span style="color:var(--ink-300);">'+(bd.abstain||0)+'</span> \u4EBA</div>'+
     '<div style="background:var(--bg-3);border-radius:10px;height:12px;position:relative;overflow:hidden;">'+
@@ -5301,8 +5409,8 @@ function _keyiRenderVote(body, footer) {
     '</div>';
 
   // 折叠具体立场
-  html += '<details style="background:var(--bg-2);border-radius:4px;padding:0.4rem 0.6rem;">'+
-    '<summary style="cursor:pointer;color:var(--gold);font-size:0.82rem;">\u67E5\u770B\u8BE6\u7EC6\u7ACB\u573A</summary>'+
+  html += '<details style="background:var(--bg-2);border-radius:4px;padding:0.4rem 0.6rem;" open>'+
+    '<summary style="cursor:pointer;color:var(--gold);font-size:0.82rem;">\u67E5\u770B\u8BE6\u7EC6\u7ACB\u573A\uFF08' + (bd.total||0) + ' \u4EBA\uFF09</summary>'+
     '<div style="margin-top:0.4rem;font-size:0.78rem;max-height:240px;overflow-y:auto;">';
   Object.keys(KEYI_STATE.stances).forEach(function(k){
     var st = KEYI_STATE.stances[k];
@@ -5313,10 +5421,17 @@ function _keyiRenderVote(body, footer) {
   html += '</div></details>';
   body.innerHTML = html;
 
-  KEYI_STATE._passed = passed;
-  KEYI_STATE._threshold = threshold;
+  // 显式"继续裁决"按钮·不再自动 jump
+  footer.innerHTML = '<div style="text-align:center;">'
+    + '<button class="bt bp" onclick="_keyiProceedToDecide()">\u7EE7\u7EED\u88C1\u51B3</button>'
+    + '</div>';
+}
+
+/** 进入裁决阶段（v3·由用户显式点击） */
+function _keyiProceedToDecide() {
+  if (!KEYI_STATE) return;
   KEYI_STATE.phase = 'decide';
-  _keyiRenderDecide(body, footer);
+  _keyiRender();
 }
 
 /** 阶段 3·皇帝决策 */

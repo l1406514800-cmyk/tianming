@@ -280,13 +280,96 @@
   //  白名单：AI 不能改的 path
   // ═══════════════════════════════════════════════════════════════════
 
+  // ═══════════════════════════════════════════════════════════════════
+  //  AI 编辑路径保护（v2·最小禁区·其余全开放）
+  // ═══════════════════════════════════════════════════════════════════
+  // 策略：AI 至高权力·能改一切游戏内容·但有几类硬禁区：
+  //   1. P.ai.*          ——玩家 API 配置·绝不允许
+  //   2. GM.saveName     ——存档名·防 AI 污染
+  //   3. 时序关键字段    ——turn/year/month/day/sid·防 AI 错乱时间线
+  //   4. P.conf.*        ——游戏模式等通用配置·防 AI 偷改
+  //   5. 运行时内部字段  ——下划线开头(_*)·如 _pendingShijiModal 等系统态
   var BLOCKED_PATHS = [
     /^turn$/, /^year$/, /^month$/, /^day$/, /^sid$/,
-    /^_[a-zA-Z]/  // 下划线开头的内部字段
+    /^saveName$/i,
+    /^_[a-zA-Z]/,           // 下划线开头的内部字段
+    /^P\.ai(\.|$)/i,         // P.ai.*
+    /^P\.conf(\.|$)/i,       // P.conf.*
+    /^GM\.saveName$/i,
+    /^ai\.(key|url|model|temp|prompt|rules)/i,
+    /_savedKeju|_savedCourtRecords|_savedWentianHistory/i
   ];
 
   function _isPathBlocked(path) {
+    if (!path) return true;
     return BLOCKED_PATHS.some(function(re) { return re.test(path); });
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  辅助：按名字找实体（跨 chars/facs/parties/classes/armies/items/regions）
+  // ═══════════════════════════════════════════════════════════════════
+  function _findEntity(G, category, identifier) {
+    if (!G || !identifier) return null;
+    category = (category || '').toLowerCase();
+    if (category === 'char' || category === 'character') {
+      return (G.chars||[]).find(function(c){ return c && (c.name === identifier || c.id === identifier); });
+    } else if (category === 'faction' || category === 'fac') {
+      return (G.facs||[]).find(function(f){ return f && (f.name === identifier || f.id === identifier); });
+    } else if (category === 'party') {
+      return (G.parties||[]).find(function(p){ return p && (p.name === identifier || p.id === identifier); });
+    } else if (category === 'class') {
+      return (G.classes||[]).find(function(c){ return c && (c.name === identifier || c.id === identifier); });
+    } else if (category === 'army') {
+      return (G.armies||[]).find(function(a){ return a && (a.name === identifier || a.id === identifier); });
+    } else if (category === 'item') {
+      return (G.items||[]).find(function(i){ return i && (i.name === identifier || i.id === identifier); });
+    } else if (category === 'region' || category === 'division') {
+      return _findDivisionByNameOrId(G, identifier);
+    }
+    return null;
+  }
+
+  /** 深度 merge updates 到 entity·每个字段变化记入 _turnReport */
+  function _mergeUpdatesToEntity(entity, updates, reportType, entityName) {
+    if (!entity || !updates) return 0;
+    var G = global.GM;
+    var count = 0;
+    Object.keys(updates).forEach(function(key){
+      // 跳过禁区字段（以 _ 开头）
+      if (/^_/.test(key)) return;
+      var newVal = updates[key];
+      var oldVal = entity[key];
+      // 数组追加（key 以 + 开头·如 "+careerHistory"）
+      if (/^\+/.test(key)) {
+        var realKey = key.slice(1);
+        if (!Array.isArray(entity[realKey])) entity[realKey] = [];
+        if (Array.isArray(newVal)) entity[realKey] = entity[realKey].concat(newVal);
+        else entity[realKey].push(newVal);
+        count++;
+      } else if (typeof newVal === 'object' && newVal !== null && !Array.isArray(newVal) &&
+                 typeof entity[key] === 'object' && entity[key] !== null && !Array.isArray(entity[key])) {
+        // 对象深 merge
+        Object.keys(newVal).forEach(function(subK){
+          if (/^_/.test(subK)) return;
+          entity[key][subK] = newVal[subK];
+        });
+        count++;
+      } else {
+        entity[key] = newVal;
+        count++;
+      }
+      if (G && G._turnReport) {
+        G._turnReport.push({
+          type: reportType || 'entity_update',
+          entity: entityName || entity.name || entity.id,
+          field: key,
+          old: oldVal,
+          new: entity[key],
+          turn: G.turn||0
+        });
+      }
+    });
+    return count;
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -685,7 +768,258 @@
       }
     });
 
+    // ═══════════════════════════════════════════════════════════════════
+    // v2·AI 至高权力扩展通道（全域语义化快捷+兜底 anyPathChanges）
+    // ═══════════════════════════════════════════════════════════════════
+    if (!applied.semantic) applied.semantic = {};
+
+    // ── 8. char_updates：角色任意字段修改+仕途条目+走位 ──
+    // schema: [{ name, updates:{...任意字段...}, careerEvent:{title,date,summary,...}, travelTo:{toLocation,estimatedDays,reason} }]
+    var charUpdCount = 0;
+    (aiOutput.char_updates || []).forEach(function(cu) {
+      if (!cu || !cu.name) return;
+      var ch = _findEntity(G, 'char', cu.name);
+      if (!ch) { applied.failed.push({char_update: cu, reason: 'char not found'}); return; }
+      // updates：任意字段
+      if (cu.updates) charUpdCount += _mergeUpdatesToEntity(ch, cu.updates, 'char_update', ch.name);
+      // careerEvent：仕途条目追加
+      if (cu.careerEvent) {
+        if (!Array.isArray(ch.careerHistory)) ch.careerHistory = [];
+        ch.careerHistory.push(Object.assign({ turn: G.turn||0, date: (typeof getTSText==='function'?getTSText(G.turn):'T'+(G.turn||0)) }, cu.careerEvent));
+        charUpdCount++;
+        G._turnReport.push({ type:'career', char: ch.name, event: cu.careerEvent.summary || cu.careerEvent.title, turn:G.turn||0 });
+      }
+      // travelTo：启动走位
+      if (cu.travelTo && cu.travelTo.toLocation) {
+        var days = cu.travelTo.estimatedDays || _estimateTravelDays(ch.location, cu.travelTo.toLocation);
+        ch._travelTo = cu.travelTo.toLocation;
+        ch._travelFrom = ch.location || '';
+        ch._travelStartTurn = G.turn || 0;
+        ch._travelRemainingDays = days;
+        ch._travelReason = cu.travelTo.reason || '';
+        ch._travelAssignPost = cu.travelTo.assignPost || '';
+        charUpdCount++;
+        G._turnReport.push({ type:'travel', char: ch.name, from:ch._travelFrom, to:ch._travelTo, days:days, reason:ch._travelReason, turn:G.turn||0 });
+        if (typeof global.addEB === 'function') global.addEB('\u4EBA\u4E8B', ch.name + ' \u8D74 ' + ch._travelTo + '\uFF08\u9884\u8BA1 ' + days + ' \u65E5\uFF09');
+      }
+    });
+    if (charUpdCount > 0) applied.semantic.char_updates = charUpdCount;
+
+    // ── 9. office_assignments：任命含走位 ──
+    // schema: [{ name, post, dept, action:'appoint|dismiss|transfer', fromLocation, toLocation, estimatedDays, reason }]
+    var officeCount = 0;
+    (aiOutput.office_assignments || []).forEach(function(oa) {
+      if (!oa || !oa.name) return;
+      var ch = _findEntity(G, 'char', oa.name);
+      if (!ch) { applied.failed.push({office_assignment: oa, reason: 'char not found'}); return; }
+      var action = oa.action || 'appoint';
+      // 是否需要先走位
+      var needTravel = oa.toLocation && ch.location && oa.toLocation !== ch.location;
+      if (needTravel && action === 'appoint') {
+        // 启动走位·到达后再就任（由 travel tick 完成）
+        var days = oa.estimatedDays || _estimateTravelDays(ch.location, oa.toLocation);
+        ch._travelTo = oa.toLocation;
+        ch._travelFrom = ch.location;
+        ch._travelStartTurn = G.turn || 0;
+        ch._travelRemainingDays = days;
+        ch._travelReason = (oa.reason || '') + '·赴任';
+        ch._travelAssignPost = (oa.dept ? oa.dept + '/' : '') + (oa.post || '');
+        G._turnReport.push({ type:'travel', char: ch.name, from:ch._travelFrom, to:ch._travelTo, days:days, reason:ch._travelReason, turn:G.turn||0 });
+        if (typeof global.addEB === 'function') global.addEB('\u4EFB\u547D', ch.name + ' \u8D74 ' + oa.toLocation + ' \u4EFB ' + (oa.post||'') + '\uFF08\u9884\u8BA1 ' + days + ' \u65E5\u5230\u4EFB\uFF09');
+      } else {
+        // 无需走位·直接就任·沿用原 onAppointment
+        var r;
+        if (action === 'appoint') r = onAppointment(oa.name, oa.post, { dept: oa.dept });
+        else if (action === 'dismiss') r = onDismissal(oa.name, oa.reason);
+        else if (action === 'transfer') r = onTransfer(oa.name, oa.fromPost, oa.post, { dept: oa.dept });
+        if (r && r.ok) {
+          officeCount++;
+          G._turnReport.push({ type:'appointment', action: action, charName: oa.name, position: oa.post, turn:G.turn||0 });
+          // 仕途追加
+          if (!Array.isArray(ch.careerHistory)) ch.careerHistory = [];
+          ch.careerHistory.push({
+            turn: G.turn||0,
+            date: (typeof getTSText==='function'?getTSText(G.turn):'T'+(G.turn||0)),
+            title: oa.post,
+            dept: oa.dept,
+            action: action,
+            reason: oa.reason || ''
+          });
+        }
+      }
+      officeCount++;
+    });
+    if (officeCount > 0) applied.semantic.office_assignments = officeCount;
+
+    // ── 10. fiscal_adjustments：岁入岁出动态增删 ──
+    // schema: [{ target:'guoku|neitang|province:X', kind:'income|expense', category, name, amount, reason, recurring:bool, stopAfterTurn }]
+    var fiscalCount = 0;
+    (aiOutput.fiscal_adjustments || []).forEach(function(fa) {
+      if (!fa || !fa.target || !fa.kind) return;
+      var amount = Math.abs(parseFloat(fa.amount) || 0);
+      var entry = {
+        id: 'fa_' + (G.turn||0) + '_' + Math.random().toString(36).slice(2,6),
+        name: fa.name || '',
+        category: fa.category || '',
+        amount: amount,
+        reason: fa.reason || '',
+        recurring: !!fa.recurring,
+        addedTurn: G.turn || 0,
+        stopAfterTurn: fa.stopAfterTurn || null
+      };
+      // 确定目标容器
+      var target = null, containerKey = null;
+      if (fa.target === 'guoku') {
+        if (!G.guoku) G.guoku = {};
+        if (!G.guoku.extraIncome) G.guoku.extraIncome = [];
+        if (!G.guoku.extraExpense) G.guoku.extraExpense = [];
+        target = G.guoku;
+        containerKey = (fa.kind === 'income') ? 'extraIncome' : 'extraExpense';
+      } else if (fa.target === 'neitang') {
+        if (!G.neitang) G.neitang = {};
+        if (!G.neitang.extraIncome) G.neitang.extraIncome = [];
+        if (!G.neitang.extraExpense) G.neitang.extraExpense = [];
+        target = G.neitang;
+        containerKey = (fa.kind === 'income') ? 'extraIncome' : 'extraExpense';
+      } else if (/^province:/.test(fa.target)) {
+        var provName = fa.target.replace(/^province:/, '');
+        var div = _findDivisionByNameOrId(G, provName);
+        if (div) {
+          if (!div.extraFiscal) div.extraFiscal = { income: [], expense: [] };
+          target = div.extraFiscal;
+          containerKey = (fa.kind === 'income') ? 'income' : 'expense';
+        }
+      }
+      if (target && containerKey) {
+        target[containerKey].push(entry);
+        fiscalCount++;
+        G._turnReport.push({ type:'fiscal_adj', target: fa.target, kind: fa.kind, name: entry.name, amount: entry.amount, reason: entry.reason, turn: G.turn||0 });
+        if (typeof global.addEB === 'function') global.addEB('\u8D22\u653F', (fa.kind==='income'?'\u65B0\u589E\u5C81\u5165':'\u65B0\u589E\u5C81\u51FA') + '\uFF1A' + entry.name + ' ' + amount + (fa.recurring?'\u00B7\u6052\u5E74':''));
+      }
+    });
+    if (fiscalCount > 0) applied.semantic.fiscal_adjustments = fiscalCount;
+
+    // ── 11. faction_updates ──
+    var facCount = 0;
+    (aiOutput.faction_updates || []).forEach(function(fu) {
+      if (!fu || !fu.name) return;
+      var fac = _findEntity(G, 'faction', fu.name);
+      if (!fac) { applied.failed.push({faction_update: fu, reason: 'faction not found'}); return; }
+      if (fu.updates) facCount += _mergeUpdatesToEntity(fac, fu.updates, 'faction_update', fac.name);
+    });
+    if (facCount > 0) applied.semantic.faction_updates = facCount;
+
+    // ── 12. party_updates ──
+    var partyCount = 0;
+    (aiOutput.party_updates || []).forEach(function(pu) {
+      if (!pu || !pu.name) return;
+      var party = _findEntity(G, 'party', pu.name);
+      if (!party) { applied.failed.push({party_update: pu, reason: 'party not found'}); return; }
+      if (pu.updates) partyCount += _mergeUpdatesToEntity(party, pu.updates, 'party_update', party.name);
+    });
+    if (partyCount > 0) applied.semantic.party_updates = partyCount;
+
+    // ── 13. class_updates ──
+    var classCount = 0;
+    (aiOutput.class_updates || []).forEach(function(cu) {
+      if (!cu || !cu.name) return;
+      var cls = _findEntity(G, 'class', cu.name);
+      if (!cls) { applied.failed.push({class_update: cu, reason: 'class not found'}); return; }
+      if (cu.updates) classCount += _mergeUpdatesToEntity(cls, cu.updates, 'class_update', cls.name);
+    });
+    if (classCount > 0) applied.semantic.class_updates = classCount;
+
+    // ── 14. region_updates ──
+    var regionCount = 0;
+    (aiOutput.region_updates || []).forEach(function(ru) {
+      if (!ru) return;
+      var identifier = ru.id || ru.name;
+      if (!identifier) return;
+      var div = _findDivisionByNameOrId(G, identifier);
+      if (!div) { applied.failed.push({region_update: ru, reason: 'region not found'}); return; }
+      if (ru.updates) regionCount += _mergeUpdatesToEntity(div, ru.updates, 'region_update', div.name || div.id);
+    });
+    if (regionCount > 0) applied.semantic.region_updates = regionCount;
+
+    // ── 15. project_updates：长期工程/商队/学堂/道路等 ──
+    // schema: [{ name, type:'工程|商队|学堂|道路|etc', status:'planning|active|completed|abandoned', cost, progress, leader, region, startTurn, endTurn, description }]
+    var projectCount = 0;
+    if (!G.activeProjects) G.activeProjects = [];
+    (aiOutput.project_updates || []).forEach(function(pu) {
+      if (!pu || !pu.name) return;
+      var existing = G.activeProjects.find(function(p){ return p.name === pu.name; });
+      if (existing) {
+        Object.keys(pu).forEach(function(k){
+          if (/^_/.test(k)) return;
+          existing[k] = pu[k];
+        });
+        existing._lastUpdated = G.turn || 0;
+      } else {
+        G.activeProjects.push(Object.assign({
+          id: 'proj_' + (G.turn||0) + '_' + Math.random().toString(36).slice(2,6),
+          startTurn: G.turn || 0,
+          status: 'active'
+        }, pu));
+      }
+      projectCount++;
+      G._turnReport.push({ type:'project', name: pu.name, projectType: pu.type, status: pu.status, turn: G.turn||0 });
+      if (typeof global.addEB === 'function') global.addEB('\u5DE5\u7A0B', pu.name + ' ' + (pu.status||'\u8FDB\u884C\u4E2D') + (pu.progress?' '+pu.progress+'%':''));
+    });
+    if (projectCount > 0) applied.semantic.project_updates = projectCount;
+
+    // ── 16. anyPathChanges：兜底·AI 可用任意路径改任意字段（除禁区） ──
+    // schema: [{ path, op:'set|push|delta|merge|delete', value, reason }]
+    var anyPathCount = 0;
+    (aiOutput.anyPathChanges || []).forEach(function(apc) {
+      if (!apc || !apc.path) return;
+      if (_isPathBlocked(apc.path)) {
+        applied.failed.push({ anyPath: apc.path, reason: 'blocked' });
+        return;
+      }
+      var result;
+      if (apc.op === 'push') result = _applyPathPush(G, apc.path, apc.value);
+      else if (apc.op === 'delta') result = _applyPathDelta(G, apc.path, parseFloat(apc.value)||0, apc.reason);
+      else if (apc.op === 'delete') {
+        try {
+          var parts = apc.path.split('.');
+          var parent = G;
+          for (var i=0; i<parts.length-1; i++) parent = parent && parent[parts[i]];
+          if (parent && parts.length) {
+            var last = parts[parts.length-1];
+            delete parent[last];
+            result = { ok: true, old: null, new: undefined };
+          }
+        } catch(e) { result = { ok:false, reason:'delete failed' }; }
+      } else {
+        result = _applyPathSet(G, apc.path, apc.value, apc.reason);
+      }
+      if (result && result.ok) {
+        anyPathCount++;
+        G._turnReport.push({ type:'anyPath', path: apc.path, op: apc.op||'set', old: result.old, new: result.new, reason: apc.reason, turn: G.turn||0 });
+      } else {
+        applied.failed.push({ anyPath: apc.path, reason: result && result.reason });
+      }
+    });
+    if (anyPathCount > 0) applied.semantic.anyPathChanges = anyPathCount;
+
     return { ok: true, applied: applied };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  路程估算（v3·仅作 AI 未指定天数时的保底·AI 应据历史地理知识自行给出）
+  // ═══════════════════════════════════════════════════════════════════
+  // AI 在 char_updates.travelTo.estimatedDays / office_assignments.estimatedDays
+  // 中须自行根据历史地理知识估算·考虑：
+  //   · 两地实际直线/路程距离
+  //   · 朝代交通条件（马车/驿传/漕船/官船/赴任规制）
+  //   · 季节（冬春河冻/春秋正季/夏季酷暑）
+  //   · 人员身份（大员驿传优先/庶民步行/军队缓行）
+  //   · 是否征召紧急（急召加速/常规徐行）
+  // 此函数仅在 AI 未给出天数时返回粗略保底（以免 travelRemainingDays 为 0 立即到达）
+  function _estimateTravelDays(from, to) {
+    if (!from || !to) return 20;
+    if (from === to) return 0;
+    return 20;  // 保底·实际天数由 AI 填入
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -891,6 +1225,98 @@
   }
 
   // ═══════════════════════════════════════════════════════════════════
+  //  角色路程推进·到达自动就任（AI 至高权力·Step 4）
+  //  每回合调用 · daysPassed = P.time.daysPerTurn
+  // ═══════════════════════════════════════════════════════════════════
+  function advanceCharTravelByDays(daysPassed) {
+    var G = global.GM;
+    if (!G || !Array.isArray(G.chars) || !(daysPassed > 0)) return { arrived: 0, inflight: 0 };
+    var arrived = 0, inflight = 0;
+    var dateText = (typeof global.getTSText === 'function') ? global.getTSText(G.turn || 0) : ('T' + (G.turn || 0));
+
+    G.chars.forEach(function(ch) {
+      if (!ch || !ch._travelTo) return;
+      // 用天数系统
+      if (typeof ch._travelRemainingDays === 'number') {
+        ch._travelRemainingDays -= daysPassed;
+        if (ch._travelRemainingDays > 0) { inflight++; return; }
+      } else if (typeof ch._travelArrival === 'number') {
+        // 旧版回合系统兼容：未到回合则继续
+        if ((G.turn || 0) < ch._travelArrival) { inflight++; return; }
+      }
+
+      // —— 到达 ——
+      var fromLoc = ch._travelFrom || '';
+      var toLoc = ch._travelTo;
+      var assignPost = ch._travelAssignPost || '';
+      var reason = ch._travelReason || '';
+
+      ch.location = toLoc;
+
+      // 自动就任·仅当 _travelAssignPost 存在
+      if (assignPost) {
+        var dept = '', post = assignPost;
+        if (assignPost.indexOf('/') >= 0) {
+          var parts = assignPost.split('/');
+          dept = parts[0] || '';
+          post = parts.slice(1).join('/') || '';
+        }
+        try {
+          var r = onAppointment(ch.name, post, { dept: dept });
+          if (r && r.ok) {
+            if (!Array.isArray(ch.careerHistory)) ch.careerHistory = [];
+            ch.careerHistory.push({
+              turn: G.turn || 0,
+              date: dateText,
+              title: post,
+              dept: dept,
+              action: 'appoint',
+              location: toLoc,
+              reason: (reason || '') + '·赴任抵达'
+            });
+          }
+        } catch(_appE) { console.warn('[travelTick] auto-appoint', _appE); }
+      }
+
+      // 播报
+      if (typeof global.addEB === 'function') {
+        if (assignPost) {
+          global.addEB('\u4EBA\u4E8B', ch.name + ' \u62B5 ' + toLoc + '\u00B7\u5C31\u4EFB ' + (assignPost.replace('/', ' ')));
+        } else {
+          global.addEB('\u4EBA\u4E8B', ch.name + ' \u5DF2\u62B5\u8FBE ' + toLoc);
+        }
+      }
+      if (G.qijuHistory) {
+        G.qijuHistory.unshift({
+          turn: G.turn || 0,
+          date: dateText,
+          content: '\u3010\u5165\u5883\u3011' + ch.name + ' \u81EA' + (fromLoc || '\u8FDC\u65B9') + ' \u62B5 ' + toLoc
+                 + (assignPost ? '\uFF0C\u5373\u65E5\u5C31\u4EFB ' + assignPost.replace('/', ' ') : '') + '\u3002'
+        });
+      }
+      if (typeof global.toast === 'function') {
+        global.toast(ch.name + ' 抵达 ' + toLoc + (assignPost ? '·就任' + assignPost.replace('/', ' ') : ''), 'info');
+      }
+
+      // 清理走位字段
+      delete ch._travelTo;
+      delete ch._travelFrom;
+      delete ch._travelStartTurn;
+      delete ch._travelRemainingDays;
+      delete ch._travelArrival;
+      delete ch._travelReason;
+      delete ch._travelAssignPost;
+
+      // 写入本回合报告（供史记读取）
+      if (!Array.isArray(G._turnReport)) G._turnReport = [];
+      G._turnReport.push({ type:'travel_arrived', char: ch.name, to: toLoc, assignPost: assignPost, turn: G.turn || 0 });
+      arrived++;
+    });
+
+    return { arrived: arrived, inflight: inflight };
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
   //  导出
   // ═══════════════════════════════════════════════════════════════════
 
@@ -909,6 +1335,7 @@
     generateTurnReport: generateTurnReport,
     renderTurnReport: renderTurnReport,
     buildFullAIContext: buildFullAIContext,
+    advanceCharTravelByDays: advanceCharTravelByDays,
     VERSION: 1
   };
 
@@ -919,5 +1346,6 @@
   global._resolveBinding = _resolveBinding;
   global.renderTurnReport = renderTurnReport;
   global.buildFullAIContext = buildFullAIContext;
+  global.advanceCharTravelByDays = advanceCharTravelByDays;
 
 })(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));
