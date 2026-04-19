@@ -6451,11 +6451,17 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         tp1c += '  \u6BCF\u6761\u683C\u5F0F\uFF1A"\u67D0\u89D2\u8272\uFF1A\u56E0\u4E3A\u4EC0\u4E48\u2192\u6697\u4E2D\u505A\u4E86\u4EC0\u4E48\u2192\u76EE\u7684\u662F\u4EC0\u4E48"\uFF0830-60\u5B57\uFF09\n';
         tp1c += '  \u5FC5\u5305\u542B\uFF1A\u2265 3 \u6761 NPC\u5BF9NPC\u6697\u884C\uFF1B\u2265 1 \u6761 \u52BF\u529B\u5185\u90E8\u6697\u6D41\uFF1B\u2265 1 \u6761 \u5C0F\u4EBA\u7269\u52A8\u4F5C\uFF08\u5C0F\u540F\u8D2A\u5893/\u5546\u4EBA\u56E4\u8D27/\u63A2\u5B50\u4F20\u4FE1/\u6D41\u6C11\u805A\u96C6\uFF09\n\n';
 
-        tp1c += '\u25C6 fengwen_snippets\uFF08\u98CE\u95FB\u5F55\u4E8B\u00B7\u5E38\u6001 10-16 \u6761\uFF09\u2014\u2014\n';
+        tp1c += '\u25C6 fengwen_snippets\uFF08\u98CE\u95FB\u5F55\u4E8B\u00B7\u5E38\u6001 12-20 \u6761\uFF09\u2014\u2014\n';
         tp1c += '  \u4EBA\u7269\u548C\u52BF\u529B\u7684\u6D3B\u52A8\u98CE\u95FB\u2014\u2014\u6E90\u81EA\u5751\u95F4\u8033\u76EE\u3001\u671D\u5802\u98CE\u8BEE\u3001\u5F80\u6765\u5BC6\u51FD\u7B49\uFF0C\u901A\u8FC7\u8D77\u5C45\u6CE8/\u8033\u62A5/\u5857\u62A5/\u574A\u95F4\u4F20\u95FB\u62A5\u5165\u3002\n';
-        tp1c += '  \u5B57\u6BB5\uFF1A{type, text(30-60\u5B57\u53E4\u5178\u4E2D\u6587\u98CE), credibility(0.3-0.95), actors:["\u4EBA\u540D\u6216\u52BF\u529B\u540D"], source:"\u574A\u95F4/\u671D\u5802/\u8033\u76EE/\u5857\u62A5/\u5BC6\u672D/\u8FB9\u5173"}\n';
-        tp1c += '  type \u5206\u7C7B\uFF1A\u5F39\u52BE/\u8350\u4E3E/\u594F\u8BAE/\u7ED3\u515A/\u9020\u8C23/\u79C1\u8BBF/\u5BB4\u996E/\u6E38\u5BB4/\u8BD7\u793E/\u5B66\u8BBA/\u6C42\u5A5A/\u6BCD\u796D/\u4E39\u9053/\u85AC\u91CA/\u6709\u5DE1\u89C6/\u5DE1\u8005/\u8D51\u635C/\u53F8\u6CD5/\u4E39\u5BAB/\u7248\u7A3F/\u5C01\u575B/\u5C45\u7740/\u96C5\u793A/\u5BB6\u4E8B/\u5BC6\u8054/\u51E0\u8A00/\u8BCD\u7AE0/\u66F2\u80FD/\u98DF\u8840/\u7E41\u6CE2/\u5E03\u5C40\n';
-        tp1c += '  \u4F8B\uFF1A{type:"\u8BD7\u793E", text:"\u897F\u6E56\u4E09\u96C5\u96C6\u4E8E\u5317\u5C71\uFF0C\u67D0\u7532\u8D4B\u300A\u79CB\u6C34\u300B\uFF0C\u67D0\u4E59\u6B21\u97F5\uFF0C\u67D0\u4E19\u7ACB\u5212\u70B9\u65AD\u53E5\uFF0C\u75AB\u671F\u53F8\u5438\u76EE\u3002", credibility:0.75, actors:["\u67D0\u7532","\u67D0\u4E59"], source:"\u574A\u95F4"}\n\n';
+        tp1c += '  \u5B57\u6BB5\uFF1A{type, text(30-60\u5B57\u53E4\u5178\u4E2D\u6587\u98CE), credibility(0.3-0.95), actors:["\u4EBA\u540D\u6216\u52BF\u529B\u540D"], source:"\u574A\u95F4/\u671D\u5802/\u8033\u76EE/\u5857\u62A5/\u5BC6\u672D/\u8FB9\u5173", mood?:"\u5FE7/\u559C/\u6012/\u6050/\u4EB2/\u4EC7(\u4F20\u9012\u7ED9 actors \u8BB0\u5FC6\u7684\u4E3B\u5BFC\u60C5\u7EEA)"}\n';
+        tp1c += '  type \u5206\u7C7B\uFF1A\u5F39\u52BE/\u8350\u4E3E/\u594F\u8BAE/\u7ED3\u515A/\u9020\u8C23/\u79C1\u8BBF/\u5BB4\u996E/\u6E38\u5BB4/\u8BD7\u793E/\u5B66\u8BBA/\u6C42\u5A5A/\u6BCD\u796D/\u4E39\u9053/\u85AC\u91CA/\u5DE1\u89C6/\u5DE1\u8005/\u8D51\u635C/\u53F8\u6CD5/\u6838\u67E5/\u6350\u4FF8/\u8D22\u884C/\u5BB6\u4E8B/\u7F6E\u4EA7/\u5C45\u7740/\u96C5\u793A/\u5BC6\u8054/\u6218\u62A5/\u8FB9\u62A5/\u548C\u4EB2/\u8D28\u5B50/\u671D\u8D21/\u4E92\u5E02/\u76DF\u7EA6/\u9063\u4F7F/\u63ED\u79C1\n';
+        tp1c += '  \u4F8B\uFF1A{type:"\u8BD7\u793E", text:"\u897F\u6E56\u4E09\u96C5\u96C6\u4E8E\u5317\u5C71\uFF0C\u67D0\u7532\u8D4B\u300A\u79CB\u6C34\u300B\uFF0C\u67D0\u4E59\u6B21\u97F5\uFF0C\u67D0\u4E19\u7ACB\u5212\u70B9\u65AD\u53E5\u3002", credibility:0.75, actors:["\u67D0\u7532","\u67D0\u4E59"], source:"\u574A\u95F4", mood:"\u559C"}\n';
+        tp1c += '  \u3010\u786C\u89C4\u5219\u00B7\u98CE\u95FB\u8986\u76D6\u8981\u6C42\u3011\n';
+        tp1c += '    \u00B7 \u4E0A\u8FF0\u65B0\u83DC\u5355\u6240\u6709\u7C7B\u578B\u4E3B\u52A8\u884C\u4E3A\uFF08\u540D\u671B\u5EFA\u6784/\u5730\u65B9\u6CBB\u7406/\u4E2D\u592E\u5C65\u804C/\u79C1\u4EA7\u7ECF\u8425/\u516C\u5E93\u62C5\u5F53/\u653F\u6597\u535A\u5F08/\u4EBA\u6C11\u4E92\u52A8\u793E\u4EA4/\u79C1\u4EBA\u751F\u6D3B\uFF09\u5F53\u5C06\u751F\u6210 1+ \u6761\u98CE\u95FB\n';
+        tp1c += '    \u00B7 \u52BF\u529B\u7684\u516C\u5F00\u4E92\u52A8\u4E5F\u4F1A\u81EA\u52A8\u8FDB\u98CE\u95FB\uFF08\u5DF2\u7CFB\u7EDF\u81EA\u52A8\u5904\u7406\uFF0C\u4F60\u4E0D\u9700\u91CD\u590D\uFF09\n';
+        tp1c += '    \u00B7 \u65AD\u8BAE\u7ED3\u679C/\u94A5\u5B66\u4FEE\u9C81\u7B49\u79C1\u4EBA\u884C\u4E3A\u4F1A\u5728\u5750\u95F4\u52AD\u7EEC\u50E3\u6709\u81C0\u5854\u4E39\u9038\u4E0B\u906E\n';
+        tp1c += '    \u26A0 \u3010\u9634\u8C0B npc_schemes \u4E0D\u5F97\u8FDB\u98CE\u95FB_snippets\uFF01\u3011\u2014\u2014\u9634\u8C0B\u9ED8\u8BA4\u9690\u85CF\uFF0C\u53EA\u6709\u5728 scheme_actions.expose \u65F6\u7531\u7CFB\u7EDF\u81EA\u52A8\u751F\u6210\u300C\u63ED\u79C1\u300D\u98CE\u95FB\u3002\n';
+        tp1c += '    \u00B7 \u4F53\u73B0\u5F53\u4E8B\u4EBA\u5FC3\u7EEA\uFF1Afengwen \u7684 mood \u5B57\u6BB5\u4F1A\u4F20\u9012\u7ED9 actors \u7684\u8BB0\u5FC6\u2014\u2014\u5F39\u52BE/\u63ED\u79C1 \u2192 \u6012\uFF1B\u8350\u4E3E/\u9054\u706E \u2192 \u559C\uFF1B\u4E0A\u7F8E\u4E0B\u9700 \u2192 \u4EB2\uFF1B\u5956\u5F0F\u80B2\u5169 \u2192 \u559C\uFF1B\u8D22\u5343\u9020\u8C23 \u2192 \u4EC7\u3002\n\n';
 
         tp1c += '\u3010\u6D3B\u52A8\u5185\u5BB9\u65B9\u5411\uFF08AI \u63A8\u7406\u53C2\u8003\uFF09\u3011\n';
         tp1c += '  \u65E0\u9700\u6BCF\u79CD\u90FD\u7528\uFF0C\u6309 NPC/\u52BF\u529B\u6027\u683C\u3001\u5F53\u524D\u5C40\u52BF\u3001\u79C1\u5FC3\u81EA\u7531\u9009\u62E9\u2014\u2014\u8BE5\u5206\u7C7B\u4EC5\u4F9B\u6269\u5C55\u601D\u8DEF\uFF0C\u907F\u514D\u5355\u8C03\u91CD\u590D\u3002\n\n';
@@ -6671,18 +6677,41 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
               });
             }
 
-            // ── fengwen_snippets：直接入风闻录事 ──
+            // ── fengwen_snippets：直接入风闻录事 + actors 记忆心绪联动 ──
             if (Array.isArray(p1c.fengwen_snippets) && typeof PhaseD !== 'undefined' && PhaseD.addFengwen) {
+              // type → 默认 mood 映射（若 AI 未显式给 mood）
+              var _fwMoodMap = {
+                '\u5F39\u52BE':'\u6012','\u6784\u9677':'\u6012','\u9020\u8C23':'\u6012','\u8BBD\u523A':'\u6012','\u63ED\u79C1':'\u6012',
+                '\u8350\u4E3E':'\u559C','\u6350\u4FF8':'\u559C','\u5BB4\u996E':'\u559C','\u6E38\u5BB4':'\u559C','\u8BD7\u793E':'\u559C','\u5956\u5F0F':'\u559C','\u96C5\u793A':'\u559C','\u6C42\u5A5A':'\u559C','\u4E92\u5E02':'\u559C','\u76DF\u7EA6':'\u559C',
+                '\u7ED3\u515A':'\u5E73','\u79C1\u8BBF':'\u5E73','\u5B66\u8BBA':'\u5E73','\u8D22\u884C':'\u5E73','\u7F6E\u4EA7':'\u5E73','\u5C45\u7740':'\u5E73','\u8FB9\u62A5':'\u5E73','\u671D\u8D21':'\u5E73','\u9063\u4F7F':'\u5E73',
+                '\u6BCD\u796D':'\u5FE7','\u4E27\u796D':'\u5FE7','\u6218\u62A5':'\u5FE7','\u4E39\u9053':'\u5FE7','\u85AC\u91CA':'\u5FE7','\u5BB6\u4E8B':'\u5FE7',
+                '\u5BC6\u8054':'\u5FE7','\u5DE1\u89C6':'\u5E73','\u5DE1\u8005':'\u5E73','\u8D51\u635C':'\u6050','\u53F8\u6CD5':'\u5FE7','\u6838\u67E5':'\u5FE7','\u548C\u4EB2':'\u559C','\u8D28\u5B50':'\u5FE7'
+              };
               p1c.fengwen_snippets.forEach(function(fw){
                 if (!fw || !fw.text) return;
+                var _fwActors = Array.isArray(fw.actors) ? fw.actors : [];
                 PhaseD.addFengwen({
                   type: fw.type || '\u98CE\u8BAE',
                   text: String(fw.text).slice(0, 120),
                   credibility: (typeof fw.credibility === 'number') ? Math.max(0.3, Math.min(0.95, fw.credibility)) : 0.7,
                   source: fw.source || 'ai_sc1c',
-                  actors: Array.isArray(fw.actors) ? fw.actors : [],
+                  actors: _fwActors,
                   turn: GM.turn
                 });
+                // 当事 actors → NpcMemorySystem 记忆（含心绪传递）
+                if (typeof NpcMemorySystem !== 'undefined' && NpcMemorySystem.remember) {
+                  var _mood = fw.mood || _fwMoodMap[fw.type] || '\u5E73';
+                  var _importance = (typeof fw.credibility === 'number' && fw.credibility > 0.8) ? 5 : 3;
+                  _fwActors.forEach(function(actorName){
+                    if (!actorName) return;
+                    // 只为 NPC 人物写记忆（不给势力）——快速判断：有同名角色
+                    if (typeof findCharByName === 'function') {
+                      var _ch = findCharByName(actorName);
+                      if (!_ch) return;
+                      NpcMemorySystem.remember(actorName, '[' + (fw.type||'\u98CE\u95FB') + '] ' + String(fw.text).slice(0, 60), _mood, _importance);
+                    }
+                  });
+                }
               });
             }
 
