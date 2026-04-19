@@ -100,37 +100,80 @@
     return false;
   }
 
+  // 返回 { type:'emperor'|'factionLeader'|null, faction }
+  //   emperor: 该角色是玩家皇帝 → 用 GM.guoku / GM.neitang
+  //   factionLeader: 该角色是某势力的 leader（非玩家势力）→ 用 faction.treasury / faction.leaderPrivate
+  function getFactionLeaderContext(ch) {
+    if (!ch) return { type: null };
+    if (isEmperor(ch)) return { type: 'emperor' };
+    // 在 GM.facs 中查 leader === ch.name
+    var factions = (global.GM && global.GM.facs) || [];
+    for (var i = 0; i < factions.length; i++) {
+      var f = factions[i];
+      if (!f) continue;
+      if (f.leader === ch.name || (f.leadership && f.leadership.ruler === ch.name)) {
+        return { type: 'factionLeader', faction: f };
+      }
+    }
+    return { type: null };
+  }
+
+  // 初始化势力领袖私库（内帑模型）· 首次调用按 treasury 5% 拨入
+  function _initFactionLeaderPrivate(faction) {
+    if (!faction) return null;
+    if (!faction.leaderPrivate) {
+      var t = faction.treasury || {};
+      faction.leaderPrivate = {
+        money: Math.round((t.money || 0) * 0.05),
+        grain: Math.round((t.grain || 0) * 0.05),
+        cloth: Math.round((t.cloth || 0) * 0.05),
+        note: '领袖私库（自 treasury 5% 初始化）'
+      };
+    }
+    return faction.leaderPrivate;
+  }
+
   function ensureCharResources(ch) {
     if (!ch) return;
     if (!ch.resources) ch.resources = {};
     var r = ch.resources;
-    var emp = isEmperor(ch);
+    var ctx = getFactionLeaderContext(ch);
+    var isLeader = (ctx.type === 'emperor' || ctx.type === 'factionLeader');
+    var leaderLabel = ctx.type === 'emperor' ? '帑廪'
+                    : ctx.type === 'factionLeader' ? (ctx.faction && (ctx.faction.name + '·国库') || '国库')
+                    : null;
 
     // 1) 公库（机构绑定 · 只读镜像）—— 由地方/中央财政系统更新
-    //    皇帝特例：linkedPost='帑廪' · 镜像 GM.guoku 三列（money/grain/cloth）
+    //    势力领袖特例：linkedPost=<帑廪/势力国库> · 镜像 GM.guoku 或 faction.treasury 三列（money/grain/cloth）
     if (!r.publicTreasury) r.publicTreasury = {
-      linkedPost: emp ? '帑廪' : null,    // 绑定岗位 id（皇帝=帑廪）
-      linkedRegion: null,  // 绑定区域
+      linkedPost: isLeader ? leaderLabel : null,
+      linkedRegion: null,
       balance: 0,          // 镜像余额（两）
       grain: 0,            // 粮 stock（石）
       cloth: 0,            // 布 stock（匹）
       isReadOnly: true,
-      isGuoku: !!emp,      // 标记：皇帝的公库=帑廪
-      handoverLog: [],     // 前任移交记录
+      isGuoku: !!isLeader, // 统一标记：领袖公库=国帑/国库
+      leaderScope: ctx.type || null, // 'emperor' / 'factionLeader'
+      factionName: (ctx.faction && ctx.faction.name) || null,
+      handoverLog: [],
       lastHandoverDeficit: 0
     };
-    if (emp && !r.publicTreasury.isGuoku) {
-      r.publicTreasury.linkedPost = '帑廪';
-      r.publicTreasury.isGuoku = true;
+    if (isLeader) {
+      if (!r.publicTreasury.isGuoku) r.publicTreasury.isGuoku = true;
+      if (!r.publicTreasury.linkedPost) r.publicTreasury.linkedPost = leaderLabel;
+      r.publicTreasury.leaderScope = ctx.type;
+      r.publicTreasury.factionName = (ctx.faction && ctx.faction.name) || r.publicTreasury.factionName;
     }
 
     // 2) 私产
-    //    皇帝特例：isNeitang=true · 镜像 GM.neitang 三列（money/grain/cloth）
+    //    领袖特例：isNeitang=true · 镜像 GM.neitang / faction.leaderPrivate 三列
     //    其他角色：五大类（cash/land/treasure/slaves/commerce）
     if (!r.privateWealth) {
-      if (emp) {
+      if (isLeader) {
         r.privateWealth = {
           isNeitang: true,
+          leaderScope: ctx.type,
+          factionName: (ctx.faction && ctx.faction.name) || null,
           cash: 0, land: 0, treasure: 0, slaves: 0, commerce: 0,  // 保持 schema 以兼容抄家等
           money: 0, grain: 0, cloth: 0  // 内帑三列
         };
@@ -139,8 +182,10 @@
           cash: 0, land: 0, treasure: 0, slaves: 0, commerce: 0
         };
       }
-    } else if (emp && !r.privateWealth.isNeitang) {
+    } else if (isLeader && !r.privateWealth.isNeitang) {
       r.privateWealth.isNeitang = true;
+      r.privateWealth.leaderScope = ctx.type;
+      r.privateWealth.factionName = (ctx.faction && ctx.faction.name) || null;
       if (r.privateWealth.money == null) r.privateWealth.money = 0;
       if (r.privateWealth.grain == null) r.privateWealth.grain = 0;
       if (r.privateWealth.cloth == null) r.privateWealth.cloth = 0;
@@ -487,10 +532,12 @@
   function updatePublicTreasuryMirror(ch) {
     var pt = ch.resources.publicTreasury;
     if (!pt) return;
+    var ctx = getFactionLeaderContext(ch);
     // 皇帝特例：公库镜像 = 帑廪（GM.guoku 三列）
-    if (pt.isGuoku || isEmperor(ch)) {
+    if (ctx.type === 'emperor' || (pt.isGuoku && pt.leaderScope === 'emperor')) {
       pt.isGuoku = true;
       pt.linkedPost = '帑廪';
+      pt.leaderScope = 'emperor';
       var gk = GM.guoku || {};
       var gkLedgers = gk.ledgers || {};
       pt.balance = (gkLedgers.money && gkLedgers.money.stock != null) ? gkLedgers.money.stock : (gk.balance || 0);
@@ -501,13 +548,39 @@
       var pw = ch.resources.privateWealth;
       if (pw) {
         pw.isNeitang = true;
+        pw.leaderScope = 'emperor';
         var nt = GM.neitang || {};
         var ntLedgers = nt.ledgers || {};
         pw.money = (ntLedgers.money && ntLedgers.money.stock != null) ? ntLedgers.money.stock : (nt.balance || 0);
         pw.grain = (ntLedgers.grain && ntLedgers.grain.stock != null) ? ntLedgers.grain.stock : 0;
         pw.cloth = (ntLedgers.cloth && ntLedgers.cloth.stock != null) ? ntLedgers.cloth.stock : 0;
-        // 同步到抄家字段（让现有逻辑不崩）
         pw.cash = pw.money;
+      }
+      return;
+    }
+    // 势力领袖：公库镜像 = faction.treasury 三列
+    if (ctx.type === 'factionLeader') {
+      var f = ctx.faction;
+      pt.isGuoku = true;
+      pt.leaderScope = 'factionLeader';
+      pt.factionName = f.name;
+      pt.linkedPost = (f.name || '') + '·国库';
+      var t = f.treasury || {};
+      pt.balance = t.money || 0;
+      pt.grain = t.grain || 0;
+      pt.cloth = t.cloth || 0;
+      pt.deficit = 0;
+      // 同步私产=领袖私库
+      var pw2 = ch.resources.privateWealth;
+      if (pw2) {
+        pw2.isNeitang = true;
+        pw2.leaderScope = 'factionLeader';
+        pw2.factionName = f.name;
+        var lp = _initFactionLeaderPrivate(f);
+        pw2.money = lp.money || 0;
+        pw2.grain = lp.grain || 0;
+        pw2.cloth = lp.cloth || 0;
+        pw2.cash = pw2.money;
       }
       return;
     }

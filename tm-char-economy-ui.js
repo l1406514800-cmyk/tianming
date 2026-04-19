@@ -102,16 +102,17 @@
       '</div></div>';
   }
 
-  // ─── 私产展示（皇帝=内帑三列 · 其他=五大类）───
+  // ─── 私产展示（领袖=内帑/私库三列 · 其他=五大类）───
   function renderPrivateWealth(pw, hiddenWealth, canSeeHidden) {
     if (!pw) return '';
     var html = '';
     if (pw.isNeitang) {
-      // 皇帝：私库 = 内帑（money/grain/cloth 三列）
+      // 领袖：私库 = 内帑（money/grain/cloth 三列）
+      var _prefix = (pw.leaderScope === 'emperor') ? '内帑·' : '私库·';
       html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">';
-      html += renderWealthItem('💰', '内帑·银', fmtMoney(pw.money || 0) + ' 两', 'var(--gold-400)');
-      html += renderWealthItem('🌾', '内帑·粮', fmtMoney(pw.grain || 0) + ' 石', '#6aa88a');
-      html += renderWealthItem('🧵', '内帑·布', fmtMoney(pw.cloth || 0) + ' 匹', '#a88a6a');
+      html += renderWealthItem('💰', _prefix + '银', fmtMoney(pw.money || 0) + ' 两', 'var(--gold-400)');
+      html += renderWealthItem('🌾', _prefix + '粮', fmtMoney(pw.grain || 0) + ' 石', '#6aa88a');
+      html += renderWealthItem('🧵', _prefix + '布', fmtMoney(pw.cloth || 0) + ' 匹', '#a88a6a');
       html += '</div>';
     } else {
       html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;">';
@@ -152,16 +153,22 @@
   // ─── 公库（只读镜像）───
   function renderPublicTreasury(pt) {
     if (!pt) return '';
-    // 皇帝：公库 = 帑廪（money/grain/cloth 三列）
+    // 领袖公库 = 帑廪/国库（money/grain/cloth 三列）
     if (pt.isGuoku) {
+      var _isEmp = (pt.leaderScope === 'emperor');
+      var _title = _isEmp ? '公库（帑廪 · 国帑）'
+                          : '公库（' + (pt.factionName || '势力') + '·国库）';
+      var _lblPrefix = _isEmp ? '帑廪·' : '国库·';
+      var _src = _isEmp ? '只读镜像 · 国库三账（GM.guoku）'
+                        : '只读镜像 · ' + (pt.factionName || '') + '.treasury';
       return '<div style="padding:8px 10px;background:rgba(184,154,83,0.08);border-left:3px solid var(--gold-d);border-radius:3px;margin-bottom:8px;">'+
-        '<div style="font-size:0.76rem;color:var(--gold);margin-bottom:6px;">公库（帑廪 · 国帑）</div>'+
+        '<div style="font-size:0.76rem;color:var(--gold);margin-bottom:6px;">' + _escHtml(_title) + '</div>'+
         '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;">'+
-          renderWealthItem('💰', '帑廪·银', fmtMoney(pt.balance || 0) + ' 两', 'var(--gold-400)') +
-          renderWealthItem('🌾', '帑廪·粮', fmtMoney(pt.grain || 0) + ' 石', '#6aa88a') +
-          renderWealthItem('🧵', '帑廪·布', fmtMoney(pt.cloth || 0) + ' 匹', '#a88a6a') +
+          renderWealthItem('💰', _lblPrefix + '银', fmtMoney(pt.balance || 0) + ' 两', 'var(--gold-400)') +
+          renderWealthItem('🌾', _lblPrefix + '粮', fmtMoney(pt.grain || 0) + ' 石', '#6aa88a') +
+          renderWealthItem('🧵', _lblPrefix + '布', fmtMoney(pt.cloth || 0) + ' 匹', '#a88a6a') +
         '</div>'+
-        '<div style="font-size:0.66rem;color:var(--txt-d);margin-top:4px;">只读镜像 · 国库三账（GM.guoku）</div>'+
+        '<div style="font-size:0.66rem;color:var(--txt-d);margin-top:4px;">' + _escHtml(_src) + '</div>'+
         '</div>';
     }
     // 岗位公库
@@ -284,9 +291,13 @@
       html += renderPublicTreasury(r.publicTreasury);
     }
 
-    // 私产（皇帝=内帑3列 / 其他=五大类）
-    var pwLabel = (r.privateWealth && r.privateWealth.isNeitang) ? '私库（内帑）' : '私产';
-    html += '<div style="font-size:0.74rem;color:var(--txt-d);margin-bottom:4px;">' + pwLabel + '</div>';
+    // 私产（领袖=内帑/私库3列 / 其他=五大类）
+    var pwLabel = '私产';
+    if (r.privateWealth && r.privateWealth.isNeitang) {
+      pwLabel = (r.privateWealth.leaderScope === 'emperor') ? '私库（内帑）'
+              : '私库（' + (r.privateWealth.factionName || '领袖') + '·私府）';
+    }
+    html += '<div style="font-size:0.74rem;color:var(--txt-d);margin-bottom:4px;">' + _escHtml(pwLabel) + '</div>';
     html += renderPrivateWealth(r.privateWealth, r.hiddenWealth, canSeeHidden);
 
     // 名望 + 贤能（两栏）

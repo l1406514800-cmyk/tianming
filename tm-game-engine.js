@@ -5496,18 +5496,26 @@ function _parseWealthString(s) {
 
 // 初始化所有角色的 privateWealth
 function _initCharacterPrivateWealth(chars) {
-  var _isEmp = function(c){
+  var _isLeader = function(c){
     if (!c) return false;
+    // 皇帝
     if (c.role === '皇帝' || c.officialTitle === '皇帝') return true;
     if (c.isPlayer && c.royalRelation === 'emperor_family' && c.isRoyal) return true;
     if (c.title && /明思宗|崇祯帝|庄烈帝|皇帝/.test(c.title)) return true;
+    // 势力领袖
+    var facs = (GM && GM.facs) || [];
+    for (var i = 0; i < facs.length; i++) {
+      var f = facs[i]; if (!f) continue;
+      if (f.leader === c.name) return true;
+      if (f.leadership && f.leadership.ruler === c.name) return true;
+    }
     return false;
   };
   (chars || []).forEach(function(ch) {
     if (!ch || ch.alive === false) return;
     if (!ch.resources) ch.resources = {};
-    // 皇帝：跳过五大类赋值，其私产=内帑镜像（由 updatePublicTreasuryMirror 同步）
-    if (_isEmp(ch)) {
+    // 领袖：跳过五大类赋值，其私产=内帑/领袖私库 镜像（由 updatePublicTreasuryMirror 同步）
+    if (_isLeader(ch)) {
       if (typeof CharEconEngine !== 'undefined') {
         try { CharEconEngine.ensureCharResources(ch); } catch(_){}
         try { CharEconEngine.updatePublicTreasuryMirror(ch); } catch(_){}
