@@ -4789,7 +4789,7 @@ function renderGameState(){
   edictHTML += '<div class="ed-yubi-title">';
   edictHTML += '<div class="seal">'+escHtml(_edictRole)+'</div>';
   edictHTML += '<div class="main">' + escHtml(_edictRole) + ' \u5FA1 \u7B14</div>';
-  edictHTML += '<div class="sub">\u5949 \u5929 \u627F \u8FD0</div>';
+  edictHTML += '<div class="sub">\u5949\u5929\u627F\u8FD0\u7687\u5E1D\u3000\u3000\u8BCF\u66F0</div>';
   edictHTML += '</div>';
 
   // 5 类诏令卡片
