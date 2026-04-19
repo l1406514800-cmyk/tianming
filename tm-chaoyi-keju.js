@@ -593,6 +593,101 @@ function _kejuAutoPickExaminer(exam) {
   if (typeof addEB === 'function') addEB('\u79D1\u4E3E', '\u7687\u5E1D\u672A\u9009\u00B7AI \u4EE3\u9009 ' + chosen.name + ' \u4E3A\u4E3B\u8003');
 }
 
+/** 进入需玩家决策阶段·显著提醒（顶栏浮条+toast+纪事） */
+function _kejuNotifyUrgentStage(exam, stage) {
+  if (!exam || exam.stage !== stage) return;
+  var cfg = {
+    examiner_select: {
+      title: '\u793C\u90E8\u5019\u65E8\u00B7\u9009\u4EFB\u672C\u79D1\u4E3B\u8003',
+      urgency: '\u4F59 ' + ((P.keju.stageDurationDays && P.keju.stageDurationDays.examiner_select) || 15) + ' \u65E5\u00B7\u9010\u671F\u5C06\u7531\u5409\u90E8\u4EE3\u9009\u00B7\u6263\u7687\u5A01 3',
+      action: '\u5373\u523B\u9009\u4EFB',
+      color: '#B89A53'
+    },
+    huishi_draft: {
+      title: '\u4E3B\u8003\u5B98\u5DF2\u4E0A\u9898\u672C\u00B7\u5F85\u9605\u5B9A',
+      urgency: '\u4F59 ' + ((P.keju.stageDurationDays && P.keju.stageDurationDays.huishi_draft) || 20) + ' \u65E5\u00B7\u9010\u671F\u91C7\u4E3B\u8003\u9996\u9009\u00B7\u6263\u7687\u5A01 2',
+      action: '\u5373\u523B\u5BA1\u9605',
+      color: '#B89A53'
+    },
+    dianshi_draft: {
+      title: '\u6BBE\u8BD5\u5FC5\u7531\u5929\u5B50\u4EB2\u62DF\u7B56\u95EE',
+      urgency: '\u4F59 ' + ((P.keju.stageDurationDays && P.keju.stageDurationDays.dianshi_draft) || 15) + ' \u65E5\u00B7\u9010\u671F AI \u4EE3\u62DF\u00B7\u6263\u7687\u5A01 2',
+      action: '\u4EB2\u62DF\u7B56\u95EE',
+      color: '#C44040'
+    }
+  };
+  var c = cfg[stage];
+  if (!c) return;
+  _kejuShowUrgentBanner(c.title, c.urgency, c.action, c.color);
+  if (typeof toast === 'function') {
+    toast('\uD83D\uDCDC ' + c.title + '\u00B7\u70B9\u9876\u680F\u300C\u5F85\u529E\u300D\u724C\u6216\u300C\u79D1\u4E3E\u300D\u9762\u677F\u6267\u884C', 'info');
+  }
+  if (typeof addEB === 'function') addEB('\u79D1\u4E3E\u00B7\u5F85\u529E', c.title, {important:true});
+  if (GM.qijuHistory) {
+    GM.qijuHistory.unshift({
+      turn: GM.turn,
+      date: (typeof getTSText === 'function') ? getTSText(GM.turn) : 'T'+(GM.turn||0),
+      content: '\u3010\u79D1\u4E3E\u00B7\u5F85\u529E\u3011' + c.title + '\u3002' + c.urgency
+    });
+  }
+}
+
+/** 科举待办浮条（常驻右上·直到进入下一阶段） */
+function _kejuShowUrgentBanner(title, urgency, actionLabel, color) {
+  var existing = document.getElementById('keju-urgent-banner');
+  if (existing) existing.remove();
+  var banner = document.createElement('div');
+  banner.id = 'keju-urgent-banner';
+  banner.style.cssText = ''
+    + 'position:fixed;top:72px;right:16px;z-index:900;'
+    + 'background:linear-gradient(135deg,rgba(15,13,10,0.97),rgba(30,25,18,0.95));'
+    + 'border:1px solid ' + color + ';border-left:3px solid ' + color + ';'
+    + 'border-radius:8px;padding:0.6rem 0.9rem;'
+    + 'max-width:300px;box-shadow:0 4px 16px rgba(0,0,0,0.4);'
+    + 'font-family:inherit;cursor:pointer;animation:kejuUrgentPulse 2s ease-in-out infinite;';
+  banner.innerHTML = ''
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;">'
+    +   '<div style="flex:1;">'
+    +     '<div style="font-size:0.72rem;color:' + color + ';letter-spacing:0.1em;">\u3014 \u79D1\u4E3E\u5F85\u529E \u3015</div>'
+    +     '<div style="font-size:0.88rem;font-weight:700;color:#E8D9B0;margin:2px 0;">' + title + '</div>'
+    +     '<div style="font-size:0.7rem;color:#B0A088;line-height:1.4;">' + urgency + '</div>'
+    +   '</div>'
+    +   '<button onclick="event.stopPropagation();document.getElementById(\'keju-urgent-banner\').remove();" style="background:transparent;border:none;color:#807060;font-size:16px;cursor:pointer;padding:0;line-height:1;">\u2715</button>'
+    + '</div>'
+    + '<div style="margin-top:6px;text-align:right;">'
+    +   '<button onclick="event.stopPropagation();_kejuUrgentAction();" style="background:' + color + ';border:none;color:#1a1410;padding:4px 14px;border-radius:4px;font-size:0.76rem;font-weight:700;cursor:pointer;">' + actionLabel + ' \u2192</button>'
+    + '</div>';
+  banner.onclick = function() { if (typeof _kejuUrgentAction === 'function') _kejuUrgentAction(); };
+  document.body.appendChild(banner);
+  // 注入一次动画 style
+  if (!document.getElementById('keju-urgent-style')) {
+    var s = document.createElement('style');
+    s.id = 'keju-urgent-style';
+    s.textContent = '@keyframes kejuUrgentPulse{0%,100%{box-shadow:0 4px 16px rgba(0,0,0,0.4);}50%{box-shadow:0 4px 24px ' + color + '66;}}';
+    document.head.appendChild(s);
+  }
+}
+
+/** 点击"即刻选任/审阅/亲拟"按钮·打开科举面板或对应弹窗 */
+function _kejuUrgentAction() {
+  var banner = document.getElementById('keju-urgent-banner');
+  if (banner) banner.remove();
+  if (typeof showKejuModal === 'function') showKejuModal();
+}
+
+/** 进入下一阶段时·或科举结束时·清掉浮条 */
+function _kejuClearUrgentBanner() {
+  var b = document.getElementById('keju-urgent-banner');
+  if (b) b.remove();
+}
+
+// 暴露到 window
+if (typeof window !== 'undefined') {
+  window._kejuNotifyUrgentStage = _kejuNotifyUrgentStage;
+  window._kejuUrgentAction = _kejuUrgentAction;
+  window._kejuClearUrgentBanner = _kejuClearUrgentBanner;
+}
+
 // ══════════════════════════════════════════════════════════════════
 // v5·F2·历史名臣 AI 检索
 // ══════════════════════════════════════════════════════════════════
@@ -3952,6 +4047,16 @@ function advanceKejuByDays(daysPassed) {
     var need = (P.keju.stageDurationDays && P.keju.stageDurationDays[exam.stage]) || 30;
     if (exam.stageElapsedDays >= need) {
       _finalizeStageAndAdvance(exam, slot);
+    } else {
+      // 仍在阶段内·若是需玩家决策阶段且浮条不在·补弹
+      var urgentStages = ['examiner_select','huishi_draft','dianshi_draft'];
+      var needsNotify = urgentStages.indexOf(exam.stage) >= 0
+        && !( (exam.stage === 'examiner_select' && exam.chiefExaminer)
+           || (exam.stage === 'huishi_draft' && exam.huishiTopic)
+           || (exam.stage === 'dianshi_draft' && exam.playerQuestion));
+      if (needsNotify && !document.getElementById('keju-urgent-banner')) {
+        if (typeof _kejuNotifyUrgentStage === 'function') _kejuNotifyUrgentStage(exam, exam.stage);
+      }
     }
   });
 }
@@ -4010,6 +4115,8 @@ async function _finalizeStageAndAdvance(exam, slot) {
   if (exam.stage === 'preliminary') exam.stage = 'preliminary_local';
   var fromStage = exam.stage;
   _dbg('[科举·B2] 终结阶段:', fromStage, 'exam.id=', exam.id);
+  // 清掉旧阶段的浮条（若新阶段需要·下方各 case 会重新弹出）
+  if (typeof _kejuClearUrgentBanner === 'function') _kejuClearUrgentBanner();
 
   try {
     switch (fromStage) {
@@ -4029,6 +4136,8 @@ async function _finalizeStageAndAdvance(exam, slot) {
           try { await runPreliminaryExams(); } catch(_){}
         }
         exam.stage = 'examiner_select';
+        // 切入需玩家决策阶段·显著提醒
+        if (typeof _kejuNotifyUrgentStage === 'function') _kejuNotifyUrgentStage(exam, 'examiner_select');
         break;
       case 'examiner_select':
         // 若玩家没选考官·AI 自动选（皇威-3）
@@ -4037,6 +4146,7 @@ async function _finalizeStageAndAdvance(exam, slot) {
           _adjustHuangwei(-3, '科举·未及时选考官·AI 代选');
         }
         exam.stage = 'huishi_draft';
+        if (typeof _kejuNotifyUrgentStage === 'function') _kejuNotifyUrgentStage(exam, 'huishi_draft');
         break;
       case 'huishi_draft':
         // 主考官拟题·若玩家未确认题目·采用主考官首选（皇威-2）
@@ -4058,6 +4168,7 @@ async function _finalizeStageAndAdvance(exam, slot) {
           try { await generateHuishiResults(); } catch(_){}
         }
         exam.stage = 'dianshi_draft';
+        if (typeof _kejuNotifyUrgentStage === 'function') _kejuNotifyUrgentStage(exam, 'dianshi_draft');
         break;
       case 'dianshi_draft':
         // 殿试拟题·玩家未写则 AI 代拟
@@ -4255,6 +4366,7 @@ function selectExaminer(name) {
   var exam = P.keju.currentExam;
   var ch = typeof findCharByName === 'function' ? findCharByName(name) : null;
   if (!ch) return;
+  if (typeof _kejuClearUrgentBanner === 'function') _kejuClearUrgentBanner();
   exam.chiefExaminer = name;
   exam.examinerParty = ch.party || '';
   exam.examinerStance = ch.stance || ch.personality || '';
