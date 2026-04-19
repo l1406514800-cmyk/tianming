@@ -3853,7 +3853,17 @@ function startKejuExam(opts) {
     _kejuWriteJishi('\u79D1\u4E3E\u5F00\u59CB', (isEnke ? '\u6069\u79D1' : '\u79D1\u4E3E') + '\u00B7\u542F\u52A8\u7B79\u529E', 'id=' + examId + '\u00B7method=' + (opts.launchMethod || 'council'));
   }
   if (typeof addEB === 'function') addEB('\u79D1\u4E3E', (isEnke ? '\u6069\u79D1' : '\u6B63\u79D1') + '\u542F\u52A8');
-  showKejuModal();
+  // v5·不再自动弹出旧式全流程弹窗——科举按天自动推进·需要玩家互动的阶段
+  // （会试拟题/殿试代主/殿试钦定）会在 _finalizeStageAndAdvance 里各自弹窗
+  var totalDays = 0;
+  if (P.keju.stageDurationDays) {
+    ['preliminary_local','preliminary_provincial','examiner_select','huishi_draft','huishi','dianshi_draft','dianshi'].forEach(function(s){
+      totalDays += (P.keju.stageDurationDays[s]||0);
+    });
+  }
+  var _dpt2 = (P.time && P.time.daysPerTurn) || 30;
+  var _turns = Math.ceil(totalDays / Math.max(1, _dpt2));
+  toast((isEnke ? '\uD83C\uDF89 \u6069\u79D1' : '\uD83D\uDCDC \u79D1\u4E3E') + '\u5F00\u59CB\u00B7\u9884\u8BA1 ' + totalDays + ' \u65E5 (\u7EA6 ' + _turns + ' \u56DE\u5408)\u00B7\u9700\u4E32\u4E8B\u7684\u6AAF\u6BB5\u4F1A\u9010\u6B21\u63D0\u8BF7\u9661\u4E0B\u5B9A\u593A');
 }
 
 /**
@@ -4115,34 +4125,15 @@ function _kejuArchiveExam(exam, slot) {
 
 // ── 新阶段：下层选拔模拟 ──
 function renderPreliminaryStage(container) {
+  // v5·时间化改造后·此阶段纯只读进度（由 advanceKejuByDays 按天推进·无需玩家按键）
   var exam = P.keju.currentExam;
-  var tiers = exam.tiers || [];
-  var lowerTiers = tiers.filter(function(t) { return !t.interactive; });
-
-  var html = '<div style="text-align:center;margin-bottom:1rem;">';
-  html += '<div style="font-size:2rem;margin-bottom:0.3rem;">\uD83C\uDFEF</div>';
-  html += '<h3 style="color:var(--gold);">\u5730\u65B9\u9009\u62D4</h3>';
-  html += '<p style="color:var(--txt-d);font-size:0.85rem;max-width:500px;margin:0.5rem auto;">';
-  html += '\u5404\u5730\u8D21\u9662\u5F00\u542F\uFF0C' + lowerTiers.map(function(t){return t.name;}).join('\u2192') + '\u9010\u5C42\u9009\u62D4\uFF0C\u4F18\u79C0\u4E3E\u5B50\u5C06\u805A\u96C6\u4EAC\u5E08\u53C2\u52A0' + (tiers.find(function(t){return t.interactive;}) || {name:'\u4F1A\u8BD5'}).name + '\u3002</p>';
-  html += '</div>';
-  // 显示各层信息
-  html += '<div style="background:var(--bg-2);padding:1rem;border-radius:8px;margin-bottom:1rem;">';
-  html += '<div style="font-size:0.9rem;font-weight:700;color:var(--gold);margin-bottom:0.5rem;">\u8003\u8BD5\u5C42\u6B21</div>';
-  tiers.forEach(function(t, i) {
-    var isInteractive = t.interactive;
-    html += '<div style="display:flex;align-items:center;gap:0.5rem;padding:0.3rem 0;' + (!isInteractive ? 'color:var(--txt-d);' : 'color:var(--gold);font-weight:700;') + '">';
-    html += '<span style="font-size:0.8rem;">' + (i+1) + '.</span>';
-    html += '<span>' + escHtml(t.name) + '</span>';
-    html += '<span style="font-size:0.75rem;color:var(--txt-d);">(' + escHtml(t.desc || '') + ')</span>';
-    if (isInteractive) html += '<span style="font-size:0.7rem;background:var(--gold-d);color:#fff;padding:0 4px;border-radius:3px;">\u53EF\u4EA4\u4E92</span>';
-    html += '</div>';
-  });
-  html += '</div>';
-  html += '<div style="text-align:center;">';
-  html += '<button class="bt bp" onclick="runPreliminaryExams()" style="padding:0.8rem 2rem;">\uD83C\uDFB2 \u6A21\u62DF\u5730\u65B9\u9009\u62D4</button>';
-  html += '<p style="color:var(--txt-d);font-size:0.8rem;margin-top:0.5rem;">AI\u5C06\u6839\u636E\u5404\u5730\u6559\u80B2\u3001\u7ECF\u6D4E\u3001\u9636\u5C42\u72B6\u51B5\u751F\u6210\u9009\u62D4\u7ED3\u679C</p>';
-  html += '</div>';
-  container.innerHTML = html;
+  if (!exam) return;
+  var isProv = exam.stage === 'preliminary_provincial';
+  var title = isProv ? '\u4E61\u8BD5' : '\u7AE5\u8BD5\u00B7\u5E9C\u8BD5\u00B7\u9662\u8BD5';
+  var subtitle = isProv
+    ? '\u5404\u7701\u8D21\u9662\u4E61\u8BD5\u5F00\u5F04\u00B7\u4E3E\u4EBA\u540D\u5355\u9010\u7701\u62A5\u9001\u793C\u90E8\uFF0C\u7B49\u5F85\u793C\u90E8\u6C47\u603B\u540E\u8FDB\u4F1A\u8BD5'
+    : '\u5404\u53BF\u5E9C\u9662\u5F00\u8003\u00B7\u751F\u5458\u9010\u5C42\u9009\u62D4\uFF0C\u8FDB\u8005\u53EF\u5165\u4E61\u8BD5';
+  renderKejuProgressStage(container, title, subtitle);
 }
 
 async function runPreliminaryExams() {
@@ -4975,7 +4966,9 @@ function openKeyiSession() {
     stances: {},
     support: 0,
     abort: false,
-    _discussDone: false
+    _discussDone: false,
+    playerStance: null,
+    playerSpeeches: []
   };
 
   // 挑发言人：礼部尚书 + 高智高忠前 4 人
@@ -5024,14 +5017,13 @@ function _keyiRender() {
   else if (KEYI_STATE.phase === 'decide') _keyiRenderDecide(body, footer);
 }
 
-/** 发言阶段 UI（v3·自动两轮·玩家可插言·流式气泡） */
+/** 发言阶段 UI（v4·初始2轮自动·后续可再议无上限·玩家插言影响倾向） */
 function _keyiRenderDiscuss(body, footer) {
-  var rounds = KEYI_STATE.totalRounds || 2;
   var statusTxt = KEYI_STATE._busy
     ? (KEYI_STATE._busyText || '\u8BAE\u8BBA\u4E2D\u2026')
-    : (KEYI_STATE._discussDone ? '\u4E24\u8F6E\u8BAE\u8BBA\u5DF2\u5B8C\u00B7\u53EF\u4ED8\u8868\u51B3' : '\u8BAE\u8BBA\u8FDB\u884C\u4E2D\u2026');
+    : (KEYI_STATE._discussDone ? '\u5DF2\u7ECF\u8FC7 ' + KEYI_STATE.round + ' \u8F6E\u8BAE\u8BBA\u00B7\u53EF\u4ED8\u8868\u51B3\u6216\u518D\u8BAE' : '\u8BAE\u8BBA\u8FDB\u884C\u4E2D\u2026');
   var html = '<div style="margin-bottom:0.6rem;">'+
-    '<div style="font-weight:700;color:var(--gold);">\u7B2C ' + KEYI_STATE.round + ' / ' + rounds + ' \u8F6E\u8BAE\u8BBA</div>'+
+    '<div style="font-weight:700;color:var(--gold);">\u7B2C ' + KEYI_STATE.round + ' \u8F6E\u8BAE\u8BBA</div>'+
     '<div style="font-size:0.72rem;color:var(--txt-d);">\u00B7 ' + KEYI_STATE.speakers.length + ' \u4EBA\u8F6E\u6D41\u9648\u8A00\u00B7' + KEYI_STATE.attendees.length + ' \u4EBA\u5728\u573A\u542C\u8BAE\u00B7' + statusTxt + '</div>'+
     '</div><div id="keyi-chat" style="min-height:220px;">';
   KEYI_STATE.speeches.forEach(function(sp){
@@ -5040,19 +5032,19 @@ function _keyiRenderDiscuss(body, footer) {
   html += '</div>';
   body.innerHTML = html;
 
-  // v3·始终显示玩家发言框（busy 时也可插言·插言会打断当前轮并重开2轮）
-  var inputVal = '';
+  // v4·始终显示玩家发言框·可多轮辩论·玩家插言即影响后续立场
   var isBusy = !!KEYI_STATE._busy;
   var hint = isBusy
-    ? '\u9661\u4E0B\u5982\u6709\u5723\u8C15\u00B7\u8F93\u5165\u540E\u4F17\u81E3\u5373\u9000\u4E0B\u00B7\u91CD\u65B0\u8BAE 2 \u8F6E\u2026'
-    : (KEYI_STATE._discussDone ? '\u4E24\u8F6E\u8BAE\u8BBA\u5DF2\u7ED3\u00B7\u5982\u6709\u5723\u8C15\u4ECD\u53EF\u8F93\u5165\u00B7\u5C06\u91CD\u5F00 2 \u8F6E' : '\u9661\u4E0B\u53EF\u968F\u65F6\u63D2\u8A00\u00B7\u8F93\u5165\u540E\u4F17\u81E3\u505C\u8BED\u00B7\u91CD\u5F00 2 \u8F6E');
+    ? '\u9661\u4E0B\u5982\u6709\u5723\u8C15\u00B7\u8F93\u5165\u540E\u4F17\u81E3\u5373\u9000\u4E0B\u8FD4\u5E94\u2026'
+    : '\u9661\u4E0B\u53EF\u968F\u65F6\u63D2\u8A00\u00B7\u5723\u8C15\u4F1A\u5F71\u54CD\u5927\u81E3\u7ACB\u573A\u4E0E\u6700\u7EC8\u8868\u51B3';
   var footerHtml = ''
     + '<div style="display:flex;gap:0.4rem;align-items:stretch;">'
     +   '<textarea id="keyi-player-input" rows="2" placeholder="' + hint + '" style="flex:1;background:var(--bg-2);border:1px solid var(--bdr);border-radius:4px;padding:0.4rem 0.6rem;font-size:0.82rem;color:var(--color-foreground);resize:vertical;"></textarea>'
     +   '<button class="bt bp" style="min-width:72px;" onclick="_keyiPlayerSpeak()">\u5723\u8C15</button>'
     + '</div>';
   if (KEYI_STATE._discussDone && !isBusy) {
-    footerHtml += '<div style="text-align:center;margin-top:0.5rem;">'
+    footerHtml += '<div style="display:flex;gap:0.5rem;justify-content:center;margin-top:0.5rem;">'
+      + '<button class="bt" onclick="_keyiExtraRound()">\u518D\u8BAE\u4E00\u8F6E</button>'
       + '<button class="bt bp" onclick="_keyiProceedToVote()">\u4ED8\u8868\u51B3</button>'
       + '</div>';
   }
@@ -5060,22 +5052,49 @@ function _keyiRenderDiscuss(body, footer) {
   var chat = _$('keyi-chat'); if (chat) chat.scrollTop = chat.scrollHeight;
 }
 
-/** 玩家插言·打断当前轮并重开 2 轮（v3） */
+/** 手动再议一轮（v4·无上限·类似廷议） */
+async function _keyiExtraRound() {
+  if (!KEYI_STATE || KEYI_STATE._busy) return;
+  KEYI_STATE.round++;
+  KEYI_STATE._discussDone = false;
+  _keyiRender();
+  await _keyiStreamRound();
+  KEYI_STATE._discussDone = true;
+  _keyiRender();
+}
+
+/** 从玩家圣谕文本推断立场 */
+function _keyiInferPlayerStance(text) {
+  if (!text) return null;
+  var s = text.toLowerCase();
+  // 反对类词
+  if (/\u4E0D\u53EF|\u4E0D\u8A56|\u4E0D\u7528|\u6682\u7F13|\u505C|\u7F72|\u5EA2|\u4E0D\u7406|\u7F13\u884C|\u4E0D\u8FEB|\u6263\u627F|\u672A\u5FC5|\u6682\u4E0D|\u6697\u6697|\u4E0D\u59A5|\u4E0D\u5B9C/.test(s)) return 'oppose';
+  // 支持类词
+  if (/\u7740|\u5373\u884C|\u901F|\u4EC7|\u7545|\u5F00|\u8BB8|\u51C6|\u4F9D\u8BAE|\u8D5E|\u540C|\u53EF|\u610F|\u884C|\u8881|\u5F00\u79D1|\u4E3E\u529E|\u601D|\u771F\u597D|\u5584/.test(s)) return 'support';
+  return 'abstain'; // 不明显
+}
+
+/** 玩家插言·打断当前轮·下一轮 NPC 回应陛下·立场会向陛下靠拢（v4） */
 async function _keyiPlayerSpeak() {
   if (!KEYI_STATE) return;
   var inp = _$('keyi-player-input');
   var text = inp && inp.value ? inp.value.trim() : '';
   if (!text) { toast('\u8BF7\u5148\u8F93\u5165\u5723\u8C15'); return; }
+  // 推断陛下立场·存入 state·影响后续发言+表决
+  var playerStance = _keyiInferPlayerStance(text) || 'support';
+  KEYI_STATE.playerStance = playerStance;
+  if (!Array.isArray(KEYI_STATE.playerSpeeches)) KEYI_STATE.playerSpeeches = [];
+  KEYI_STATE.playerSpeeches.push({ text: text, stance: playerStance, round: KEYI_STATE.round });
   // 打断当前轮
   KEYI_STATE.abort = true;
   KEYI_STATE._interrupted = true;
   // 清掉正在流式的占位气泡（没写完的）
   KEYI_STATE.speeches = KEYI_STATE.speeches.filter(function(sp){ return !sp._streaming; });
-  // 推入玩家气泡
+  // 推入玩家气泡·立场按推断
   KEYI_STATE.speeches.push({
     name: '\u9661\u4E0B',
     title: '\u5723\u8C15',
-    stance: 'support',
+    stance: playerStance,
     line: text,
     _isPlayer: true
   });
@@ -5087,12 +5106,14 @@ async function _keyiPlayerSpeak() {
     await new Promise(function(r){ setTimeout(r, 100); });
     waitCount++;
   }
-  // 重开 2 轮（从 round=1 开始，再走 2 轮）
   KEYI_STATE.abort = false;
   KEYI_STATE._interrupted = false;
-  KEYI_STATE.round = 1;
+  // 仅跑一轮·让 NPC 回应陛下·玩家可再插言或付表决
+  KEYI_STATE.round++;
   _keyiRender();
-  await _keyiRunBothRounds();
+  await _keyiStreamRound();
+  KEYI_STATE._discussDone = true;
+  _keyiRender();
 }
 
 /** 连续跑两轮·中间无需玩家按键（v3） */
@@ -5236,7 +5257,7 @@ async function _keyiNextRound() {
   await _keyiStreamRound();
 }
 
-/** 算式推断立场（无 AI 时·或 AI 失败时兜底） */
+/** 算式推断立场（无 AI 时·或 AI 失败时兜底·陛下圣谕会拉偏忠臣） */
 function _keyiInferStance(a) {
   var ch = a._ch || findCharByName(a.name);
   var loy = a.loyalty || 50;
@@ -5255,10 +5276,19 @@ function _keyiInferStance(a) {
   if (guoku < 100000) pro -= 12;
   // 战事多 → 反对（资源倾斜）
   if ((GM.activeWars||[]).length >= 3) pro -= 8;
+  // 陛下圣谕拉拽·按忠诚加权（忠臣跟得紧·佞臣随风倒·权臣可能逆天）
+  if (KEYI_STATE && KEYI_STATE.playerStance) {
+    var dir = KEYI_STATE.playerStance === 'support' ? 1 : KEYI_STATE.playerStance === 'oppose' ? -1 : 0;
+    if (dir !== 0) {
+      var pullStrength = (loy - 30) * 0.7; // 忠30以上被拉·以下反拉
+      if (ch && ch.ambition > 70 && loy < 50) pullStrength *= -0.5; // 权臣/野心家可能逆圣意
+      pro += dir * pullStrength;
+    }
+  }
   // 随机扰动
-  pro += (Math.random() - 0.5) * 15;
-  if (pro > 15) return 'support';
-  if (pro < -15) return 'oppose';
+  pro += (Math.random() - 0.5) * 10;
+  if (pro > 12) return 'support';
+  if (pro < -12) return 'oppose';
   return 'abstain';
 }
 
@@ -5320,11 +5350,23 @@ async function _keyiGenAllStances() {
 
   // AI 精修：用发言记录+大臣属性让 AI 给更细腻的立场+理由
   var ctx = '\u79D1\u8BAE\u5DF2\u5386 ' + KEYI_STATE.round + ' \u8F6E\u00B7\u4E3B\u8981\u53D1\u8A00\uFF1A\n' +
-    KEYI_STATE.speeches.slice(-10).map(function(sp){ return sp.name+'['+sp.stance+']\uFF1A'+(sp.line||'').slice(0,50); }).join('\n') + '\n\n';
+    KEYI_STATE.speeches.slice(-12).map(function(sp){
+      var who = sp._isPlayer ? '\u9661\u4E0B(\u5723\u8C15)' : sp.name;
+      return who + '[' + sp.stance + ']\uFF1A' + (sp.line||'').slice(0,60);
+    }).join('\n') + '\n\n';
   var list = active.map(function(a){
     return a.name + '(' + (a.title||'') + '\u00B7\u515A:' + (a.party||'\u65E0') + '\u00B7\u5FE0' + (a.loyalty||50) + ')';
   }).join('\u3001');
-  var prompt = ctx +
+  var playerStanceHint = '';
+  if (KEYI_STATE.playerStance) {
+    var lbl = KEYI_STATE.playerStance === 'support' ? '\u503E\u5411\u652F\u6301' : KEYI_STATE.playerStance === 'oppose' ? '\u503E\u5411\u53CD\u5BF9' : '\u7ACB\u573A\u4E2D\u7ACB';
+    playerStanceHint = '\u2605 \u9661\u4E0B\u5723\u8C15\u5DF2\u4E0B\uFF1A' + lbl + '\u3002\u8868\u51B3\u65F6\u5FC5\u987B\u5145\u5206\u8003\u8651\u5723\u610F\uFF1A\n'
+      + '    \u00B7 \u5FE0\u8BDA \u2265 70 \u7684\u5FE0\u81E3\u57FA\u672C\u4F1A\u987A\u5723\u8C15\n'
+      + '    \u00B7 \u5FE0\u8BDA 40-70 \u7684\u4E2D\u7ACB\u81E3\u53EF\u80FD\u987A\u4ECE\u6216\u89C2\u671B\n'
+      + '    \u00B7 \u5FE0\u8BDA < 40 \u6216\u91CE\u5FC3 > 70 \u7684\u6743\u81E3 / \u515A\u9996\u9886 \u53EF\u80FD\u9006\u5723\u610F\uFF08\u7279\u522B\u662F\u515A\u6D3E\u5229\u76CA\u4E0E\u5723\u610F\u76F8\u5DEE\u65F6\uFF09\n'
+      + '    \u00B7 \u53CD\u5BF9\u515A\u6D3E\u7684\u5927\u81E3\u4E0D\u4F1A\u56E0\u5723\u8C15\u800C\u5B8C\u5168\u6539\u53D8\u00B7\u4F46\u8A00\u8F9E\u4E0A\u4F1A\u66F4\u5A49\u8F6C\n';
+  }
+  var prompt = ctx + playerStanceHint +
     '\u8BF7\u4E3A\u4EE5\u4E0B ' + active.length + ' \u540D\u5927\u81E3\u5404\u81EA\u5224\u5B9A\u6700\u7EC8\u7ACB\u573A\uFF08support/oppose/abstain\uFF09\u5E76\u7ED9\u51FA\u4E00\u53E5 10-30 \u5B57\u7406\u7531\uFF1A\n' +
     list + '\n\n' +
     '\u6CE8\u610F\uFF1A\u5DF2\u53D1\u8A00\u8005\u9700\u4F7F\u7ACB\u573A\u4E0E\u5176\u53D1\u8A00\u4E00\u81F4\u3002\u672A\u53D1\u8A00\u8005\u53EF\u81EA\u7531\u5224\u5B9A\u3002\n' +
