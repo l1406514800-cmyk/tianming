@@ -119,63 +119,158 @@ body {
 /* 两栏主布局 */
 .lt-main{display:grid;grid-template-columns:320px 1fr;gap:16px;}
 
-/* ═══ 左侧：臣子选择 ═══ */
-.lt-left{display:flex;flex-direction:column;gap:10px;align-self:flex-start;max-height:80vh;}
-.lt-left-header{display:flex;align-items:center;gap:8px;}
-.lt-left-title{font-family:var(--font-serif);font-size:13px;letter-spacing:0.2em;color:var(--ink-700);padding:3px 12px 4px;background:linear-gradient(to bottom,rgba(157,130,68,0.12),rgba(157,130,68,0.03));border-top:1px solid var(--gold-d);border-bottom:1px solid var(--gold-d);}
-.lt-left-title::before,.lt-left-title::after{content:"❖";color:var(--gold-400);font-size:9px;margin:0 4px;opacity:0.6;}
-.lt-multi-btn{margin-left:auto;font-size:10.5px;padding:3px 10px;background:rgba(184,154,83,0.08);border:1px solid var(--gold-d);color:var(--ink-500);border-radius:2px;font-family:var(--font-serif);letter-spacing:0.1em;cursor:pointer;}
+/* ═══ 左侧：名帖夹（redesigned）═══ */
+.lt-left{
+  display:flex;flex-direction:column;gap:10px;
+  align-self:flex-start;max-height:80vh;
+  padding:14px 10px 16px;
+  /* 木纹背景 */
+  background-color:#2a1e14;
+  background-image:
+    repeating-linear-gradient(90deg,rgba(107,60,40,0) 0,rgba(107,60,40,0) 3px,rgba(107,60,40,0.15) 3px,rgba(107,60,40,0.15) 4px,rgba(107,60,40,0) 4px,rgba(107,60,40,0) 12px,rgba(107,60,40,0.08) 12px,rgba(107,60,40,0.08) 13px),
+    radial-gradient(ellipse at 30% 20%,rgba(184,154,83,0.08),transparent 60%),
+    linear-gradient(to bottom,rgba(74,40,24,0.4),rgba(26,20,16,0.6));
+  border:1px solid rgba(107,60,40,0.4);
+  border-radius:3px;
+  box-shadow:inset 0 0 20px rgba(0,0,0,0.4),0 2px 6px rgba(0,0,0,0.3);
+}
+.lt-left-header{display:flex;align-items:center;gap:8px;padding:0 4px;margin-bottom:4px;}
+.lt-left-title{font-family:var(--font-serif);font-size:13px;letter-spacing:0.2em;color:var(--ink-700);padding:3px 14px 4px;background:linear-gradient(to bottom,rgba(184,154,83,0.18),rgba(157,130,68,0.08));border-top:1px solid var(--gold-400);border-bottom:1px solid var(--gold-400);box-shadow:0 1px 2px rgba(0,0,0,0.3);}
+.lt-left-title::before,.lt-left-title::after{content:"❖";color:var(--gold-300);font-size:9px;margin:0 4px;opacity:0.7;}
+.lt-multi-btn{margin-left:auto;font-size:10.5px;padding:3px 10px;background:rgba(184,154,83,0.1);border:1px solid var(--gold-d);color:var(--ink-700);border-radius:2px;font-family:var(--font-serif);letter-spacing:0.1em;cursor:pointer;}
 .lt-multi-btn.active{background:linear-gradient(to bottom,var(--vermillion-400),var(--vermillion-600));color:#f4eadd;border-color:var(--vermillion-600);}
 
-.lt-npc-list{display:flex;flex-direction:column;gap:6px;overflow-y:auto;padding-right:4px;}
+/* 地域分组标签 */
+.lt-group-sep{
+  display:flex;align-items:center;gap:8px;
+  margin:10px 4px 4px;
+  font-family:var(--font-serif);
+  font-size:10.5px;
+  color:var(--gold-300);
+  letter-spacing:0.35em;
+  opacity:0.82;
+}
+.lt-group-sep::before,.lt-group-sep::after{
+  content:"";flex:1;height:1px;
+  background:linear-gradient(to right,transparent,rgba(184,154,83,0.3) 20%,rgba(184,154,83,0.3) 80%,transparent);
+}
+.lt-group-sep:first-child{margin-top:2px;}
+
+.lt-npc-list{display:flex;flex-direction:column;gap:8px;overflow-y:auto;padding:0 2px;}
+
+/* 名帖卡片 */
 .lt-npc-card{
-  display:flex;align-items:center;gap:10px;
-  padding:10px 12px;
-  background:var(--bg-paper);
-  background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.025) 2.5em,rgba(107,93,71,0.025) calc(2.5em + 1px));
-  border:1px solid var(--border-subtle);
+  display:grid;
+  grid-template-columns:44px 1fr auto;
+  gap:12px;
+  padding:10px 12px 10px 10px;
+  background:
+    linear-gradient(145deg,rgba(244,234,221,0.05) 0%,rgba(244,234,221,0.01) 100%),
+    rgba(36,30,24,0.4);
+  border:1px solid rgba(184,154,83,0.18);
   border-left:3px solid var(--npc-clr,var(--gold-d));
   border-radius:2px;
   cursor:pointer;
-  transition:all 0.2s;
   position:relative;
-  overflow:hidden;
+  transition:all 0.25s cubic-bezier(0.3,0,0.2,1);
+  box-shadow:0 1px 2px rgba(0,0,0,0.25);
 }
-.lt-npc-card::after{
-  content:"";position:absolute;top:0;right:0;
-  width:24px;height:24px;
-  background:radial-gradient(circle at top right,rgba(184,154,83,0.08),transparent 70%);
-  pointer-events:none;
+.lt-npc-card:hover{
+  border-color:rgba(184,154,83,0.5);
+  transform:translateX(2px);
+  box-shadow:-2px 2px 6px rgba(0,0,0,0.35),inset 1px 0 0 rgba(255,255,255,0.04);
 }
-.lt-npc-card:hover{border-color:var(--gold-400);background:linear-gradient(to right,rgba(184,154,83,0.05),var(--bg-paper));transform:translateX(1px);}
 .lt-npc-card.active{
+  background:
+    linear-gradient(135deg,rgba(192,64,48,0.1),rgba(192,64,48,0.02)),
+    rgba(36,30,24,0.5);
   border-color:var(--gold-400);
-  border-left-color:var(--vermillion-400);
-  border-left-width:4px;
-  background:linear-gradient(to right,rgba(192,64,48,0.06),var(--bg-paper));
-  box-shadow:0 1px 3px rgba(0,0,0,0.3);
+  border-left:4px solid var(--vermillion-400);
+  box-shadow:-3px 3px 8px rgba(0,0,0,0.4),0 0 12px rgba(184,154,83,0.15),inset 1px 0 0 rgba(255,255,255,0.06);
+  transform:translateX(2px);
 }
-.lt-npc-portrait{
-  width:36px;height:36px;border-radius:50%;
-  background:linear-gradient(135deg,var(--npc-clr,var(--gold-400)),var(--ink-100));
-  border:2px solid var(--npc-clr,var(--gold-d));
-  display:flex;align-items:center;justify-content:center;
-  color:#f4eadd;font-family:var(--font-serif);font-size:14px;font-weight:500;
-  flex-shrink:0;box-shadow:0 1px 2px rgba(0,0,0,0.3);
-}
-.lt-npc-info{flex:1;min-width:0;}
-.lt-npc-name{font-family:var(--font-serif);font-size:13.5px;color:var(--ink-900);letter-spacing:0.06em;}
-.lt-npc-title{font-size:10.5px;color:var(--ink-500);margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.lt-npc-loc{font-size:10px;color:var(--amber-400);margin-top:2px;letter-spacing:0.05em;}
-.lt-npc-badges{display:flex;flex-direction:column;gap:2px;align-items:flex-end;flex-shrink:0;}
-.lt-badge{font-size:9.5px;padding:1px 5px;border-radius:2px;font-family:var(--font-serif);letter-spacing:0.05em;white-space:nowrap;border:1px solid currentColor;}
-.lt-badge.unread{color:var(--vermillion-400);background:rgba(192,64,48,0.1);}
-.lt-badge.npc-new{color:var(--amber-400);background:rgba(201,160,69,0.1);}
-.lt-badge.transit{color:var(--blue-400);background:rgba(90,143,184,0.1);}
-.lt-badge.lost{color:var(--ink-500);background:rgba(0,0,0,0.2);}
-.lt-badge.blocked{color:var(--vermillion-400);background:rgba(192,64,48,0.15);border-style:dashed;}
 
-/* NPC 卡片颜色 */
+/* 画像·立轴框（竖长方形模拟画像卷）*/
+.lt-npc-portrait{
+  width:44px;height:54px;
+  background:
+    radial-gradient(ellipse at 50% 30%,rgba(244,234,221,0.1),transparent 60%),
+    linear-gradient(145deg,var(--npc-clr,var(--gold-400)) 0%,rgba(26,20,16,0.6) 100%);
+  border:1.5px solid var(--npc-clr,var(--gold-d));
+  border-radius:2px;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--ink-900);font-family:var(--font-serif);
+  font-size:22px;font-weight:500;
+  flex-shrink:0;
+  position:relative;
+  box-shadow:0 2px 4px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.08);
+  align-self:center;
+}
+.lt-npc-portrait::before{
+  content:"";position:absolute;inset:3px;
+  border:0.5px solid rgba(184,154,83,0.25);
+  border-radius:1px;pointer-events:none;
+}
+/* 立轴顶端小杆（画轴感）*/
+.lt-npc-portrait::after{
+  content:"";position:absolute;
+  top:-3px;left:-2px;right:-2px;
+  height:3px;
+  background:linear-gradient(to bottom,#8d7640 0%,#6b5a30 60%,#5a4a28 100%);
+  border:0.5px solid #3d2e18;
+  border-radius:1px;
+  box-shadow:0 1px 0 rgba(0,0,0,0.4);
+}
+
+.lt-npc-info{min-width:0;padding-top:3px;display:flex;flex-direction:column;justify-content:center;}
+.lt-npc-name{
+  font-family:var(--font-serif);
+  font-size:15.5px;color:var(--ink-900);
+  letter-spacing:0.15em;font-weight:500;
+  line-height:1.25;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.lt-npc-title{
+  font-size:11px;color:var(--ink-500);
+  margin-top:5px;letter-spacing:0.08em;line-height:1.3;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.lt-npc-loc{
+  font-size:10.5px;color:var(--amber-400);
+  margin-top:4px;letter-spacing:0.08em;
+  display:inline-flex;align-items:center;gap:4px;
+}
+.lt-npc-loc::before{
+  content:"◉";color:var(--amber-400);font-size:7px;opacity:0.7;
+}
+.lt-npc-loc .travel-arrow{color:var(--celadon-400);margin:0 3px;}
+
+/* 圆形指示器（代替原 badge）*/
+.lt-npc-indicators{
+  display:flex;flex-direction:column;gap:3px;
+  align-self:center;
+  padding-right:2px;
+}
+.lt-ind{
+  width:20px;height:20px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:bold;font-family:var(--font-serif);
+  line-height:1;
+  box-shadow:0 1px 2px rgba(0,0,0,0.3);
+}
+.lt-ind-unread{
+  background:linear-gradient(135deg,var(--vermillion-400),var(--vermillion-600));
+  color:#f4eadd;
+  box-shadow:0 0 6px rgba(192,64,48,0.35),0 1px 2px rgba(0,0,0,0.3);
+}
+.lt-ind-unread::before{content:"";position:absolute;inset:-2px;border:1px solid rgba(192,64,48,0.3);border-radius:50%;animation:lt-pulse 2.5s infinite;}
+@keyframes lt-pulse{0%,100%{opacity:0.6;transform:scale(1);}50%{opacity:0;transform:scale(1.25);}}
+.lt-ind-new{background:linear-gradient(135deg,var(--amber-400),#a67f35);color:#1a1410;}
+.lt-ind-transit{background:rgba(90,143,184,0.2);border:1.5px solid var(--blue-400);color:var(--blue-400);}
+.lt-ind-lost{background:rgba(74,40,24,0.5);border:1.5px dashed var(--ink-500);color:var(--ink-500);font-size:8px;}
+.lt-ind-blocked{background:repeating-linear-gradient(45deg,transparent,transparent 2px,rgba(192,64,48,0.25) 2px,rgba(192,64,48,0.25) 3px);border:1px solid var(--vermillion-400);color:var(--vermillion-300);font-size:8px;}
+
+/* NPC 颜色类别 */
 .lt-c-loyal{--npc-clr:var(--celadon-400);}
 .lt-c-normal{--npc-clr:var(--gold-400);}
 .lt-c-mili{--npc-clr:var(--vermillion-400);}
@@ -474,16 +569,18 @@ body {
           </div>
           <div class="lt-npc-list">
 
+            <div class="lt-group-sep">辽 东 · 北 境</div>
+
             <div class="lt-npc-card lt-c-loyal active">
               <div class="lt-npc-portrait">袁</div>
               <div class="lt-npc-info">
                 <div class="lt-npc-name">袁崇焕</div>
                 <div class="lt-npc-title">兵部尚书衔督师</div>
-                <div class="lt-npc-loc">宁远 · 辽东</div>
+                <div class="lt-npc-loc">宁远</div>
               </div>
-              <div class="lt-npc-badges">
-                <span class="lt-badge unread">2 未读</span>
-                <span class="lt-badge npc-new">来函 1</span>
+              <div class="lt-npc-indicators">
+                <div class="lt-ind lt-ind-unread" title="2 封未读">2</div>
+                <div class="lt-ind lt-ind-new" title="1 封来函">1</div>
               </div>
             </div>
 
@@ -494,11 +591,25 @@ body {
                 <div class="lt-npc-title">宣大总督</div>
                 <div class="lt-npc-loc">大同</div>
               </div>
-              <div class="lt-npc-badges">
-                <span class="lt-badge transit">在途 1</span>
-                <span class="lt-badge blocked">驿路断</span>
+              <div class="lt-npc-indicators">
+                <div class="lt-ind lt-ind-transit" title="1 封在途">1</div>
+                <div class="lt-ind lt-ind-blocked" title="驿路阻断">✕</div>
               </div>
             </div>
+
+            <div class="lt-npc-card lt-c-mili">
+              <div class="lt-npc-portrait">毛</div>
+              <div class="lt-npc-info">
+                <div class="lt-npc-name">毛文龙</div>
+                <div class="lt-npc-title">左都督挂镇东</div>
+                <div class="lt-npc-loc">皮岛</div>
+              </div>
+              <div class="lt-npc-indicators">
+                <div class="lt-ind lt-ind-lost" title="信使逾期">?</div>
+              </div>
+            </div>
+
+            <div class="lt-group-sep">西 陲 · 边 镇</div>
 
             <div class="lt-npc-card lt-c-scholar">
               <div class="lt-npc-portrait">洪</div>
@@ -507,41 +618,9 @@ body {
                 <div class="lt-npc-title">陕西三边总督</div>
                 <div class="lt-npc-loc">西安</div>
               </div>
-              <div class="lt-npc-badges">
-                <span class="lt-badge npc-new">来函 2</span>
+              <div class="lt-npc-indicators">
+                <div class="lt-ind lt-ind-new" title="2 封来函">2</div>
               </div>
-            </div>
-
-            <div class="lt-npc-card lt-c-mili">
-              <div class="lt-npc-portrait">毛</div>
-              <div class="lt-npc-info">
-                <div class="lt-npc-name">毛文龙</div>
-                <div class="lt-npc-title">左都督挂镇东将军印</div>
-                <div class="lt-npc-loc">皮岛</div>
-              </div>
-              <div class="lt-npc-badges">
-                <span class="lt-badge lost">信使逾期</span>
-              </div>
-            </div>
-
-            <div class="lt-npc-card lt-c-scholar">
-              <div class="lt-npc-portrait">秦</div>
-              <div class="lt-npc-info">
-                <div class="lt-npc-name">秦良玉</div>
-                <div class="lt-npc-title">石柱宣抚使</div>
-                <div class="lt-npc-loc">四川 → 京师</div>
-              </div>
-              <div class="lt-npc-badges"></div>
-            </div>
-
-            <div class="lt-npc-card lt-c-normal">
-              <div class="lt-npc-portrait">郑</div>
-              <div class="lt-npc-info">
-                <div class="lt-npc-name">郑芝龙</div>
-                <div class="lt-npc-title">海商·受招抚</div>
-                <div class="lt-npc-loc">福建</div>
-              </div>
-              <div class="lt-npc-badges"></div>
             </div>
 
             <div class="lt-npc-card lt-c-normal">
@@ -551,7 +630,29 @@ body {
                 <div class="lt-npc-title">三边总督</div>
                 <div class="lt-npc-loc">延绥</div>
               </div>
-              <div class="lt-npc-badges"></div>
+              <div class="lt-npc-indicators"></div>
+            </div>
+
+            <div class="lt-group-sep">南 方 · 海 疆</div>
+
+            <div class="lt-npc-card lt-c-scholar">
+              <div class="lt-npc-portrait">秦</div>
+              <div class="lt-npc-info">
+                <div class="lt-npc-name">秦良玉</div>
+                <div class="lt-npc-title">石柱宣抚使</div>
+                <div class="lt-npc-loc">四川<span class="travel-arrow">→</span>京师</div>
+              </div>
+              <div class="lt-npc-indicators"></div>
+            </div>
+
+            <div class="lt-npc-card lt-c-normal">
+              <div class="lt-npc-portrait">郑</div>
+              <div class="lt-npc-info">
+                <div class="lt-npc-name">郑芝龙</div>
+                <div class="lt-npc-title">海商·受招抚</div>
+                <div class="lt-npc-loc">福建</div>
+              </div>
+              <div class="lt-npc-indicators"></div>
             </div>
 
           </div>
