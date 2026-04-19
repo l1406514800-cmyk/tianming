@@ -5600,25 +5600,36 @@ function enterGame(){
       console.log('[enterGame-T1] 聚合后 GM.population.national:', GM.population && GM.population.national);
     }
 
-    // 兜底：若聚合结果明显偏低（< 剧本初始 1/2），说明 adminHierarchy 缺失/结构不对
-    // 直接从剧本 populationConfig.initial 强制写入（优先保证 UI 显示正确）
-    try {
-      var _scPop = scriptData && scriptData.populationConfig && scriptData.populationConfig.initial;
-      if (_scPop && _scPop.nationalMouths) {
-        var _cur = (GM.population && GM.population.national && GM.population.national.mouths) || 0;
-        if (_cur < _scPop.nationalMouths * 0.5) {
-          if (!GM.population) GM.population = {};
-          if (!GM.population.national) GM.population.national = {};
-          GM.population.national.mouths = _scPop.nationalMouths;
-          GM.population.national.households = _scPop.nationalHouseholds || Math.floor(_scPop.nationalMouths / 5.2);
-          GM.population.national.ding = _scPop.nationalDing || Math.floor(_scPop.nationalMouths * 0.26);
-          GM.population.fugitives = _scPop.nationalFugitives || 0;
-          GM.population.hiddenCount = _scPop.hiddenPopulation || 0;
-          console.warn('[enterGame] 户口聚合异常·从剧本初值兜底：mouths=' + _scPop.nationalMouths);
-        }
-      }
-    } catch(_popFbE) { console.warn('[enterGame] 户口兜底失败', _popFbE); }
   } catch(e) { console.error('[enterGame] Phase 补丁 init 失败:', e); }
+
+  // 兜底：Phase init 无论成败，都再做一次户口检查
+  // 若 national.mouths 明显偏低（< 剧本初始 1/2），直接从剧本 populationConfig 强制写入
+  try {
+    var _scFb = (typeof findScenarioById === 'function' && GM.sid) ? findScenarioById(GM.sid) : null;
+    var _scPopFb = _scFb && _scFb.populationConfig && _scFb.populationConfig.initial;
+    if (GM.turn === 1 && _scPopFb) {
+      console.log('[enterGame-兜底] 剧本 populationConfig.initial:', _scPopFb);
+      console.log('[enterGame-兜底] 当前 GM.population.national:', GM.population && GM.population.national);
+    }
+    if (_scPopFb && _scPopFb.nationalMouths) {
+      var _curM = (GM.population && GM.population.national && GM.population.national.mouths) || 0;
+      if (_curM < _scPopFb.nationalMouths * 0.5) {
+        if (!GM.population) GM.population = {};
+        if (!GM.population.national) GM.population.national = {};
+        GM.population.national.mouths = _scPopFb.nationalMouths;
+        GM.population.national.households = _scPopFb.nationalHouseholds || Math.floor(_scPopFb.nationalMouths / 5.2);
+        GM.population.national.ding = _scPopFb.nationalDing || Math.floor(_scPopFb.nationalMouths * 0.26);
+        GM.population.fugitives = _scPopFb.nationalFugitives || 0;
+        GM.population.hiddenCount = _scPopFb.hiddenPopulation || 0;
+        console.warn('[enterGame] 户口聚合异常·从剧本初值兜底：mouths=' + _scPopFb.nationalMouths
+          + ' (原 ' + _curM + ')');
+      } else if (GM.turn === 1) {
+        console.log('[enterGame-兜底] 户口正常·无需兜底 (当前 ' + _curM + ' >= 剧本 ' + _scPopFb.nationalMouths * 0.5 + ')');
+      }
+    } else if (GM.turn === 1) {
+      console.warn('[enterGame-兜底] 剧本无 populationConfig.initial.nationalMouths·跳过兜底');
+    }
+  } catch(_popFbE) { console.warn('[enterGame] 户口兜底失败', _popFbE); }
 
   renderGameState();
 
