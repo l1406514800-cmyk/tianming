@@ -5416,8 +5416,24 @@ function _initOfficePublicTreasury(nodes) {
 }
 
 // 按品级推算角色私产初始值（当剧本未给定 wealthInit 且 wealth 为字符串描述时）
+// 兼容从 rank(数字) 和 officialTitle(如"从四品"/"正二品") 两种输入
+function _parseRankNumber(ch) {
+  // 1. 直接用 rank 数字
+  if (typeof ch.rank === 'number' && ch.rank >= 1 && ch.rank <= 9) return ch.rank;
+  // 2. 从 officialTitle/rank 字符串解析"正X品/从X品"
+  var rankStr = (typeof ch.rank === 'string' ? ch.rank : '') + '|' + (ch.officialTitle || '') + '|' + (ch.title || '');
+  var numMap = { '一':1, '二':2, '三':3, '四':4, '五':5, '六':6, '七':7, '八':8, '九':9 };
+  var m = rankStr.match(/(正|从)([一二三四五六七八九])品/);
+  if (m) {
+    var r = numMap[m[2]];
+    // 从品加 0.5 档，但结果仍取整数档位（1-9）
+    return r;
+  }
+  // 3. 无品级 → 0（平民/未入仕）
+  return 0;
+}
 function _inferPrivateWealthByRank(ch) {
-  var r = ch.rank || 0;
+  var r = _parseRankNumber(ch);
   // 品级越高私产越丰（明清历史参照·单位 两/亩）
   var tiers = {
     1:  { cash: 50000, land: 10000, treasure: 30000, slaves: 200, commerce: 20000 },  // 正一品
@@ -5430,7 +5446,9 @@ function _inferPrivateWealthByRank(ch) {
     8:  { cash:   500, land:   200, treasure:   300, slaves:   4, commerce:   200 },  // 正八品
     9:  { cash:   200, land:   100, treasure:   150, slaves:   2, commerce:   100 }   // 正九品
   };
-  return tiers[Math.max(1, Math.min(9, r))] || { cash: 0, land: 0, treasure: 0, slaves: 0, commerce: 0 };
+  // 无品级 → 平民/未入仕基准（很低）
+  if (!r || r < 1) return { cash: 100, land: 50, treasure: 50, slaves: 0, commerce: 50 };
+  return tiers[Math.min(9, r)] || tiers[9];
 }
 
 // 从 wealth 字符串中解析数字线索（如"田 4 万顷"→ land = 40000*100, "家丁 3000"→ slaves = 3000）
@@ -5534,6 +5552,19 @@ function enterGame(){
     _initCharacterPrivateWealth(GM.chars || []);
     if (GM.turn === 1) console.log('[enterGame] 角色私产初始化完成');
   } catch(_pwE) { console.warn('[enterGame] 角色私产初始化失败', _pwE); }
+
+  // 角色公库镜像：按 officialTitle 绑定到官职·读其 publicTreasury.money.stock
+  try {
+    var _cEng = (typeof CharEconEngine !== 'undefined') ? CharEconEngine : null;
+    if (_cEng && typeof _cEng.updatePublicTreasuryMirror === 'function' && GM.chars) {
+      GM.chars.forEach(function(ch){
+        if (!ch || ch.alive === false) return;
+        try { _cEng.ensureCharResources(ch); } catch(_){}
+        try { _cEng.updatePublicTreasuryMirror(ch); } catch(_){}
+      });
+      if (GM.turn === 1) console.log('[enterGame] 角色公库镜像刷新完成');
+    }
+  } catch(_mpE) { console.warn('[enterGame] 角色公库镜像失败', _mpE); }
 
   // 首次进入游戏（turn=1 且未初始化过腐败预设）→ 按朝代预设初始化腐败
   try {

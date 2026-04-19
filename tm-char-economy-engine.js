@@ -390,11 +390,54 @@
 
   function updatePublicTreasuryMirror(ch) {
     var pt = ch.resources.publicTreasury;
-    if (!pt || !pt.linkedRegion) return;
-    // 从 GM.regions[region].publicTreasury 拿
-    var regionPT = (GM.regions && GM.regions[pt.linkedRegion] && GM.regions[pt.linkedRegion].publicTreasury) || null;
-    if (regionPT) {
-      pt.balance = regionPT.balance;
+    if (!pt) return;
+    // 自动推断绑定：若未显式设置·按 officialTitle 查 officeTree 对应职位
+    if (!pt.linkedPost && !pt.linkedRegion && ch.officialTitle && GM.officeTree) {
+      var _foundPos = null;
+      var _walk = function(nodes) {
+        for (var i = 0; i < nodes.length && !_foundPos; i++) {
+          var n = nodes[i];
+          if (n && n.positions) {
+            for (var j = 0; j < n.positions.length; j++) {
+              var p = n.positions[j];
+              if (p && p.name === ch.officialTitle) { _foundPos = p; break; }
+              // 容错：官衔包含职位名
+              if (p && p.name && (ch.officialTitle.indexOf(p.name) >= 0 || p.name.indexOf(ch.officialTitle) >= 0)) { _foundPos = p; break; }
+            }
+          }
+          if (!_foundPos && n && n.subs) _walk(n.subs);
+        }
+      };
+      _walk(GM.officeTree);
+      if (_foundPos) {
+        pt.linkedPost = _foundPos.name;
+        pt._postRef = _foundPos; // 缓存引用·下次免查
+      }
+    }
+    // 1) 职位公库镜像（优先）
+    var postPos = pt._postRef;
+    if (!postPos && pt.linkedPost && GM.officeTree) {
+      var _w2 = function(nodes) {
+        for (var i = 0; i < nodes.length && !postPos; i++) {
+          var n = nodes[i];
+          (n.positions||[]).forEach(function(p){ if (!postPos && p && p.name === pt.linkedPost) postPos = p; });
+          if (!postPos && n.subs) _w2(n.subs);
+        }
+      };
+      _w2(GM.officeTree);
+      if (postPos) pt._postRef = postPos;
+    }
+    if (postPos && postPos.publicTreasury && postPos.publicTreasury.money) {
+      pt.balance = postPos.publicTreasury.money.stock || 0;
+      pt.grain = postPos.publicTreasury.grain && postPos.publicTreasury.grain.stock || 0;
+      pt.cloth = postPos.publicTreasury.cloth && postPos.publicTreasury.cloth.stock || 0;
+      pt.deficit = postPos.publicTreasury.money.deficit || 0;
+      return;
+    }
+    // 2) 区域公库镜像（兜底）
+    if (pt.linkedRegion) {
+      var regionPT = (GM.regions && GM.regions[pt.linkedRegion] && GM.regions[pt.linkedRegion].publicTreasury) || null;
+      if (regionPT) pt.balance = regionPT.balance;
     }
   }
 
@@ -692,6 +735,7 @@
   global.CharEconEngine = {
     tick: tick,
     ensureCharResources: ensureCharResources,
+    updatePublicTreasuryMirror: updatePublicTreasuryMirror,
     ensureCourtesyName: ensureCourtesyName,
     formatAddress: formatAddress,
     Income: Income,
