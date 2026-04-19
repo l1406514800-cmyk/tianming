@@ -689,9 +689,24 @@ input,textarea,select{pointer-events:auto!important;position:relative;z-index:10
 .ed-sug-title-wrap{text-align:center;margin-bottom:14px;}
 .ed-sug-title{display:inline-block;font-family:var(--font-serif);font-size:14px;letter-spacing:0.25em;color:var(--color-foreground);padding:4px 14px 6px;background:linear-gradient(to bottom,rgba(157,130,68,0.12),rgba(157,130,68,0.03));border-top:1px solid var(--gold-d);border-bottom:1px solid var(--gold-d);position:relative;}
 .ed-sug-title::before,.ed-sug-title::after{content:"❖";color:var(--gold-400);font-size:10px;margin:0 6px;opacity:0.6;}
-.ed-sug-item{border-left:2px solid var(--gold-d)!important;background:var(--color-surface)!important;padding:10px 12px!important;border-radius:2px;font-size:12.5px!important;line-height:1.6!important;color:var(--color-foreground-muted)!important;cursor:pointer;transition:all 0.25s;position:relative;}
-.ed-sug-item:hover{border-left-color:var(--vermillion-400)!important;color:var(--color-foreground)!important;background:linear-gradient(to right,rgba(192,64,48,0.08),var(--color-surface))!important;}
-.ed-sug-item .src{font-size:10.5px!important;color:var(--gold-400)!important;font-family:var(--font-serif);letter-spacing:0.05em;margin-bottom:3px;}
+.ed-sug-item{border-left:2px solid var(--src-color,var(--gold-d));background:var(--color-surface);padding:10px 12px 10px 12px;border-radius:2px;font-size:12.5px;line-height:1.6;color:var(--color-foreground-muted);cursor:pointer;transition:all 0.25s;position:relative;}
+.ed-sug-item:hover{border-left-color:var(--vermillion-400);color:var(--color-foreground);background:linear-gradient(to right,rgba(192,64,48,0.06),var(--color-surface));box-shadow:0 1px 3px rgba(0,0,0,0.2);}
+.ed-sug-item .src{font-size:10.5px;color:var(--src-color,var(--gold-400));font-family:var(--font-serif);letter-spacing:0.05em;margin-bottom:3px;padding-right:40px;font-weight:500;}
+.ed-sug-item .topic{font-size:10px;color:var(--amber-400,#c9a045);margin:2px 0;font-style:italic;letter-spacing:0.05em;}
+.ed-sug-item .txt{color:inherit;font-size:12.5px;line-height:1.6;font-family:var(--font-serif);padding-top:2px;}
+.ed-sug-item .act{position:absolute;top:8px;right:8px;font-size:10px;color:var(--ink-300,#6b5d47);padding:1px 5px;border:1px solid var(--color-border-subtle);border-radius:2px;background:var(--color-background,#1a1510);opacity:0;transition:opacity 0.2s;font-family:var(--font-serif);letter-spacing:0.1em;cursor:pointer;}
+.ed-sug-item:hover .act{opacity:0.9;}
+.ed-sug-item .act:hover{color:var(--gold-400);border-color:var(--gold-400);background:rgba(184,154,83,0.1);opacity:1;}
+.ed-sug-item .del{position:absolute;bottom:6px;right:8px;font-size:11px;color:var(--ink-300,#6b5d47);background:none;border:none;cursor:pointer;padding:1px 4px;opacity:0;transition:all 0.2s;line-height:1;}
+.ed-sug-item:hover .del{opacity:0.6;}
+.ed-sug-item .del:hover{opacity:1;color:var(--vermillion-400);transform:scale(1.15);}
+.ed-src-chaoyi{--src-color:var(--indigo-400);}
+.ed-src-wendui{--src-color:var(--celadon-400);}
+.ed-src-letter{--src-color:var(--amber-400,#c9a045);}
+.ed-src-memorial{--src-color:var(--vermillion-400);}
+.ed-src-office{--src-color:var(--purple-400,#8e6aa8);}
+.ed-src-local{--src-color:var(--celadon-400);}
+.ed-src-default{--src-color:var(--gold-d);}
 /* 主角行止分割+卡片 */
 .ed-section-divider{text-align:center;margin:28px 0 20px;position:relative;}
 .ed-section-divider::before{content:"";position:absolute;left:0;right:0;top:50%;height:1px;background:linear-gradient(to right,transparent 0%,var(--gold-d) 30%,var(--gold-d) 70%,transparent 100%);}
@@ -1975,7 +1990,7 @@ console.log('天命游戏脚本开始加载...');
 <script src="tm-change-queue.js"></script>
 <script src="tm-index-world.js?v=20260419s"></script>
 <script src="tm-npc-engine.js"></script>
-<script src="tm-game-engine.js?v=20260419u"></script>
+<script src="tm-game-engine.js?v=20260419v"></script>
 <script src="tm-map-system.js"></script>
 <script src="tm-dynamic-systems.js"></script>
 <script src="tm-economy-military.js"></script>

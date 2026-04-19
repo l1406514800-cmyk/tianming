@@ -5284,22 +5284,29 @@ function _renderEdictSuggestions() {
     {id:'edict-oth', label:'\u5176\u4ED6', color:'var(--ink-300)'}
   ];
   var _unused = (GM._edictSuggestions || []).filter(function(s) { return !s.used; });
-  // 美化版：标题"议事清册"已在父级 HTML 中渲染·此处只渲染项目
+  // 按来源映射 src 类
+  var _srcClsMap = {
+    '\u671D\u8BAE': 'ed-src-chaoyi',
+    '\u95EE\u5BF9': 'ed-src-wendui',
+    '\u9E3F\u96C1': 'ed-src-letter',
+    '\u594F\u758F': 'ed-src-memorial',
+    '\u5B98\u5236': 'ed-src-office',
+    '\u5730\u65B9': 'ed-src-local'
+  };
   var html = '';
   if (_unused.length === 0) {
     html += '<div style="font-size:11.5px;color:var(--color-foreground-muted);line-height:1.7;padding:12px 10px;text-align:center;font-family:var(--font-serif);font-style:italic;">\u8BF8\u4E8B\u6682\u5B81\u3002\u53EC\u5F00\u300C\u671D\u8BAE\u300D\u6216\u300C\u95EE\u5BF9\u300D\uFF0C\u5176\u8FDB\u8A00\u5C06\u6536\u5165\u6B64\u5904\u3002</div>';
   } else {
-    _unused.forEach(function(s, si) {
+    _unused.forEach(function(s) {
       var _realIdx = (GM._edictSuggestions || []).indexOf(s);
-      var _srcClr = s.source === '\u671D\u8BAE' ? 'var(--indigo-400)' : s.source === '\u9E3F\u96C1' ? 'var(--amber-400)' : s.source === '\u5B98\u5236' ? 'var(--purple,#9b59b6)' : s.source === '\u594F\u758F' ? 'var(--vermillion-400)' : s.source === '\u5730\u65B9' ? 'var(--celadon-400)' : 'var(--celadon-400)';
-      html += '<div style="padding:var(--space-2);background:var(--color-surface);border-left:3px solid ' + _srcClr + ';border-radius:var(--radius-sm);margin-bottom:var(--space-2);">';
-      html += '<div style="font-size:var(--text-xs);color:' + _srcClr + ';font-weight:var(--weight-bold);">' + escHtml(s.source) + ' <span style="color:var(--color-foreground-muted);">' + escHtml(s.from) + '</span></div>';
-      if (s.topic) html += '<div style="font-size:0.65rem;color:var(--amber-400);margin:2px 0;font-style:italic;">〔' + escHtml(s.topic) + '〕</div>';
-      html += '<div style="font-size:var(--text-xs);color:var(--color-foreground);margin:var(--space-1) 0;line-height:1.5;">' + escHtml(s.content) + '</div>';
-      html += '<div style="display:flex;gap:4px;align-items:center;">';
-      html += '<button class="bt bsm" style="font-size:0.6rem;color:var(--gold-400);border-color:var(--gold-500);padding:1px 6px;" onclick="_showEdictAdoptMenu(event,' + _realIdx + ')">\u7EB3\u5165\u8BCF\u4E66 \u25BE</button>';
-      html += '<button style="font-size:0.6rem;color:var(--vermillion-400);background:none;border:none;cursor:pointer;padding:0 2px;" onclick="GM._edictSuggestions[' + _realIdx + '].used=true;_renderEdictSuggestions();" title="\u5220\u9664">\u2715</button>';
-      html += '</div>';
+      var _srcCls = _srcClsMap[s.source] || 'ed-src-default';
+      var _srcLine = '\u3010' + escHtml(s.source || '?') + (s.from ? '\u00B7' + escHtml(s.from) : '') + '\u3011';
+      html += '<div class="ed-sug-item ' + _srcCls + '" onclick="_showEdictAdoptMenu(event,' + _realIdx + ')">';
+      html += '<div class="src">' + _srcLine + '</div>';
+      if (s.topic) html += '<div class="topic">\u3014' + escHtml(s.topic) + '\u3015</div>';
+      html += '<div class="txt">' + escHtml(s.content) + '</div>';
+      html += '<span class="act">\u6458\u5165</span>';
+      html += '<button class="del" onclick="event.stopPropagation();GM._edictSuggestions[' + _realIdx + '].used=true;_renderEdictSuggestions();" title="\u5220\u9664">\u2715</button>';
       html += '</div>';
     });
   }
