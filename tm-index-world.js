@@ -3338,7 +3338,7 @@ function _wdConfirmPick(name) {
  */
 function openWenduiModal(name, mode, prefillMsg) {
   // N4: 问对消耗精力
-  if (typeof _spendEnergy === 'function' && !_spendEnergy(15, '问对·' + name)) return;
+  if (typeof _spendEnergy === 'function' && !_spendEnergy(5, '问对·' + name)) return;
   _wenduiMode = mode || 'formal';
   GM.wenduiTarget = name;
   if (!GM.wenduiHistory) GM.wenduiHistory = {};

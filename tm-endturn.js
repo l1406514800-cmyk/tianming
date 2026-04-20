@@ -12573,16 +12573,9 @@ async function _endTurn_updateSystems(timeRatio, zhengwen) {
       });
     }
   } catch(e) { console.error('[endTurn] CharFullSchema.evolveTick 失败:', e); }
-  // N4: 精力回复（每回合回复一定值，受年龄和压力影响）
+  // N4: 精力回复（每回合自动回满）
   if (GM._energy !== undefined) {
-    var _pc = GM.chars && GM.chars.find(function(c){ return c.isPlayer; });
-    var _recoverAmt = 40; // 基础回复量
-    if (_pc) {
-      if ((_pc.age || 30) > 50) _recoverAmt -= 5;
-      if ((_pc.age || 30) > 65) _recoverAmt -= 10;
-      if ((_pc.stress || 0) > 60) _recoverAmt -= 8;
-    }
-    GM._energy = Math.min(GM._energyMax || 100, (GM._energy || 0) + Math.max(10, _recoverAmt));
+    GM._energy = GM._energyMax || 100;
   }
 
   // 6.63 领地产出计算（在集权回拨之前）
