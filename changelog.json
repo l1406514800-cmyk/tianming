@@ -3,6 +3,19 @@
   "entries": [
     {
       "date": "2026-04-20",
+      "module": "AI 角色生成",
+      "title": "aiGenerateCompleteCharacter 六处深化",
+      "items": [
+        { "what": "prompt 注入时局上下文：【时节/朝代阶段/皇威/当前势力/党派/已有重要人物】", "why": "原来只喂姓名+年份·AI 凭空捏人；现在能把新角色挂到真实派系关系网里" },
+        { "what": "schema 扩展：location 当前所在地 / faction 必须从势力清单选 / relations 字典 / privateWealthHint 私产提示", "why": "生成角色一开始就属于某个势力·和已有人物有明确关系·不再游离" },
+        { "what": "并发锁 GM._generatingChars：同名被多处扫到时后续等前面完成", "why": "防重复 API 调用·scanMentionedCharacters 一回合多次提到同一人不再浪费 token" },
+        { "what": "私产按身份估值：解析 AI 返回提示（5 万 / 35000）+ 按官职兜底（首辅 60K / 总督 45K / 侍郎 35K / 翰林 8K / 平民 3K）", "why": "修复原来所有新角色私产全是 0 的 bug·写入正确键 cash 对齐引擎" },
+        { "what": "索引直接 O(1) 注册 GM._indices.charByName.set + 自动触发 renderRenwu/renderGameState", "why": "修使节同类 bug：索引不再重建·征召角色立即出现在人物志不用等下回合" },
+        { "what": "史实否决/生成失败时清锁不阻塞后续", "why": "并发场景下不会因一次失败卡死同名角色再生成尝试" }
+      ]
+    },
+    {
+      "date": "2026-04-20",
       "module": "姓名抓取",
       "title": "姓名抓取逻辑三处深化",
       "items": [
