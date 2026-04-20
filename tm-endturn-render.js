@@ -1059,8 +1059,13 @@ function _renderUnifiedChanges(oldVars) {
       var label = escHtml(r.name || r.reason || (r.kind === 'income' ? '入库' : '支用')).slice(0, 16);
       var tip = escHtml((r.reason || '') + (r.name?'\u00B7'+r.name:'')).slice(0, 80);
       var short = r.shortfall || 0;
-      if (short > 0) {
-        // 亏欠：红框高亮 + 亏欠标记
+      var status = r.executionStatus || '';
+      if (status === 'blocked') {
+        // 完全拒付：红底+❌
+        var tipBlk = '\u5E93\u7A7A\u4E3A\u96F6\u00B7\u8BCF\u4E0D\u5F97\u884C\u00B7\u8BF7 ' + (r.requested||0) + ' \u4E00\u6587\u672A\u62E8' + (r.reason?'\u3010'+r.reason+'\u3011':'');
+        out.push('<span class="tr-reason-chip" title="' + escHtml(tipBlk) + '" style="background:rgba(192,64,48,0.18);border:1px solid var(--vermillion-400);color:#fef4e8;">\u274C ' + label + '<span style="margin-left:6px;color:#fbd8d0;">\u8BF7' + _rucFmtBig(r.requested||0) + '\u00B7\u672A\u62E8</span></span>');
+      } else if (short > 0) {
+        // 部分执行：橙框+亏欠标记
         var reqTxt = r.requested ? ('/\u8BF7' + _rucFmtBig(r.requested)) : '';
         var tipShort = '\u8BF7 ' + (r.requested||0) + '\u00B7\u4EC5\u62E8 ' + (r.amount||0) + '\u00B7\u4E8F\u7A7A ' + short + (r.reason?'\u3010'+r.reason+'\u3011':'');
         out.push('<span class="tr-reason-chip danger" title="' + escHtml(tipShort) + '" style="border-color:var(--vermillion-400);color:#d4706a;">\u2757' + label + reqTxt + '<span class="v">' + signChar + _rucFmtBig(r.amount||0) + '</span><span style="color:var(--vermillion-400);margin-left:4px;font-size:0.85em;">\u4E8F' + _rucFmtBig(short) + '</span></span>');

@@ -2514,6 +2514,138 @@ function getCustomPolicyContext() {
 }
 
 /** Step 0: 初始化 — 重置系统、构建快照 */
+/**
+ * 后妃请见生成器——每回合按冷落/性格/情感决定概率
+ * - 默认情感私下模式（mode:'private'）
+ * - 30% 概率附带留宿请求（overnight）
+ */
+function _generateConsortAudiences() {
+  if (!GM.chars) return;
+  var consorts = GM.chars.filter(function(c){ return c && c.alive !== false && c.spouse; });
+  if (consorts.length === 0) return;
+  if (!GM._pendingAudiences) GM._pendingAudiences = [];
+  // 已在队列中的不重复加
+  var already = {};
+  GM._pendingAudiences.forEach(function(q){ if (q && q.isConsort && q.name) already[q.name] = true; });
+
+  consorts.forEach(function(c){
+    if (already[c.name]) return;
+    // 冷落天数——上次留宿/私见记录
+    var lastVisit = c._lastEmperorVisitTurn || 0;
+    var neglectTurns = Math.max(0, GM.turn - lastVisit);
+    // 基础概率——冷落愈久愈高
+    var prob = Math.min(0.6, 0.05 + neglectTurns * 0.06);
+    // 高忠诚低压力：主动请见意愿稍高；高压力则频繁请见求慰
+    if ((c.stress||0) > 50) prob += 0.1;
+    if ((c.loyalty||50) > 80) prob += 0.05;
+    // 皇后地位高，主动请见概率略减（更矜持）
+    if (c.spouseRank === 'empress') prob *= 0.7;
+    // 侍妾身份主动请见概率也低
+    if (c.spouseRank === 'attendant') prob *= 0.6;
+    // 皇帝荒淫度高——妃嫔主动请见更活跃
+    if ((GM._tyrantDecadence||0) > 40) prob += 0.1;
+    if (Math.random() > prob) return;
+    // 决定情绪基调
+    var moods = ['企盼'];
+    if (neglectTurns >= 3) moods.push('幽怨','思念','思念');
+    if ((c.stress||0) > 60) moods.push('忧惧');
+    if (c.children && c.children.length > 0) moods.push('喜悦');
+    if ((c.ambition||50) > 70) moods.push('进言');
+    // 皇后特有——报告后宫事务（其职责所在，权重较高）
+    if (c.spouseRank === 'empress') {
+      moods.push('宫务','宫务','宫务');  // 三倍权重，比其他情绪更常出现
+    }
+    var mood = moods[Math.floor(Math.random()*moods.length)];
+    // 留宿概率（按亲密度 + 荒淫度）
+    var overnightProb = 0.25 + Math.min(0.3, neglectTurns*0.04) + Math.min(0.2, (GM._tyrantDecadence||0)*0.003);
+    if (mood === '幽怨' || mood === '忧惧') overnightProb *= 0.7;
+    if (mood === '喜悦' || mood === '思念') overnightProb *= 1.3;
+    var requestOvernight = Math.random() < overnightProb;
+    // 请见事由
+    var reason = (mood === '喜悦' ? '有喜事禀报' : mood === '幽怨' ? '久未蒙幸·心有不平' : mood === '思念' ? '思念陛下·请一叙' : mood === '忧惧' ? '宫中有事相告' : mood === '进言' ? '欲进忠言' : mood === '宫务' ? '奏禀后宫事务' : '请安问候');
+    GM._pendingAudiences.push({
+      name: c.name, reason: reason, turn: GM.turn,
+      isConsort: true, consortMood: mood, requestOvernight: requestOvernight,
+      mode: 'private'
+    });
+    if (typeof addEB === 'function') addEB('\u540E\u5BAB', c.name + '\u8BF7\u89C1\u00B7' + mood + (requestOvernight?'\u00B7\u542B\u7559\u5BBF\u8BF7':''));
+  });
+}
+
+/**
+ * 后妃文苑参与生成器——高学识/智力后妃按概率作诗/词/札记投稿
+ * 每回合调用一次，命中则为 GM.culturalWorks 追加作品（若存在），并在史记记录
+ * 动机多样：吸引帝注意/发泄闷气/喜爱作文/借物言志/应景
+ */
+function _generateConsortLiterary() {
+  if (!GM.chars) return;
+  var spouses = GM.chars.filter(function(c){ return c && c.alive !== false && c.spouse; });
+  if (spouses.length === 0) return;
+  if (!GM.culturalWorks) GM.culturalWorks = [];
+  var scn = typeof findScenarioById === 'function' ? findScenarioById(GM.sid) : null;
+  var era = scn && (scn.era || scn.dynasty) || '';
+
+  spouses.forEach(function(c){
+    // 参与门槛：智力或学识任一 >= 65
+    var intel = c.intelligence || 0;
+    var hasLearning = c.learning && /(\u8BD7\u8BCD|\u6587\u5B66|\u7ECF\u5B66|\u5112|\u7406\u5B66|\u4E49\u7406|\u8BE0|\u7FB2)/.test(c.learning);
+    if (intel < 65 && !hasLearning) return;
+    // 基础概率
+    var prob = 0.04 + (intel - 60) * 0.005;  // 智力 65 起约 6.5%，智力 90 起约 19%
+    if (hasLearning) prob += 0.08;
+    if ((c.stress||0) > 55) prob += 0.05;  // 压力大→发泄作文
+    var neglectTurns = Math.max(0, GM.turn - (c._lastEmperorVisitTurn||0));
+    if (neglectTurns >= 4) prob += 0.06;     // 冷落久→借文抒怀
+    if (c.traitIds && P.traitDefinitions) {
+      var tNames = c.traitIds.map(function(id){var d=P.traitDefinitions.find(function(t){return t.id===id;}); return d?d.name:'';}).join('');
+      if (/\u7B14|\u6587|\u98A8\u96C5|\u624D\u5973|\u806A\u6167/.test(tNames)) prob += 0.1;
+    }
+    prob = Math.min(0.3, prob);
+    if (Math.random() > prob) return;
+    // 决定动机
+    var motives = ['随心而作'];
+    if (neglectTurns >= 4) { motives.push('借物言志','宫怨独吟','寄意君王'); }
+    if ((c.stress||0) > 55) { motives.push('发泄幽绪'); }
+    if (intel >= 85 || hasLearning) { motives.push('喜作此事','偶得佳句'); }
+    if ((c.ambition||50) > 65) { motives.push('欲邀帝赏','传名宫外'); }
+    if (GM._tyrantDecadence && GM._tyrantDecadence > 40) { motives.push('规劝君主'); }
+    var motive = motives[Math.floor(Math.random()*motives.length)];
+    // 体裁
+    var genres = ['诗','词','札记','小令','赋'];
+    if (/\u7ECF|\u4E49\u7406/.test(c.learning||'')) genres.push('笺释');
+    var genre = genres[Math.floor(Math.random()*genres.length)];
+    // 风格标签按情绪
+    var mood = motive.indexOf('宫怨') >= 0 || motive.indexOf('幽') >= 0 ? '\u5E7D\u6028'
+             : motive.indexOf('邀') >= 0 ? '\u7F20\u7EF5'
+             : motive.indexOf('规') >= 0 ? '\u89C4\u52B8'
+             : motive.indexOf('发泄') >= 0 ? '\u6115\u5F85'
+             : '\u6E05\u96C5';
+    var work = {
+      id: 'cw_consort_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+      author: c.name,
+      authorRole: c.spouseRank || 'consort',
+      authorIsSpouse: true,
+      title: '',  // AI 下回合可补
+      genre: genre,
+      subtype: genre,
+      mood: mood,
+      motive: motive,
+      preview: '',  // AI 下回合可补
+      turn: GM.turn,
+      date: (typeof getTSText === 'function') ? getTSText(GM.turn) : '',
+      era: era,
+      _pendingAIComplete: true  // 标记·下回合 AI 据此生成题名和首句
+    };
+    GM.culturalWorks.push(work);
+    if (typeof addEB === 'function') addEB('\u6587\u82D1', c.name + '\u4F5C\u300A' + genre + '\u300B\u4E00\u9996\u00B7' + motive);
+    // 若是吸引帝意或规劝，标记以便 AI 让皇帝可能读到
+    if (motive.indexOf('邀') >= 0 || motive.indexOf('寄意') >= 0 || motive.indexOf('规劝') >= 0) {
+      if (!GM._consortPendingLiteraryForEmperor) GM._consortPendingLiteraryForEmperor = [];
+      GM._consortPendingLiteraryForEmperor.push({ name: c.name, workId: work.id, motive: motive, turn: GM.turn });
+    }
+  });
+}
+
 function _endTurn_init() {
   _dbg('========== 回合结算开始 (T' + GM.turn + ') ==========');
   // 快照本回合结算前的经济/户口状态（供 _renderUnifiedChanges 显示增减）
@@ -3608,6 +3740,12 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
     tp += '    ★ 常见映射：皇帝赐赏私人→target:neitang/kind:expense；诏令赈济地方→target:guoku/kind:expense；战争缴获→target:guoku/kind:income；地方贡物→target:guoku/kind:income（贵重珍宝则 neitang）；抄家罚没→guoku 或 neitang（视情）\n';
     tp += '    ★ recurring:true 只用于长期年例（如"岁赐辽东饷三十万"）；一次性赏赐/赈济/缴获 recurring:false（立刻作用于余额，不续）\n';
     tp += '    ★ 玩家诏令文本若出现明确数额（赏/赐/拨/发/征/抄/没）X 两/石/匹——必须生成对应 fiscal_adjustments；若库不足则 kind:expense 只能到库余，并在 reason 里说明"库不足仅拨 N"\n';
+    tp += '    ★【执行上限·不得突破 0】玩家主动花钱最多花到库存见底，不能透支到负数：\n';
+    tp += '        - 若 帑廪/内帑 余额 <= 0（被动结算后已赤字）→ 本条诏令 expense 完全无法执行（applier 会标 executionStatus:blocked）\n';
+    tp += '        - 若 0 < 余额 < 请款额 → 拨到见底·剩余记亏欠（executionStatus:partial）\n';
+    tp += '        - edict_feedback 对应条目必须据此给出后果：blocked→"国库空虚·诏不得行·某事因此停顿/激变"；partial→"仅拨 N 两/石·不足部分如何措置（加派/借贷/挪移/拖欠）"\n';
+    tp += '        - npc_actions 中：受益者对 blocked/partial 应有不满/怨言·地方大员请饷不得应有怠政\n';
+    tp += '        - 叙事里一定要写明"帑廪已空·户部尚书泣请/南京仓无可调/漕运绝流"而不得回避\n';
     tp += '  · 势力/党派/阶层/区域变化 → faction_updates / party_updates / class_updates / region_updates\n';
     tp += '  · 工程/运动/战役启动 → project_updates 保存进度；相应 fiscal_adjustments 记支出\n';
     tp += '  · 任何其他深层字段（人物属性、忠诚、好感、记忆、派系关系、异象、科举阶段等）→ anyPathChanges op:"set/delta/push/merge"\n';
@@ -6126,6 +6264,73 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         if (typeof ChronicleTracker !== 'undefined' && ChronicleTracker.getAIContextString) {
           var _chronCtx = ChronicleTracker.getAIContextString();
           if (_chronCtx) tp1 += '\n\n' + _chronCtx;
+        }
+        // 后妃请见生成器——每回合按冷落/性格/宫心决定概率
+        try { _generateConsortAudiences(); } catch(_caE) { console.warn('[consortAudience]', _caE); }
+        // 后妃文苑参与生成——高学识/智力后妃有概率作文投稿
+        try { _generateConsortLiterary(); } catch(_clE) { console.warn('[consortLit]', _clE); }
+        // 后妃文苑作品待 AI 补完题名正文
+        if (Array.isArray(GM.culturalWorks)) {
+          var _pendingLit = GM.culturalWorks.filter(function(w){return w && w.authorIsSpouse && w._pendingAIComplete && w.turn === GM.turn - 1;});
+          if (_pendingLit.length > 0) {
+            tp1 += '\n\n【★ 后妃新作·文苑待补 ★】请在 char_updates/culturalWorks_updates 里补 title 和 preview：';
+            _pendingLit.forEach(function(w){
+              var chw = (GM.chars||[]).find(function(c){return c&&c.name===w.author;});
+              tp1 += '\n  · ' + w.author + '（' + (chw&&chw.spouseRank||'') + '）作《' + w.genre + '》·动机【' + w.motive + '】·风格【' + w.mood + '】';
+              if (chw && chw.learning) tp1 += '·学识' + chw.learning;
+            });
+            tp1 += '\n  ★ 要求：题名典雅·正文(preview)16-40 字·符合动机与风格·贴合' + (era||'此时') + '风貌';
+            tp1 += '\n  ★ 补完方式：anyPathChanges 数组里 path="culturalWorks[i]" op:"merge" value:{title:"...",preview:"..."}（i 对应 turn 和 author 定位）·或 char_updates 该妃 +culturalContribution 记叙';
+          }
+          // 已送到皇帝面前的作品
+          if (Array.isArray(GM._consortPendingLiteraryForEmperor) && GM._consortPendingLiteraryForEmperor.length > 0) {
+            var _sent = GM._consortPendingLiteraryForEmperor.filter(function(p){return p && p.turn === GM.turn - 1;});
+            if (_sent.length > 0) {
+              tp1 += '\n【★ 后妃呈作 ★】以下妃嫔将作品呈于陛下御览，houren_xishuo 中应有反应：';
+              _sent.forEach(function(p){ tp1 += '\n  · ' + p.name + '【' + p.motive + '】'; });
+              tp1 += '\n  ★ 规劝类作品 → 帝或喜或怒视性格；邀宠类 → 可能导致帝召幸（加 _pendingOvernight）；寄意类 → 帝黯然或动容';
+              GM._consortPendingLiteraryForEmperor = GM._consortPendingLiteraryForEmperor.filter(function(p){return p && p.turn !== GM.turn - 1;});
+            }
+          }
+        }
+        // 朝堂问对后妃事件——触发外臣警觉"后宫干政"
+        if (Array.isArray(GM._consortFormalAudiences) && GM._consortFormalAudiences.length > 0) {
+          var _cfa = GM._consortFormalAudiences.filter(function(c){return c && !c.processed && c.turn === GM.turn - 1;});
+          if (_cfa.length > 0) {
+            tp1 += '\n\n【★ 后宫干政警报 ★】上回合陛下在朝堂问对后妃：';
+            _cfa.forEach(function(c){
+              tp1 += '\n  · ' + c.name + '（' + (c.spouseRank||'') + '）' + (c.motherClan?'·母族'+c.motherClan:'');
+            });
+            tp1 += '\n  ★ 本回合 AI 应生成外臣反应：';
+            tp1 += '\n      - 御史/谏官/礼部上奏疏：memorials.push {type:"谏疏",title:"谏后宫干政疏",content:"妇人无外事·古训也·陛下亲幸朝堂问后妃·恐启妇言乱政之渐"...}';
+            tp1 += '\n      - 部分清流大臣可能 npc_actions 请见规劝（type:"advise"/"remonstrate"）';
+            tp1 += '\n      - 若该妃母族强势（' + _cfa.filter(function(c){return c.motherClan;}).length + ' 人有母族）→ 他派大臣可能联名弹劾外戚';
+            tp1 += '\n      - 视朝代开明度 + 妃身份：朝代若偏崇礼教（宋明清前期）反应尤烈；胡族/唐/辽反应较轻';
+            tp1 += '\n      - 妃子本人的 opinion 对此可能矛盾：若她爱干政则暗喜；若矜持则懊悔（记入 NPC 记忆）';
+            tp1 += '\n      - 皇威 -2~-5（视反响规模），民心略降';
+            GM._consortFormalAudiences.forEach(function(c){ if (c.turn === GM.turn - 1) c.processed = true; });
+            // 清理已处理+超过 5 回合的
+            GM._consortFormalAudiences = GM._consortFormalAudiences.filter(function(c){ return c && !c.processed; });
+          }
+        }
+        // 若玩家上回合应允了留宿，注入 AI prompt 让推演体现
+        if (Array.isArray(GM._pendingOvernight) && GM._pendingOvernight.length > 0) {
+          var _on = GM._pendingOvernight.filter(function(o){return o && o.status==='accepted' && o.turn === GM.turn - 1;});
+          if (_on.length > 0) {
+            tp1 += '\n\n【★ 后宫·帝幸 ★】本回合推演应体现：';
+            _on.forEach(function(o){
+              var ch_sp = (GM.chars||[]).find(function(c){return c && c.name===o.name;});
+              var spRank = ch_sp && ch_sp.spouseRank;
+              var palName = ch_sp && ch_sp.residence || '';
+              tp1 += '\n  · 帝幸' + o.name + '（' + (spRank||'妻室') + '·' + (palName||'某宫') + '）';
+              if (ch_sp && ch_sp.motherClan) tp1 += '·母族'+ch_sp.motherClan;
+            });
+            tp1 += '\n  houren_xishuo 中须细写帝幸场景（行礼/叙话/旧情/枕席/次日辞朝），后妃之母族/子女可借此被提及';
+            tp1 += '\n  对该后妃 loyalty/opinion 有提升，stress 下降；若有怀孕可能，npc_interactions 中加一条内廷暧昧暗示';
+            tp1 += '\n  此次留宿可能引发其他后妃嫉妒/暗生怨气（npc_actions 中可体现）';
+            // 清理已消费的标记
+            GM._pendingOvernight = GM._pendingOvernight.filter(function(o){return !(o && o.turn === GM.turn - 1 && o.status==='accepted');});
+          }
         }
         // 财政赤字状态注入——当前任一库为负 → AI 必须严厉叙事
         var _defItems = [];

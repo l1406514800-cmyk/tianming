@@ -1134,19 +1134,42 @@
       if (target && containerKey) {
         target[containerKey].push(entry);
         fiscalCount++;
-        // ★ 立即作用于余额——允许负值（赤字/借贷/预支），后续会严惩
+        // ★ 立即作用于余额：支出不得突破 0（主动行为最多拨完库存）
+        //   被动结算（CascadeTax/FixedExpense）已在 fiscal_adjustments 之前运行
+        //   · 若此时 cur <= 0（被动结算后已赤字）→ 主动支出完全失败，amount=0/shortfall=requested
+        //   · 若 0 < cur < amount → 拨到见底（库→0），剩余记亏欠，决策部分执行
+        //   · 若 cur >= amount → 足额拨付，无亏欠
         var actualApplied = amount;
         var shortfall = 0;
+        var executionStatus = 'completed';  // completed / partial / blocked
         if (immediateTarget) {
           var cur = Number(immediateTarget[resource]) || 0;
           if (fa.kind === 'expense') {
-            // 支出：足额扣减·库不足则进入赤字（负值）并记亏欠量
-            immediateTarget[resource] = cur - amount;
-            actualApplied = amount;
-            if (cur < amount) shortfall = amount - cur;  // 亏空 = 负值部分
-            if (immediateTarget.ledgers && immediateTarget.ledgers[resource]) {
-              var ledE = immediateTarget.ledgers[resource];
-              ledE.stock = (Number(ledE.stock)||0) - amount;  // 同步允许负
+            if (cur <= 0) {
+              // 库已空或赤字 → 主动支出彻底无法执行
+              actualApplied = 0;
+              shortfall = amount;
+              executionStatus = 'blocked';
+              // 余额不动
+            } else if (cur < amount) {
+              // 仅够一部分 → 拨到见底
+              actualApplied = cur;
+              shortfall = amount - cur;
+              executionStatus = 'partial';
+              immediateTarget[resource] = 0;
+              if (immediateTarget.ledgers && immediateTarget.ledgers[resource]) {
+                immediateTarget.ledgers[resource].stock = 0;
+              }
+            } else {
+              // 足额
+              actualApplied = amount;
+              shortfall = 0;
+              executionStatus = 'completed';
+              immediateTarget[resource] = cur - amount;
+              if (immediateTarget.ledgers && immediateTarget.ledgers[resource]) {
+                var _led = immediateTarget.ledgers[resource];
+                _led.stock = (Number(_led.stock)||0) - amount;
+              }
             }
           } else {
             // 收入：直接加（若原为负·可抹平债务）
@@ -1158,11 +1181,12 @@
           }
           if (immediateTarget === G.guoku && resource === 'money') immediateTarget.balance = immediateTarget.money;
         }
-        // 条目标记实际应用量+亏欠量
+        // 条目标记实际应用量+亏欠量+执行状态
         entry.applied = actualApplied;
         entry.shortfall = shortfall;
-        // turnReport：记 actual + shortfall（渲染器区别对待）
-        G._turnReport.push({ type:'fiscal_adj', target: fa.target, kind: fa.kind, resource: resource, name: entry.name, amount: actualApplied, requested: amount, shortfall: shortfall, reason: entry.reason, turn: G.turn||0 });
+        entry.executionStatus = executionStatus;
+        // turnReport：记 actual + shortfall + status（渲染器区别对待）
+        G._turnReport.push({ type:'fiscal_adj', target: fa.target, kind: fa.kind, resource: resource, name: entry.name, amount: actualApplied, requested: amount, shortfall: shortfall, executionStatus: executionStatus, reason: entry.reason, turn: G.turn||0 });
         // 亏欠单独登记——供下回合 AI 推演、史记、风闻录事参考
         if (shortfall > 0) {
           if (!G._fiscalShortfalls) G._fiscalShortfalls = [];
@@ -1171,14 +1195,16 @@
             target: fa.target, resource: resource,
             name: entry.name, reason: entry.reason,
             requested: amount, applied: actualApplied, shortfall: shortfall,
-            resolved: false  // 下回合 AI 须判定：借贷/追加征发/取消/部分完成
+            executionStatus: executionStatus,
+            resolved: false
           });
         }
         var _resLbl = resource === 'grain' ? '粮' : resource === 'cloth' ? '布' : '银';
         var _tgtLbl = fa.target === 'guoku' ? '帑廪' : fa.target === 'neitang' ? '内帑' : fa.target;
-        var _amtTxt = actualApplied + (shortfall > 0 ? ('/\u8BF7' + amount + '\u00B7\u4E8F' + shortfall) : '');
         if (typeof global.addEB === 'function') {
-          if (shortfall > 0) {
+          if (executionStatus === 'blocked') {
+            global.addEB('\u8D22\u653F\u2757\u2757', _tgtLbl + '\u8D4C\u7A7A\u2014\u300C' + (fa.name||'') + '\u300D\u65E0\u6CD5\u6267\u884C\uFF01\u8BF7' + amount + _resLbl + '\u00B7\u4E00\u6587\u672A\u62E8');
+          } else if (executionStatus === 'partial') {
             global.addEB('\u8D22\u653F\u2757', _tgtLbl + '\u4E0D\u8DB3\uFF01' + (fa.name||'') + '\u8BF7' + amount + _resLbl + '\uFF0C\u4EC5\u62E8' + actualApplied + '\uFF0C\u4E8F' + shortfall);
           } else {
             global.addEB('\u8D22\u653F', _tgtLbl + (fa.kind==='income'?'\u5165':'\u51FA') + _resLbl + ' ' + actualApplied + (fa.name?'\uFF08'+fa.name+'\uFF09':'') + (fa.recurring?'\u00B7\u6052\u5E74':''));

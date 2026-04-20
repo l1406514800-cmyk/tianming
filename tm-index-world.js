@@ -3345,6 +3345,17 @@ function openWenduiModal(name, mode, prefillMsg) {
   if (!GM.wenduiHistory[name]) GM.wenduiHistory[name] = [];
 
   var ch = findCharByName(name);
+  // 后宫干政触发——与后妃在朝堂模式问对，登记事件供下回合大臣反应
+  if (ch && ch.spouse && _wenduiMode === 'formal') {
+    if (!GM._consortFormalAudiences) GM._consortFormalAudiences = [];
+    GM._consortFormalAudiences.push({
+      name: name, turn: GM.turn,
+      spouseRank: ch.spouseRank || '',
+      motherClan: ch.motherClan || '',
+      processed: false
+    });
+    if (typeof addEB === 'function') addEB('\u540E\u5BAB', '\u671D\u5802\u95EE\u5BF9' + name + '\u00B7\u6B64\u4E3E\u5F15\u5916\u81E3\u4FA7\u76EE');
+  }
   var modeLabel = _wenduiMode === 'private' ? '私下叙谈' : '朝堂问对';
 
   // 创建全屏弹窗
@@ -3564,6 +3575,23 @@ async function _wdNpcInitiateSpeak(name) {
       var _st2 = GM._wdState && GM._wdState[name];
       if (_st2) { _st2.emotion = _eMap2[parsed.emotionState] || 3; _wdUpdateEmotionBar(name); }
     }
+    // 后妃留宿请求——挂起 pending，由玩家按钮决定接受/婉拒
+    if (ch && ch.spouse && (parsed && parsed.requestOvernight || ch._audienceRequestOvernight)) {
+      GM._pendingOvernightReq = { name: name, turn: GM.turn };
+      // 在对话下方渲染接受/婉拒按钮
+      setTimeout(function(){
+        var chatE = _$('wd-modal-chat'); if (!chatE) return;
+        if (_$('wd-overnight-btns')) return;  // 避免重复
+        var btnDiv = document.createElement('div');
+        btnDiv.id = 'wd-overnight-btns';
+        btnDiv.style.cssText = 'display:flex;gap:10px;justify-content:center;padding:12px 0;border-top:1px dashed var(--vermillion-400);margin-top:8px;';
+        btnDiv.innerHTML = '<div style="flex:1;text-align:center;font-size:0.8rem;color:var(--vermillion-400);padding:6px;font-family:\'STKaiti\',serif;letter-spacing:0.12em;">〘 留 宿 之 请 〙</div>'
+          + '<button class="bt bp bsm" onclick="_wdAcceptOvernight()" style="background:linear-gradient(135deg,var(--vermillion-400),var(--vermillion-500));">应 允</button>'
+          + '<button class="bt bs bsm" onclick="_wdDeclineOvernight()">改 日</button>';
+        chatE.appendChild(btnDiv);
+        chatE.scrollTop = chatE.scrollHeight;
+      }, 200);
+    }
     // 建议——兼容新 {topic,content} object 与旧 string
     var _wdSugs = [];
     if (parsed && parsed.suggestions && Array.isArray(parsed.suggestions)) {
@@ -3662,12 +3690,80 @@ function _wdOpenAudienceQueue(qi) {
     ch.position = ch.position || '使节';
     ch.officialTitle = ch.officialTitle || '使节';
   }
+  // 后妃请见：标记情绪/留宿上下文
+  if (ch && ch.spouse && q.isConsort) {
+    ch._audienceMood = q.consortMood || '企盼';
+    ch._audienceRequestOvernight = !!q.requestOvernight;
+    ch._audienceReason = q.reason || '';
+  }
   // 打开问对
   if (typeof _wdOpenAudience === 'function') {
-    _wdOpenAudience(name);
+    // 后妃：大概率私下，小概率朝堂——受能力/性格/家族/关系影响
+    if (ch && ch.spouse && q.isConsort) {
+      var wantFormal = 0.1;  // 基础 10% 走朝堂
+      // 野心高/好干政 → 更愿在朝堂
+      if ((ch.ambition||50) > 70) wantFormal += 0.15;
+      if ((ch.intelligence||50) > 75) wantFormal += 0.08;
+      // 母族强势（有权臣/节度使亲戚）→ 更愿公开发言
+      if (ch.motherClan && /(\u738B|\u516C|\u4FAF|\u5C06|\u8282\u5EA6|\u4E1E\u76F8|\u5C1A\u4E66|\u5927\u5C06\u519B)/.test(ch.motherClan)) wantFormal += 0.12;
+      // 皇后比其他妃嫔更有朝堂资格
+      if (ch.spouseRank === 'empress') wantFormal += 0.1;
+      // 情绪"进言"基本只走朝堂；"喜悦/思念/企盼"几乎必私下
+      if (q.consortMood === '进言') wantFormal += 0.4;
+      else if (q.consortMood === '喜悦' || q.consortMood === '思念' || q.consortMood === '企盼') wantFormal -= 0.15;
+      // 与帝亲密（高 loyalty + 高 opinion）→ 更倾向私下
+      if ((ch.loyalty||50) > 80) wantFormal -= 0.08;
+      // 性格/特质
+      if (ch.traitIds && P.traitDefinitions) {
+        var _traits = ch.traitIds.map(function(id){ var d=P.traitDefinitions.find(function(t){return t.id===id;}); return d ? d.name : ''; }).join('');
+        if (/\u6A2A|\u72E0|\u86EE\u6A2A/.test(_traits)) wantFormal += 0.15;  // 强横妃嫔
+        if (/\u6E29\u987A|\u6DD1\u5FB7/.test(_traits)) wantFormal -= 0.1;
+      }
+      wantFormal = Math.max(0.03, Math.min(0.5, wantFormal));
+      var mode = Math.random() < wantFormal ? 'formal' : 'private';
+      _wenduiMode = mode;
+      openWenduiModal(name, mode);
+      GM._wdAudienceMode = true;
+      setTimeout(function(){ _wdNpcInitiateSpeak(name); }, 300);
+    } else {
+      _wdOpenAudience(name);
+    }
   } else {
     toast('接见 ' + name);
   }
+}
+
+/** 应允留宿——次回合推演须体现帝幸某宫 */
+function _wdAcceptOvernight() {
+  var req = GM._pendingOvernightReq; if (!req) return;
+  var name = req.name;
+  var ch = findCharByName(name);
+  if (!ch) return;
+  if (!GM._pendingOvernight) GM._pendingOvernight = [];
+  GM._pendingOvernight.push({ name: name, turn: GM.turn, status: 'accepted' });
+  // 妃子关系加深（忠诚 + 压力 -）
+  if (typeof ch.loyalty === 'number') ch.loyalty = Math.min(100, ch.loyalty + 3);
+  if (typeof ch.stress === 'number') ch.stress = Math.max(0, ch.stress - 10);
+  if (typeof NpcMemorySystem !== 'undefined') NpcMemorySystem.remember(name, '请得陛下留宿·恩眷殷深', '喜', 8, (P.playerInfo && P.playerInfo.characterName) || '陛下');
+  if (typeof addEB === 'function') addEB('\u540E\u5BAB', '\u5E1D\u5C06\u5BBF\u4E8E' + name + '\u5BAB');
+  delete GM._pendingOvernightReq;
+  var btnDiv = _$('wd-overnight-btns');
+  if (btnDiv) btnDiv.innerHTML = '<div style="flex:1;text-align:center;color:var(--vermillion-300);font-style:italic;padding:6px;">\u5DF2\u5E94\u5141\u00B7\u4ECA\u591C\u5C06\u5BBF' + escHtml(name) + '\u5BAB</div>';
+  if (typeof toast === 'function') toast('\u5DF2\u5E94\u5141\u00B7\u4ECA\u591C\u5BBF' + name + '\u5BAB');
+}
+function _wdDeclineOvernight() {
+  var req = GM._pendingOvernightReq; if (!req) return;
+  var name = req.name;
+  var ch = findCharByName(name);
+  if (ch) {
+    if (typeof ch.loyalty === 'number') ch.loyalty = Math.max(0, ch.loyalty - 1);
+    if (typeof ch.stress === 'number') ch.stress = Math.min(100, ch.stress + 5);
+    if (typeof NpcMemorySystem !== 'undefined') NpcMemorySystem.remember(name, '请留宿而未准·心中黯然', '忧', 5, (P.playerInfo && P.playerInfo.characterName) || '陛下');
+  }
+  delete GM._pendingOvernightReq;
+  var btnDiv = _$('wd-overnight-btns');
+  if (btnDiv) btnDiv.innerHTML = '<div style="flex:1;text-align:center;color:var(--ink-400);font-style:italic;padding:6px;">\u5BAB\u6709\u8981\u4E8B\u00B7\u6539\u65E5\u518D\u8BAE</div>';
+  if (typeof toast === 'function') toast('\u6539\u65E5\u518D\u8BAE');
 }
 
 /** 拒见队列中的某条 */
@@ -4383,6 +4479,105 @@ function _wdBuildPrompt(ch, name) {
     if (ch.motherClan) _spouseCtx += '母族：' + ch.motherClan + '\n';
     if (ch.children && ch.children.length > 0) _spouseCtx += '子女：' + ch.children.join('、') + '\n';
     _spouseCtx += '这是夫妻关系，不是君臣关系。可涉及家常、感情、枕边风。\n';
+
+    // ★ 情感真实性——非单一痴恋，多重动机并存
+    _spouseCtx += '\n【情感真实性·重要】';
+    _spouseCtx += '\n  帝王后妃关系多出于政治联姻·真情反而稀少但真实存在。切勿默认她"痴心一片只爱陛下"——';
+    _spouseCtx += '\n  此人对陛下的真实倾向可能是以下一种或多种的混合（依角色性情/出身/过往决定）：';
+    _spouseCtx += '\n    A) 真挚恋慕——发自心里喜欢陛下这个人（不是皇帝身份）·眼神眷恋·主动关切·忧其劳累';
+    _spouseCtx += '\n    B) 借以自固——图皇帝宠爱以避废黜/冷宫/欺凌·表面柔顺内心算计';
+    _spouseCtx += '\n    C) 母族谋利——为家族升赏/提携/避祸而承欢·言谈间旁敲侧击';
+    _spouseCtx += '\n    D) 欲立子嗣——想生儿子/固太子/保皇子地位·注重身体与时机';
+    _spouseCtx += '\n    E) 权势欲——欲借后宫之位干预朝政·以枕边风操控';
+    _spouseCtx += '\n    F) 畏惧依附——深知帝威·不敢不顺·内心疏离但不敢流露';
+    _spouseCtx += '\n    G) 情欲享受——只图皇家待遇与肉身之欢·并不深情';
+    _spouseCtx += '\n    H) 憎恨隐忍——家仇/被强取/心属他人·表面恭顺内心冷淡甚至怨恨';
+    _spouseCtx += '\n    I) 忘情工具——麻木多年·非爱非恨·只是例行·像侍奉神像';
+    _spouseCtx += '\n    J) 复杂情感——初厌渐爱/初爱渐疲/爱恨交织/欲离不能——动态演变';
+    _spouseCtx += '\n  ★ 推荐：大多数妃嫔应是混合动机（如 C+D 家族+子嗣；A+D 真情+子嗣；B+F 自保+畏）·极少数纯 A（真爱）或纯 H（深恨）';
+    // 从角色字段推断主导动机（AI 可参考）
+    var _motiveHints = [];
+    if ((ch.ambition||50) > 70) _motiveHints.push('E(权势欲)');
+    if (ch.motherClan && /(\u738B|\u516C|\u4FAF|\u5C06|\u4E1E\u76F8|\u5C1A\u4E66)/.test(ch.motherClan)) _motiveHints.push('C(母族谋利)');
+    if (ch.children && ch.children.length > 0) _motiveHints.push('D(护子嗣)');
+    if (ch.children && ch.children.length === 0 && (ch.age||25) < 30) _motiveHints.push('D(欲立子嗣)');
+    if (ch.spouseRank === 'attendant' || ch.spouseRank === 'concubine') _motiveHints.push('B(借以自固)');
+    if ((ch.loyalty||50) < 40) _motiveHints.push('H(憎恨隐忍)·F(畏惧依附)');
+    if ((ch.loyalty||50) > 85 && (ch.ambition||50) < 50) _motiveHints.push('A(真挚恋慕)');
+    if ((ch.stress||0) > 70) _motiveHints.push('F(畏惧)·B(自固)');
+    if ((ch.age||30) > 45 && (ch.loyalty||50) > 60) _motiveHints.push('I(忘情工具·或 J 初爱渐疲)');
+    if (_motiveHints.length > 0) {
+      _spouseCtx += '\n  【此人可能倾向】' + _motiveHints.slice(0, 4).join('、') + '——可为主导，辅以其他动机混合';
+    }
+    _spouseCtx += '\n  ★ 表里不一的妃子·表面言语恭顺深情·内心可能在盘算；AI 可在叙述里留"眼神闪过一抹xx"之类微妙暗示';
+    _spouseCtx += '\n  ★ 真情者·即使帝方疲倦/醉意·仍有眷注如"扶陛下入寝"·不只为事；功利者则"先把该说的说完"';
+    _spouseCtx += '\n  ★ 玩家多次对话后·AI 可逐渐展现她真实面——初见或都温顺恭敬·久处方见本心\n';
+    // 后妃主动请见专属上下文
+    if (ch._audienceMood || ch._audienceRequestOvernight) {
+      _spouseCtx += '\n【后妃请见·来意指引】';
+      var _mood = ch._audienceMood || '企盼';
+      _spouseCtx += '\n  情绪基调：' + _mood + '——';
+      var _moodDesc = {
+        '喜悦': '带喜事来报（有孕/母族得宠/子女聪慧）·言辞轻快·欲与帝同享',
+        '幽怨': '心有不平（久未召幸/被冷落/遭后妃排挤）·言辞婉曲·或含泪',
+        '思念': '久未见驾·只为一叙·言语细碎·多忆旧情',
+        '企盼': '盼见君面·别无具体事由·话题偏家常/养生/园中花事',
+        '忧惧': '有所忧虑（母族被劾/宫中传言/有人谋害）·言辞谨慎·求安慰',
+        '进言': '有军国事之耳报——但多从侧面·或为母族求情/为某位大臣说话',
+        '宫务': '奏禀后宫事务——此系皇后本职。可涉：妃嫔品行失仪/新进秀女甄选/皇子公主教育/祭祀礼仪筹办/太后安康起居/宫殿修缮/内廷人事（女官/宫娥/宦官）/节庆典礼/饮食膳嫔/宫中银两支用/内命妇朝贺。语气端庄有度·以国母口吻奏事·涉及妃嫔可客观陈述不避讳但亦不恶意倾轧'
+      };
+      _spouseCtx += (_moodDesc[_mood] || '携情而来') + '\n';
+      // 皇后特别——宫务奏报的国母身份强调
+      if (ch.spouseRank === 'empress' && _mood === '宫务') {
+        _spouseCtx += '  【国母奏事】你身为皇后·统六宫·此番求见以"中宫奏事"名义·非私情倾诉而有具体事务：';
+        _spouseCtx += '\n    - 具体宫务事项之一或二·带建议/请旨/征询';
+        _spouseCtx += '\n    - 言辞用"妾""臣妾""贱妾"（视朝代）·兼皇后身份的端方';
+        _spouseCtx += '\n    - 可借此机会提及某妃嫔（赞或贬）·或请立/废某位·或请赐某皇子师傅';
+        _spouseCtx += '\n    - 若陛下宠信某妃而你不悦·可借"宫务"理由隐晦表达';
+        _spouseCtx += '\n    - 若陛下久未临幸·你反而不宜直诉幽怨（失国母体统）·但可借"宫务"多留几盏茶光景';
+      }
+      _spouseCtx += '  ★ 你应主动开口陈述来意（奏对模式），不等帝发问。开场宜带称谓："陛下"/"官家"/"夫君"（随朝代）+ 撒娇/担忧/请安 式起句。\n';
+      _spouseCtx += '  ★ 绝不走"臣听候圣谕"套路——你是妻室不是臣子。语气偏私密、柔软、带情感色彩。\n';
+      // 朝堂模式 vs 私下模式差异
+      if (_wenduiMode === 'formal') {
+        _spouseCtx += '\n  【模式·朝堂】此次你选择了朝堂公开请见（非私下）——表明你有颇郑重之事要说，或欲借朝堂分量倾诉。';
+        _spouseCtx += '\n  言辞更端肃·可带政见·但仍不全然是大臣口吻——母仪/母族/妃位身份须时时流露。';
+        _spouseCtx += '\n  ※ 注意：朝堂请见会引起大臣警觉"后宫干政"——下回合 AI 可能生成御史/大臣上奏疏或求见以规劝皇帝，你要预料这点，宜更慎言。';
+      } else {
+        _spouseCtx += '\n  【模式·私下】左右屏退。你可更坦诚直白，不必虑及外朝物议。';
+      }
+      if (ch._audienceRequestOvernight) {
+        _spouseCtx += '\n  【留宿请求】你今夜思念殷切·当言谈过半时，应委婉提出"请陛下今夜留宿此宫"/"今夜陛下可否就此安歇"/"妾身已备好……"等——措辞视你性格而定（矜持者含蓄·活泼者直接·谨慎者借名目）\n';
+        _spouseCtx += '  在 JSON 中加字段 {"requestOvernight":true} 表达此请求·reply 文本内也要含相关话语\n';
+      }
+      // 注入最近问对记录（自有记忆里）
+      var _recentHist = (GM.wenduiHistory && GM.wenduiHistory[ch.name]) || [];
+      if (_recentHist.length > 0) {
+        var _lastFew = _recentHist.slice(-4);
+        _spouseCtx += '\n  【最近问对记录·请自然承续】';
+        _lastFew.forEach(function(h){
+          var tag = h.role === 'player' ? '帝' : '汝';
+          _spouseCtx += '\n    ' + tag + '曰：' + (h.content||'').slice(0, 40);
+        });
+      }
+      // 当前朝政关切点（借题发挥用）
+      var _courtHot = [];
+      if (GM.activeWars && GM.activeWars.length > 0) _courtHot.push('边事未宁');
+      if ((GM.unrest||0) > 50) _courtHot.push('民变频仍');
+      if (GM.memorials && GM.memorials.filter(function(m){return m.status==='pending_review';}).length > 5) _courtHot.push('奏牍堆积');
+      if ((GM._tyrantDecadence||0) > 40) _courtHot.push('朝议谤言帝荒');
+      if (_courtHot.length > 0) {
+        _spouseCtx += '\n  【朝政风议·或可借此起话】' + _courtHot.join('、');
+        if ((ch.ambition||50) > 70) _spouseCtx += '（你有野心·不妨借此试探帝意或进言）';
+        else if (_mood === '企盼' || _mood === '喜悦') _spouseCtx += '（你未必欲干政·或仅作谈资/关切慰问）';
+        else _spouseCtx += '（随你性情而定——或关切、或忧心、或避而不谈）';
+      }
+      // 时代背景（剧本 era）
+      var _sc2 = findScenarioById && findScenarioById(GM.sid);
+      if (_sc2 && _sc2.era) _spouseCtx += '\n  【时代】' + _sc2.era + '——你的言谈辞令应符合此时朝代风貌';
+      _spouseCtx += '\n  ★ 请见动机多样·不必硬套：①真有事②吸引帝之注意③发泄闷气④随口引子⑤喜做此事——AI 依性情择其一';
+      _spouseCtx += '\n  ★ suggestions 可涉及：母族升赏、皇子教育、某宫嫔失仪、天象占吉（借他人口）、某大臣印象（借题起议）；不必写政务大策\n';
+    }
   }
   // 本回合朝议上下文（如果此人参与了朝议，问对时应保持一致或有意识地私下说不同的话）
   var _courtCtx = '';
