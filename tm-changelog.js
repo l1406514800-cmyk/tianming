@@ -62,7 +62,17 @@
       if (e.title) html += '<div class="tm-cl-title">' + _esc(e.title) + '</div>';
       if (Array.isArray(e.items) && e.items.length) {
         html += '<ul class="tm-cl-items">';
-        e.items.forEach(function(it) { html += '<li>' + _esc(it) + '</li>'; });
+        e.items.forEach(function(it) {
+          if (typeof it === 'string') {
+            html += '<li>' + _esc(it) + '</li>';
+          } else if (it && typeof it === 'object') {
+            var what = _esc(it.what || it.text || '');
+            var why = _esc(it.why || it.effect || '');
+            html += '<li><span class="tm-cl-what">' + what + '</span>';
+            if (why) html += '<span class="tm-cl-why">作用：' + why + '</span>';
+            html += '</li>';
+          }
+        });
         html += '</ul>';
       }
       html += '</div>';
