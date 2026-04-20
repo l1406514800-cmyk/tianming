@@ -624,13 +624,12 @@
   // 人名后常接的动词/助词/语气词——若 3-4 字名以此结尾，说明误抓，须截短
   var TRAIL_TRIM_CHARS = '\u63A5\u5165\u51FA\u767B\u5949\u594F\u8BF4\u8A00\u8BF7\u4EE4\u6D3E\u9063\u4F7F\u5E26\u9886\u7387\u547D\u4F20\u544A\u62A5\u53D7\u884C\u53BB\u8FD4\u8D70\u8FDB\u9000\u7559\u5C45\u7ACB\u5750\u6B7B\u6D3B\u751F\u4EA1\u901D\u85A8\u5D29\u9635\u65A9\u6740\u64DE\u4FD8\u8D25\u80DC\u6218\u5F81\u4F10\u653B\u5B88\u5F00\u95ED\u8BFB\u5199\u4E34\u5C65\u62DC\u8C22\u62D2\u7EB3\u8D50\u8D4F\u7F5A\u8D2C\u8FC1\u6388\u53EC\u8F9E\u8BBF\u63A2\u5F80\u5F52\u8FD8\u8DEA\u4E4B\u7684\u4E4E\u4E5F\u77E3\u7109\u54C9\u8033\u800C\u4E14\u6216\u65E2\u5C24\u4E0E\u548C\u540C\u5408\u5171\u8FDE\u504C\u5E76\u4EA6\u53C8\u518D\u590D\u6108\u8D8A\u66F4\u6B64\u662F\u5373\u4E43\u4FBF\u5C31\u5219\u76D6\u975E\u5C82\u4F55\u5974\u66F0\u80E1\u5B89\u59CB\u7EC8\u672B\u521D\u5728\u4ECE\u5411\u4EE5\u4E3A\u7531\u56E0\u4E8E\u6308\u52D1\u5374\u4E26\u53EA\u4EC5\u7686\u5C1A\u53CA\u90A3\u8FD9\u770B\u95EE\u7B54\u8BAE\u79FB\u5EF7\u9047\u5F17\u6302\u79BB\u5EFA\u8D77\u79F0\u964D\u5352\u6B81\u8D74\u8FCE\u643A\u903C\u56F4\u51FB\u7834\u7F1A\u541B\u5F13\u6EE1\u653E\u53D6\u6DF1\u5FE0\u4FE1\u660E\u5FAA\u6307\u62F1\u5F80\u8FD0\u81F3\u5230\u5012\u6258\u5347\u8F6C\u5DE1\u628A\u5EA7\u6B63\u4E1C\u897F\u5357\u5317\u4E2D\u4E0A\u4E0B\u547C\u53F7\u5E9C\u6BD2\u8D23\u8BAD\u7B97';
 
-  // 判定候选是否疑似只是人名+尾部动词/助词：若截短后前缀（含姓）仍成立则返回截短版
+  // 判定候选是否疑似只是人名+尾部动词/助词：迭代截短直至末字不是动词/助词
+  // 例："张惟贤言曰" → "张惟贤言" → "张惟贤"（单次截短不够，需循环）
   function _trimTrailing(cand) {
     if (!cand || cand.length <= 2) return cand;
-    // 若末字是常见 trailing 动词/助词，尝试截短
-    var last = cand.charAt(cand.length - 1);
-    if (TRAIL_TRIM_CHARS.indexOf(last) >= 0) {
-      return cand.slice(0, -1);
+    while (cand.length > 2 && TRAIL_TRIM_CHARS.indexOf(cand.charAt(cand.length - 1)) >= 0) {
+      cand = cand.slice(0, -1);
     }
     return cand;
   }
@@ -716,31 +715,51 @@
     '左右':1,'上下':1,'南北':1,'东西':1
   };
 
+  // 构建已知姓名字典索引（含别名 zi/hao/milkName/aliases/formerNames）——放入集合供预扫
+  function _buildKnownNameSet() {
+    var known = {};
+    var G = (typeof global !== 'undefined' && global.GM) || (typeof window !== 'undefined' && window.GM);
+    if (!G || !Array.isArray(G.chars)) return known;
+    G.chars.forEach(function(c) {
+      if (!c) return;
+      if (c.name && c.name.length >= 2) known[c.name] = c.name;
+      // 别名
+      ['zi','haoName','milkName'].forEach(function(k) {
+        var v = c[k];
+        if (v && typeof v === 'string' && v.length >= 2) known[v] = c.name;
+      });
+      if (Array.isArray(c.aliases)) c.aliases.forEach(function(a) { if (a && a.length >= 2) known[a] = c.name; });
+      if (Array.isArray(c.formerNames)) c.formerNames.forEach(function(a) { if (a && a.length >= 2) known[a] = c.name; });
+    });
+    return known;
+  }
+
   function _extractNames(text) {
     if (!text) return [];
     var names = [];
     var nameSet = {};
-    // 扫所有中文连续块·每块再分拆人名
+
+    // 已知姓名字典（含别名·字·号）——用于两处：
+    // 1. 跳过已在人物志的角色（包括按别名提及的情形，如用字"玄扈"提及徐光启）
+    // 2. 避免 findCharByName 因只索引主名而漏过别名
+    var known = _buildKnownNameSet();
+
+    // ═══ 汉人姓氏模式扫描（仅处理未知新名字） ═══
     var re = /[\u4e00-\u9fa5]+/g;
     var m;
     while ((m = re.exec(text)) !== null) {
       var block = m[0];
-      // 在 block 中逐位置尝试匹配人名
       for (var i = 0; i < block.length; i++) {
         if (COMMON_SURNAMES.indexOf(block.charAt(i)) < 0) continue;
-        // 判定是否复姓开头：看两个字是否在 COMPOUND_SURNAMES
         var two = block.substr(i, 2);
         var isCompound = (i + 1 < block.length) && (COMPOUND_SURNAMES.indexOf(two) >= 0);
-        // 候选长度：复姓 3-4 字，单姓 2-3 字（不贪 4）
         var maxLen = isCompound ? 4 : 3;
         var minLen = isCompound ? 3 : 2;
         var cand = null;
-        // 从长到短取候选，用 _trimTrailing 清尾
         for (var len = maxLen; len >= minLen; len--) {
           if (i + len > block.length) continue;
           var raw = block.substr(i, len);
           var trimmed = _trimTrailing(raw);
-          // trimmed 必须仍满足长度要求并以 surname 开头
           if (trimmed.length < minLen) continue;
           if (COMMON_SURNAMES.indexOf(trimmed.charAt(0)) < 0) continue;
           cand = trimmed;
@@ -750,11 +769,16 @@
         // 过滤：官职/虚词/称呼
         if (/[\u738B\u8D75\u674E\u5218]\u671D|[\u540E\u5FA1]|[\u4ED6\u6211\u4F60]/.test(cand)) continue;
         if (/^(\u7687\u5E1D|\u9661\u4E0B|\u6211\u5927|\u672C\u671D|\u671D\u5EF7|\u540E\u5BAB|\u592A\u76D1)$/.test(cand)) continue;
-        // 黑名单：常见动宾/副词短语（查天/齐发/严饬 等形式上像姓+字但实为短语）
+        // 官职/称谓关键词过滤（原本定义未用）
+        var _hitTitle = false;
+        for (var _tk = 0; _tk < COMMON_TITLE_KEYWORDS.length; _tk++) {
+          if (cand.indexOf(COMMON_TITLE_KEYWORDS[_tk]) >= 0) { _hitTitle = true; break; }
+        }
+        if (_hitTitle) continue;
+        // 黑名单
         if (NAME_BLACKLIST[cand]) continue;
-        // 已在 GM.chars → 跳过
-        if (typeof findCharByName === 'function' && findCharByName(cand)) {
-          // 跳过这一候选，但往前挪整段长度避免重复扫描同一 NPC
+        // 已在 GM.chars → 跳过（包括别名字典命中）
+        if (known[cand] || (typeof findCharByName === 'function' && findCharByName(cand))) {
           i += cand.length - 1;
           continue;
         }
@@ -762,7 +786,6 @@
           nameSet[cand] = true;
           names.push(cand);
         }
-        // 已成功匹配到名字，跳过占用的字符
         i += cand.length - 1;
       }
     }
