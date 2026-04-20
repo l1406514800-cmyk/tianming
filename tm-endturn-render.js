@@ -1046,6 +1046,31 @@ function _renderUnifiedChanges(oldVars) {
     html += '</div></div>';
   }
 
+  // 辅助：从 _turnReport 过滤并生成 fiscal_adj reason chips
+  function _collectFiscalAdjChips(target, resource) {
+    var out = [];
+    var rep = GM._turnReport || [];
+    rep.forEach(function(r) {
+      if (!r || r.type !== 'fiscal_adj') return;
+      if (r.target !== target) return;
+      if ((r.resource || 'money') !== resource) return;
+      var signCls = r.kind === 'income' ? 'pos' : 'neg';
+      var signChar = r.kind === 'income' ? '+' : '\u2212';
+      var label = escHtml(r.name || r.reason || (r.kind === 'income' ? '入库' : '支用')).slice(0, 16);
+      var tip = escHtml((r.reason || '') + (r.name?'\u00B7'+r.name:'')).slice(0, 80);
+      var short = r.shortfall || 0;
+      if (short > 0) {
+        // 亏欠：红框高亮 + 亏欠标记
+        var reqTxt = r.requested ? ('/\u8BF7' + _rucFmtBig(r.requested)) : '';
+        var tipShort = '\u8BF7 ' + (r.requested||0) + '\u00B7\u4EC5\u62E8 ' + (r.amount||0) + '\u00B7\u4E8F\u7A7A ' + short + (r.reason?'\u3010'+r.reason+'\u3011':'');
+        out.push('<span class="tr-reason-chip danger" title="' + escHtml(tipShort) + '" style="border-color:var(--vermillion-400);color:#d4706a;">\u2757' + label + reqTxt + '<span class="v">' + signChar + _rucFmtBig(r.amount||0) + '</span><span style="color:var(--vermillion-400);margin-left:4px;font-size:0.85em;">\u4E8F' + _rucFmtBig(short) + '</span></span>');
+      } else {
+        out.push('<span class="tr-reason-chip ' + signCls + '" title="' + tip + '">' + label + '<span class="v">' + signChar + _rucFmtBig(r.amount||0) + '</span></span>');
+      }
+    });
+    return out;
+  }
+
   // ═══ ② 财政·帑廪 ═══
   if (GM.guoku) {
     var og = GM._prevGuoku || {};
@@ -1064,6 +1089,8 @@ function _renderUnifiedChanges(oldVars) {
       if (_sal > 0) moneyReasons.push('<span class="tr-reason-chip neg">\u4FF8\u7984<span class="v">\u2212' + _rucFmtBig(_sal) + '</span></span>');
       if (_arm > 0) moneyReasons.push('<span class="tr-reason-chip neg">\u519B\u9972<span class="v">\u2212' + _rucFmtBig(_arm) + '</span></span>');
       if (_imp > 0) moneyReasons.push('<span class="tr-reason-chip neg">\u5BAB\u5EF7<span class="v">\u2212' + _rucFmtBig(_imp) + '</span></span>');
+      // ★ 追加 AI/玩家触发的一次性调整
+      Array.prototype.push.apply(moneyReasons, _collectFiscalAdjChips('guoku', 'money'));
       gItems.push({ic:'\u94B1', name:'\u94F6\u4E24', unit:'\u4E24', ov:og.money, nv:ng.money, reasonsHtml: moneyReasons.join('')});
     }
     if (typeof ng.grain === 'number') {
@@ -1072,10 +1099,13 @@ function _renderUnifiedChanges(oldVars) {
       var turnGOut = ng.turnGrainExpense || 0;
       if (turnGIn > 0) grainR.push('<span class="tr-reason-chip pos">\u6F15\u7CAE<span class="v">+' + _rucFmtBig(turnGIn) + '</span></span>');
       if (turnGOut > 0) grainR.push('<span class="tr-reason-chip neg">\u652F\u7528<span class="v">\u2212' + _rucFmtBig(turnGOut) + '</span></span>');
+      Array.prototype.push.apply(grainR, _collectFiscalAdjChips('guoku', 'grain'));
       gItems.push({ic:'\u7CAE', name:'\u7CAE\u7C73', unit:'\u77F3', ov:og.grain, nv:ng.grain, reasonsHtml: grainR.join('')});
     }
     if (typeof ng.cloth === 'number') {
-      gItems.push({ic:'\u5E03', name:'\u5E03\u5339', unit:'\u5339', ov:og.cloth, nv:ng.cloth, reasonsHtml: '<span class="tr-reason-txt">\u7EC7\u67D3\u4E0A\u89E3\u00B7\u8D4F\u8D50\u6263\u51CF</span>'});
+      var clothR = _collectFiscalAdjChips('guoku', 'cloth');
+      if (clothR.length === 0) clothR.push('<span class="tr-reason-txt">\u7EC7\u67D3\u4E0A\u89E3\u00B7\u8D4F\u8D50\u6263\u51CF</span>');
+      gItems.push({ic:'\u5E03', name:'\u5E03\u5339', unit:'\u5339', ov:og.cloth, nv:ng.cloth, reasonsHtml: clothR.join('')});
     }
     if (typeof ng.monthlyIncome === 'number') {
       gItems.push({ic:'\u6708', name:'\u6708\u5165', sub:'\u4E24/\u6708', ov:og.monthlyIncome, nv:ng.monthlyIncome, reasonsHtml: '<span class="tr-reason-txt">\u7A0E\u6536\u7EA7\u8054\u4E0A\u89E3\u4E2D\u592E</span>'});
@@ -1086,6 +1116,19 @@ function _renderUnifiedChanges(oldVars) {
       if (turnIn > 0 || turnOut > 0) {
         var net = turnIn - turnOut;
         netTxt = '\u5C81\u5165 ' + _rucFmtBig(turnIn) + '\u4E24 / \u5C81\u51FA ' + _rucFmtBig(turnOut) + '\u4E24' + (net>=0?' \u00B7 \u7ED3\u4F59 ':' \u00B7 \u4E8F\u7A7A ') + _rucFmtBig(Math.abs(net)) + '\u4E24';
+      }
+      // 赤字警告条
+      var _gDefLines = [];
+      ['money','grain','cloth'].forEach(function(r){
+        var v = Number(ng[r]);
+        if (typeof v === 'number' && v < 0) {
+          var rl = r==='money'?'银':r==='grain'?'粮':'布';
+          _gDefLines.push(rl + ' ' + _rucFmtBig(v));
+        }
+      });
+      if (_gDefLines.length > 0) {
+        var _streak = GM._fiscalDeficitStreak || 1;
+        html += '<div class="tr-cg-hdr" style="background:linear-gradient(to right,rgba(192,64,48,0.15),transparent);border-left:3px solid var(--vermillion-400);"><div class="ic" style="background:var(--vermillion-400);color:#fef4e8;">\u2757</div><div class="lab" style="color:#d4706a;">\u8D4C\u7A7A\u5728\u5E93\uFF01\u6301\u7EED ' + _streak + ' \u56DE\u5408</div><div class="sub" style="color:#c04030;">' + _gDefLines.join(' \u00B7 ') + '</div></div>';
       }
       html += '<div class="tr-cg-hdr"><div class="ic">\u5E11</div><div class="lab">\u5E11 \u5EAA \u00B7 \u4E2D \u592E \u56FD \u5E93</div>';
       if (netTxt) html += '<div class="sub">' + escHtml(netTxt) + '</div>';
@@ -1107,12 +1150,36 @@ function _renderUnifiedChanges(oldVars) {
     var on = GM._prevNeitang || {};
     var nn = GM.neitang;
     var nItems = [];
-    if (typeof nn.money === 'number') nItems.push({ic:'\u94B1', name:'\u94F6\u4E24', unit:'\u4E24', ov:on.money, nv:nn.money, reasonsHtml: '<span class="tr-reason-txt">\u5185\u5EF7\u6536\u652F\u00B7\u5F92\u5FA1\u8D4F\u8D50</span>'});
-    if (typeof nn.grain === 'number') nItems.push({ic:'\u7CAE', name:'\u7CAE\u7C73', unit:'\u77F3', ov:on.grain, nv:nn.grain, reasonsHtml: '<span class="tr-reason-txt">\u5F9D\u8180\u00B7\u5BAB\u7528\u6D88\u8017</span>'});
-    if (typeof nn.cloth === 'number') nItems.push({ic:'\u5E03', name:'\u5E03\u5339', unit:'\u5339', ov:on.cloth, nv:nn.cloth, reasonsHtml: '<span class="tr-reason-txt">\u5BAB\u4E2D\u8D50\u8D21</span>'});
+    if (typeof nn.money === 'number') {
+      var nMoneyR = _collectFiscalAdjChips('neitang', 'money');
+      if (nMoneyR.length === 0) nMoneyR.push('<span class="tr-reason-txt">\u5185\u5EF7\u6536\u652F\u00B7\u5F92\u5FA1\u8D4F\u8D50</span>');
+      nItems.push({ic:'\u94B1', name:'\u94F6\u4E24', unit:'\u4E24', ov:on.money, nv:nn.money, reasonsHtml: nMoneyR.join('')});
+    }
+    if (typeof nn.grain === 'number') {
+      var nGrainR = _collectFiscalAdjChips('neitang', 'grain');
+      if (nGrainR.length === 0) nGrainR.push('<span class="tr-reason-txt">\u5F9D\u8180\u00B7\u5BAB\u7528\u6D88\u8017</span>');
+      nItems.push({ic:'\u7CAE', name:'\u7CAE\u7C73', unit:'\u77F3', ov:on.grain, nv:nn.grain, reasonsHtml: nGrainR.join('')});
+    }
+    if (typeof nn.cloth === 'number') {
+      var nClothR = _collectFiscalAdjChips('neitang', 'cloth');
+      if (nClothR.length === 0) nClothR.push('<span class="tr-reason-txt">\u5BAB\u4E2D\u8D50\u8D21</span>');
+      nItems.push({ic:'\u5E03', name:'\u5E03\u5339', unit:'\u5339', ov:on.cloth, nv:nn.cloth, reasonsHtml: nClothR.join('')});
+    }
     if (typeof nn.huangzhuangAcres === 'number') nItems.push({ic:'\u5E84', name:'\u7687\u5E84', unit:'\u4EA9', ov:on.huangzhuangAcres, nv:nn.huangzhuangAcres, reasonsHtml: '<span class="tr-reason-txt">\u4ECA\u5C81\u65B0\u8F9F/\u5931\u7BA1</span>'});
     if (nItems.length > 0) {
       html += '<div class="tr-cg-block tr-cg-neitang">';
+      // 赤字警告条
+      var _nDefLines = [];
+      ['money','grain','cloth'].forEach(function(r){
+        var v = Number(nn[r]);
+        if (typeof v === 'number' && v < 0) {
+          var rl = r==='money'?'银':r==='grain'?'粮':'布';
+          _nDefLines.push(rl + ' ' + _rucFmtBig(v));
+        }
+      });
+      if (_nDefLines.length > 0) {
+        html += '<div class="tr-cg-hdr" style="background:linear-gradient(to right,rgba(192,64,48,0.15),transparent);border-left:3px solid var(--vermillion-400);"><div class="ic" style="background:var(--vermillion-400);color:#fef4e8;">\u2757</div><div class="lab" style="color:#d4706a;">\u5185\u5E11\u8D4C\u7A7A</div><div class="sub" style="color:#c04030;">' + _nDefLines.join(' \u00B7 ') + '</div></div>';
+      }
       html += '<div class="tr-cg-hdr"><div class="ic">\u5185</div><div class="lab">\u5185 \u5E11 \u00B7 \u7687 \u5BB6 \u79C1 \u5E93</div>';
       html += '<div class="sub">\u9669\u5E1D\u79C1\u5E91\u00B7\u4E0E\u5916\u5E1C\u5206\u79FB</div>';
       html += '<div class="count">' + nItems.length + ' \u9879</div></div>';

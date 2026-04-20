@@ -545,13 +545,56 @@
     else if (typeof aiResult === 'object') {
       if (aiResult.zhengwen) texts.push(aiResult.zhengwen);
       if (aiResult.xinglu) texts.push(aiResult.xinglu);
+      // 后人戏说（场景叙事）
+      if (aiResult.houren_xishuo) texts.push(aiResult.houren_xishuo);
+      if (aiResult.hourenXishuo) texts.push(aiResult.hourenXishuo);
+      // 实录（正史体）
+      if (aiResult.shilu_text) texts.push(aiResult.shilu_text);
+      if (aiResult.shiluText) texts.push(aiResult.shiluText);
+      // 时政记标题/总结
+      if (aiResult.szj_title) texts.push(aiResult.szj_title);
+      if (aiResult.szjTitle) texts.push(aiResult.szjTitle);
+      if (aiResult.szj_summary) texts.push(aiResult.szj_summary);
+      if (aiResult.szjSummary) texts.push(aiResult.szjSummary);
+      // 玩家状态/内心（可能提到别的 NPC）
+      if (aiResult.player_status) texts.push(aiResult.player_status);
+      if (aiResult.playerStatus) texts.push(aiResult.playerStatus);
+      if (aiResult.player_inner) texts.push(aiResult.player_inner);
+      if (aiResult.playerInner) texts.push(aiResult.playerInner);
+      // 数值变化说明 edict_feedback[]
+      var _efKey = aiResult.edict_feedback || aiResult.edictFeedback;
+      if (Array.isArray(_efKey)) _efKey.forEach(function(ef){
+        if (!ef) return;
+        if (ef.feedback) texts.push(ef.feedback);
+        if (ef.content) texts.push(ef.content);
+        if (ef.assignee) texts.push(ef.assignee);
+      });
+      // 人事变动
+      var _pcKey = aiResult.personnel_changes || aiResult.personnelChanges;
+      if (Array.isArray(_pcKey)) _pcKey.forEach(function(pc){
+        if (!pc) return;
+        if (pc.name) texts.push(pc.name);
+        if (pc.former) texts.push(pc.former);
+        if (pc.change) texts.push(pc.change);
+        if (pc.reason) texts.push(pc.reason);
+      });
+      // 事件
       if (Array.isArray(aiResult.events)) aiResult.events.forEach(function(e){
         if (e && e.text) texts.push(e.text);
         if (e && e.title) texts.push(e.title);
       });
+      // NPC 自主行为
       if (Array.isArray(aiResult.npc_actions)) aiResult.npc_actions.forEach(function(a){
         if (a && a.desc) texts.push(a.desc);
         if (a && a.actor) texts.push(a.actor);
+      });
+      // NPC 互动
+      if (Array.isArray(aiResult.npc_interactions)) aiResult.npc_interactions.forEach(function(a){
+        if (!a) return;
+        if (a.desc) texts.push(a.desc);
+        if (a.actor) texts.push(a.actor);
+        if (a.target) texts.push(a.target);
+        if (a.content) texts.push(a.content);
       });
     }
     var fullText = texts.join('\n');

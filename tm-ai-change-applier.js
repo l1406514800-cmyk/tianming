@@ -316,7 +316,20 @@
     if (!G || !identifier) return null;
     category = (category || '').toLowerCase();
     if (category === 'char' || category === 'character') {
-      return (G.chars||[]).find(function(c){ return c && (c.name === identifier || c.id === identifier); });
+      var clean = String(identifier).trim().replace(/[\s,，、。？！；：]/g, '');
+      if (!clean) return null;
+      var exact = (G.chars||[]).find(function(c){ return c && (c.name === clean || c.id === clean); });
+      if (exact) return exact;
+      // 宽松：去头部称谓(太师/大学士/尚书/公/侯/伯)+去尾部动词·再精确匹配
+      var stripped = clean.replace(/^(太\u5E08|太\u5085|太\u4FDD|\u592A\u5B50|\u9646|\u592A\u9632|\u4E2D|\u5927)/, '');
+      if (stripped && stripped !== clean) {
+        exact = (G.chars||[]).find(function(c){ return c && c.name === stripped; });
+        if (exact) return exact;
+      }
+      // 宽松：char.name 作为 prefix（"张惟贤接" → "张惟贤"）
+      var prefix = (G.chars||[]).find(function(c){ return c && c.name && clean.indexOf(c.name) === 0 && clean.length - c.name.length <= 2; });
+      if (prefix) return prefix;
+      return null;
     } else if (category === 'faction' || category === 'fac') {
       return (G.facs||[]).find(function(f){ return f && (f.name === identifier || f.id === identifier); });
     } else if (category === 'party') {
@@ -454,6 +467,38 @@
     return G.chars.find(function(c){return c.name === name;});
   }
 
+  // 遍历 officeTree，找到 name 匹配的 position；可选 deptHint 限定部门
+  function _findOfficePos(tree, positionName, deptHint) {
+    if (!tree || !positionName) return null;
+    var found = null;
+    function walk(nodes, parentPath) {
+      (nodes||[]).forEach(function(n) {
+        if (found) return;
+        if (!n) return;
+        var curPath = (parentPath ? parentPath + '/' : '') + (n.name||'');
+        if (Array.isArray(n.positions)) {
+          for (var i = 0; i < n.positions.length; i++) {
+            var p = n.positions[i];
+            if (!p || !p.name) continue;
+            // 精确匹配 + 模糊匹配（position 名含/被含）
+            var match = p.name === positionName || p.name.indexOf(positionName) >= 0 || positionName.indexOf(p.name) >= 0;
+            if (!match) continue;
+            // 若指定部门提示且不匹配，继续找更好的
+            if (deptHint && curPath.indexOf(deptHint) < 0 && n.name !== deptHint) continue;
+            found = { node: n, pos: p, path: curPath };
+            return;
+          }
+        }
+        if (Array.isArray(n.subs)) walk(n.subs, curPath);
+      });
+    }
+    // 第一遍：有 deptHint 约束
+    if (deptHint) walk(tree, '');
+    // 第二遍：无约束 fallback
+    if (!found) { deptHint = null; walk(tree, ''); }
+    return found;
+  }
+
   function onAppointment(charName, position, binding) {
     var G = global.GM;
     var ch = _findChar(charName);
@@ -481,6 +526,100 @@
     ch.resources.publicTreasury.binding = binding || null;
     if (position) ch.officialTitle = position;
     if (position && ch.currentPosition) ch.currentPosition.title = position;
+
+    // ★ 核心修复：同步 officeTree.positions.holder —— 官制面板靠此字段
+    var treeUpdated = false;
+    var evicted = null;
+    if (position) {
+      // 1) 先扫 officeTree 清除本人持有的其他职位（避免一人占两位）
+      function _clearOldHolders(nodes) {
+        (nodes||[]).forEach(function(n) {
+          if (!n) return;
+          if (Array.isArray(n.positions)) {
+            n.positions.forEach(function(p) {
+              if (!p) return;
+              var wasHolder = (p.holder === charName);
+              // actualHolders 里也要剔除
+              if (Array.isArray(p.actualHolders)) {
+                var oldIdx = -1;
+                for (var _i=0;_i<p.actualHolders.length;_i++){
+                  if (p.actualHolders[_i] && p.actualHolders[_i].name === charName) { oldIdx = _i; break; }
+                }
+                if (oldIdx >= 0) {
+                  var removed = p.actualHolders.splice(oldIdx, 1)[0];
+                  if (!Array.isArray(p.holderHistory)) p.holderHistory = [];
+                  p.holderHistory.push({ name: charName, since: (removed && removed.joinedTurn) || 0, until: G.turn||0, reason: '转任' });
+                  // 若主 holder 被腾走·从剩余 actualHolders 回填
+                  if (wasHolder) {
+                    p.holder = (p.actualHolders[0] && p.actualHolders[0].name) || '';
+                    p.holderSinceTurn = (p.actualHolders[0] && p.actualHolders[0].joinedTurn) || (G.turn||0);
+                  }
+                }
+              } else if (wasHolder) {
+                // 无 actualHolders 结构·单人位直接清
+                if (!Array.isArray(p.holderHistory)) p.holderHistory = [];
+                p.holderHistory.push({ name: charName, since: p.holderSinceTurn||0, until: G.turn||0, reason: '转任' });
+                p.holder = '';
+              }
+            });
+          }
+          if (Array.isArray(n.subs)) _clearOldHolders(n.subs);
+        });
+      }
+      var deptHint = (binding && typeof binding === 'object') ? (binding.dept || binding.deptHint) : null;
+      _clearOldHolders(G.officeTree || []);
+      // 2) 找目标 position 并写入·按 headCount 允许几人同任
+      var hit = _findOfficePos(G.officeTree || [], position, deptHint);
+      if (hit) {
+        var pos = hit.pos;
+        var cap = Math.max(1, parseInt(pos.headCount) || 1);
+        // 初始化 actualHolders（兼容老数据只有 holder 字段）
+        if (!Array.isArray(pos.actualHolders)) {
+          pos.actualHolders = [];
+          if (pos.holder) pos.actualHolders.push({ name: pos.holder, joinedTurn: pos.holderSinceTurn||0 });
+        }
+        var curCount = pos.actualHolders.length;
+        // 若此人已在任（不常见·前面已清）直接跳
+        if (pos.actualHolders.some(function(h){return h&&h.name===charName;})) {
+          // no-op
+        } else if (curCount < cap) {
+          // 有空额·直接 append·不罢免他人
+          pos.actualHolders.push({ name: charName, joinedTurn: G.turn||0 });
+        } else {
+          // 超员·按策略罢免 oldest（最早 joinedTurn 者）
+          var oldestIdx = 0;
+          var oldestTurn = Number.POSITIVE_INFINITY;
+          pos.actualHolders.forEach(function(h, idx){
+            if (!h) return;
+            var jt = (typeof h.joinedTurn === 'number') ? h.joinedTurn : 0;
+            if (jt < oldestTurn) { oldestTurn = jt; oldestIdx = idx; }
+          });
+          var removed2 = pos.actualHolders.splice(oldestIdx, 1)[0];
+          if (removed2 && removed2.name) {
+            evicted = removed2.name;
+            var prevCh2 = _findChar(removed2.name);
+            if (prevCh2 && (prevCh2.officialTitle === pos.name || prevCh2.officialTitle === position)) prevCh2.officialTitle = '';
+            if (!Array.isArray(pos.holderHistory)) pos.holderHistory = [];
+            pos.holderHistory.push({ name: removed2.name, since: removed2.joinedTurn||0, until: G.turn||0, reason: '额满·最老者罢黜' });
+            if (global.addEB) global.addEB('\u4EFB\u514D', pos.name + ' \u989D\u6EE1\uFF08' + cap + '\u4EBA\uFF09\u2014\u2014' + removed2.name + ' \u7F62');
+          }
+          pos.actualHolders.push({ name: charName, joinedTurn: G.turn||0 });
+        }
+        // 同步 primary holder（兼容旧 UI 只读 holder 字段）
+        pos.holder = (pos.actualHolders[0] && pos.actualHolders[0].name) || charName;
+        pos.holderSinceTurn = (pos.actualHolders[0] && pos.actualHolders[0].joinedTurn) || (G.turn || 0);
+        treeUpdated = true;
+        // 修正 ch.officialTitle 为树里的规范名称
+        if (pos.name && pos.name !== position) ch.officialTitle = pos.name;
+        // 同时同步公库绑定到该位（若编辑器 position 有 bindingHint）
+        if (!binding && pos.bindingHint) {
+          ch.resources.publicTreasury.binding = { dept: hit.node.name, position: pos.name, hint: pos.bindingHint };
+        }
+      } else {
+        if (global.addEB) global.addEB('\u4EFB\u514D\u203B', '\u5B98\u5236\u65E0 \u300C' + position + '\u300D\u4E00\u804C\uFF0C\u4EC5\u8BB0\u5728\u89D2\u8272\u8868 officialTitle');
+      }
+    }
+
     if (binding) {
       var newEntity = _resolveBinding(binding);
       if (newEntity) {
@@ -493,8 +632,8 @@
         }
       }
     }
-    if (global.addEB) global.addEB('任免', '擢 ' + charName + ' 为 ' + (position||'某职'));
-    return { ok: true };
+    if (global.addEB) global.addEB('任免', '擢 ' + charName + ' 为 ' + (position||'某职') + (treeUpdated?'':' \u00B7 \u5B98\u5236\u672A\u540C\u6B65') + (evicted?' \u00B7 \u989D\u6EE1\u7F62 '+evicted:''));
+    return { ok: true, treeUpdated: treeUpdated, evicted: evicted };
   }
 
   function onDismissal(charName, reason) {
@@ -521,6 +660,34 @@
     if (reason === 'execute' || reason === '诛' || reason === '抄家') {
       ch.alive = false;
     }
+    // ★ 清 officeTree 里所有此人 holder + actualHolders
+    (function _clearAll(nodes){
+      (nodes||[]).forEach(function(n){
+        if (!n) return;
+        if (Array.isArray(n.positions)) n.positions.forEach(function(p){
+          if (!p) return;
+          var removedFromArr = null;
+          if (Array.isArray(p.actualHolders)) {
+            var i = -1;
+            for (var k=0;k<p.actualHolders.length;k++){
+              if (p.actualHolders[k] && p.actualHolders[k].name === charName) { i = k; break; }
+            }
+            if (i >= 0) removedFromArr = p.actualHolders.splice(i, 1)[0];
+          }
+          var wasPrimary = (p.holder === charName);
+          if (removedFromArr || wasPrimary) {
+            if (!Array.isArray(p.holderHistory)) p.holderHistory = [];
+            p.holderHistory.push({ name: charName, since: (removedFromArr && removedFromArr.joinedTurn) || p.holderSinceTurn || 0, until: G.turn||0, reason: reason||'免职' });
+          }
+          if (wasPrimary) {
+            // primary 被免·由 actualHolders 回填
+            p.holder = (Array.isArray(p.actualHolders) && p.actualHolders[0] && p.actualHolders[0].name) || '';
+            p.holderSinceTurn = (Array.isArray(p.actualHolders) && p.actualHolders[0] && p.actualHolders[0].joinedTurn) || 0;
+          }
+        });
+        if (Array.isArray(n.subs)) _clearAll(n.subs);
+      });
+    })(G.officeTree || []);
     ch.officialTitle = null;
     if (global.addEB) global.addEB('任免', charName + ' ' + (reason || '免职'));
     return { ok: true };
@@ -859,16 +1026,79 @@
     });
     if (officeCount > 0) applied.semantic.office_assignments = officeCount;
 
-    // ── 10. fiscal_adjustments：岁入岁出动态增删 ──
-    // schema: [{ target:'guoku|neitang|province:X', kind:'income|expense', category, name, amount, reason, recurring:bool, stopAfterTurn }]
+    // ── 9.5. personnel_changes 兜底 —— AI 常只写展示用的 personnel_changes，没写 office_assignments ──
+    // schema: [{ name, former, change, reason }]；change 里含动词（任/拜/授/擢/为/命…为…/免/罢/贬/黜/斩/诛）
+    // 已由 office_assignments 处理过的 name 不重复执行
+    var handledNames = {};
+    (aiOutput.office_assignments || []).forEach(function(oa){ if (oa && oa.name) handledNames[oa.name] = true; });
+    var personnelFromPcCount = 0;
+    (aiOutput.personnel_changes || []).forEach(function(pc){
+      if (!pc || !pc.name) return;
+      if (handledNames[pc.name]) return;
+      var changeText = String(pc.change || '').trim();
+      if (!changeText) return;
+      // 动作识别
+      var action = null, post = '', reason = pc.reason || changeText;
+      // 免/罢/贬/黜/斩/诛/免职/罢官/致仕
+      if (/(\u514D\u804C|\u7F62\u5B98|\u7F62\u514D|\u7F62|\u514D|\u8D2C|\u9EDC|\u81F4\u4ED5|\u9000\u4F11|\u9A7B)/.test(changeText)) {
+        action = 'dismiss';
+      } else if (/(\u65A9|\u8BDB|\u66B4\u6BD9|\u8D50\u6B7B|\u6B3B|\u8BDB\u6740|\u8BDB\u4E5D\u65CF|\u62C4\u5BB6)/.test(changeText)) {
+        action = 'dismiss'; reason = 'execute';
+      } else {
+        // 任命类：拜/授/擢/迁/转/命X为Y/升/进
+        var m;
+        // 命…为 XX / 拜 XX / 授 XX / 擢 XX / 为 XX
+        if ((m = changeText.match(/(?:\u547D|\u4EE4|\u62DC|\u6388|\u6412|\u8FC1|\u8F6C|\u8FC1\u8F6C|\u8FDB|\u5347|\u4E3A|\u4EFB)\s*([^\s，,。.；;]+)/))) {
+          post = m[1].replace(/^(\u4E3A|\u4EFB)/, '');
+        }
+        if (!post && pc.former && changeText.indexOf(pc.former) < 0) {
+          // 若 former 有职，change 里是新职
+          post = changeText.replace(/^(?:\u4ECE|\u81EA)?.*(?:\u8FC1|\u6539|\u8F6C)\s*/, '').replace(/[\s，,。.；;].*$/, '');
+        }
+        if (post) action = 'appoint';
+      }
+      if (!action) return;
+      var r = null;
+      if (action === 'appoint' && post) r = onAppointment(pc.name, post, null);
+      else if (action === 'dismiss') r = onDismissal(pc.name, reason);
+      if (r && r.ok) {
+        personnelFromPcCount++;
+        handledNames[pc.name] = true;
+        if (action === 'appoint') {
+          // 仕途追加
+          var chP = _findEntity(G, 'char', pc.name);
+          if (chP) {
+            if (!Array.isArray(chP.careerHistory)) chP.careerHistory = [];
+            chP.careerHistory.push({
+              turn: G.turn || 0,
+              date: (typeof getTSText==='function'?getTSText(G.turn):'T'+(G.turn||0)),
+              title: post,
+              action: 'appoint',
+              reason: pc.reason || changeText,
+              source: 'personnel_changes'  // 标记来源·便于调试
+            });
+          }
+          G._turnReport.push({ type:'appointment', action: 'appoint', charName: pc.name, position: post, source:'pc_fallback', turn:G.turn||0 });
+        } else {
+          G._turnReport.push({ type:'appointment', action: 'dismiss', charName: pc.name, source:'pc_fallback', turn:G.turn||0 });
+        }
+      }
+    });
+    if (personnelFromPcCount > 0) applied.semantic.personnel_changes_fallback = personnelFromPcCount;
+
+    // ── 10. fiscal_adjustments：岁入岁出动态增删 + **立即作用于余额** ──
+    // schema: [{ target:'guoku|neitang|province:X', kind:'income|expense', resource?:'money|grain|cloth', category, name, amount, reason, recurring:bool, stopAfterTurn }]
     var fiscalCount = 0;
     (aiOutput.fiscal_adjustments || []).forEach(function(fa) {
       if (!fa || !fa.target || !fa.kind) return;
       var amount = Math.abs(parseFloat(fa.amount) || 0);
+      if (amount <= 0) return;
+      var resource = (fa.resource === 'grain' || fa.resource === 'cloth') ? fa.resource : 'money';
       var entry = {
         id: 'fa_' + (G.turn||0) + '_' + Math.random().toString(36).slice(2,6),
         name: fa.name || '',
         category: fa.category || '',
+        resource: resource,
         amount: amount,
         reason: fa.reason || '',
         recurring: !!fa.recurring,
@@ -876,19 +1106,21 @@
         stopAfterTurn: fa.stopAfterTurn || null
       };
       // 确定目标容器
-      var target = null, containerKey = null;
+      var target = null, containerKey = null, immediateTarget = null;
       if (fa.target === 'guoku') {
         if (!G.guoku) G.guoku = {};
         if (!G.guoku.extraIncome) G.guoku.extraIncome = [];
         if (!G.guoku.extraExpense) G.guoku.extraExpense = [];
         target = G.guoku;
         containerKey = (fa.kind === 'income') ? 'extraIncome' : 'extraExpense';
+        immediateTarget = G.guoku;
       } else if (fa.target === 'neitang') {
         if (!G.neitang) G.neitang = {};
         if (!G.neitang.extraIncome) G.neitang.extraIncome = [];
         if (!G.neitang.extraExpense) G.neitang.extraExpense = [];
         target = G.neitang;
         containerKey = (fa.kind === 'income') ? 'extraIncome' : 'extraExpense';
+        immediateTarget = G.neitang;
       } else if (/^province:/.test(fa.target)) {
         var provName = fa.target.replace(/^province:/, '');
         var div = _findDivisionByNameOrId(G, provName);
@@ -896,13 +1128,62 @@
           if (!div.extraFiscal) div.extraFiscal = { income: [], expense: [] };
           target = div.extraFiscal;
           containerKey = (fa.kind === 'income') ? 'income' : 'expense';
+          immediateTarget = div;
         }
       }
       if (target && containerKey) {
         target[containerKey].push(entry);
         fiscalCount++;
-        G._turnReport.push({ type:'fiscal_adj', target: fa.target, kind: fa.kind, name: entry.name, amount: entry.amount, reason: entry.reason, turn: G.turn||0 });
-        if (typeof global.addEB === 'function') global.addEB('\u8D22\u653F', (fa.kind==='income'?'\u65B0\u589E\u5C81\u5165':'\u65B0\u589E\u5C81\u51FA') + '\uFF1A' + entry.name + ' ' + amount + (fa.recurring?'\u00B7\u6052\u5E74':''));
+        // ★ 立即作用于余额——允许负值（赤字/借贷/预支），后续会严惩
+        var actualApplied = amount;
+        var shortfall = 0;
+        if (immediateTarget) {
+          var cur = Number(immediateTarget[resource]) || 0;
+          if (fa.kind === 'expense') {
+            // 支出：足额扣减·库不足则进入赤字（负值）并记亏欠量
+            immediateTarget[resource] = cur - amount;
+            actualApplied = amount;
+            if (cur < amount) shortfall = amount - cur;  // 亏空 = 负值部分
+            if (immediateTarget.ledgers && immediateTarget.ledgers[resource]) {
+              var ledE = immediateTarget.ledgers[resource];
+              ledE.stock = (Number(ledE.stock)||0) - amount;  // 同步允许负
+            }
+          } else {
+            // 收入：直接加（若原为负·可抹平债务）
+            immediateTarget[resource] = cur + amount;
+            if (immediateTarget.ledgers && immediateTarget.ledgers[resource]) {
+              var ledI = immediateTarget.ledgers[resource];
+              ledI.stock = (Number(ledI.stock)||0) + amount;
+            }
+          }
+          if (immediateTarget === G.guoku && resource === 'money') immediateTarget.balance = immediateTarget.money;
+        }
+        // 条目标记实际应用量+亏欠量
+        entry.applied = actualApplied;
+        entry.shortfall = shortfall;
+        // turnReport：记 actual + shortfall（渲染器区别对待）
+        G._turnReport.push({ type:'fiscal_adj', target: fa.target, kind: fa.kind, resource: resource, name: entry.name, amount: actualApplied, requested: amount, shortfall: shortfall, reason: entry.reason, turn: G.turn||0 });
+        // 亏欠单独登记——供下回合 AI 推演、史记、风闻录事参考
+        if (shortfall > 0) {
+          if (!G._fiscalShortfalls) G._fiscalShortfalls = [];
+          G._fiscalShortfalls.push({
+            turn: G.turn || 0,
+            target: fa.target, resource: resource,
+            name: entry.name, reason: entry.reason,
+            requested: amount, applied: actualApplied, shortfall: shortfall,
+            resolved: false  // 下回合 AI 须判定：借贷/追加征发/取消/部分完成
+          });
+        }
+        var _resLbl = resource === 'grain' ? '粮' : resource === 'cloth' ? '布' : '银';
+        var _tgtLbl = fa.target === 'guoku' ? '帑廪' : fa.target === 'neitang' ? '内帑' : fa.target;
+        var _amtTxt = actualApplied + (shortfall > 0 ? ('/\u8BF7' + amount + '\u00B7\u4E8F' + shortfall) : '');
+        if (typeof global.addEB === 'function') {
+          if (shortfall > 0) {
+            global.addEB('\u8D22\u653F\u2757', _tgtLbl + '\u4E0D\u8DB3\uFF01' + (fa.name||'') + '\u8BF7' + amount + _resLbl + '\uFF0C\u4EC5\u62E8' + actualApplied + '\uFF0C\u4E8F' + shortfall);
+          } else {
+            global.addEB('\u8D22\u653F', _tgtLbl + (fa.kind==='income'?'\u5165':'\u51FA') + _resLbl + ' ' + actualApplied + (fa.name?'\uFF08'+fa.name+'\uFF09':'') + (fa.recurring?'\u00B7\u6052\u5E74':''));
+          }
+        }
       }
     });
     if (fiscalCount > 0) applied.semantic.fiscal_adjustments = fiscalCount;
@@ -1010,8 +1291,118 @@
     });
     if (anyPathCount > 0) applied.semantic.anyPathChanges = anyPathCount;
 
+    // ── 12. 赤字惩罚 engine：帑廪/内帑 任一项 < 0 → 按深度施以严惩 ──
+    try { _applyFiscalDeficitPenalties(G); } catch(_dfE) { console.warn('[applier] deficit penalty:', _dfE); }
+
     return { ok: true, applied: applied };
   }
+
+  // 赤字深度等级：返回 tier 对应的惩罚倍率（越深越重）
+  function _deficitTier(amount, scaleMoney) {
+    var deep = Math.abs(amount);
+    var pct = deep / Math.max(1, scaleMoney);
+    if (pct < 0.1) return { tier: 1, label: '微亏', mult: 1 };       // <10%
+    if (pct < 0.3) return { tier: 2, label: '告急', mult: 2 };        // 10-30%
+    if (pct < 0.8) return { tier: 3, label: '空虚', mult: 4 };        // 30-80%
+    if (pct < 2) return { tier: 4, label: '债台高筑', mult: 7 };      // 80-200%
+    return { tier: 5, label: '民穷财尽', mult: 12 };                   // >200%
+  }
+
+  function _applyFiscalDeficitPenalties(G) {
+    if (!G) return;
+    var pens = [];
+    // 规模参考：用岁入作 baseline（无则 fallback）
+    var monthIn = (G.guoku && (G.guoku.monthlyIncome || G.guoku.turnIncome)) || 100000;
+    var scaleMoney = Math.max(100000, monthIn * 12);   // 年入作比例基准
+    var scaleGrain = Math.max(50000, (G.guoku && G.guoku.monthlyGrainIncome || 10000) * 12);
+    var scaleCloth = Math.max(20000, (G.guoku && G.guoku.monthlyClothIncome || 5000) * 12);
+
+    function checkTreasury(targetName, targetObj) {
+      if (!targetObj) return;
+      var checks = [
+        { res:'money', scale:scaleMoney, label:'银' },
+        { res:'grain', scale:scaleGrain, label:'粮' },
+        { res:'cloth', scale:scaleCloth, label:'布' }
+      ];
+      checks.forEach(function(ck){
+        var v = Number(targetObj[ck.res]);
+        if (typeof v !== 'number' || isNaN(v) || v >= 0) return;
+        var t = _deficitTier(v, ck.scale);
+        pens.push({ target: targetName, resource: ck.res, label: ck.label, tier: t.tier, tierLabel: t.label, amount: v, mult: t.mult });
+      });
+    }
+    checkTreasury('guoku', G.guoku);
+    checkTreasury('neitang', G.neitang);
+    if (pens.length === 0) return;
+
+    // 汇总倍率（多项赤字累加·累加封顶 ×3）
+    var totalMult = 0;
+    pens.forEach(function(p){ totalMult += p.mult; });
+    totalMult = Math.min(totalMult, 36);
+
+    // 应用到各系统
+    // 1) 皇威（真实值）
+    if (!G._huangweiState) G._huangweiState = { index: 70 };
+    var hwPenalty = Math.round(totalMult * 0.25);  // tier1:-0.25~ tier5:-3
+    G._huangweiState.index = Math.max(0, (Number(G._huangweiState.index)||70) - hwPenalty);
+    // 2) 民心
+    if (!G._minxinState) G._minxinState = { index: 60 };
+    var mxPenalty = Math.round(totalMult * 0.3);
+    G._minxinState.index = Math.max(0, (Number(G._minxinState.index)||60) - mxPenalty);
+    // 3) 动乱
+    G.unrest = Math.min(100, (Number(G.unrest)||0) + Math.round(totalMult * 0.4));
+    // 4) 吏治 (corruption 上升·越穷越腐)
+    if (G._corruptionState) {
+      G._corruptionState.index = Math.min(100, (Number(G._corruptionState.index)||0) + Math.round(totalMult * 0.15));
+    }
+    // 5) 军心（NPC 将领忠诚 -1~-3）—— 仅 tier3+ 才影响武将
+    if (pens.some(function(p){return p.tier >= 3;}) && Array.isArray(G.chars)) {
+      G.chars.forEach(function(c){
+        if (!c || c.alive === false) return;
+        var isMilitary = (c.military||0) > 60 || /\u519B|\u5C06|\u5E05|\u53F2/.test(c.officialTitle||'');
+        if (isMilitary && typeof c.loyalty === 'number') {
+          c.loyalty = Math.max(0, c.loyalty - Math.round(totalMult * 0.08));
+        }
+      });
+    }
+    // 6) 粮亏独立加成：饥荒事件概率 + 人口逃散
+    var grainDef = pens.find(function(p){return p.resource==='grain' && p.tier>=2;});
+    if (grainDef && G.population && G.population.national) {
+      var fugitives = Math.round((G.population.national.mouths||0) * 0.002 * grainDef.mult);
+      G.population.fugitives = (Number(G.population.fugitives)||0) + fugitives;
+      G.population.national.mouths = Math.max(0, (G.population.national.mouths||0) - fugitives);
+    }
+    // 登记事件
+    if (!G._turnReport) G._turnReport = [];
+    G._turnReport.push({
+      type: 'fiscal_deficit',
+      penalties: pens,
+      totalMult: totalMult,
+      appliedTo: { huangwei: -hwPenalty, minxin: -mxPenalty, unrest: Math.round(totalMult*0.4), corruption: Math.round(totalMult*0.15) },
+      turn: G.turn || 0
+    });
+    // 累计告警（连续赤字计数）
+    if (!G._fiscalDeficitStreak) G._fiscalDeficitStreak = 0;
+    G._fiscalDeficitStreak++;
+    if (G._fiscalDeficitStreak >= 3) {
+      // 持续 3+ 回合赤字：弹窗+重大告警
+      if (typeof global.addEB === 'function') global.addEB('\u8D22\u653F\u2757\u2757', '\u8D4C\u7A7A\u7EE7\u7EED ' + G._fiscalDeficitStreak + ' \u56DE\u5408\uFF01\u7687\u5A01 -' + hwPenalty + ' \u6C11\u5FC3 -' + mxPenalty + ' \u52A8\u4E71+' + Math.round(totalMult*0.4));
+    } else {
+      if (typeof global.addEB === 'function') global.addEB('\u8D22\u653F\u2757', '\u56FD\u5EAA\u8D64\u5B57\uFF01' + pens.map(function(p){return p.label+p.tierLabel;}).join('\u3001') + ' \u2192 \u7687\u5A01-' + hwPenalty + ' \u6C11\u5FC3-' + mxPenalty);
+    }
+  }
+  // 若连续两回合均未赤字·streak 归零（入口：某处定期重置）
+  function _resetDeficitStreakIfHealthy(G) {
+    if (!G) return;
+    var anyDef = false;
+    ['money','grain','cloth'].forEach(function(r){
+      if (G.guoku && (Number(G.guoku[r])||0) < 0) anyDef = true;
+      if (G.neitang && (Number(G.neitang[r])||0) < 0) anyDef = true;
+    });
+    if (!anyDef) G._fiscalDeficitStreak = 0;
+  }
+  global._applyFiscalDeficitPenalties = _applyFiscalDeficitPenalties;
+  global._resetDeficitStreakIfHealthy = _resetDeficitStreakIfHealthy;
 
   // ═══════════════════════════════════════════════════════════════════
   //  路程估算（v3·仅作 AI 未指定天数时的保底·AI 应据历史地理知识自行给出）

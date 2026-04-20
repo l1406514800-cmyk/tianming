@@ -3597,10 +3597,17 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
     tp += '  · 玩家改官职名（例"户部尚书"→"度支令"）→ anyPathChanges 改 P.officeTree 对应节点·并对所有 officialTitle==旧名 的 char 同步 char_updates.updates.officialTitle\n';
     tp += '  · 授官 → office_assignments:[{name,post,dept,action:"appoint",toLocation?,reason}]·若需赴任则留走位；同时 careerEvent 自动追加，无需单独写\n';
     tp += '  · 罢免/贬谪/外放 → office_assignments action:"dismiss"/"transfer"；如外放须 toLocation+走位\n';
+    tp += '    ★【强制·不要只写 personnel_changes】personnel_changes 仅供史记弹窗展示·不会真正改动官制树/人物仕途·必须同时在 office_assignments 里写结构化条目·否则官职不生效\n';
+    tp += '    ★ 映射：玩家诏令"命 X 为 Y" → office_assignments:[{name:"X",post:"Y",action:"appoint"}]·且 personnel_changes 里同步写一条供展示\n';
+    tp += '    ★ 玩家罢某人 → office_assignments action:"dismiss" + personnel_changes 同写·两处必配套\n';
     tp += '  · 封爵/赐号/追谥 → char_updates.updates 里更新 title/爵位/封号·并 careerEvent 记录\n';
     tp += '  · 赐死/诛戮/抄家 → char_updates.updates.alive:false 或 onDismissal reason:"execute"\n';
     tp += '  · 新设/裁撤衙门 → anyPathChanges 改 P.officeTree；同时建立/解除对应 publicTreasury 绑定\n';
-    tp += '  · 财政调整（赐金/征发/专款）→ fiscal_adjustments:[{target:"guoku/neitang/province:X",kind:"income/expense",amount,item,reason}]·不得只写"拨银若干"而不落账\n';
+    tp += '  · 财政调整（赐金/征发/专款/缴获/贡品/赔款/罚没/赈济）→ fiscal_adjustments:[{target:"guoku|neitang|province:X",kind:"income|expense",resource:"money|grain|cloth",amount,name,reason,recurring:false}]\n';
+    tp += '    ★【强制·核心 bug 历史教训】任何钱/粮/布流动——无论是玩家诏令所引（赏银万两·赈粮千石·修宫殿·发军饷）·还是推演中的 NPC 行为（贪污·贡纳·缴获·赔款·走私入库）·必须一条一条写入 fiscal_adjustments·绝不可只在叙事/戏说/实录里提及数字而不落账\n';
+    tp += '    ★ 常见映射：皇帝赐赏私人→target:neitang/kind:expense；诏令赈济地方→target:guoku/kind:expense；战争缴获→target:guoku/kind:income；地方贡物→target:guoku/kind:income（贵重珍宝则 neitang）；抄家罚没→guoku 或 neitang（视情）\n';
+    tp += '    ★ recurring:true 只用于长期年例（如"岁赐辽东饷三十万"）；一次性赏赐/赈济/缴获 recurring:false（立刻作用于余额，不续）\n';
+    tp += '    ★ 玩家诏令文本若出现明确数额（赏/赐/拨/发/征/抄/没）X 两/石/匹——必须生成对应 fiscal_adjustments；若库不足则 kind:expense 只能到库余，并在 reason 里说明"库不足仅拨 N"\n';
     tp += '  · 势力/党派/阶层/区域变化 → faction_updates / party_updates / class_updates / region_updates\n';
     tp += '  · 工程/运动/战役启动 → project_updates 保存进度；相应 fiscal_adjustments 记支出\n';
     tp += '  · 任何其他深层字段（人物属性、忠诚、好感、记忆、派系关系、异象、科举阶段等）→ anyPathChanges op:"set/delta/push/merge"\n';
@@ -6120,6 +6127,48 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           var _chronCtx = ChronicleTracker.getAIContextString();
           if (_chronCtx) tp1 += '\n\n' + _chronCtx;
         }
+        // 财政赤字状态注入——当前任一库为负 → AI 必须严厉叙事
+        var _defItems = [];
+        ['money','grain','cloth'].forEach(function(r){
+          if (GM.guoku && (Number(GM.guoku[r])||0) < 0) _defItems.push({t:'guoku',r:r,v:GM.guoku[r]});
+          if (GM.neitang && (Number(GM.neitang[r])||0) < 0) _defItems.push({t:'neitang',r:r,v:GM.neitang[r]});
+        });
+        if (_defItems.length > 0) {
+          var _streak = GM._fiscalDeficitStreak || 1;
+          tp1 += '\n\n【★★ 财政赤字·持续 ' + _streak + ' 回合 ★★】';
+          _defItems.forEach(function(d){
+            var tg = d.t==='guoku'?'帑廪':'内帑', rl = d.r==='money'?'银':d.r==='grain'?'粮':'布';
+            tp1 += '\n  · ' + tg + '(' + rl + ')：' + d.v + '（负值表示赤字借贷）';
+          });
+          tp1 += '\n※ 赤字期必须在叙事中体现严重后果：';
+          tp1 += '\n    - 银亏：俸禄拖欠→百官怨怼/告病离朝、军饷失发→兵变/逃亡、商贾不敢赊借、民间挤兑';
+          tp1 += '\n    - 粮亏：饥荒蔓延、米价腾贵、流民暴动、军队哗变、漕运停滞';
+          tp1 += '\n    - 布亏：军装不继、工匠罢织、宫廷缩减供给';
+          tp1 += '\n    - 持续 ' + _streak + ' 回合赤字：权臣借机坐大、地方观望、异族窥伺、天象示警（若朝代迷信）';
+          tp1 += '\n※ edict_feedback 中需将相关诏令标 obstructed（执行停滞），并在 feedback 中明言"库已空虚/某军哗变/某地起义"';
+          tp1 += '\n※ npc_actions 可让臣子主动上奏请"借贷于商贾/加税/抄豪强/开捐纳/发内帑"等筹款手段，但每种手段都有副作用';
+          if (_streak >= 3) tp1 += '\n※ 持续 3+ 回合·AI 须生成至少 1 条 major 事件：某军哗变/某地民变/某大臣请辞/某豪强抗税/外族借机入侵';
+        }
+        // 财政亏欠注入——上回合库不足导致的未付款项，AI 本回合必须叙事处置
+        if (Array.isArray(GM._fiscalShortfalls) && GM._fiscalShortfalls.length > 0) {
+          var _unresolved = GM._fiscalShortfalls.filter(function(s){return s && !s.resolved;});
+          if (_unresolved.length > 0) {
+            tp1 += '\n\n【★ 财政亏欠·上回合库不足未付】';
+            _unresolved.slice(0, 12).forEach(function(s){
+              var _tg = s.target === 'guoku' ? '帑廪' : s.target === 'neitang' ? '内帑' : s.target;
+              var _rl = s.resource === 'grain' ? '粮' : s.resource === 'cloth' ? '布' : '银';
+              tp1 += '\n  · T' + s.turn + ' ' + _tg + '(' + _rl + ')【' + (s.name||'') + '】请 ' + s.requested + ' · 仅拨 ' + s.applied + ' · 亏欠 ' + s.shortfall + (s.reason?'（'+s.reason+'）':'');
+            });
+            tp1 += '\n  ※ 本回合 AI 必须就以上亏欠给出后果：';
+            tp1 += '\n      - 赏赐亏欠 → 受赏者/势力不满或失望，npc_actions/关系下滑，可能 loyalty -5~-15';
+            tp1 += '\n      - 军饷亏欠 → 军队哗变/逃亡/将领怨怼，edict_feedback 标 obstructed，民心-2 皇威-3';
+            tp1 += '\n      - 赈济亏欠 → 饥荒扩散/民变概率↑，地方 region 民心下滑，新增 pendingCrisis';
+            tp1 += '\n      - 工程/专款亏欠 → 工期停滞，project_updates 标 halted，工匠罢工';
+            tp1 += '\n      - 外交赔款亏欠 → 敌方 faction 恼怒，可能宣战或报复，边境 hostility↑';
+            tp1 += '\n      - 如本回合已补齐（通过新的 fiscal_adjustments），标 _fiscalShortfalls[i].resolved=true（通过 anyPathChanges）';
+            tp1 += '\n      - 玩家可能下诏筹款（加税/借贷/抄家/鬻爵），AI 须判定执行阻力';
+          }
+        }
         if (typeof buildFullAIContext === 'function') {
           var _fCtx = buildFullAIContext();
           // ── 七变量 + 深化字段（详细）──
@@ -6743,7 +6792,15 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
               regions: Array.isArray(p1.regions) ? p1.regions : [],
               events: Array.isArray(p1.events) ? p1.events : [],
               npc_actions: Array.isArray(p1.npc_actions) ? p1.npc_actions : [],
-              relations: Array.isArray(p1.relations) ? p1.relations : []
+              relations: Array.isArray(p1.relations) ? p1.relations : [],
+              // 关键补传：AI 返回的财政/人事/势力/党派调整要透传给 applier
+              fiscal_adjustments: Array.isArray(p1.fiscal_adjustments) ? p1.fiscal_adjustments : [],
+              char_updates: Array.isArray(p1.char_updates) ? p1.char_updates : [],
+              office_assignments: Array.isArray(p1.office_assignments) ? p1.office_assignments : [],
+              faction_updates: Array.isArray(p1.faction_updates) ? p1.faction_updates : [],
+              party_updates: Array.isArray(p1.party_updates) ? p1.party_updates : [],
+              // 兜底：AI 常只写 personnel_changes (展示用) 而不写 office_assignments — applier 里做备胎消费
+              personnel_changes: Array.isArray(p1.personnel_changes) ? p1.personnel_changes : []
             });
           }
         } catch(_applyErr) { console.warn('[endturn] applyAITurnChanges:', _applyErr); }
