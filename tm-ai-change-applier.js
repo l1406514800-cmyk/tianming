@@ -1320,8 +1320,51 @@
     // ── 12. 赤字惩罚 engine：帑廪/内帑 任一项 < 0 → 按深度施以严惩 ──
     try { _applyFiscalDeficitPenalties(G); } catch(_dfE) { console.warn('[applier] deficit penalty:', _dfE); }
 
+    // ── 13. 问天 directive 合规回报 ──
+    // schema: directive_compliance:[{id,status:'followed|partial|ignored',reason,evidence}]
+    try { _applyDirectiveCompliance(G, aiOutput); } catch(_dcE) { console.warn('[applier] directive compliance:', _dcE); }
+
     return { ok: true, applied: applied };
   }
+
+  function _applyDirectiveCompliance(G, aiOutput) {
+    if (!G || !Array.isArray(G._playerDirectives) || G._playerDirectives.length === 0) return;
+    var reports = aiOutput && Array.isArray(aiOutput.directive_compliance) ? aiOutput.directive_compliance : [];
+    // 按 id 索引指令
+    var idMap = {};
+    G._playerDirectives.forEach(function(d){ if (d && d.id) idMap[d.id] = d; });
+    reports.forEach(function(r){
+      if (!r || !r.id) return;
+      var d = idMap[r.id];
+      if (!d) return;
+      d._lastStatus = r.status || 'ignored';
+      d._lastReason = r.reason || '';
+      d._lastEvidence = r.evidence || '';
+      d._lastCheckTurn = G.turn || 0;
+      if (d._lastStatus === 'ignored') {
+        d._ignoredCount = (d._ignoredCount||0) + 1;
+      } else if (d._lastStatus === 'followed') {
+        d._followedCount = (d._followedCount||0) + 1;
+      } else if (d._lastStatus === 'partial') {
+        d._partialCount = (d._partialCount||0) + 1;
+      }
+      G._turnReport.push({ type: 'directive_compliance', id: r.id, status: r.status, reason: r.reason, evidence: r.evidence, turn: G.turn||0 });
+    });
+    // 未回报的 rule 类指令也标记为 unchecked （避免以为被遵守）
+    G._playerDirectives.forEach(function(d){
+      if (!d || !d.id) return;
+      var reported = reports.some(function(r){return r && r.id===d.id;});
+      if (!reported && d.type === 'rule' && d._lastCheckTurn !== G.turn) {
+        d._lastStatus = 'unchecked';
+        d._lastCheckTurn = G.turn || 0;
+      }
+    });
+    // 合规处理完·清理本回合标记的一次性 directive（纠正类执行后移除）
+    G._playerDirectives = G._playerDirectives.filter(function(d){
+      return !(d && d._pendingRemovalAfterApply);
+    });
+  }
+  global._applyDirectiveCompliance = _applyDirectiveCompliance;
 
   // 赤字深度等级：返回 tier 对应的惩罚倍率（越深越重）
   function _deficitTier(amount, scaleMoney) {

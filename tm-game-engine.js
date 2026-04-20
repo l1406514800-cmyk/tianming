@@ -7397,15 +7397,31 @@ function _wtRenderHistory() {
   var chat = _$('wt-chat'); if (!chat) return;
   var html = '';
   // 欢迎信息
-  html += '<div style="text-align:center;font-size:0.72rem;color:var(--ink-300);padding:0.5rem;margin-bottom:0.5rem;">\u95EE\u5929\u7CFB\u7EDF\u2014\u2014\u60A8\u7684\u6307\u4EE4\u5C06\u5728\u4E0B\u56DE\u5408\u63A8\u6F14\u65F6\u751F\u6548</div>';
-  // 已有指令
+  html += '<div style="text-align:center;font-size:0.72rem;color:var(--ink-300);padding:0.5rem;margin-bottom:0.5rem;">\u95EE\u5929\u7CFB\u7EDF\u2014\u2014AI \u4F1A\u89E3\u8BFB\u4F60\u7684\u6307\u4EE4\u00B7\u786E\u8BA4\u540E\u5165\u5E93\u00B7\u6BCF\u56DE\u5408\u56DE\u62A5\u6267\u884C\u72B6\u51B5</div>';
+  // 已有指令（带状态 chip）
   if (GM._playerDirectives && GM._playerDirectives.length > 0) {
     html += '<div style="font-size:0.65rem;color:var(--gold-400);margin-bottom:var(--space-1);">\u6D3B\u8DC3\u6307\u4EE4 (' + GM._playerDirectives.length + ')</div>';
     GM._playerDirectives.forEach(function(d, i) {
+      var statusChip = '';
+      if (d._lastStatus === 'followed') statusChip = '<span style="display:inline-block;padding:1px 5px;background:rgba(126,184,167,0.2);color:var(--celadon-400);border-radius:2px;font-size:0.55rem;margin-left:4px;">\u5DF2\u9075</span>';
+      else if (d._lastStatus === 'partial') statusChip = '<span style="display:inline-block;padding:1px 5px;background:rgba(201,168,76,0.2);color:var(--amber-400);border-radius:2px;font-size:0.55rem;margin-left:4px;" title="' + escHtml(d._lastReason||'') + '">\u90E8\u5206</span>';
+      else if (d._lastStatus === 'ignored') statusChip = '<span style="display:inline-block;padding:1px 5px;background:rgba(192,64,48,0.25);color:#fef4e8;border-radius:2px;font-size:0.55rem;margin-left:4px;" title="' + escHtml(d._lastReason||'') + '">\u2757\u5FFD\u7565\u00D7' + (d._ignoredCount||1) + '</span>';
+      else if (d._lastStatus === 'unchecked') statusChip = '<span style="display:inline-block;padding:1px 5px;background:rgba(157,145,125,0.15);color:var(--ink-300);border-radius:2px;font-size:0.55rem;margin-left:4px;">\u672A\u6838</span>';
+      else statusChip = '<span style="display:inline-block;padding:1px 5px;background:rgba(184,154,83,0.12);color:var(--gold-300);border-radius:2px;font-size:0.55rem;margin-left:4px;">\u65B0\u5F55</span>';
+      var borderCol = d._lastStatus === 'ignored' ? 'var(--vermillion-400)' : d._lastStatus === 'partial' ? 'var(--amber-400)' : d._lastStatus === 'followed' ? 'var(--celadon-400)' : 'var(--gold-400)';
       html += '<div style="display:flex;justify-content:flex-end;margin-bottom:0.4rem;">';
-      html += '<div style="max-width:85%;background:var(--color-accent-subtle);border-right:3px solid var(--gold-400);border-radius:var(--radius-md) 2px 2px var(--radius-md);padding:0.4rem 0.6rem;font-size:var(--text-xs);">';
-      html += '<div style="font-size:0.6rem;color:var(--gold-400);margin-bottom:2px;">T' + (d.turn||'?') + ' ' + (d.type === 'rule' ? '\u89C4\u5219' : d.type === 'correction' ? '\u7EA0\u6B63' : d.type === 'content' ? '\u5185\u5BB9' : '\u6307\u4EE4') + '</div>';
+      html += '<div style="max-width:85%;background:var(--color-accent-subtle);border-right:3px solid ' + borderCol + ';border-radius:var(--radius-md) 2px 2px var(--radius-md);padding:0.4rem 0.6rem;font-size:var(--text-xs);">';
+      html += '<div style="font-size:0.6rem;color:var(--gold-400);margin-bottom:2px;">T' + (d.turn||'?') + ' ' + (d.type === 'rule' ? '\u89C4\u5219' : d.type === 'correction' ? '\u7EA0\u6B63' : d.type === 'content' ? '\u5185\u5BB9' : '\u6307\u4EE4') + statusChip + '</div>';
       html += escHtml(d.content);
+      if (d.structured) {
+        var sParts = [];
+        if (d.structured.target) sParts.push('\u5BF9\u8C61:' + d.structured.target);
+        if (d.structured.action) sParts.push('\u52A8\u4F5C:' + d.structured.action);
+        if (d.structured.scope) sParts.push('\u8303\u56F4:' + d.structured.scope);
+        if (d.structured.forbidden) sParts.push('\u7981:' + d.structured.forbidden);
+        if (sParts.length > 0) html += '<div style="font-size:0.55rem;color:var(--ink-300);margin-top:2px;font-style:italic;">' + escHtml(sParts.join(' \u00B7 ')) + '</div>';
+      }
+      if (d._lastEvidence) html += '<div style="font-size:0.55rem;color:var(--celadon-400);margin-top:2px;">\u4E0A\u56DE\u5408\u6267\u884C\uFF1A' + escHtml(d._lastEvidence.slice(0, 60)) + '</div>';
       html += '<button style="font-size:0.55rem;color:var(--vermillion-400);background:none;border:none;cursor:pointer;margin-left:4px;" onclick="GM._playerDirectives.splice(' + i + ',1);_wtRenderHistory();">\u2715</button>';
       html += '</div></div>';
     });
@@ -7432,29 +7448,165 @@ function _wtRenderHistory() {
   chat.scrollTop = chat.scrollHeight;
 }
 
-/** 发送问天指令 */
-function _wtSend() {
+/** 发送问天指令——真双向对话 + 结构化解析 + 待确认 */
+var _wtPending = null;  // { raw, aiInterpret, structured, type, ambiguity }
+async function _wtSend() {
   var input = _$('wt-input');
   var content = input ? input.value.trim() : '';
   if (!content) return;
   if (input) input.value = '';
 
-  // 判断类型
+  if (!GM._wentianHistory) GM._wentianHistory = [];
+  GM._wentianHistory.push({ role: 'player', content: content, turn: GM.turn });
+
+  // 本地回退判断类型
   var type = 'directive';
   if (/纠正|错了|不对|不应该|不合理/.test(content)) type = 'correction';
   else if (/规则|必须|不得|要求|禁止|总是/.test(content)) type = 'rule';
   else if (/加入|增加|设定|背景|补充/.test(content)) type = 'content';
 
-  if (!GM._playerDirectives) GM._playerDirectives = [];
-  GM._playerDirectives.push({ content: content, type: type, turn: GM.turn });
+  // 无 AI key：退回老行为
+  if (!P.ai || !P.ai.key || typeof callAI !== 'function') {
+    if (!GM._playerDirectives) GM._playerDirectives = [];
+    var did = 'dir_' + (GM.turn||0) + '_' + Math.random().toString(36).slice(2,7);
+    GM._playerDirectives.push({ id: did, content: content, type: type, turn: GM.turn });
+    GM._wentianHistory.push({ role: 'system', content: '\u2705 \u5DF2\u5F55\u5165\uFF08\u65E0AI\u89E3\u8BFB\u00B7\u914D\u914D key \u540E\u53EF\u542F\u7528\u89E3\u8BFB\u4E0E\u786E\u8BA4\u6D41\u7A0B\uFF09' });
+    _wtRenderHistory();
+    toast('\u6307\u4EE4\u5DF2\u5F55\u5165');
+    return;
+  }
 
-  if (!GM._wentianHistory) GM._wentianHistory = [];
-  GM._wentianHistory.push({ role: 'player', content: content, turn: GM.turn });
-  // AI确认回应
-  GM._wentianHistory.push({ role: 'system', content: '\u2705 \u6536\u5230\u3002\u6B64\u6307\u4EE4\u5C06\u5728\u4E0B\u56DE\u5408\u63A8\u6F14\u65F6\u751F\u6548\u3002' + (type === 'rule' ? '\uFF08\u5DF2\u6807\u8BB0\u4E3A\u6301\u4E45\u89C4\u5219\uFF0C\u6BCF\u56DE\u5408\u90FD\u4F1A\u9075\u5B88\uFF09' : type === 'correction' ? '\uFF08\u5DF2\u6807\u8BB0\u4E3A\u7EA0\u6B63\uFF0C\u5C06\u5728\u4E0B\u56DE\u5408\u8C03\u6574\uFF09' : '') });
-
+  // 展示"AI 解读中"气泡
   _wtRenderHistory();
-  toast('\u6307\u4EE4\u5DF2\u5F55\u5165\u2014\u2014\u4E0B\u56DE\u5408\u751F\u6548');
+  var chat = _$('wt-chat');
+  if (chat) {
+    var thinking = document.createElement('div');
+    thinking.id = 'wt-thinking';
+    thinking.style.cssText = 'display:flex;margin-bottom:0.4rem;';
+    thinking.innerHTML = '<div style="max-width:85%;background:var(--color-elevated);border-left:3px solid var(--gold-500);padding:0.4rem 0.6rem;font-size:var(--text-xs);color:var(--ink-300);font-style:italic;">AI \u6B63\u5728\u89E3\u8BFB\u4F60\u7684\u6307\u4EE4\u2026</div>';
+    chat.appendChild(thinking);
+    chat.scrollTop = chat.scrollHeight;
+  }
+
+  // 构造解析 prompt
+  var pastRules = (GM._playerDirectives||[]).filter(function(d){return d.type==='rule';}).slice(-6).map(function(d){return '- ' + d.content;}).join('\n');
+  var ctx = '剧本背景：' + ((typeof findScenarioById==='function'&&GM.sid) ? ((findScenarioById(GM.sid)||{}).name||'') : '') + '\n当前第 ' + (GM.turn||0) + ' 回合\n';
+  if (pastRules) ctx += '已有规则:\n' + pastRules + '\n';
+  var prompt = '你是天命AI推演系统的元指令解析器。玩家刚对你说了一条指令，请：\n'
+    + '1. 判断类型 type: rule(持久规则·每回合遵守) / correction(纠正·本回合调整) / content(背景/设定补充) / directive(一次性指令)\n'
+    + '2. 解析为结构化约束 structured:{target(对谁/什么), action(做什么/要求什么), scope(什么范围), forbidden(禁止什么·可空), measurable(如何判断遵守·可空), condition(触发条件·可空)}\n'
+    + '3. 给出"我是这么理解的"interpretation：30-80 字复述玩家意图并承诺如何执行\n'
+    + '4. 若有歧义，ambiguity:["问题1","问题2"]；无歧义留空数组\n'
+    + '5. 给一句 plan：下回合推演时会怎样落实（如"将让户部尚书孙某某主动谏言""zhengwen 中叙及某事"）\n'
+    + '\n【上下文】\n' + ctx
+    + '\n【玩家指令】\n' + content
+    + '\n\n返回 JSON：{"type":"rule|correction|content|directive","structured":{"target":"","action":"","scope":"","forbidden":"","measurable":"","condition":""},"interpretation":"...","ambiguity":["..."],"plan":"..."}';
+
+  try {
+    var resp = await callAI(prompt, 900);
+    var th = _$('wt-thinking'); if (th) th.remove();
+    var parsed = (typeof extractJSON === 'function') ? extractJSON(resp) : null;
+    if (!parsed) parsed = { interpretation: resp || content, type: type, structured: {}, ambiguity: [], plan: '将在下回合推演时参考此条指令' };
+    _wtPending = {
+      raw: content,
+      type: parsed.type || type,
+      structured: parsed.structured || {},
+      interpretation: parsed.interpretation || '',
+      ambiguity: Array.isArray(parsed.ambiguity) ? parsed.ambiguity : [],
+      plan: parsed.plan || '',
+      turn: GM.turn
+    };
+    // 展示 AI 解读气泡 + 确认按钮
+    _wtShowPendingConfirmation();
+  } catch(e) {
+    var th2 = _$('wt-thinking'); if (th2) th2.remove();
+    // AI 失败 → 仍按老办法入库
+    if (!GM._playerDirectives) GM._playerDirectives = [];
+    var did2 = 'dir_' + (GM.turn||0) + '_' + Math.random().toString(36).slice(2,7);
+    GM._playerDirectives.push({ id: did2, content: content, type: type, turn: GM.turn });
+    GM._wentianHistory.push({ role: 'system', content: '\u26A0 AI \u89E3\u8BFB\u5931\u8D25\uFF0C\u5DF2\u6309\u539F\u6587\u5F55\u5165\uFF08\u7C7B\u578B\uFF1A' + type + '\uFF09' });
+    _wtRenderHistory();
+  }
+}
+
+/** 展示 AI 解读 + 玩家确认按钮 */
+function _wtShowPendingConfirmation() {
+  if (!_wtPending) return;
+  var chat = _$('wt-chat'); if (!chat) return;
+  var old = _$('wt-confirm-box'); if (old) old.remove();
+  var p = _wtPending;
+  var typeLabel = {rule:'\u6301\u4E45\u89C4\u5219',correction:'\u7EA0\u6B63',content:'\u80CC\u666F\u8865\u5145',directive:'\u4E00\u6B21\u6027\u6307\u4EE4'}[p.type] || p.type;
+  var box = document.createElement('div');
+  box.id = 'wt-confirm-box';
+  box.style.cssText = 'display:flex;margin-bottom:0.5rem;';
+  var h = '<div style="max-width:90%;background:linear-gradient(135deg,rgba(184,154,83,0.08),var(--color-elevated));border-left:3px solid var(--gold-400);border-radius:2px var(--radius-md) var(--radius-md) 2px;padding:0.5rem 0.7rem;font-size:var(--text-xs);">';
+  h += '<div style="color:var(--gold-400);font-size:0.6rem;margin-bottom:4px;">AI \u89E3\u8BFB \u00B7 \u7C7B\u578B\uFF1A' + escHtml(typeLabel) + '</div>';
+  h += '<div style="color:var(--color-foreground);margin-bottom:6px;">' + escHtml(p.interpretation) + '</div>';
+  // 结构化
+  var sParts = [];
+  if (p.structured) {
+    if (p.structured.target) sParts.push('<b>\u5BF9\u8C61</b>\uFF1A' + escHtml(p.structured.target));
+    if (p.structured.action) sParts.push('<b>\u52A8\u4F5C</b>\uFF1A' + escHtml(p.structured.action));
+    if (p.structured.scope) sParts.push('<b>\u8303\u56F4</b>\uFF1A' + escHtml(p.structured.scope));
+    if (p.structured.forbidden) sParts.push('<b>\u7981</b>\uFF1A' + escHtml(p.structured.forbidden));
+    if (p.structured.measurable) sParts.push('<b>\u8BC4\u5224</b>\uFF1A' + escHtml(p.structured.measurable));
+    if (p.structured.condition) sParts.push('<b>\u6761\u4EF6</b>\uFF1A' + escHtml(p.structured.condition));
+  }
+  if (sParts.length > 0) h += '<div style="font-size:0.62rem;color:var(--ink-200);padding:4px 6px;background:rgba(10,9,8,0.35);border-radius:3px;margin-bottom:4px;">' + sParts.join('\u3000') + '</div>';
+  // 歧义
+  if (p.ambiguity && p.ambiguity.length > 0) {
+    h += '<div style="font-size:0.62rem;color:var(--amber-400);margin-bottom:4px;">\u26A0 \u6709\u6B67\u4E49\uFF1A';
+    p.ambiguity.forEach(function(q){ h += '<div>\u00B7 ' + escHtml(q) + '</div>'; });
+    h += '</div>';
+  }
+  if (p.plan) h += '<div style="font-size:0.62rem;color:var(--celadon-400);margin-bottom:6px;font-style:italic;">\u2192 ' + escHtml(p.plan) + '</div>';
+  // 按钮
+  h += '<div style="display:flex;gap:6px;">';
+  h += '<button class="bt bp bsm" onclick="_wtConfirmPending()" style="font-size:0.65rem;">\u786E \u8BA4 \u5165 \u5E93</button>';
+  h += '<button class="bt bs bsm" onclick="_wtReviseFromPending()" style="font-size:0.65rem;">\u518D \u8BAE</button>';
+  h += '<button class="bt bs bsm" onclick="_wtCancelPending()" style="font-size:0.65rem;color:var(--vermillion-400);">\u53D6 \u6D88</button>';
+  h += '</div></div>';
+  box.innerHTML = h;
+  chat.appendChild(box);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function _wtConfirmPending() {
+  var p = _wtPending; if (!p) return;
+  if (!GM._playerDirectives) GM._playerDirectives = [];
+  var did = 'dir_' + (GM.turn||0) + '_' + Math.random().toString(36).slice(2,7);
+  GM._playerDirectives.push({
+    id: did, content: p.raw, type: p.type, turn: p.turn,
+    structured: p.structured, interpretation: p.interpretation, plan: p.plan
+  });
+  if (!GM._wentianHistory) GM._wentianHistory = [];
+  GM._wentianHistory.push({ role: 'system', content: '\u2705 \u5DF2\u5165\u5E93 [id=' + did + ']\u00B7\u4E0B\u56DE\u5408\u63A8\u6F14\u5C06\u5F3A\u5236\u53C2\u7167\u00B7\u56DE\u62A5\u6267\u884C\u72B6\u51B5' });
+  _wtPending = null;
+  var cb = _$('wt-confirm-box'); if (cb) cb.remove();
+  _wtRenderHistory();
+  toast('\u6307\u4EE4\u5DF2\u5165\u5E93\u00B7\u4E0B\u56DE\u5408\u751F\u6548');
+}
+
+function _wtReviseFromPending() {
+  var p = _wtPending; if (!p) return;
+  var inp = _$('wt-input');
+  if (inp) {
+    inp.value = p.raw + '\n\n（补充澄清：）';
+    inp.focus();
+    // 移光标到末尾
+    inp.setSelectionRange(inp.value.length, inp.value.length);
+  }
+  var cb = _$('wt-confirm-box'); if (cb) cb.remove();
+  GM._wentianHistory.push({ role: 'system', content: '\u26B2 \u8BF7\u8865\u5145\u6F84\u6E05\u540E\u518D\u53D1' });
+  _wtPending = null;
+  _wtRenderHistory();
+}
+
+function _wtCancelPending() {
+  _wtPending = null;
+  var cb = _$('wt-confirm-box'); if (cb) cb.remove();
+  GM._wentianHistory.push({ role: 'system', content: '\u274C \u5DF2\u53D6\u6D88\u5F55\u5165' });
+  _wtRenderHistory();
 }
 
 /** 导入文档 */

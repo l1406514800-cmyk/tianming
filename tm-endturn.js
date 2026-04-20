@@ -3186,25 +3186,61 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
 
     // —— 层0: 问天系统——玩家对AI的直接指令（最高优先级） ——
     if (GM._playerDirectives && GM._playerDirectives.length > 0) {
-      tp += '【问天——玩家对推演AI的直接指令（最高优先级，必须遵守）】\n';
+      // 确保每条 directive 有 id
+      GM._playerDirectives.forEach(function(d){
+        if (d && !d.id) d.id = 'dir_' + (d.turn||0) + '_' + Math.random().toString(36).slice(2,7);
+      });
+      tp += '\n═══════════════════════════════════════════════════════════\n';
+      tp += '★★★【问天·玩家对推演AI的直接指令（最高优先级·必须遵守）】★★★\n';
+      tp += '═══════════════════════════════════════════════════════════\n';
+      tp += '※ 本段在所有其他上下文之前·若与其它段落冲突以此为准\n';
+      tp += '※ 每条指令有唯一 id·推演结束必须在 JSON 根节点返回 directive_compliance:[{id,status,reason,evidence}]\n';
+      tp += '    status = "followed"(已遵守) | "partial"(部分遵守) | "ignored"(未遵守/不适用)\n';
+      tp += '    evidence = 具体引用 zhengwen/events/npc_actions 等体现遵守的片段（30-80字）\n';
+      tp += '    reason = 若 partial/ignored·说明原因（冲突/无机会/不适用）\n';
+      tp += '\n';
       var _rules = GM._playerDirectives.filter(function(d) { return d.type === 'rule'; });
       var _corrections = GM._playerDirectives.filter(function(d) { return d.type === 'correction'; });
       var _others = GM._playerDirectives.filter(function(d) { return d.type !== 'rule' && d.type !== 'correction'; });
       if (_rules.length > 0) {
-        tp += '【持久规则——每回合必须遵守】\n';
-        _rules.forEach(function(r) { tp += '  · ' + r.content + '\n'; });
+        tp += '【持久规则·每回合必须遵守】\n';
+        _rules.forEach(function(r) {
+          tp += '  · [id=' + r.id + '] ' + r.content + '\n';
+          if (r.structured) {
+            var s = r.structured;
+            tp += '      解析：';
+            if (s.target) tp += 'target=' + s.target + '·';
+            if (s.action) tp += 'action=' + s.action + '·';
+            if (s.scope) tp += 'scope=' + s.scope + '·';
+            if (s.forbidden) tp += 'forbidden=' + s.forbidden + '·';
+            if (s.measurable) tp += 'measurable=' + s.measurable;
+            tp += '\n';
+          }
+          // 若上回合被忽略，加红色重申标记
+          if (r._lastStatus === 'ignored' && r._ignoredCount >= 1) {
+            tp += '      ⚠️⚠️⚠️【此条上回合被忽略·共 ' + r._ignoredCount + ' 次·本回合必须落实】⚠️⚠️⚠️\n';
+          } else if (r._lastStatus === 'partial') {
+            tp += '      ⚠️【上回合仅部分遵守·本回合须完整落实】\n';
+          }
+        });
       }
       if (_corrections.length > 0) {
-        tp += '【纠正——本回合调整后可移除】\n';
-        _corrections.forEach(function(c) { tp += '  · ' + c.content + '\n'; });
-        // 纠正类指令执行后自动移除
-        GM._playerDirectives = GM._playerDirectives.filter(function(d) { return d.type !== 'correction'; });
+        tp += '【纠正·本回合调整后可移除】\n';
+        _corrections.forEach(function(c) {
+          tp += '  · [id=' + c.id + '] ' + c.content + '\n';
+          if (c.structured) tp += '      解析：' + JSON.stringify(c.structured).slice(0, 200) + '\n';
+          // 标记待清理·由 applier 处理合规后再删
+          c._pendingRemovalAfterApply = true;
+        });
       }
       if (_others.length > 0) {
         tp += '【玩家补充内容/指令】\n';
-        _others.forEach(function(o) { tp += '  · ' + o.content + '\n'; });
+        _others.forEach(function(o) {
+          tp += '  · [id=' + o.id + '] ' + o.content + '\n';
+          if (o.structured) tp += '      解析：' + JSON.stringify(o.structured).slice(0, 200) + '\n';
+        });
       }
-      tp += '\n';
+      tp += '═══════════════════════════════════════════════════════════\n\n';
     }
     // 导入的记忆/文档
     if (GM._importedMemories && GM._importedMemories.length > 0) {
@@ -6083,6 +6119,8 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         "\"office_assignments\":[{\"name\":\"角色名\",\"post\":\"职位\",\"dept\":\"部门\",\"action\":\"appoint/dismiss/transfer\",\"fromLocation\":\"原地(可选)\",\"toLocation\":\"任职地(不同于原地则走位)\",\"estimatedDays\":30,\"reason\":\"原因\"}],"+
         // 岁入岁出动态增删（派人经商、大工程、新税目等）
         "\"fiscal_adjustments\":[{\"target\":\"guoku/neitang/province:某省\",\"kind\":\"income/expense\",\"category\":\"商贸/工程/赈济/军饷/杂税\",\"name\":\"项目名(如:派郑和下西洋商队)\",\"amount\":50000,\"reason\":\"依据/推演得出\",\"recurring\":true,\"stopAfterTurn\":null}],"+
+        // 问天 directive 合规回报（若有 directive 则必填，逐条回报）
+        "\"directive_compliance\":[{\"id\":\"dir_xxx\",\"status\":\"followed|partial|ignored\",\"reason\":\"若非 followed 说明原因\",\"evidence\":\"引用 zhengwen/events/npc_actions 中体现遵守的具体片段 30-80 字\"}],"+
         // 势力/党派/阶层/区划任意字段修改（补充既有 xxx_changes 的不足）
         "\"faction_updates\":[{\"name\":\"势力名\",\"updates\":{\"任何字段\":\"任何值\"}}],"+
         "\"party_updates\":[{\"name\":\"党派名\",\"updates\":{\"任何字段\":\"任何值\"}}],"+
@@ -7005,7 +7043,9 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
               faction_updates: Array.isArray(p1.faction_updates) ? p1.faction_updates : [],
               party_updates: Array.isArray(p1.party_updates) ? p1.party_updates : [],
               // 兜底：AI 常只写 personnel_changes (展示用) 而不写 office_assignments — applier 里做备胎消费
-              personnel_changes: Array.isArray(p1.personnel_changes) ? p1.personnel_changes : []
+              personnel_changes: Array.isArray(p1.personnel_changes) ? p1.personnel_changes : [],
+              // 问天 directive 合规回报
+              directive_compliance: Array.isArray(p1.directive_compliance) ? p1.directive_compliance : []
             });
           }
         } catch(_applyErr) { console.warn('[endturn] applyAITurnChanges:', _applyErr); }
