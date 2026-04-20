@@ -3919,38 +3919,52 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
     // —— 层2: 玩家意图（诏令 + 行录 + 奏疏批复）——
     var _hasEdicts = edicts.political || edicts.military || edicts.diplomatic || edicts.economic || edicts.other;
     var _hasTyrant = GM._turnTyrantActivities && GM._turnTyrantActivities.length > 0;
-    tp += "\n\u3010\u8BCF\u4EE4\u3011\n";
     if (!_hasEdicts && !_hasTyrant) {
       // 玩家什么都没做——无为而治，叙事应该让这种"不作为"感觉舒适
+      tp += "\n\u3010\u8BCF\u4EE4\u3011\n";
       tp += '（本回合帝王未颁发任何诏令，也未有特别行止。）\n';
       tp += '※ 叙事提示：描写一种"岁月静好"的氛围——朝堂自行运转，帝王乐得清闲。\n';
       tp += '  player_inner基调：轻松惬意，"什么都不做也挺好的……天下太平嘛"。\n';
       tp += '  忠臣们可能焦虑（"陛下为何不理政？"），但这种焦虑不要传染给玩家——\n';
       tp += '  让玩家觉得他们大惊小怪就好。\n';
+    } else if (_hasEdicts) {
+      // 有诏令——用醒目框架把字面原文标高优先级，并列出强制执行点
+      tp += '\n\n╔══════════════════════════════════════════════════════════════╗\n';
+      tp += '║  【★ 本回合玩家圣旨·核心指令·字面执行·必须落到数据 ★】          ║\n';
+      tp += '╠══════════════════════════════════════════════════════════════╣\n';
+      tp += '║  以下是本回合皇帝亲颁诏令原文。AI 必须：                       ║\n';
+      tp += '║  (1) shizhengji/shilu 正文中每一道诏令都有对应叙事段落         ║\n';
+      tp += '║  (2) 涉及任命→office_assignments·涉及钱粮→fiscal_adjustments  ║\n';
+      tp += '║  (3) edict_feedback 每条必填 status+assignee+feedback          ║\n';
+      tp += '║  (4) 不得假装没看到·不得默默改动诏令原意·不得略去执行反馈      ║\n';
+      tp += '╚══════════════════════════════════════════════════════════════╝\n';
+      // 诏令注入——标注每条诏令的送达状态
+      var _edictLines = [
+        {label:'【\u653F\u4EE4】',text:edicts.political,cat:'政令'},
+        {label:'【\u519B\u4EE4】',text:edicts.military,cat:'军令'},
+        {label:'【\u5916\u4EA4】',text:edicts.diplomatic,cat:'外交'},
+        {label:'【\u7ECF\u6D4E】',text:edicts.economic,cat:'经济'},
+        {label:'【\u5176\u4ED6】',text:edicts.other,cat:'其他'}
+      ];
+      var _edictSeq = 0;
+      _edictLines.forEach(function(el) {
+        if (!el.text) return;
+        _edictSeq++;
+        tp += '\n▶ 诏令 #' + _edictSeq + ' ' + el.label + '\n  原文："' + el.text + '"\n';
+        // 查找此诏令的edictTracker条目，标注送达状态
+        var _matched = (GM._edictTracker||[]).filter(function(et) {
+          return et.turn === GM.turn && et.category === el.cat && et.content === el.text;
+        });
+        _matched.forEach(function(et) {
+          if (et._remoteTargets && et._remoteTargets.length > 0) {
+            tp += '  ⚠ 此令涉及远方NPC：' + et._remoteTargets.join('、') + '——已遣信使传递，当前在途。\n';
+            tp += '  → 这些NPC本回合尚未收到此令，不可能按旨行事。AI必须在edict_feedback中标注status:"pending_delivery"。\n';
+            tp += '  → 只有信使送达后（后续回合），该NPC才知晓此令并可能执行。\n';
+          }
+        });
+      });
+      tp += '\n▶ 共 ' + _edictSeq + ' 道诏令须逐条落实：edict_feedback 数组长度 == ' + _edictSeq + '·缺一不可。\n\n';
     }
-    // 诏令注入——标注每条诏令的送达状态
-    var _edictLines = [
-      {label:'\u653F',text:edicts.political,cat:'政令'},
-      {label:'\u519B',text:edicts.military,cat:'军令'},
-      {label:'\u5916',text:edicts.diplomatic,cat:'外交'},
-      {label:'\u7ECF',text:edicts.economic,cat:'经济'},
-      {label:'\u5176\u4ED6',text:edicts.other,cat:'其他'}
-    ];
-    _edictLines.forEach(function(el) {
-      if (!el.text) return;
-      tp += el.label + ':' + el.text + '\n';
-      // 查找此诏令的edictTracker条目，标注送达状态
-      var _matched = (GM._edictTracker||[]).filter(function(et) {
-        return et.turn === GM.turn && et.category === el.cat && et.content === el.text;
-      });
-      _matched.forEach(function(et) {
-        if (et._remoteTargets && et._remoteTargets.length > 0) {
-          tp += '  ⚠ 此令涉及远方NPC：' + et._remoteTargets.join('、') + '——已遣信使传递，当前在途。\n';
-          tp += '  → 这些NPC本回合尚未收到此令，不可能按旨行事。AI必须在edict_feedback中标注status:"pending_delivery"。\n';
-          tp += '  → 只有信使送达后（后续回合），该NPC才知晓此令并可能执行。\n';
-        }
-      });
-    });
     if(xinglu){
       tp+="\u3010\u4E3B\u89D2\u884C\u6B62\u3011\uFF08\u73A9\u5BB6\u89D2\u8272\u672C\u56DE\u5408\u7684\u4E2A\u4EBA\u884C\u52A8\uFF0C\u4E0E\u8BCF\u4E66\u4E92\u8865\u2014\u2014\u8BCF\u4E66\u662F\u5143\u9996\u53D1\u53F7\u65BD\u4EE4\uFF0C\u884C\u6B62\u662F\u89D2\u8272\u4E2A\u4EBA\u7684\u4E3E\u52A8\uFF09\n"+xinglu+"\n";
     }
