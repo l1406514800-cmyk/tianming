@@ -4,6 +4,18 @@
     {
       "date": "2026-04-20",
       "module": "官职任命",
+      "title": "官制树任命按钮即时生效 + 诏令长期连带 + 数值变化立即体现",
+      "items": [
+        { "what": "官制树【任命/改换】按钮五位一体：直改 officeTree.holder + 同步 char.officialTitle/careerHistory + append 到 edict-pol textarea + AffinityMap/NpcMemory + 推入 _edictTracker", "why": "原来选完只写入「诏书建议库」要玩家手动复制，现在一键即生效、UI 立即刷新、AI 本回合就看得到" },
+        { "what": "诏令长期连带：_edictTracker 未完成诏令无年限保留（原 10 回合）；已完成者保留 24 回合", "why": "长期政策（辽饷/改革/招抚）跨回合效果能持续追踪" },
+        { "what": "AI prompt 新增【跨回合持续诏令】块：列出前回合未收束诏令·年龄·上次状态·历次反馈·连锁链", "why": "AI 会在 edict_feedback 里追报进展、给出连锁效应（如「辽饷三回合后→民心降/流民增/边饷歇」）并同步到 fiscal/class/region 数值" },
+        { "what": "edict_feedback 处理四路径匹配：edictId 精确 / 本回合 content / 跨回合旧诏 / 类别回落", "why": "旧诏令进展追报不被丢·累加到 _chainEffects 数组·进度只升不降" },
+        { "what": "受阻/功成/部行/进展四种 eventBus 事件立即推送", "why": "「数值变化说明」的原因 chip 即时显示诏令执行情况·玩家打开结算弹窗就能看到" }
+      ]
+    },
+    {
+      "date": "2026-04-20",
+      "module": "官职任命",
       "title": "诏令官职识别大幅加强 + AI prompt 重点突出",
       "items": [
         { "what": "动词表从 9 个扩到 25+：加入起用/起复/授/拜/召/着/除/进/升/迁/转/加封等明清常用诏令用语", "why": "原正则遗漏「起用韩爌」「授徐光启礼部尚书」「着韩爌入阁」等主流表述" },
