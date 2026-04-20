@@ -6,7 +6,19 @@
 
 (function(){
   function $(id){ return document.getElementById(id); }
-  function esc(s){ return (s==null?'':String(s)).replace(/[&<>"]/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function esc(s){
+    if (s == null) return '';
+    // 对象 → 尝试取常见文本字段·否则返空（避免"[object Object]"）
+    if (typeof s === 'object') {
+      if (s.name) s = s.name;
+      else if (s.label) s = s.label;
+      else if (s.value) s = s.value;
+      else if (s.text) s = s.text;
+      else if (s.type) s = s.type;
+      else return '';
+    }
+    return String(s).replace(/[&<>"]/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});
+  }
   function num(n){ n=Number(n)||0; if(Math.abs(n)>=10000) return (n/10000).toFixed(1).replace(/\.0$/,'')+'万'; if(Math.abs(n)>=1000) return (n/1000).toFixed(1).replace(/\.0$/,'')+'千'; return String(Math.round(n)); }
 
   // ─────────────────────── 左抽屉 shell extras ───────────────────────
@@ -331,31 +343,40 @@
     sp.innerHTML = _sHtml;
     gl.appendChild(sp);
 
-    // 5. 物价行情
-    var pp = document.createElement('div');
-    pp.className = 'gs-panel p-price';
-    pp.setAttribute('data-panel-key','price');
-    var prices = (GM.prices || P.prices) || {};
-    var _makePrice = function(name,val,unit,trend,sparkPct){
-      var spark=''; for (var i=0;i<6;i++){ spark += '<span style="height:'+sparkPct[i]+'%;"></span>'; }
-      var tCls = trend>5?'up':trend<-5?'down':'stable', tTxt = (trend>0?'↑':trend<0?'↓':'· ')+Math.abs(trend)+'%';
-      return '<div class="gs-price-row"><span class="gs-price-name">'+name+'</span>'
-        + '<span class="gs-price-val">'+val+'</span><span class="gs-price-unit">'+unit+'</span>'
-        + '<span class="gs-price-spark">'+spark+'</span>'
-        + '<span class="gs-price-trend '+tCls+'">'+tTxt+'</span></div>';
-    };
-    var _mi = prices.rice || {val:'1.8', unit:'两/石', trend:42, spark:[30,45,40,55,70,85]};
-    var _bu = prices.cloth || {val:'0.8', unit:'两/匹', trend:8, spark:[50,52,55,54,58,60]};
-    var _ya = prices.salt || {val:'3.2', unit:'两/引', trend:6, spark:[70,65,68,72,75,78]};
-    var _yi = prices.silver || {val:'650', unit:'/两金', trend:-14, spark:[75,70,68,65,60,58]};
-    pp.innerHTML = '<div class="gs-panel-hdr"><div class="gs-panel-title">物 价 行 情</div><span class="gs-panel-cnt">京师</span></div>'
-      + _makePrice('米',_mi.val,_mi.unit,_mi.trend,_mi.spark)
-      + _makePrice('布',_bu.val,_bu.unit,_bu.trend,_bu.spark)
-      + _makePrice('盐',_ya.val,_ya.unit,_ya.trend,_ya.spark)
-      + _makePrice('银',_yi.val,_yi.unit,_yi.trend,_yi.spark);
-    gl.appendChild(pp);
+    // 5. 物价行情（防御·sparkPct 可能缺失）
+    try {
+      var pp = document.createElement('div');
+      pp.className = 'gs-panel p-price';
+      pp.setAttribute('data-panel-key','price');
+      var prices = (GM.prices || P.prices) || {};
+      var _makePrice = function(name,val,unit,trend,sparkPct){
+        var s = Array.isArray(sparkPct) ? sparkPct : [30,45,40,55,70,85];
+        var spark=''; for (var i=0;i<6;i++){ spark += '<span style="height:'+(s[i]||50)+'%;"></span>'; }
+        var tr = Number(trend) || 0;
+        var tCls = tr>5?'up':tr<-5?'down':'stable', tTxt = (tr>0?'↑':tr<0?'↓':'· ')+Math.abs(tr)+'%';
+        return '<div class="gs-price-row"><span class="gs-price-name">'+name+'</span>'
+          + '<span class="gs-price-val">'+esc(val)+'</span><span class="gs-price-unit">'+esc(unit)+'</span>'
+          + '<span class="gs-price-spark">'+spark+'</span>'
+          + '<span class="gs-price-trend '+tCls+'">'+tTxt+'</span></div>';
+      };
+      var _defM = {val:'1.8', unit:'两/石', trend:42, spark:[30,45,40,55,70,85]};
+      var _defB = {val:'0.8', unit:'两/匹', trend:8, spark:[50,52,55,54,58,60]};
+      var _defS = {val:'3.2', unit:'两/引', trend:6, spark:[70,65,68,72,75,78]};
+      var _defY = {val:'650', unit:'/两金', trend:-14, spark:[75,70,68,65,60,58]};
+      var _mi = Object.assign({}, _defM, (typeof prices.rice==='object'?prices.rice:{}));
+      var _bu = Object.assign({}, _defB, (typeof prices.cloth==='object'?prices.cloth:{}));
+      var _ya = Object.assign({}, _defS, (typeof prices.salt==='object'?prices.salt:{}));
+      var _yi = Object.assign({}, _defY, (typeof prices.silver==='object'?prices.silver:{}));
+      pp.innerHTML = '<div class="gs-panel-hdr"><div class="gs-panel-title">物 价 行 情</div><span class="gs-panel-cnt">京师</span></div>'
+        + _makePrice('米',_mi.val,_mi.unit,_mi.trend,_mi.spark)
+        + _makePrice('布',_bu.val,_bu.unit,_bu.trend,_bu.spark)
+        + _makePrice('盐',_ya.val,_ya.unit,_ya.trend,_ya.spark)
+        + _makePrice('银',_yi.val,_yi.unit,_yi.trend,_yi.spark);
+      gl.appendChild(pp);
+    } catch(e) { console.warn('[shell-extras] price panel:', e); }
 
     // 6. 典藏书阁
+    try {
     var bk = document.createElement('div');
     bk.className = 'gs-panel p-book';
     bk.setAttribute('data-panel-key','book');
@@ -368,8 +389,10 @@
       + '<div class="gs-book-card b-ji"><div class="gs-book-name">集</div><div class="gs-book-num">'+num(libs.ji)+'</div><div class="gs-book-sub">诗文·笔记</div></div>'
       + '</div>';
     gl.appendChild(bk);
+    } catch(e) { console.warn('[shell-extras] book panel:', e); }
 
     // 7. 宫殿之序
+    try {
     var pal = document.createElement('div');
     pal.className = 'gs-panel p-palace';
     pal.setAttribute('data-panel-key','palace');
@@ -383,8 +406,10 @@
       + '<div class="gs-palace-gate">午 门 · 端 门 · 承 天 门</div>'
       + '</div>';
     gl.appendChild(pal);
+    } catch(e) { console.warn('[shell-extras] palace panel:', e); }
 
     // 8. 界面主题
+    try {
     var tm = document.createElement('div');
     tm.className = 'gs-panel p-theme';
     tm.setAttribute('data-panel-key','theme');
@@ -401,8 +426,10 @@
       + '<div class="gs-font-row"><span class="lbl">正 文</span><select class="gs-font-select"><option>宋体 SimSun</option><option>楷体 STKaiti</option><option>仿宋 FangSong</option><option>方正启体</option><option>思源宋体</option><option>霞鹜文楷</option></select></div>'
       + '<div class="gs-font-row"><span class="lbl">标 题</span><select class="gs-font-select"><option>楷体 STKaiti</option><option>行楷</option><option>隶书</option><option>华文行楷</option></select></div>';
     gl.appendChild(tm);
+    } catch(e) { console.warn('[shell-extras] theme panel:', e); }
 
     // 9. 帮助·典范
+    try {
     var hp = document.createElement('div');
     hp.className = 'gs-panel p-help';
     hp.setAttribute('data-panel-key','help');
@@ -412,8 +439,10 @@
       + '<div class="gs-help-item" onclick="if(typeof openHelpAI===\'function\')openHelpAI();else toast(\'AI 推演原理\')"><span class="ic">AI</span><span class="t">AI 推 演 原 理</span><span class="arr">›</span></div>'
       + '<div class="gs-help-item" onclick="if(typeof openHelpHotkey===\'function\')openHelpHotkey();else toast(\'[ ] = 开关抽屉·Ctrl+1..9 切 tab·F1 帮助\')"><span class="ic">键</span><span class="t">键 位 速 查</span><span class="arr">›</span></div>';
     gl.appendChild(hp);
+    } catch(e) { console.warn('[shell-extras] help panel:', e); }
 
     // 10. 音声调度
+    try {
     var au = document.createElement('div');
     au.className = 'gs-panel p-audio';
     au.setAttribute('data-panel-key','audio');
@@ -433,6 +462,7 @@
       + '<div class="gs-audio-loop"><button class="gs-audio-loop-btn active">顺 序</button><button class="gs-audio-loop-btn">单 曲</button><button class="gs-audio-loop-btn">随 机</button></div>'
       + '</div>';
     gl.appendChild(au);
+    } catch(e) { console.warn('[shell-extras] audio panel:', e); }
   };
 
   // ─────────────────────── 右抽屉 shell extras ───────────────────────
