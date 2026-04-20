@@ -93,14 +93,14 @@
       innerThought: '六君子血犹在诏狱梁上——他们为东林而死，吾苟活三年于蒲州。新帝若召我，是救我，是用我，亦是付我以血债复仇之责。',
       personalGoal: '复东林正气、追究阉党、重整吏治。',
       stressSources: ['东林血债未偿', '浙党楚党掣肘', '帝年少急躁'],
-      career: [ { year: 1592, title: '进士', note: '万历二十年榜眼。' }, { year: 1615, title: '礼部侍郎·东阁大学士' }, { year: 1624, title: '罢归', note: '天启四年被阉党构陷。' }, { year: 1628, title: '召还首辅', note: '原史崇祯元年。' } ],
+      career: [ { year: 1592, title: '进士', note: '万历二十年榜眼。' }, { year: 1615, title: '礼部侍郎·东阁大学士' }, { year: 1624, title: '罢归', note: '天启四年被阉党构陷。' } ],
       familyMembers: [ { name: '韩霖', relation: '子', note: '天主教徒，徐光启门生' } ]
     },
     '钱龙锡': {
       zi: '稚文', haoName: '机山', birthplace: '南直隶·松江华亭', learning: '进士(翰林)',
       innerThought: '阉祸初平，东林方可喘息。然袁崇焕之事在怀——当年我一手举荐，日后若辽事误国，吾必受连坐。',
       stressSources: ['东林党重振任务', '袁崇焕前途未卜', '浙党温体仁虎视'],
-      career: [ { year: 1607, title: '进士', note: '万历三十五年。' }, { year: 1625, title: '贬归', note: '天启五年被阉党排挤。' }, { year: 1628, title: '召还入阁', note: '原史崇祯元年。' }, { year: 1631, title: '戍边', note: '崇祯三年因袁崇焕案连坐。' } ]
+      career: [ { year: 1607, title: '进士', note: '万历三十五年。' }, { year: 1625, title: '贬归', note: '天启五年被阉党排挤。' } ]
     },
     '毕自严': {
       zi: '景曾', haoName: '白阳', birthplace: '山东·淄川', learning: '进士',
@@ -108,7 +108,7 @@
       innerThought: '太仓账册吾熟之如掌——名目二百万实可调九十万，辽饷岁需四百万何从出？唯有加派。然加派则激民变。此等死局，吾何以解之？',
       personalGoal: '开源节流、整顿度支、救此财政危局。',
       stressSources: ['太仓空虚', '宗禄拖欠', '辽饷逼饷如潮', '江南抗税'],
-      career: [ { year: 1592, title: '进士', note: '万历二十年。' }, { year: 1620, title: '太仆少卿', note: '万历末。' }, { year: 1625, title: '南京户部尚书' }, { year: 1628, title: '户部尚书', note: '原史崇祯元年召入。' }, { year: 1633, title: '病卒任上', note: '崇祯六年。' } ]
+      career: [ { year: 1592, title: '进士', note: '万历二十年。' }, { year: 1620, title: '太仆少卿', note: '万历末。' }, { year: 1625, title: '南京户部尚书' } ]
     },
     '徐光启': {
       zi: '子先', haoName: '玄扈', birthplace: '南直隶·松江上海', learning: '进士(翰林)', faith: '天主教',
@@ -117,7 +117,7 @@
       innerThought: '利玛窦老友已卒十六年，西学未竟。陕西大饥——吾所著《农政全书》若不传世，此身真白来世一遭。',
       personalGoal: '推行甘薯马铃薯以救荒、精修历法、翻译几何；中兴大明须借西器西术。',
       stressSources: ['利玛窦旧友不存', '天主教士被猜忌', '告归而无进退', '弟子孙元化在兵部势弱'],
-      career: [ { year: 1604, title: '进士', note: '万历三十二年。' }, { year: 1604, title: '入翰林', note: '同年。' }, { year: 1607, title: '受洗入教', note: '与利玛窦合作。' }, { year: 1620, title: '《几何原本》译成' }, { year: 1627, title: '告归养病', note: '以礼部左侍郎告归。' }, { year: 1628, title: '召还', note: '原史崇祯元年礼部尚书。' }, { year: 1632, title: '入阁', note: '崇祯五年。' }, { year: 1633, title: '卒', note: '崇祯六年十月。' } ]
+      career: [ { year: 1604, title: '进士', note: '万历三十二年。' }, { year: 1604, title: '入翰林', note: '同年。' }, { year: 1607, title: '受洗入教', note: '与利玛窦合作。' }, { year: 1620, title: '《几何原本》译成' }, { year: 1627, title: '告归养病', note: '以礼部左侍郎告归。' } ]
     },
     '温体仁': {
       zi: '长卿', haoName: '员峤', birthplace: '浙江·乌程(湖州)', learning: '进士',
@@ -125,14 +125,14 @@
       innerThought: '东林归朝，吾居其间必为所逼。当先附新帝之意、挑东林内争，以浙党之名结一大党。此时当隐忍，待十年后执牛耳。',
       personalGoal: '入阁为首辅；以柔克刚破东林。',
       stressSources: ['东林复起', '浙党势弱'],
-      career: [ { year: 1598, title: '进士', note: '万历二十六年。' }, { year: 1627, title: '礼部左侍郎' }, { year: 1629, title: '入阁', note: '崇祯二年。' }, { year: 1630, title: '首辅', note: '崇祯三年。' }, { year: 1637, title: '罢归', note: '崇祯十年。' } ]
+      career: [ { year: 1598, title: '进士', note: '万历二十六年。' }, { year: 1627, title: '礼部左侍郎' } ]
     },
     '周延儒': {
       zi: '玉绳', haoName: '挹斋', birthplace: '南直隶·常州宜兴', learning: '进士(状元)',
       appearance: '英俊少年老成，目光机敏。', diction: '才辩滔滔，好用典故。',
       innerThought: '万历四十一年状元，吾才名满天下。然十余年徘徊翰林，唯新君可引我入阁台。',
       stressSources: ['翰林清贫', '温体仁同榜将为敌'],
-      career: [ { year: 1613, title: '状元', note: '万历四十一年。' }, { year: 1629, title: '入阁', note: '崇祯二年。' }, { year: 1630, title: '首辅', note: '崇祯三年。' }, { year: 1633, title: '罢归' }, { year: 1641, title: '再首辅' }, { year: 1643, title: '赐死', note: '崇祯十六年。' } ]
+      career: [ { year: 1613, title: '状元', note: '万历四十一年。' } ]
     },
     '袁崇焕': {
       zi: '元素', haoName: '自如', birthplace: '广东·东莞(籍广西藤县)', learning: '进士',
@@ -140,7 +140,7 @@
       innerThought: '宁远一炮退老奴，宁锦再退黄台吉——然吾功不录，被阉党逼走！新帝召我，我当效先秦范雎申包胥之忠，五年清辽东！然辽镇皆旧部，毛文龙据皮岛不听约束——斩之乎？',
       personalGoal: '五年复辽东，封侯赐剑，平北虏。',
       stressSources: ['阉党余孽谗于帝', '毛文龙不听节制', '辽饷不继', '辽将人心'],
-      career: [ { year: 1619, title: '进士', note: '万历四十七年。' }, { year: 1622, title: '兵部职方司主事', note: '单骑出关。' }, { year: 1626, title: '宁远大捷' }, { year: 1627, title: '宁锦大捷' }, { year: 1627, title: '丁忧归乡', note: '七月告归。' }, { year: 1628, title: '督师蓟辽', note: '平台召见，五年复辽之约。' }, { year: 1630, title: '磔死', note: '崇祯三年八月。' } ],
+      career: [ { year: 1619, title: '进士', note: '万历四十七年。' }, { year: 1622, title: '兵部职方司主事', note: '单骑出关。' }, { year: 1626, title: '宁远大捷' }, { year: 1627, title: '宁锦大捷' }, { year: 1627, title: '丁忧归乡', note: '七月告归。' } ],
       familyMembers: [ { name: '袁文炳', relation: '父', note: '贡生' } ]
     },
     '孙承宗': {
@@ -149,21 +149,21 @@
       innerThought: '老夫六十五，筋骨犹健。辽东筑宁远锦州是吾心血——袁崇焕守之，大敌难越。然毛文龙尾大不掉，祖大寿骄悍，皇太极隐忍谋我。老夫若不再起，五年复辽恐是空言。',
       personalGoal: '守关宁不失；训帝以尧舜之道。',
       stressSources: ['年老', '帝性急', '阉党余党或反扑', '辽东将领不齐心'],
-      career: [ { year: 1604, title: '榜眼', note: '万历三十二年。' }, { year: 1620, title: '詹事府少詹事', note: '熹宗师傅。' }, { year: 1622, title: '兵部尚书·辽东督师' }, { year: 1625, title: '罢归', note: '被阉党排挤。' }, { year: 1629, title: '再督辽', note: '崇祯二年。' }, { year: 1638, title: '战死高阳', note: '清军攻城，阖门殉国。' } ],
-      familyMembers: [ { name: '孙鉁', relation: '长子', note: '战死高阳' } ]
+      career: [ { year: 1604, title: '榜眼', note: '万历三十二年。' }, { year: 1620, title: '詹事府少詹事', note: '熹宗师傅。' }, { year: 1622, title: '兵部尚书·辽东督师' }, { year: 1625, title: '罢归', note: '被阉党排挤。' } ],
+      familyMembers: [ { name: '孙鉁', relation: '长子' } ]
     },
     '毛文龙': {
       zi: '振南', haoName: '镇东', birthplace: '浙江·仁和(杭州)', learning: '武举',
       appearance: '身短而壮，面黑如墨，左眼有疤。', diction: '豪言自夸，不避粗话。',
       innerThought: '皮岛孤悬海外，朝廷视我如弃子。然我手握东江十余万人，朝廷不敢不给饷。袁崇焕来督师，必欲夺我兵。',
       stressSources: ['袁崇焕欲节制', '朝廷疑其冒饷', '后金离间'],
-      career: [ { year: 1605, title: '武举', note: '后从军辽东。' }, { year: 1621, title: '袭据镇江', note: '天启元年。' }, { year: 1622, title: '开东江镇' }, { year: 1629, title: '被斩于双岛', note: '崇祯二年六月袁崇焕矫诏。' } ]
+      career: [ { year: 1605, title: '武举', note: '后从军辽东。' }, { year: 1621, title: '袭据镇江', note: '天启元年。' }, { year: 1622, title: '开东江镇' } ]
     },
     '洪承畴': {
       zi: '彦演', haoName: '亨九', birthplace: '福建·泉州南安', learning: '进士',
       innerThought: '陕西旱象日深，流民星火足以燎原。吾本文人，将任兵事——若不铁腕剿平，匪势成则国难起。',
       stressSources: ['陕西饥民激增', '总督武之望老病', '剿饷无着'],
-      career: [ { year: 1616, title: '进士', note: '万历四十四年。' }, { year: 1627, title: '陕西参政' }, { year: 1629, title: '延绥巡抚', note: '崇祯二年。' }, { year: 1631, title: '三边总督' }, { year: 1642, title: '松锦战败降清', note: '崇祯十五年。' } ]
+      career: [ { year: 1616, title: '进士', note: '万历四十四年。' }, { year: 1627, title: '陕西参政' } ]
     },
     '卢象升': {
       zi: '建斗', haoName: '九台', birthplace: '南直隶·常州宜兴', learning: '进士',
@@ -171,17 +171,17 @@
       innerThought: '大名府地僻事繁，吾练兵千人号"天雄军"——虽无饷亦当用死士之心相付。',
       personalGoal: '殉国报君。',
       stressSources: ['大名府财政拮据', '京师遥远闻报不及'],
-      career: [ { year: 1622, title: '进士', note: '天启二年。' }, { year: 1627, title: '大名知府' }, { year: 1629, title: '起兵入卫', note: '崇祯二年。' }, { year: 1637, title: '宣大总督·兵部尚书' }, { year: 1638, title: '战死鹿庄', note: '崇祯十一年十二月。' } ]
+      career: [ { year: 1622, title: '进士', note: '天启二年。' }, { year: 1627, title: '大名知府' } ]
     },
     '孙传庭': {
       zi: '伯雅', haoName: '白谷', birthplace: '山西·代州', learning: '进士',
       innerThought: '读书十年，观今朝之事，乃知古人云"兵者不祥"非虚。然国事至此，非兵不可。',
-      career: [ { year: 1619, title: '进士', note: '万历四十七年。' }, { year: 1635, title: '陕西巡抚', note: '崇祯八年。' }, { year: 1636, title: '擒高迎祥' }, { year: 1643, title: '战死潼关', note: '崇祯十六年十月。"传庭死而明亡矣"' } ]
+      career: [ { year: 1619, title: '进士', note: '万历四十七年。' } ]
     },
     '孙元化': {
       zi: '火东', haoName: '初阳', birthplace: '南直隶·嘉定', learning: '举人(精西学)', faith: '天主教',
       innerThought: '徐夫子传吾几何与火器之法，吾于兵部职方司司职方图。红夷大炮之用，此身愿以证之。',
-      career: [ { year: 1612, title: '举人' }, { year: 1624, title: '宁远战后受袁崇焕赏识' }, { year: 1630, title: '登莱巡抚', note: '崇祯三年。' }, { year: 1632, title: '为孔有德叛兵所执', note: '崇祯五年。' } ]
+      career: [ { year: 1612, title: '举人' }, { year: 1624, title: '宁远战后受袁崇焕赏识' } ]
     },
     '皇太极': {
       zi: '', haoName: '', birthplace: '辽东·赫图阿拉(努尔哈赤兴起之地)', ethnicity: '女真', faith: '萨满·兼礼汉儒',
@@ -190,8 +190,8 @@
       innerThought: '明之新帝年少，阉党将倾，正我国机会。然二兄阿敏三兄莽古尔泰犹在，四大贝勒共坐南面之制不可久。范章京劝我改汗称帝——当待时机。先破朝鲜(已成)，再图宁锦，绕蒙古破塞亦未尝不可。',
       personalGoal: '取代大明，入主中原。',
       stressSources: ['内部四大贝勒牵制', '明新帝动向未定', '察哈尔林丹汗威胁', '东江毛文龙扰后方'],
-      career: [ { year: 1592, title: '出生', note: '万历二十年。' }, { year: 1616, title: '贝勒', note: '父汗努尔哈赤建国。' }, { year: 1626, title: '继汗位', note: '天命十一年。' }, { year: 1627, title: '伐朝鲜', note: '天聪元年春。' }, { year: 1636, title: '称帝', note: '改元崇德，国号清。' }, { year: 1643, title: '病逝', note: '崇德八年八月。' } ],
-      familyMembers: [ { name: '努尔哈赤', relation: '父', note: '后金太祖(殁)' }, { name: '代善', relation: '兄·礼亲王' }, { name: '多尔衮', relation: '异母弟' }, { name: '福临', relation: '子', note: '1638生,后为顺治帝' } ]
+      career: [ { year: 1592, title: '出生', note: '万历二十年。' }, { year: 1616, title: '贝勒', note: '父汗努尔哈赤建国。' }, { year: 1626, title: '继汗位', note: '天命十一年。' }, { year: 1627, title: '伐朝鲜', note: '天聪元年春。' } ],
+      familyMembers: [ { name: '努尔哈赤', relation: '父', note: '后金太祖(殁)' }, { name: '代善', relation: '兄·礼亲王' }, { name: '多尔衮', relation: '异母弟' } ]
     },
     '代善': {
       zi: '', birthplace: '辽东·赫图阿拉', ethnicity: '女真', faith: '萨满',
@@ -201,41 +201,41 @@
     '多尔衮': {
       zi: '', birthplace: '辽东·赫图阿拉', ethnicity: '女真', faith: '萨满',
       innerThought: '父汗最疼爱我，然临崩时我仅十五岁。母亲大福晋被逼殉葬，我不能救。皇太极虽为兄，然吾心非全服。',
-      career: [ { year: 1612, title: '出生' }, { year: 1626, title: '贝勒', note: '父殁时十五岁。' }, { year: 1636, title: '睿亲王', note: '清崇德元年。' }, { year: 1644, title: '入关摄政' }, { year: 1650, title: '死于塞外' } ]
+      career: [ { year: 1612, title: '出生' }, { year: 1626, title: '贝勒', note: '父殁时十五岁。' } ]
     },
     '范文程': {
       zi: '宪斗', haoName: '辉岳', birthplace: '沈阳(宋范仲淹十七世孙,祖居江西)', ethnicity: '汉', faith: '儒',
       innerThought: '吾为范文正公后裔，不愿为八旗苞苴。然天命九年沈阳陷，吾祖孙三代入后金。努尔哈赤卒，皇太极立——此君非池中物，或当赞襄王业以光大汉统。',
-      career: [ { year: 1597, title: '出生' }, { year: 1618, title: '秀才' }, { year: 1625, title: '入后金汉军', note: '天命九年后归附。' }, { year: 1629, title: '文馆大学士' }, { year: 1644, title: '佐多尔衮入关' }, { year: 1666, title: '卒', note: '清康熙五年。' } ]
+      career: [ { year: 1597, title: '出生' }, { year: 1618, title: '秀才' }, { year: 1625, title: '入后金汉军', note: '天命九年后归附。' } ]
     },
     '林丹汗': {
       zi: '', birthplace: '察哈尔·浩齐特', ethnicity: '蒙古', faith: '藏传佛教',
       innerThought: '吾为元裔，天命之主。然努尔哈赤之子皇太极已收服科尔沁、喀喇沁诸部，吾逃向归化——须借明力以抗后金。',
-      career: [ { year: 1592, title: '出生' }, { year: 1604, title: '继察哈尔汗' }, { year: 1627, title: '西迁归化' }, { year: 1634, title: '死于青海', note: '崇祯七年。' } ]
+      career: [ { year: 1592, title: '出生' }, { year: 1604, title: '继察哈尔汗' }, { year: 1627, title: '西迁归化' } ]
     },
     '仁祖李倧': {
       zi: '和伯', birthplace: '朝鲜·汉城', ethnicity: '朝鲜', faith: '儒教(事大)',
       innerThought: '光海君乃被吾推翻，君位不稳。后金逼定兄弟之盟，吾既不愿又不敢违——事大明以正统。',
-      career: [ { year: 1595, title: '出生' }, { year: 1623, title: '反正即位', note: '废光海君。' }, { year: 1627, title: '江都盟', note: '天聪元年春被后金所逼。' }, { year: 1637, title: '丙子胡乱降清' }, { year: 1649, title: '卒' } ]
+      career: [ { year: 1595, title: '出生' }, { year: 1623, title: '反正即位', note: '废光海君。' }, { year: 1627, title: '江都盟', note: '天聪元年春被后金所逼。' } ]
     },
     '郑芝龙': {
       zi: '曰甲', haoName: '飞黄', birthplace: '福建·泉州南安', ethnicity: '汉', faith: '天主教·兼佛', learning: '海商出身',
       appearance: '海上风霜染面，然举止不失文雅。通日语、葡语、荷兰语。',
       innerThought: '吾为海上豪杰，明廷视我如海寇——然朝廷水师不及我十一。若受抚为游击，进可剿荷兰海寇，退可保全基业。',
-      career: [ { year: 1604, title: '出生' }, { year: 1621, title: '赴日本平户' }, { year: 1624, title: '助荷兰据台' }, { year: 1628, title: '受明招抚为海防游击', note: '原史崇祯元年。' }, { year: 1645, title: '福建总兵' }, { year: 1661, title: '被清杀于北京' } ],
-      familyMembers: [ { name: '郑成功', relation: '子', note: '1624生(日本平户)。日后抗清复台。' }, { name: '田川松', relation: '妻', note: '日本妇人。' } ]
+      career: [ { year: 1604, title: '出生' }, { year: 1621, title: '赴日本平户' }, { year: 1624, title: '助荷兰据台' } ],
+      familyMembers: [ { name: '郑成功', relation: '子', note: '1624生于日本平户·现仅 3 岁。' }, { name: '田川松', relation: '妻', note: '日本妇人。' } ]
     },
     '李自成': {
       zi: '鸿基', birthplace: '陕西·米脂', ethnicity: '汉', faith: '民间',
       appearance: '额方面阔，目深口阔，善骑射。',
       innerThought: '父母皆饿死于前年大旱，吾为驿卒月俸一两。朝廷若停驿站，吾与弟侄无业——饥寒在前，束手待毙乎？',
-      career: [ { year: 1606, title: '出生' }, { year: 1620, title: '为驿卒', note: '银川驿。' }, { year: 1629, title: '驿站被裁起事', note: '崇祯二年。' }, { year: 1636, title: '继高迎祥为闯王', note: '崇祯九年。' }, { year: 1644, title: '破京称大顺帝' }, { year: 1645, title: '死于九宫山' } ]
+      career: [ { year: 1606, title: '出生' }, { year: 1620, title: '为驿卒', note: '银川驿。' } ]
     },
     '张献忠': {
       zi: '秉吾', haoName: '敬轩', birthplace: '陕西·延安定边', ethnicity: '汉',
       appearance: '黄面虬须，目光凶悍。',
       innerThought: '当兵吃粮本求活命，今上官克扣、饷银无着。米脂十八寨皆欲起事，吾宁为王，不为虏卒。',
-      career: [ { year: 1606, title: '出生' }, { year: 1630, title: '米脂十八寨起事', note: '崇祯三年。' }, { year: 1643, title: '据武昌称大西王' }, { year: 1646, title: '死于四川西充' } ]
+      career: [ { year: 1606, title: '出生' } ]
     }
   };
 
