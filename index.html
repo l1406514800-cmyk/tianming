@@ -417,6 +417,68 @@ input,textarea,select{pointer-events:auto!important;position:relative;z-index:10
   .lt-div{width:260px;}
 }
 
+/* ═══ 启幕卷轴 v2 (.home-*) —— 覆盖旧 .lt-* 样式 ═══ */
+#launch{padding:0;justify-content:flex-start;overflow-y:auto;overflow-x:hidden;}
+.home-stage{position:relative;min-height:100vh;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px 72px;background:radial-gradient(ellipse 80% 60% at 50% 35%,rgba(26,21,16,0.3) 0%,rgba(10,9,8,1) 100%);}
+.home-stage::before{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg,transparent,transparent 4em,rgba(184,154,83,0.015) 4em,rgba(184,154,83,0.015) calc(4em + 1px)),repeating-linear-gradient(0deg,transparent,transparent 6em,rgba(107,93,79,0.012) 6em,rgba(107,93,79,0.012) calc(6em + 1px));}
+.home-stage::after{content:"";position:absolute;bottom:0;left:0;right:0;height:35%;pointer-events:none;background:radial-gradient(ellipse 40% 60% at 20% 100%,rgba(74,111,165,0.08) 0%,transparent 60%),radial-gradient(ellipse 45% 70% at 50% 100%,rgba(58,85,128,0.1) 0%,transparent 55%),radial-gradient(ellipse 35% 55% at 78% 100%,rgba(74,111,165,0.07) 0%,transparent 60%);opacity:0.9;}
+.home-ylian{position:absolute;top:50%;transform:translateY(-50%);writing-mode:vertical-rl;font-family:"STKaiti","KaiTi","楷体",serif;font-size:13px;color:var(--ink-400);letter-spacing:0.8em;line-height:2.2;opacity:0.45;pointer-events:none;user-select:none;z-index:1;}
+.home-ylian.l{left:38px;}
+.home-ylian.r{right:38px;}
+.home-ylian .s{color:var(--gold-500);font-size:11px;letter-spacing:0.3em;margin-top:12px;display:block;}
+.home-axis{position:relative;z-index:2;text-align:center;}
+.home-deco-top{color:var(--gold-500);font-size:11px;letter-spacing:1em;margin-bottom:10px;opacity:0.7;}
+.home-deco-top::before{content:"\25C6\3000\3000\25C7\3000\3000\25C6";}
+.home-title{font-family:"STKaiti","KaiTi","楷体",serif;font-weight:900;font-size:84px;letter-spacing:0.28em;line-height:1;background:linear-gradient(160deg,#6b5010 0%,#8a6d2b 25%,#b89a53 48%,#d4be7a 55%,#e8d398 58%,#d4be7a 65%,#b89a53 85%,#8a6d2b 100%);background-size:200% 200%;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;text-shadow:0 0 60px rgba(184,154,83,0.15);animation:gold-shift 8s ease-in-out infinite alternate !important;position:relative;padding:0 20px;display:inline-block;opacity:1 !important;transform:none !important;filter:none !important;}
+@keyframes gold-shift{from{background-position:0% 50%;}to{background-position:100% 50%;}}
+.home-title::before,.home-title::after{content:"";position:absolute;top:50%;width:40px;height:1px;background:linear-gradient(90deg,transparent,var(--gold-500));opacity:0.6;}
+.home-title::before{right:100%;}
+.home-title::after{left:100%;background:linear-gradient(270deg,transparent,var(--gold-500));}
+.home-seal-wrap{margin:18px auto 0;display:flex;align-items:center;justify-content:center;gap:14px;}
+.home-seal{width:44px;height:44px;border-radius:5px;background:radial-gradient(circle at 35% 35%,rgba(212,112,106,0.95),rgba(140,40,30,0.92));display:flex;align-items:center;justify-content:center;color:#fef4e8;font-family:"STKaiti","KaiTi","楷体",serif;font-size:18px;font-weight:bold;letter-spacing:-0.05em;transform:rotate(-6deg);box-shadow:0 2px 8px rgba(140,40,30,0.4),inset 0 0 0 1.5px rgba(255,220,200,0.3);}
+.home-seal-lbl{font-family:"STKaiti","KaiTi","楷体",serif;color:var(--ink-200);font-size:16px;letter-spacing:0.35em;font-weight:500;}
+.home-sub{font-family:"STKaiti","KaiTi","楷体",serif;font-size:15px;color:var(--gold-300);letter-spacing:0.8em;margin-top:22px;font-weight:400;opacity:0.9 !important;transform:none !important;animation:none !important;}
+.home-div{animation:none !important;opacity:0.8 !important;}
+.home-menu{animation:none !important;opacity:1 !important;transform:none !important;}
+.home-div{width:320px;height:1px;background:linear-gradient(90deg,transparent,var(--gold-500) 20%,var(--gold-400) 50%,var(--gold-500) 80%,transparent);margin:28px auto 0;position:relative;}
+.home-div::before,.home-div::after{content:"";position:absolute;top:50%;width:6px;height:6px;border:1px solid var(--gold-400);transform:translateY(-50%) rotate(45deg);background:var(--bg-deep,#12100e);}
+.home-div::before{left:-3px;}
+.home-div::after{right:-3px;}
+.home-menu{display:grid;grid-template-columns:repeat(2,minmax(240px,1fr));gap:16px;max-width:580px;width:100%;margin:38px auto 0;position:relative;z-index:2;}
+.home-card{position:relative;background:linear-gradient(160deg,rgba(36,30,24,0.95),rgba(26,21,16,0.9));background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(184,154,83,0.025) 2.5em,rgba(184,154,83,0.025) calc(2.5em + 1px));border:1px solid rgba(184,154,83,0.22);border-left:2px solid rgba(184,154,83,0.6);border-radius:3px;padding:18px 20px;cursor:pointer;transition:all 0.28s cubic-bezier(0.22,1,0.36,1);text-align:left;font-family:inherit;color:inherit;overflow:hidden;animation:none !important;opacity:1 !important;transform:none !important;}
+.home-card::before{content:"";position:absolute;top:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-400),transparent);opacity:0;transition:opacity 0.3s;}
+.home-card::after{content:"";position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-500),transparent);opacity:0;transition:opacity 0.3s;}
+.home-card:hover{transform:translateY(-3px);border-color:var(--gold-400);border-left-color:var(--gold-300);box-shadow:0 10px 30px rgba(10,9,8,0.5),0 0 22px rgba(184,154,83,0.1);}
+.home-card:hover::before,.home-card:hover::after{opacity:1;}
+.home-card-hd{display:flex;align-items:center;gap:12px;margin-bottom:8px;}
+.home-card-icon{width:38px;height:38px;border-radius:50%;border:1px solid var(--ic-c,var(--gold-400));background:linear-gradient(135deg,rgba(184,154,83,0.12),rgba(26,21,16,0.3));display:flex;align-items:center;justify-content:center;font-family:"STKaiti","KaiTi","楷体",serif;font-size:18px;color:var(--ic-c,var(--gold-300));flex-shrink:0;transition:all 0.25s;}
+.home-card:hover .home-card-icon{background:linear-gradient(135deg,rgba(184,154,83,0.22),rgba(140,109,43,0.12));box-shadow:0 0 12px var(--ic-c,var(--gold-400));}
+.home-card.c-new{--ic-c:var(--gold-300);}
+.home-card.c-load{--ic-c:var(--celadon-400);}
+.home-card.c-edit{--ic-c:var(--indigo-400);}
+.home-card.c-set{--ic-c:var(--amber-400);}
+.home-card-cn{font-family:"STKaiti","KaiTi","楷体",serif;font-size:19px;color:var(--ic-c,var(--gold-300));letter-spacing:0.35em;line-height:1.1;margin-bottom:3px;text-indent:0.35em;font-weight:600;}
+.home-card-ti{font-family:"STKaiti","KaiTi","楷体",serif;font-size:12px;color:var(--ink-300);letter-spacing:0.22em;font-weight:400;line-height:1.3;}
+.home-card-desc{font-family:"STKaiti","KaiTi","楷体",serif;font-size:11.5px;color:var(--ink-300);letter-spacing:0.08em;line-height:1.55;margin-top:4px;font-style:italic;opacity:0.85;}
+.home-card-meta{margin-top:10px;padding-top:8px;border-top:1px dashed rgba(184,154,83,0.15);font-family:"STKaiti","KaiTi","楷体",serif;font-size:11px;color:var(--gold-400);letter-spacing:0.06em;display:flex;justify-content:space-between;align-items:center;}
+.home-card-meta .mt-dot{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--celadon-400);box-shadow:0 0 4px var(--celadon-400);margin-right:4px;vertical-align:middle;}
+.home-recent{margin:30px auto 0;max-width:580px;padding:10px 18px;background:linear-gradient(180deg,rgba(36,30,24,0.6),rgba(26,21,16,0.4));border:1px dashed rgba(184,154,83,0.2);border-radius:3px;font-family:"STKaiti","KaiTi","楷体",serif;font-size:12px;color:var(--ink-300);letter-spacing:0.08em;line-height:1.8;position:relative;z-index:2;}
+.home-recent .rh{color:var(--gold-400);letter-spacing:0.3em;margin-right:8px;font-size:11px;}
+.home-recent .r-item{color:var(--ink-200);}
+.home-recent .r-item+.r-item::before{content:"\B7";color:var(--gold-500);margin:0 8px;}
+.home-recent .r-seal{display:inline-block;width:16px;height:16px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(192,64,48,0.85),rgba(140,40,30,0.9));color:#fef4e8;text-align:center;line-height:16px;font-size:9px;vertical-align:middle;margin-right:4px;transform:rotate(-4deg);}
+.home-recent .r-empty{color:var(--ink-400);font-style:italic;letter-spacing:0.1em;}
+.home-foot{position:fixed;bottom:0;left:0;right:0;padding:10px 24px;background:linear-gradient(0deg,rgba(10,9,8,0.95),rgba(26,21,16,0.3));border-top:1px solid rgba(184,154,83,0.12);display:flex;align-items:center;justify-content:space-between;font-family:"STKaiti","KaiTi","楷体",serif;font-size:11px;color:var(--ink-400);letter-spacing:0.1em;z-index:5;backdrop-filter:blur(4px);}
+.home-foot .f-ver{color:var(--gold-500);letter-spacing:0.2em;}
+.home-foot .f-mid{color:var(--ink-300);}
+.home-foot .f-mid .dot{color:var(--vermillion-400);margin:0 6px;}
+.home-foot .f-right{display:flex;gap:18px;align-items:center;}
+.home-foot kbd{background:rgba(184,154,83,0.08);border:1px solid rgba(184,154,83,0.3);padding:0 6px;border-radius:2px;font-size:10px;color:var(--gold-300);font-family:monospace;}
+.corner-flower{position:absolute;width:78px;height:78px;pointer-events:none;opacity:0.35;z-index:1;}
+.corner-flower.tl{top:20px;left:20px;}
+.corner-flower.tr{top:20px;right:20px;transform:scaleX(-1);}
+.corner-flower svg{width:100%;height:100%;}
+
 /* 顶部栏 */
 /* ═══ 顶栏（紫檀案台风） ═══ */
 #bar{position:fixed;top:0;left:0;right:0;height:62px;z-index:var(--z-sticky);background:linear-gradient(180deg,var(--color-surface),rgba(18,16,14,0.95));border-bottom:1px solid var(--color-border-subtle);display:flex;align-items:center;padding:0 16px;gap:12px;display:none;backdrop-filter:blur(12px);box-shadow:0 2px 12px rgba(10,9,8,0.4);-webkit-app-region:drag;}
@@ -3247,24 +3309,39 @@ input,textarea,select{pointer-events:auto!important;position:relative;z-index:10
 .toggle input:checked+.toggle-slider{background:var(--green);}
 .toggle input:checked+.toggle-slider:before{transform:translateX(18px);background:#fff;}
 
-/* 剧本选择 */
-.scn-page{position:fixed;inset:0;z-index:998;background:var(--color-background);display:none;flex-direction:column;align-items:center;padding:2rem;overflow-y:auto;}
+/* 剧本选择（启幕卷轴 v2 风格） */
+.scn-page{position:fixed;inset:0;z-index:998;background:linear-gradient(180deg,#12100e,#1a1510);display:none;flex-direction:column;align-items:center;padding:2rem 1rem 3rem;overflow-y:auto;font-family:"STKaiti","KaiTi","楷体",serif;}
+.scn-page::before{content:"";position:fixed;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg,transparent,transparent 4em,rgba(184,154,83,0.015) 4em,rgba(184,154,83,0.015) calc(4em + 1px));z-index:0;}
 .scn-page.show{display:flex;}
-.scn-page-title{font-size:var(--text-2xl);font-weight:var(--weight-bold);color:var(--color-primary);letter-spacing:0.2em;margin-top:2rem;position:relative;}
-.scn-page-title::before,.scn-page-title::after{content:"〔";color:var(--gold-400);font-weight:400;opacity:0.6;}
-.scn-page-title::after{content:"〕";}
-.scn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:var(--space-4);max-width:850px;width:100%;margin-top:var(--space-4);}
-.scn-card{position:relative;background:var(--color-surface);border:1px solid var(--color-border-subtle);border-radius:var(--radius-md);padding:var(--space-4);cursor:pointer;transition:all var(--duration-normal) var(--ease-out);box-shadow:var(--shadow-sm);overflow:hidden;background-image:repeating-linear-gradient(90deg,transparent,transparent 3em,rgba(107,93,79,0.02) 3em,rgba(107,93,79,0.02) calc(3em + 1px));}
-.scn-card::before{content:"";position:absolute;left:0;top:0;width:3px;height:100%;background:linear-gradient(180deg,var(--gold-500),var(--gold-400),var(--gold-500));opacity:0.7;transition:opacity var(--duration-normal) var(--ease-out);}
-.scn-card::after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--gold-400),transparent);opacity:0;transition:opacity var(--duration-normal) var(--ease-out);}
-.scn-card:hover{border-color:var(--gold-500);transform:translateY(-3px);box-shadow:var(--shadow-md),var(--shadow-gold);}
-.scn-card:hover::before{opacity:1;}.scn-card:hover::after{opacity:0.5;}
-.scn-card .scn-era{font-size:var(--text-xs);color:var(--gold-400);letter-spacing:0.12em;margin-bottom:var(--space-1);}
-.scn-card .scn-name{font-size:var(--text-lg);font-weight:var(--weight-bold);color:var(--color-foreground);letter-spacing:0.06em;margin-bottom:2px;}
-.scn-card .scn-role{font-size:var(--text-sm);color:var(--color-foreground-secondary);margin-bottom:var(--space-2);}
-.scn-card .scn-bg{font-size:var(--text-xs);color:var(--color-foreground-muted);line-height:var(--leading-normal);}
-.scn-card-new{border:2px dashed var(--gold-400);display:flex;align-items:center;justify-content:center;min-height:100px;font-size:var(--text-lg);color:var(--color-primary);letter-spacing:0.1em;background:transparent !important;}
-.scn-card-new::before{display:none;}
+.scn-page > *{position:relative;z-index:1;}
+.scn-page-title{font-size:28px;font-weight:500;color:var(--gold-300);letter-spacing:0.4em;margin-top:1.5rem;position:relative;font-family:"STKaiti","KaiTi","楷体",serif;}
+.scn-page-title::before{content:"〔 ";color:var(--gold-500);font-weight:400;}
+.scn-page-title::after{content:" 〕";color:var(--gold-500);font-weight:400;}
+.scn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;max-width:1080px;width:100%;margin-top:var(--space-5);}
+.scn-card{position:relative;background:linear-gradient(160deg,rgba(36,30,24,0.92),rgba(26,21,16,0.88));background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(184,154,83,0.025) 2.5em,rgba(184,154,83,0.025) calc(2.5em + 1px));border:1px solid rgba(184,154,83,0.2);border-radius:3px;padding:14px 16px;cursor:pointer;overflow:hidden;transition:all 0.25s var(--ease-out);min-height:140px;font-family:"STKaiti","KaiTi","楷体",serif;}
+.scn-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--gold-500),var(--gold-400) 30%,var(--gold-400) 70%,var(--gold-500));opacity:0.8;transition:opacity 0.3s;}
+.scn-card::after{content:"";position:absolute;right:12px;top:12px;width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(192,64,48,0.78),rgba(140,40,30,0.82));opacity:0.7;transform:rotate(-6deg);box-shadow:0 0 0 1px rgba(255,220,200,0.15);transition:opacity 0.3s;}
+.scn-card:hover{border-color:var(--gold-400);transform:translateY(-3px);box-shadow:0 10px 22px rgba(10,9,8,0.45),0 0 16px rgba(184,154,83,0.08);}
+.scn-card:hover::before{opacity:1;}
+.scn-card:hover::after{opacity:0.9;}
+.scn-card .scn-era{font-size:11px;color:var(--gold-400);letter-spacing:0.2em;margin-bottom:4px;}
+.scn-card .scn-name{font-size:17px;color:var(--ink-100);letter-spacing:0.1em;font-weight:600;margin-bottom:3px;line-height:1.25;}
+.scn-card .scn-role{font-size:12px;color:var(--celadon-400);letter-spacing:0.08em;margin-bottom:8px;}
+.scn-card .scn-bg{font-size:11px;color:var(--ink-300);letter-spacing:0.04em;line-height:1.65;font-style:italic;opacity:0.88;padding-right:8px;}
+.scn-card-new{border:1.5px dashed rgba(184,154,83,0.4);display:flex;align-items:center;justify-content:center;min-height:140px;font-size:14px;color:var(--gold-300);letter-spacing:0.3em;background:transparent !important;}
+.scn-card-new::before,.scn-card-new::after{display:none !important;}
+.scn-card-new:hover{border-color:var(--gold-400);background:rgba(184,154,83,0.03) !important;}
+/* 剧本管理（编辑器入口）紫色主题覆盖 */
+.edit-title-purple{color:#b08bc8 !important;}
+.edit-title-purple::before,.edit-title-purple::after{color:rgba(142,106,168,0.5) !important;}
+.edit-grid-purple .scn-card{border-color:rgba(142,106,168,0.25);background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(142,106,168,0.02) 2.5em,rgba(142,106,168,0.02) calc(2.5em + 1px));}
+.edit-grid-purple .scn-card::before{background:linear-gradient(180deg,rgba(142,106,168,0.6),rgba(176,139,200,0.5),rgba(142,106,168,0.6));}
+.edit-grid-purple .scn-card::after{background:linear-gradient(135deg,rgba(142,106,168,0.8),rgba(176,139,200,0.6));border-radius:3px;color:#f4eadd;display:flex;align-items:center;justify-content:center;font-family:"STKaiti","KaiTi","楷体",serif;font-size:11px;font-weight:600;content:"编";}
+.edit-grid-purple .scn-card:hover{border-color:#b08bc8;box-shadow:0 10px 22px rgba(10,9,8,0.5),0 0 16px rgba(142,106,168,0.15);}
+.edit-grid-purple .scn-card .scn-era{color:#b08bc8;}
+.edit-grid-purple .scn-card .scn-role{color:var(--ink-200);}
+.edit-grid-purple .scn-card-new{color:#b08bc8;border-color:rgba(142,106,168,0.4);}
+.edit-grid-purple .scn-card-new:hover{border-color:#b08bc8;background:rgba(142,106,168,0.05) !important;}
 /* 剧本预览模态框 */
 .scn-preview-modal{max-width:650px;width:90%;max-height:85vh;overflow-y:auto;background:var(--color-elevated);border:1px solid var(--gold-500);border-radius:var(--radius-lg);padding:var(--space-6);position:relative;box-shadow:0 25px 50px rgba(0,0,0,0.5),0 0 80px rgba(184,154,83,0.08);animation:modal-in 0.3s var(--ease-out);background-image:repeating-linear-gradient(90deg,transparent,transparent 3em,rgba(107,93,79,0.015) 3em,rgba(107,93,79,0.015) calc(3em + 1px));}
 
@@ -3968,24 +4045,88 @@ input,textarea,select{pointer-events:auto!important;position:relative;z-index:10
 
 <!-- 启动界面 -->
 <div id="launch">
-  <div class="lt-title" id="lt-title">天 命</div>
-  <div class="lt-sub">AI 历史模拟推演</div>
-  <div class="lt-div"></div>
-  <div class="lt-menu" id="lt-menu">
-    <button class="lt-btn" id="btn-new-game"><span class="lt-btn-icon" id="_ico_new"></span><div><div class="lt-btn-label">开始新游戏</div><div class="lt-btn-desc">选择剧本，载入历史世界</div></div></button>
-    <button class="lt-btn" id="btn-load-save"><span class="lt-btn-icon" id="_ico_load"></span><div><div class="lt-btn-label">读取存档</div><div class="lt-btn-desc">继续上次的推演</div></div></button>
-    <button class="lt-btn" id="btn-editor"><span class="lt-btn-icon" id="_ico_edit"></span><div><div class="lt-btn-label">创作新剧本</div><div class="lt-btn-desc">打开创作者编辑器</div></div></button>
-    <button class="lt-btn" id="btn-settings"><span class="lt-btn-icon" id="_ico_set"></span><div><div class="lt-btn-label">游戏设置</div><div class="lt-btn-desc">API、字数、文风等</div></div></button>
+  <div class="home-stage">
+    <!-- 左右楹联（竖排古诗） -->
+    <div class="home-ylian l">天行健 · 君子以自强不息<span class="s">—— 周易</span></div>
+    <div class="home-ylian r">地势坤 · 君子以厚德载物<span class="s">—— 周易</span></div>
+    <!-- 四角装饰 -->
+    <div class="corner-flower tl"><svg viewBox="0 0 100 100"><path d="M 5 5 L 50 5 M 5 5 L 5 50 M 5 5 L 35 35 M 15 5 L 15 25 M 5 15 L 25 15 M 30 5 Q 35 15, 30 30" stroke="rgba(184,154,83,0.7)" stroke-width="1" fill="none"/><circle cx="10" cy="10" r="2" fill="rgba(192,64,48,0.7)"/></svg></div>
+    <div class="corner-flower tr"><svg viewBox="0 0 100 100"><path d="M 5 5 L 50 5 M 5 5 L 5 50 M 5 5 L 35 35 M 15 5 L 15 25 M 5 15 L 25 15 M 30 5 Q 35 15, 30 30" stroke="rgba(184,154,83,0.7)" stroke-width="1" fill="none"/><circle cx="10" cy="10" r="2" fill="rgba(192,64,48,0.7)"/></svg></div>
+    <!-- 主轴 -->
+    <div class="home-axis">
+      <div class="home-deco-top"></div>
+      <div class="home-title lt-title" id="lt-title">天　命</div>
+      <div class="home-seal-wrap">
+        <span class="home-seal-lbl">奉 天 承 运 皇 帝 　诏 曰 ：</span>
+        <div class="home-seal">玺</div>
+      </div>
+      <div class="home-sub">AI  历  史  模  拟  推  演</div>
+      <div class="home-div"></div>
+    </div>
+    <!-- 4 菜单卡（保留原按钮 id 以绑事件） -->
+    <div class="home-menu">
+      <button class="home-card c-new" id="btn-new-game">
+        <div class="home-card-hd"><div class="home-card-icon"><span id="_ico_new">卷</span></div>
+          <div><div class="home-card-cn">开　卷</div><div class="home-card-ti">开 始 新 游 戏</div></div></div>
+        <div class="home-card-desc">选择剧本 · 载入世界 · 敕定天命</div>
+        <div class="home-card-meta"><span id="_home_meta_new">官方 · 自定义剧本</span><span>↵</span></div>
+      </button>
+      <button class="home-card c-load" id="btn-load-save">
+        <div class="home-card-hd"><div class="home-card-icon"><span id="_ico_load">续</span></div>
+          <div><div class="home-card-cn">续　卷</div><div class="home-card-ti">读 取 存 档</div></div></div>
+        <div class="home-card-desc">启封卷宗 · 抄录副本 · 承续推演</div>
+        <div class="home-card-meta"><span id="_home_meta_load"><span class="mt-dot"></span>卷宗目录</span><span>Ctrl+L</span></div>
+      </button>
+      <button class="home-card c-edit" id="btn-editor">
+        <div class="home-card-hd"><div class="home-card-icon"><span id="_ico_edit">著</span></div>
+          <div><div class="home-card-cn">著　卷</div><div class="home-card-ti">创 作 新 剧 本</div></div></div>
+        <div class="home-card-desc">开炉鼓铸 · 立言成卷 · 遗之后人</div>
+        <div class="home-card-meta"><span>编辑器</span><span>Ctrl+E</span></div>
+      </button>
+      <button class="home-card c-set" id="btn-settings">
+        <div class="home-card-hd"><div class="home-card-icon"><span id="_ico_set">典</span></div>
+          <div><div class="home-card-cn">典　章</div><div class="home-card-ti">游 戏 设 置</div></div></div>
+        <div class="home-card-desc">API · 字数 · 文风 · 音声</div>
+        <div class="home-card-meta"><span>偏好调度</span><span>Ctrl+,</span></div>
+      </button>
+    </div>
+    <!-- 近事一行书简（读取存档索引填充） -->
+    <div class="home-recent" id="home-recent">
+      <span class="rh">〘 近 事 〙</span>
+      <span class="r-empty" id="home-recent-empty">未 见 封 卷 · 启 新 纪 元</span>
+    </div>
     <script>
-    if(typeof tmIcon==='function'){
-      document.getElementById('_ico_new').innerHTML=tmIcon('scroll',22);
-      document.getElementById('_ico_load').innerHTML=tmIcon('load',22);
-      document.getElementById('_ico_edit').innerHTML=tmIcon('qiju',22);
-      document.getElementById('_ico_set').innerHTML=tmIcon('settings',22);
-    }
+    (function fillHomeRecent(){
+      try{
+        var idx = JSON.parse(localStorage.getItem('tm_save_index')||'{}');
+        var arr = Object.keys(idx).map(function(k){ var v=idx[k]; v._slot=k; return v; }).filter(function(v){return v&&v.timestamp;}).sort(function(a,b){return b.timestamp-a.timestamp;}).slice(0,3);
+        if (!arr.length) return;
+        var host = document.getElementById('home-recent'); if(!host) return;
+        var empty = document.getElementById('home-recent-empty'); if(empty) empty.remove();
+        arr.forEach(function(s){
+          var span = document.createElement('span');
+          span.className = 'r-item';
+          var isAuto = s._slot==='slot_0';
+          var seal = isAuto ? '自' : '封';
+          var label = (s.eraName||s.date||'') + (s.turn?(' 第'+s.turn+'回'):'');
+          if (!label.trim()) label = s.name || '案卷';
+          span.innerHTML = '<span class="r-seal">'+seal+'</span>' + label;
+          host.appendChild(span);
+        });
+      }catch(e){}
+    })();
     </script>
   </div>
-  <div class="lt-ver">v0.9</div>
+  <!-- 底部栏 -->
+  <div class="home-foot">
+    <div class="f-ver">天 命　v0.9-β</div>
+    <div class="f-mid" id="home-foot-mid">春 分<span class="dot">◆</span>太 平<span class="dot">◆</span>河 清 海 晏</div>
+    <div class="f-right">
+      <span><kbd>↵</kbd> 开 卷</span>
+      <span><kbd>?</kbd> 帮 助</span>
+      <span><kbd>Esc</kbd> 退 出</span>
+    </div>
+  </div>
   <div id="main-view" style="display:none;width:100%;max-height:80vh;overflow-y:auto;"></div>
 </div>
 

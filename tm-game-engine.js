@@ -43,8 +43,9 @@ function doEditor(){_dbg('[doEditor] 执行开始');_cleanupOverlays();_$("launc
 function showScnSelect(){
   var page=_$("scn-page");
   page.classList.add("show");
-  page.innerHTML="<button class=\"bt bs\" onclick=\"backToLaunch()\" style=\"position:fixed;top:1rem;left:1rem;z-index:1000;\">"+tmIcon('close',14)+" \u8FD4\u56DE</button>"+
+  page.innerHTML="<button class=\"bt bs\" onclick=\"backToLaunch()\" style=\"position:fixed;top:1rem;left:1rem;z-index:1000;font-family:'STKaiti','KaiTi','楷体',serif;letter-spacing:0.15em;\">\u25C1 \u8FD4 \u56DE \u542F \u5E55</button>"+
     "<div class=\"scn-page-title\">\u9009 \u62E9 \u5267 \u672C</div>"+
+    "<div style=\"font-family:'STKaiti','KaiTi','楷体',serif;font-size:12px;color:var(--ink-400);letter-spacing:0.3em;text-align:center;margin-top:8px;margin-bottom:16px;font-style:italic;\">\u2014\u2014 \u62E9\u4E00\u6BB5\u65F6\u65E5\uFF0C\u5165\u5176\u4E16\u754C \u2014\u2014</div>"+
     "<div class=\"scn-grid\">"+
     P.scenarios.map(function(s){
       return "<div class=\"scn-card\" onclick=\"previewScenario('"+escHtml(s.id)+"')\">"+
@@ -53,7 +54,7 @@ function showScnSelect(){
         "<div class=\"scn-role\">"+escHtml(s.role)+"</div>"+
         "<div class=\"scn-bg\">"+escHtml((s.background||'').substring(0,80))+(s.background&&s.background.length>80?'…':'')+"</div></div>";
     }).join("")+
-    (P.scenarios.length===0?"<div style=\"color:var(--color-foreground-muted);text-align:center;padding:2rem;grid-column:1/-1;font-style:italic;\">\u6682\u65E0\u5267\u672C\uFF0C\u8BF7\u5148\u521B\u4F5C</div>":"")+
+    (P.scenarios.length===0?"<div style=\"color:var(--ink-400);text-align:center;padding:2rem;grid-column:1/-1;font-style:italic;font-family:'STKaiti','KaiTi','楷体',serif;letter-spacing:0.2em;\">\u6682\u65E0\u5267\u672C\uFF0C\u8BF7\u5148\u521B\u4F5C</div>":"")+
     "</div>";
 }
 
@@ -381,13 +382,14 @@ function _finalizeStartGame(sid) {
 function showScnManage(){
   var page=_$("scn-page");
   page.classList.add("show");
-  page.innerHTML="<button class=\"bt bs\" onclick=\"backToLaunch()\" style=\"position:fixed;top:1rem;left:1rem;z-index:1000;\">"+tmIcon('close',14)+" \u8FD4\u56DE</button>"+
-    "<div class=\"scn-page-title\">\u5267 \u672C \u7BA1 \u7406</div>"+
-    "<div style=\"display:flex;gap:0.5rem;margin-top:var(--space-3);\">"+
-    "<button class=\"bai\" onclick=\"aiGenFullScenario()\">"+tmIcon('event',14)+" AI\u751F\u6210\u6574\u4E2A\u5267\u672C</button></div>"+
+  page.innerHTML="<button class=\"bt bs\" onclick=\"backToLaunch()\" style=\"position:fixed;top:1rem;left:1rem;z-index:1000;font-family:'STKaiti','KaiTi','楷体',serif;letter-spacing:0.15em;\">\u25C1 \u8FD4 \u56DE \u542F \u5E55</button>"+
+    "<div class=\"scn-page-title edit-title-purple\">\u8457 \u5377 \u00B7 \u7F16 \u8F91 \u5668</div>"+
+    "<div style=\"font-family:'STKaiti','KaiTi','楷体',serif;font-size:12px;color:var(--ink-400);letter-spacing:0.3em;text-align:center;margin-top:8px;margin-bottom:16px;font-style:italic;\">\u2014\u2014 \u5F00\u7089\u7ACB\u8A00\uFF0C\u9020\u5316\u4E00\u4E16 \u2014\u2014</div>"+
+    "<div style=\"display:flex;gap:10px;margin-top:var(--space-3);justify-content:center;flex-wrap:wrap;\">"+
+    "<button class=\"bai edit-op\" onclick=\"aiGenFullScenario()\" style=\"font-family:'STKaiti','KaiTi','楷体',serif;letter-spacing:0.12em;\">\u2728 AI \u4E00 \u952E \u9020 \u5377</button></div>"+
     "<div id=\"ai-full-gen-panel\" style=\"display:none;max-width:600px;width:100%;margin-top:1rem;\"></div>"+
-    "<div class=\"scn-grid\">"+
-    "<div class=\"scn-card scn-card-new\" onclick=\"createNewScn()\">\uFF0B \u65B0\u5EFA</div>"+
+    "<div class=\"scn-grid edit-grid-purple\">"+
+    "<div class=\"scn-card scn-card-new\" onclick=\"createNewScn()\">\uFF0B \u65B0 \u5EFA \u7A7A \u5377</div>"+
     P.scenarios.map(function(s,i){
       return "<div class=\"scn-card\" onclick=\"openEditorHtml('"+s.id+"')\">"+
         "<div class=\"scn-era\">"+s.era+"</div>"+
