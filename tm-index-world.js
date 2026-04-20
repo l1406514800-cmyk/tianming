@@ -3530,16 +3530,29 @@ async function _wdNpcInitiateSpeak(name) {
 
   // 构建NPC主动开场的prompt
   var sysP = _wdBuildPrompt(ch, name);
-  sysP += '\n\n【特殊：NPC主动求见模式】';
-  sysP += '\n你是主动请求面圣的——你有准备好的话要说。不要问"陛下找臣何事"。';
-  sysP += '\n你应该直接开口陈述你的来意：';
-  if ((ch.stress||0) > 60) sysP += '\n  你心中有忧虑/困难/为难之事，想向皇帝倾诉或请求帮助。';
-  if ((ch.loyalty||50) > 90) sysP += '\n  你是忠臣，有重要的忠告或警示要进言。';
-  if ((ch.ambition||50) > 80) sysP += '\n  你有一个精心准备的计划/策论要呈上。';
-  // 检查未回复来函
-  var _unansLetter = (GM.letters||[]).find(function(l) { return l._npcInitiated && l.from === name && l._replyExpected && !l._playerReplied && l.status === 'returned'; });
-  if (_unansLetter) sysP += '\n  你之前写了一封信给皇帝但未获回复，内容是：「' + (_unansLetter.content||'').slice(0,80) + '」——你这次亲自来是为了当面追问此事。';
-  sysP += '\n直接以"臣有事启奏——"或类似开头，主动陈述你的来意和诉求。不要等皇帝先说话。';
+  if (ch._envoy) {
+    // 外藩使节：不走本朝官员的情绪分支，而是以外交使命为主
+    sysP += '\n\n【特殊：外藩使节入朝陈事】';
+    sysP += '\n你刚刚入觐天朝皇帝，须主动开口——不要说"候陛下垂询"或"臣听候圣谕"。';
+    sysP += '\n第一句务必完成以下四件事：①自报家门（"外臣/小臣/使臣某某奉X国之命"）②到朝目的（奉命行X使命）③呈上主君意旨或条款 ④表明己方立场或期望。';
+    sysP += '\n开头示例（按身份风格选）：';
+    sysP += '\n  · 女真 / 蒙古：直率豪迈——"外臣奉天聪汗之命入朝，实有三事求见天朝皇帝"';
+    sysP += '\n  · 朝鲜：恭顺委婉——"小邦使臣叩谢天恩·有紧要军情告于陛下"';
+    sysP += '\n  · 海商/南洋：商人本色——"小使奉主公之命，特献方物，亦有一议奉陈"';
+    sysP += '\n  · 西洋：带外语译意感——"Your Majesty·外使奉总督大人之命远渡而来"';
+    sysP += '\n切忌说"臣有事启奏"（本朝辞令）——你是外臣，应明确使命与己方立场。';
+  } else {
+    sysP += '\n\n【特殊：NPC主动求见模式】';
+    sysP += '\n你是主动请求面圣的——你有准备好的话要说。不要问"陛下找臣何事"。';
+    sysP += '\n你应该直接开口陈述你的来意：';
+    if ((ch.stress||0) > 60) sysP += '\n  你心中有忧虑/困难/为难之事，想向皇帝倾诉或请求帮助。';
+    if ((ch.loyalty||50) > 90) sysP += '\n  你是忠臣，有重要的忠告或警示要进言。';
+    if ((ch.ambition||50) > 80) sysP += '\n  你有一个精心准备的计划/策论要呈上。';
+    // 检查未回复来函
+    var _unansLetter = (GM.letters||[]).find(function(l) { return l._npcInitiated && l.from === name && l._replyExpected && !l._playerReplied && l.status === 'returned'; });
+    if (_unansLetter) sysP += '\n  你之前写了一封信给皇帝但未获回复，内容是：「' + (_unansLetter.content||'').slice(0,80) + '」——你这次亲自来是为了当面追问此事。';
+    sysP += '\n直接以"臣有事启奏——"或类似开头，主动陈述你的来意和诉求。不要等皇帝先说话。';
+  }
   sysP += '\n返回 JSON：{"reply":"主动陈述内容","loyaltyDelta":0,"emotionState":"当前情绪","suggestions":[{"topic":"针对什么问题/情境(10-25字具体说明上下文)","content":"详尽建议(80-200字，含具体执行者、手段、范围、时机；不要笼统套话)"}]}\n';
   sysP += '【suggestions 要求】\n';
   sysP += '  · 必须是 object 数组，每条含 topic(问题描述) + content(具体方案)\n';
@@ -3680,6 +3693,12 @@ function _wdOpenAudienceQueue(qi) {
     };
     if (!GM.chars) GM.chars = [];
     GM.chars.push(ch);
+    // 关键：新加入的使节须立即注册到索引·否则 findCharByName 找不到·_wdNpcInitiateSpeak 静默退出（这是"使节不发言"的真正根因）
+    if (GM._indices && GM._indices.charByName) {
+      GM._indices.charByName.set(name, ch);
+    } else if (typeof buildIndices === 'function') {
+      buildIndices();
+    }
   } else if (ch && q.isEnvoy) {
     // 角色已存在（重复求见）——刷新来意并确保挂钩势力
     ch._envoy = true;
