@@ -3630,10 +3630,37 @@ function _wdOpenAudienceQueue(qi) {
   // 若是外藩使节，记入 NPC（否则可能角色不存在）
   var ch = findCharByName(name);
   if (!ch && q.isEnvoy) {
-    // 为使节创建临时角色对象
-    ch = { name: name, alive: true, _envoy: true, fromFaction: q.fromFaction, interactionType: q.interactionType, location: GM._capital || '京城', isTemp: true };
+    // 为使节创建临时角色对象，挂钩势力+保留来意/外交类型供 AI 使用
+    var _factionObj = q.fromFaction ? (GM.factions||[]).find(function(f){return f.name===q.fromFaction;}) : null;
+    ch = {
+      name: name, alive: true, _envoy: true,
+      faction: q.fromFaction || '',  // 关键：挂钩势力（标准字段）
+      fromFaction: q.fromFaction,
+      interactionType: q.interactionType,
+      envoyMission: q.reason || '',
+      location: GM._capital || '京城',
+      isTemp: true,
+      title: q.fromFaction ? (q.fromFaction + '使节') : '外藩使节',
+      officialTitle: '使节',
+      position: '使节',
+      loyalty: 50,
+      // 从势力继承立场/文化/外交倾向
+      stance: _factionObj ? (_factionObj.stance || '') : '',
+      culture: _factionObj ? (_factionObj.culture || '') : '',
+      diplomacy: _factionObj ? (_factionObj.diplomacy || 55) : 55,
+      intelligence: 60
+    };
     if (!GM.chars) GM.chars = [];
     GM.chars.push(ch);
+  } else if (ch && q.isEnvoy) {
+    // 角色已存在（重复求见）——刷新来意并确保挂钩势力
+    ch._envoy = true;
+    ch.faction = q.fromFaction || ch.faction;
+    ch.fromFaction = q.fromFaction;
+    ch.interactionType = q.interactionType;
+    ch.envoyMission = q.reason || ch.envoyMission || '';
+    ch.position = ch.position || '使节';
+    ch.officialTitle = ch.officialTitle || '使节';
   }
   // 打开问对
   if (typeof _wdOpenAudience === 'function') {
@@ -3931,6 +3958,14 @@ function _wdAppendPlayerBubble(chat, text) {
  */
 function _wdGenerateGreeting(name, _ch) {
   if (!_ch) return '参见。臣听候圣谕。';
+  // 使节专用开场——不说"臣听候圣谕"，直接报来意
+  if (_ch._envoy) {
+    var _fac = _ch.fromFaction || '外藩';
+    var _mission = (_ch.envoyMission || '').slice(0, 60);
+    var _opener = '外臣' + _fac + '使节' + name + '，谨奉国书，参见陛下。';
+    if (_mission) _opener += '此来——' + _mission;
+    return _opener;
+  }
   var _isPrv = (_wenduiMode === 'private');
   var _isAmbitious = (_ch.ambition || 50) > 70;
   var _isStressed = (_ch.stress || 0) > 50;
@@ -4394,11 +4429,64 @@ function _wdBuildPrompt(ch, name) {
     }
   }
 
-  var p = '\u4F60\u626E\u6F14' + eraCtx + '\u65F6\u671F\u7684' + ch.name + '(' + (ch.title || '') + ')' + ageInfo + '\u3002\n'
+  var p;
+  if (ch._envoy) {
+    // 使节专用 prompt（覆盖普通人设路径）
+    var _typeLabels = {send_envoy:'遣使通好',demand_tribute:'索贡问罪',pay_tribute:'献贡朝见',sue_for_peace:'请和议款',form_confederation:'请结盟约',break_confederation:'宣告毁约',royal_marriage:'和亲之议',send_hostage:'送质为信',cultural_exchange:'文化互通',religious_mission:'宗教使节',gift_treasure:'奉献珍宝',pay_indemnity:'赔款赎罪',open_market:'请开互市',trade_embargo:'宣布禁运',recognize_independence:'请承独立'};
+    var _typeLabel = _typeLabels[ch.interactionType] || '外交使命';
+    var _facName = ch.faction || ch.fromFaction || '外藩';
+    // 挂钩势力：从 GM.factions 取详细信息
+    var _facObj = (GM.factions||[]).find(function(f){return f.name===_facName;});
+    p = '你扮演' + _facName + '派遣的使节' + ch.name + '，此次来朝的使命是：【' + _typeLabel + '】。\n';
+    p += '【身份】你是外臣——' + _facName + '所派使节，不是本朝大臣。自称用"外臣/小臣/使臣"，不用"臣"独称；称对方"陛下/天朝"。\n';
+    // 势力背景注入
+    if (_facObj) {
+      p += '【本方势力】' + _facName;
+      if (_facObj.territory) p += '，据' + _facObj.territory;
+      if (_facObj.capital) p += '，都' + _facObj.capital;
+      if (_facObj.culture) p += '，' + _facObj.culture + '文化';
+      if (_facObj.faith) p += '，信' + _facObj.faith;
+      p += '\n';
+      if (_facObj.leaderName) {
+        p += '【本方君主】' + _facObj.leaderName;
+        if (_facObj.leaderTitle) p += '（' + _facObj.leaderTitle + '）';
+        p += '——你代表他出使，须以他之名义陈情\n';
+      }
+      if (_facObj.militaryStrength || _facObj.totalTroops) {
+        p += '【本方实力】兵' + (_facObj.totalTroops||_facObj.militaryStrength||'?') + (_facObj.wealth?'、国库'+_facObj.wealth:'') + '——谈判筹码须与实力相称\n';
+      }
+      if (_facObj.stance) p += '【本方立场】' + _facObj.stance + '\n';
+      // 两国关系
+      var _relations = _facObj.relations || _facObj.diplomacy;
+      if (_relations) {
+        if (typeof _relations === 'object') {
+          var _hostile = _relations.hostile || _relations.enemy;
+          var _ally = _relations.ally || _relations.friend;
+          if (_hostile && _hostile.length) p += '【世仇】' + (Array.isArray(_hostile)?_hostile.join('、'):_hostile) + '\n';
+          if (_ally && _ally.length) p += '【盟好】' + (Array.isArray(_ally)?_ally.join('、'):_ally) + '\n';
+        } else if (typeof _relations === 'string') {
+          p += '【邦交】' + _relations + '\n';
+        }
+      }
+      // 对主朝的历史
+      if (_facObj.historyWithMain || _facObj.tributaryHistory) {
+        p += '【旧事】' + (_facObj.historyWithMain||_facObj.tributaryHistory) + '\n';
+      }
+    }
+    if (ch.envoyMission) p += '【你所奉之命】' + ch.envoyMission + '\n';
+    p += '【使命类型】' + _typeLabel + '——你必须就此事向皇帝直接提出具体诉求、条款或请求，不要说笼统套话。\n';
+    p += '【禁忌】不要说"臣听候圣谕"、"臣谨遵"、"陛下明鉴"这类等待皇命的话——你是来谈判/传话的，有明确议程。\n';
+    p += '【行为】如果皇帝问"来者何事"，你应立即陈述：①来自' + _facName + ' ②奉' + (_facObj&&_facObj.leaderName?_facObj.leaderName:'本国君主') + '之命 ③具体条款/请求 ④本国立场或底线。\n';
+    p += '【回应原则】皇帝应允则致谢并讨价还价细节；皇帝拒绝则据理力争或威胁（视使命与两国实力）；皇帝沉默则可追问。\n';
+    p += '【语言色彩】你的言辞应带上本方势力的文化/信仰/地域特征' + (_facObj&&_facObj.culture?'（'+_facObj.culture+'）':'') + '——不要用纯汉儒辞令。\n';
+    p += '【态度】对天朝好感:' + opinionVal + '（外交礼节尚可，但本国利益优先）\n';
+  } else {
+    p = '\u4F60\u626E\u6F14' + eraCtx + '\u65F6\u671F\u7684' + ch.name + '(' + (ch.title || '') + ')' + ageInfo + '\u3002\n'
     + '【人设】特质:' + traitDesc + '，立场:' + (ch.stance || '中立')
     + (ch.personalGoal ? '，心中所求:' + ch.personalGoal.slice(0, 40) : '') + stressInfo + '\n'
     + (ch.spouse ? '【夫妻关系】好感:' + opinionVal + '\n' : '【态度】对君主好感:' + opinionVal + '\n')
     + arcInfo + affInfo + appearInfo + familyInfo + worksInfo + memInfo + _courtCtx + _edictCtx + _triIdInfo + '\n' + _modeDesc + _spouseCtx;
+  }
     // 仪制差异（按身份）
     var _rank = ch.officialPosition || ch.officialTitle || ch.title || '';
     if (ch.spouse) {
