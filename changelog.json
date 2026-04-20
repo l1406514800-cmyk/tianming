@@ -3,6 +3,21 @@
   "entries": [
     {
       "date": "2026-04-21",
+      "module": "AI 模型双向适配·8 项",
+      "title": "M4 Anthropic cache + G3 温度 + G2 降级链 + M1 剧本推荐 + G1 schema 裁剪 + G4 预算 + M2 首次向导 + G5 档位",
+      "items": [
+        { "what": "M4·callAIMessagesStream 和 SC1b/SC1c 直接 fetch 路径都加 Anthropic cache_control 包装（原生 api.anthropic.com + sys > 1500 字符时触发）", "why": "Anthropic cache 命中享 90% 折扣·天命每回合 sys prompt 约 20K·Anthropic 用户回合成本可降 50%+" },
+        { "what": "G3·SC1 温度=_modelTemp 保持叙事创造·SC1b 文事+0.15 促发散·SC1c 势力-0.15 求稳健·callAIMessagesStream 加 opts.temperature 支持", "why": "原先所有子调用统一 0.8·文事不够发散·势力博弈又过于随机；按职责调温输出质量更贴合" },
+        { "what": "G2·SC1 JSON 失败降级链：若 p1.shizhengji/zhengwen 皆空·从 SC1b.npc_interactions + SC1c.faction_events 拼凑最小可用 shizhengji·加标记 _g2Fallback·toast 提示玩家模型能力问题", "why": "原先一条 SC1 失败 → 整回合显示「AI 推演未返回有效数据」·游戏近乎不可玩；降级后至少有叙事连续性" },
+        { "what": "M1·剧本新增 modelRequirements 字段 (minOutputK/minContextK/needsChineseClassical/recommendedTier/recommendedModels/warningThreshold)·startGame 入口按当前模型能力检查·不足时 confirm 弹框警告", "why": "新玩家用 GPT-3.5 开明末 1627 会玩不动·前置提醒让玩家知道应换高能力模型或接受不佳体验" },
+        { "what": "G1·SC1 prompt 按 _effectiveOutCap 自动追加 schema 裁剪指令：≤4K 要求仅填核心字段 + shizhengji 限 400 字；≤8K 省可选字段·由 SC1b/SC1c 补", "why": "小模型（GPT-3.5 4K）被喂 35+ 字段大 schema 时 JSON 必被截断·精简指令让 AI 集中精力填必要字段" },
+        { "what": "G4·每回合 Token 预算 turnTokenBudget·endturn 末尾检测超支时 toast + addEB 预警", "why": "老剧本累积上下文后单回合可能突破 100K tokens·玩家不知道成本已失控；预算预警提醒减少 NPC / 换便宜模型" },
+        { "what": "M2·设置 API 区块「保存并自动校验」按钮：配置变化后清缓存 + 跑 detectModelContextSize + toast 识别结果", "why": "玩家换 API/模型后不用再手动点探测；首次配置就能知道模型能力" },
+        { "what": "G5·设置新增「模型档位」下拉（自动/低/中/高）·手动覆写 G1 的 schema 裁剪决策", "why": "自动检测可能误判；玩家对自己模型能力最清楚·可强制档位；低档适合本地小模型" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
       "module": "设置·模型能力校验",
       "title": "新增模型能力校验面板·防中转代理虚报/缩水",
       "items": [

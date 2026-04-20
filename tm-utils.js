@@ -1532,9 +1532,23 @@ async function callAIMessagesStream(messages, maxTok, opts) {
   if (opts.signal) opts.signal.addEventListener('abort', function() { ctrl.abort(); });
   var _scaledTok = Math.round((maxTok || 500) * ((typeof getCompressionParams === 'function') ? Math.max(1.0, getCompressionParams().scale) : 1.0));
   try {
+    // M4·Anthropic cache_control：原生 Anthropic API + sys 足够长 → 加 cache_control 享 90% 折扣
+    var _msgsStream = messages;
+    try {
+      var _providerS = (typeof _detectAIProvider === 'function') ? _detectAIProvider() : '';
+      var _isNativeS = (P.ai && P.ai.url && /api\.anthropic\.com/i.test(P.ai.url));
+      if (_providerS === 'anthropic' && _isNativeS && messages && messages.length > 0) {
+        var _firstS = messages[0];
+        if (_firstS && _firstS.role === 'system' && typeof _firstS.content === 'string' && _firstS.content.length > 1500) {
+          _msgsStream = messages.slice();
+          _msgsStream[0] = { role: 'system', content: [{ type: 'text', text: _firstS.content, cache_control: { type: 'ephemeral' } }] };
+        }
+      }
+    } catch(_cE) {}
     var _bodyCore = {
-      model: P.ai.model || 'gpt-4o', messages: messages,
-      temperature: P.ai.temp || 0.8, max_tokens: _scaledTok, stream: true
+      model: P.ai.model || 'gpt-4o', messages: _msgsStream,
+      temperature: (opts.temperature !== undefined) ? opts.temperature : (P.ai.temp || 0.8),
+      max_tokens: _scaledTok, stream: true
     };
     if (opts.extraBody) Object.assign(_bodyCore, opts.extraBody);
     var resp = await fetch(url, {

@@ -7491,7 +7491,31 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       // 1.2+1.8+S1：ModelAdapter温度 + OpenAI原生JSON模式 + 流式感知进度
       // 动态 max_tokens：取模型单次最大输出（_MODEL_CTX_MAP）与业务需要 16K 的较小值·避免小模型被要求超限、大模型被限制过保守
       var _sc1BaseTok = Math.min(_effectiveOutCap || 16384, 16384);
-      var _sc1Body = {model:P.ai.model||"gpt-4o",messages:[{role:"system",content:sysP},{role:"user",content:tp1}],temperature:_modelTemp,max_tokens:_tok(_sc1BaseTok)};
+      // G1+G5·Schema 裁剪：按模型输出能力自动裁剪·玩家可通过 P.conf.modelTier 手动覆写档位（low/medium/high）
+      try {
+        var _outCapK_G1 = _effectiveOutCap ? Math.round(_effectiveOutCap / 1024) : 16;
+        // G5 手动覆写：low→当 4K 处理；medium→当 8K；high→不裁剪
+        var _tierOverride = P.conf && P.conf.modelTier;
+        if (_tierOverride === 'low') _outCapK_G1 = 4;
+        else if (_tierOverride === 'medium') _outCapK_G1 = 8;
+        else if (_tierOverride === 'high') _outCapK_G1 = 32;
+        if (_outCapK_G1 <= 4) {
+          tp1 += '\n\n【★模型能力降级·SC1 schema 精简】\n';
+          tp1 += '  · 检测到单次输出 ≤ 4K tokens·请尽量压缩 schema\n';
+          tp1 += '  · 必填核心字段：shizhengji/zhengwen/playerStatus/playerInner + edict_feedback 数组\n';
+          tp1 += '  · 可缩或留空：cultural_works/npc_letters/npc_correspondence/npc_interactions/faction_interactions_advanced/faction_events/npc_schemes/hidden_moves/fengwen_snippets（这些由 SC1b/SC1c 补充·此处可 []）\n';
+          tp1 += '  · 人物/势力/阶层 updates 只给最要紧 3 条·不要凑数\n';
+          tp1 += '  · shizhengji/zhengwen 控制在 400 字内·不要长篇铺陈\n';
+        } else if (_outCapK_G1 <= 8) {
+          tp1 += '\n\n【模型能力中等·SC1 schema 中度精简】\n';
+          tp1 += '  · 检测到单次输出 ≤ 8K tokens\n';
+          tp1 += '  · cultural_works/npc_correspondence/fengwen_snippets 可 []（由 SC1b/SC1c 补充）\n';
+          tp1 += '  · 核心字段 shizhengji/zhengwen/edict_feedback/char_updates 必填\n';
+        }
+      } catch(_g1E) { console.warn('[G1 schema prune]', _g1E); }
+      // G3·温度按子调用类型分：SC1 主推演叙事·保持 _modelTemp（常 0.8）
+      var _sc1Temp = _modelTemp;
+      var _sc1Body = {model:P.ai.model||"gpt-4o",messages:[{role:"system",content:sysP},{role:"user",content:tp1}],temperature:_sc1Temp,max_tokens:_tok(_sc1BaseTok)};
       if (_modelFamily === 'openai') _sc1Body.response_format = { type: 'json_object' };
       var _streamSC1 = (P.ai && P.ai.stream_sc1 !== false);  // 默认开·可通过 P.ai.stream_sc1=false 关闭
       var c1 = "";
@@ -7501,6 +7525,8 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         _sc1Body.stream = true;
         try {
           c1 = await callAIMessagesStream(_sc1Body.messages, _sc1Body.max_tokens, {
+            temperature: _sc1Temp,
+            extraBody: _modelFamily === 'openai' ? { response_format: { type: 'json_object' } } : undefined,
             onChunk: function(text) {
               // 按字数大致估算进度：5K字约 55%·10K约 60%·15K约 65%
               var _approx = 50 + Math.min(15, Math.floor(text.length / 1500));
@@ -7610,7 +7636,17 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
 
         // 动态 max_tokens：取模型输出上限与业务 8K 的较小值
         var _sc1bBaseTok = Math.min(_effectiveOutCap || 8192, 8192);
-        var _sc1bBody = {model:P.ai.model||'gpt-4o', messages:[{role:'system',content:sysP},{role:'user',content:tp1b}], temperature:_modelTemp, max_tokens:_tok(_sc1bBaseTok)};
+        // G3·SC1b 文事创意类·温度调高促生诗文情志的发散
+        var _sc1bTemp = Math.min(1.0, _modelTemp + 0.15);
+        // M4·Anthropic 原生 API 且 sys 长·加 cache_control
+        var _sc1bMsgs = [{role:'system',content:sysP},{role:'user',content:tp1b}];
+        try {
+          var _isNativeAnth1b = (P.ai && P.ai.url && /api\.anthropic\.com/i.test(P.ai.url));
+          if (_modelFamily === 'anthropic' && _isNativeAnth1b && sysP.length > 1500) {
+            _sc1bMsgs = [{role:'system', content:[{type:'text', text:sysP, cache_control:{type:'ephemeral'}}]}, {role:'user',content:tp1b}];
+          }
+        } catch(_){}
+        var _sc1bBody = {model:P.ai.model||'gpt-4o', messages:_sc1bMsgs, temperature:_sc1bTemp, max_tokens:_tok(_sc1bBaseTok)};
         if (_modelFamily === 'openai') _sc1bBody.response_format = { type:'json_object' };
 
         var resp1b = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+P.ai.key}, body:JSON.stringify(_sc1bBody)});
@@ -7943,7 +7979,17 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
 
         // 动态 max_tokens：取模型输出上限与业务 8K 的较小值
         var _sc1cBaseTok = Math.min(_effectiveOutCap || 8192, 8192);
-        var _sc1cBody = {model:P.ai.model||'gpt-4o', messages:[{role:'system',content:sysP},{role:'user',content:tp1c}], temperature:_modelTemp, max_tokens:_tok(_sc1cBaseTok)};
+        // G3·SC1c 势力博弈·温度略降·求稳不求怪
+        var _sc1cTemp = Math.max(0.3, _modelTemp - 0.15);
+        // M4·Anthropic 原生 API 且 sys 长·加 cache_control
+        var _sc1cMsgs = [{role:'system',content:sysP},{role:'user',content:tp1c}];
+        try {
+          var _isNativeAnth1c = (P.ai && P.ai.url && /api\.anthropic\.com/i.test(P.ai.url));
+          if (_modelFamily === 'anthropic' && _isNativeAnth1c && sysP.length > 1500) {
+            _sc1cMsgs = [{role:'system', content:[{type:'text', text:sysP, cache_control:{type:'ephemeral'}}]}, {role:'user',content:tp1c}];
+          }
+        } catch(_){}
+        var _sc1cBody = {model:P.ai.model||'gpt-4o', messages:_sc1cMsgs, temperature:_sc1cTemp, max_tokens:_tok(_sc1cBaseTok)};
         if (_modelFamily === 'openai') _sc1cBody.response_format = { type:'json_object' };
 
         var resp1c = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+P.ai.key}, body:JSON.stringify(_sc1cBody)});
@@ -8036,6 +8082,32 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
 
       // 并行等待 SC1b + SC1c 完成（S3 优化·两者无交集字段）
       try { await Promise.all([_sc1bP, _sc1cP]); } catch(_sc1bcErr) { console.warn('[sc1b+1c parallel]', _sc1bcErr); }
+
+      // G2·失败降级链：若 SC1 主推演 JSON 失败或空·从 SC1b/SC1c 合成最小可用 p1·避免整回合卡死
+      if (!p1 || (!p1.shizhengji && !p1.zhengwen)) {
+        var _p1bG2 = GM._turnAiResults && GM._turnAiResults.subcall1b;
+        var _p1cG2 = GM._turnAiResults && GM._turnAiResults.subcall1c;
+        if (_p1bG2 || _p1cG2) {
+          console.warn('[G2·降级] SC1 无有效数据·从 SC1b/SC1c 合成 fallback shizhengji');
+          var _fbParts = [];
+          if (_p1cG2 && Array.isArray(_p1cG2.faction_events) && _p1cG2.faction_events.length) {
+            _p1cG2.faction_events.slice(0,3).forEach(function(fe){
+              _fbParts.push((fe.actor||'') + (fe.target?('·'+fe.target):'') + '·' + (fe.action||'') + (fe.result?('。'+fe.result):'。'));
+            });
+          }
+          if (_p1bG2 && Array.isArray(_p1bG2.npc_interactions) && _p1bG2.npc_interactions.length) {
+            _p1bG2.npc_interactions.slice(0,3).forEach(function(ni){
+              _fbParts.push((ni.actor||'') + (ni.target?('·'+ni.target):'') + '·' + (ni.description||''));
+            });
+          }
+          var _fallbackShizhengji = _fbParts.length ? ('（AI主推演缺数·从文事势力片段合成）' + _fbParts.join('；')) : ('（AI推演暂无·天下暂无大事）');
+          p1 = p1 || {};
+          p1.shizhengji = p1.shizhengji || _fallbackShizhengji;
+          p1.zhengwen = p1.zhengwen || _fallbackShizhengji;
+          p1._g2Fallback = true;
+          if (typeof toast === 'function') toast('⚠ AI主推演未返回有效数据·已从子调用合成最小史记·建议检查模型输出能力');
+        }
+      }
 
       if(p1){
         // 方案融入：AI 产出的通用变化/任免/机构/区划/事件/NPC行动/关系 → 统一应用
@@ -14748,10 +14820,16 @@ async function _endTurnCore(){
     }
   })();
 
-  // 1.6: 记录回合token消耗
+  // 1.6: 记录回合token消耗·G4 预算检查
   if (typeof TokenUsageTracker !== 'undefined') {
     var _turnTokens = TokenUsageTracker.getTurnUsage();
     if (_turnTokens > 0) DebugLog.log('ai', '本回合token消耗:', _turnTokens);
+    // G4·Token 预算预警：若玩家设了单回合预算且超支·给出建议
+    if (P.conf.turnTokenBudget && P.conf.turnTokenBudget > 0 && _turnTokens > P.conf.turnTokenBudget) {
+      var _ratio = (_turnTokens / P.conf.turnTokenBudget).toFixed(1);
+      if (typeof toast === 'function') toast('⚠ 本回合用 ' + _turnTokens.toLocaleString() + ' tokens·超预算 ' + _ratio + '×·建议在设置启用降档模式或减少 NPC 数');
+      if (typeof addEB === 'function') addEB('AI预算', '超支 ' + _ratio + '×·考虑压缩 prompt / 换便宜模型 / 减少 NPC');
+    }
   }
 
   // Phase 5.4: 月度纪事异步生成（3.2）

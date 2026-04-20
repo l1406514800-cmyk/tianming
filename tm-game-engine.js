@@ -1153,7 +1153,8 @@ function openSettings(){
     "<div class=\"rw\"><div class=\"fd\"><label>Key</label><input type=\"password\" id=\"s-key\" value=\""+(P.ai.key||"")+"\"></div></div>"+
     "<div class=\"rw\"><div class=\"fd\"><label>\u5730\u5740</label><input id=\"s-url\" value=\""+(P.ai.url||"")+"\" placeholder=\"https://api.openai.com/v1 \u6216\u4E2D\u8F6C\u7AD9URL\"></div><div class=\"fd\"><label>\u6A21\u578B</label><input id=\"s-model\" value=\""+(P.ai.model||"")+"\"></div></div>"+
     "<div style=\"font-size:0.75rem;color:var(--txt-d);margin:-0.3rem 0 0.5rem;\">\u652F\u6301\u4EFB\u610F OpenAI \u517C\u5BB9\u4E2D\u8F6C\u7AD9\uFF0C\u5730\u5740\u586B\u5199 base URL \u5373\u53EF\u3002</div>"+
-    "<button class=\"bt bp bsm\" onclick=\"P.ai.key=_$('s-key').value;P.ai.url=_$('s-url').value;P.ai.model=_$('s-model').value;try{localStorage.setItem('tm_api',JSON.stringify(P.ai));}catch(e){}if(window.tianming&&window.tianming.isDesktop){window.tianming.autoSave(P).catch(function(){});}saveP();toast('\u2705 \u5DF2\u4FDD\u5B58')\">\u4FDD\u5B58</button>"+
+    "<button class=\"bt bp bsm\" onclick=\"_saveAPIAndAutoProbe()\">\u4FDD\u5B58\u5E76\u81EA\u52A8\u6821\u9A8C</button>"+
+    "<button class=\"bt bs bsm\" onclick=\"P.ai.key=_$('s-key').value;P.ai.url=_$('s-url').value;P.ai.model=_$('s-model').value;try{localStorage.setItem('tm_api',JSON.stringify(P.ai));}catch(e){}if(window.tianming&&window.tianming.isDesktop){window.tianming.autoSave(P).catch(function(){});}saveP();toast('\u2705 \u5DF2\u4FDD\u5B58')\">\u4EC5\u4FDD\u5B58</button>"+
     "<div style=\"margin-top:0.6rem;padding-top:0.5rem;border-top:1px solid var(--bdr);\"><div style=\"font-size:0.75rem;color:var(--gold-d);margin-bottom:0.3rem;\">\u667A\u80FD\u751F\u56FE API\uFF08\u72EC\u7ACB\u914D\u7F6E\uFF0C\u7528\u4E8E\u7ACB\u7ED8\u7B49\u56FE\u7247\u751F\u6210\uFF09</div>"+
     "<div class=\"rw\"><div class=\"fd\"><label style=\"font-size:0.72rem;\">Key</label><input type=\"password\" id=\"s-img-key\" value=\""+(_imgApiCfg.key||'')+"\" placeholder=\"\u7559\u7A7A\u5219\u590D\u7528\u4E3BAPI\" style=\"font-size:0.8rem;\"></div></div>"+
     "<div class=\"rw\"><div class=\"fd\"><label style=\"font-size:0.72rem;\">URL</label><input id=\"s-img-url\" value=\""+(_imgApiCfg.url||'')+"\" placeholder=\"https://api.openai.com/v1/images/generations\" style=\"font-size:0.8rem;\"></div><div class=\"fd\"><label style=\"font-size:0.72rem;\">\u6A21\u578B</label><input id=\"s-img-model\" value=\""+(_imgApiCfg.model||'dall-e-3')+"\" style=\"font-size:0.8rem;width:80px;\"></div></div>"+
@@ -1174,6 +1175,24 @@ function openSettings(){
     "<label style=\"font-size:0.72rem;color:var(--txt-d);\">\u8F93\u51FA\u4E0A\u9650 Tokens\uFF1A</label>"+
     "<input id=\"s-out-override\" type=\"number\" min=\"0\" value=\""+(P.conf.maxOutputTokens||0)+"\" placeholder=\"0\u8868\u81EA\u52A8\" style=\"width:110px;font-size:0.78rem;\">"+
     "<button class=\"bt bs bsm\" onclick=\"P.conf.contextSizeK=parseInt(_$('s-ctx-override').value)||0;P.conf.maxOutputTokens=parseInt(_$('s-out-override').value)||0;saveP();toast('\u2705 \u5DF2\u4FDD\u5B58\u624B\u52A8\u8986\u5199');_$('s-model-probe-body').innerHTML=_renderModelProbePanel();\">\u4FDD\u5B58</button>"+
+    "</div>"+
+    // G4·每回合 Token 预算上限·超支预警
+    "<div style=\"margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--bdr);display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;\">"+
+    "<label style=\"font-size:0.72rem;color:var(--txt-d);\">\u6BCF\u56DE\u5408 Token \u9884\u7B97\uFF1A</label>"+
+    "<input id=\"s-turn-budget\" type=\"number\" min=\"0\" step=\"5000\" value=\""+(P.conf.turnTokenBudget||0)+"\" placeholder=\"0\u8868\u65E0\u4E0A\u9650\" style=\"width:130px;font-size:0.78rem;\">"+
+    "<button class=\"bt bs bsm\" onclick=\"P.conf.turnTokenBudget=parseInt(_$('s-turn-budget').value)||0;saveP();toast(P.conf.turnTokenBudget?'\u2705 \u9884\u7B97\u8BBE\u4E3A '+P.conf.turnTokenBudget.toLocaleString():'\u2705 \u5DF2\u53D6\u6D88\u9884\u7B97\u9650\u5236');\">\u4FDD\u5B58</button>"+
+    "<span style=\"font-size:0.68rem;color:var(--ink-300);\">\u8D85\u652F\u4F1A toast \u9884\u8B66\u00B7\u4E0D\u963B\u65AD\u6E38\u620F</span>"+
+    "</div>"+
+    // G5·模型档位·手动覆写 schema 裁剪策略
+    "<div style=\"margin-top:0.5rem;padding-top:0.5rem;border-top:1px solid var(--bdr);display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;\">"+
+    "<label style=\"font-size:0.72rem;color:var(--txt-d);\">\u6A21\u578B\u6863\u4F4D\uFF1A</label>"+
+    "<select id=\"s-model-tier\" onchange=\"P.conf.modelTier=this.value||'auto';saveP();toast('\u5DF2\u5207\u6362\u6863\u4F4D\uFF1A'+(this.selectedOptions[0]||{}).text);\">"+
+    "<option value=\"auto\""+((P.conf.modelTier||'auto')==='auto'?' selected':'')+">\u81EA\u52A8\uFF08\u6309\u6A21\u578B\u80FD\u529B\uFF09</option>"+
+    "<option value=\"low\""+(P.conf.modelTier==='low'?' selected':'')+">\u4F4E\u6863\uFF08\u7EBF\u5B9A\u7CBE\u7B80\u00B7GPT-3.5/\u672C\u5730\u5C0F\u6A21\u578B\uFF09</option>"+
+    "<option value=\"medium\""+(P.conf.modelTier==='medium'?' selected':'')+">\u4E2D\u6863\uFF08\u5355\u6B21 8K\u00B7\u4E2D\u7B49\u88C1\u526A\uFF09</option>"+
+    "<option value=\"high\""+(P.conf.modelTier==='high'?' selected':'')+">\u9AD8\u6863\uFF08\u4E0D\u88C1\u526A\u00B7Claude/GPT-4o+\uFF09</option>"+
+    "</select>"+
+    "<span style=\"font-size:0.68rem;color:var(--ink-300);\">\u5F3A\u5236\u88C1\u526A SC1 schema\u00B7\u5F25\u8865\u81EA\u52A8\u68C0\u6D4B\u504F\u5DEE</span>"+
     "</div></div>"+
 
     "<div class=\"settings-section\"><h4>\u6587\u98CE</h4>"+
@@ -1318,6 +1337,34 @@ async function _probeRunSelfReport() {
     toast(warnCt ? ('\u26A0 \u5B8C\u6210\u00B7 ' + warnCt + ' \u6761\u7591\u4F2A\u8B66\u544A') : '\u2705 \u81EA\u62A5\u6821\u9A8C\u5B8C\u6210');
     var el = _$('s-model-probe-body'); if (el) el.innerHTML = _renderModelProbePanel();
   } catch(e) { if (typeof hideLoading === 'function') hideLoading(); toast('\u81EA\u62A5\u5931\u8D25\uFF1A' + (e.message||e)); }
+}
+
+// M2·保存 API 配置后自动跑一次上下文探测（轻量层 0-3·不跑实测以免烧钱）
+async function _saveAPIAndAutoProbe() {
+  var newKey = (_$('s-key')||{}).value||'';
+  var newUrl = (_$('s-url')||{}).value||'';
+  var newModel = (_$('s-model')||{}).value||'';
+  var _changed = (P.ai.key !== newKey) || (P.ai.url !== newUrl) || (P.ai.model !== newModel);
+  P.ai.key = newKey; P.ai.url = newUrl; P.ai.model = newModel;
+  try { localStorage.setItem('tm_api', JSON.stringify(P.ai)); } catch(_) {}
+  if (typeof saveP === 'function') saveP();
+  if (window.tianming && window.tianming.isDesktop) { try { window.tianming.autoSave(P).catch(function(){}); } catch(_){} }
+  if (!_changed) { toast('\u2705 \u5DF2\u4FDD\u5B58\uFF08\u914D\u7F6E\u672A\u53D8\uFF09'); return; }
+  // 配置变化·清旧缓存·跑新探测
+  delete P.conf._detectedContextK; delete P.conf._detectedMaxOutput; delete P.conf._measuredMaxOutput; delete P.conf._ctxCacheKey; delete P.conf._ctxDetectLayer; delete P.conf._probeHistory;
+  if (!newKey) { toast('\u2705 \u5DF2\u4FDD\u5B58\uFF08\u672A\u914D key\u00B7\u8DF3\u8FC7\u81EA\u52A8\u6821\u9A8C\uFF09'); return; }
+  toast('\u2705 \u5DF2\u4FDD\u5B58\u00B7\u6B63\u5728\u81EA\u52A8\u6821\u9A8C\u6A21\u578B\u00B7\u7A0D\u5019\u2026');
+  try {
+    if (typeof showLoading === 'function') showLoading('\u81EA\u52A8\u6821\u9A8C\u6A21\u578B\u80FD\u529B\u2026', 30);
+    if (typeof detectModelContextSize === 'function') await detectModelContextSize({ force: true, onProgress: function(m){ if (typeof showLoading === 'function') showLoading(m, 50); } });
+    if (typeof hideLoading === 'function') hideLoading();
+    if (typeof saveP === 'function') saveP();
+    var el = _$('s-model-probe-body'); if (el) el.innerHTML = _renderModelProbePanel();
+    var wlCtx = (typeof _matchModelCtx === 'function') ? _matchModelCtx(newModel) : 0;
+    var wlOut = (typeof _matchModelOutput === 'function') ? _matchModelOutput(newModel) : 0;
+    if (wlCtx && wlOut) toast('\u2705 \u6A21\u578B\u5DF2\u8BC6\u522B\uFF1A\u4E0A\u4E0B\u6587 ' + wlCtx + 'K\u00B7\u8F93\u51FA ' + wlOut + 'K');
+    else toast('\u26A0 \u672A\u5728\u767D\u540D\u5355\u00B7\u5DF2\u8FD4\u56DE\u63A2\u6D4B\u7ED3\u679C\u00B7\u5EFA\u8BAE\u624B\u52A8\u8DD1"\u5B9E\u6D4B\u8F93\u51FA\u4E0A\u9650"');
+  } catch(e) { if (typeof hideLoading === 'function') hideLoading(); toast('\u26A0 \u81EA\u52A8\u6821\u9A8C\u5931\u8D25\uFF1A' + (e.message||e)); }
 }
 
 function _probeClearCache() {
@@ -6675,6 +6722,23 @@ function startGame(sid){
     console.warn('[startGame] 剧本警告:', validation.warnings);
     _dbg('[startGame] 校验警告: ' + validation.warnings.join('; '));
   }
+  // M1·模型能力检查·若剧本标 modelRequirements 且当前模型能力不够·提示警告
+  try {
+    if (sc.modelRequirements && P.ai && P.ai.model) {
+      var _req = sc.modelRequirements;
+      var _warnings = [];
+      var _wlCtx = (typeof _matchModelCtx === 'function') ? _matchModelCtx(P.ai.model) : 0;
+      var _wlOut = (typeof _matchModelOutput === 'function') ? _matchModelOutput(P.ai.model) : 0;
+      var _measCtx = P.conf._detectedContextK || _wlCtx;
+      var _measOutK = P.conf._measuredMaxOutput ? Math.round(P.conf._measuredMaxOutput / 1024) : (P.conf._detectedMaxOutput ? Math.round(P.conf._detectedMaxOutput / 1024) : _wlOut);
+      if (_req.minContextK && _measCtx > 0 && _measCtx < _req.minContextK) _warnings.push('上下文 ' + _measCtx + 'K < 推荐 ' + _req.minContextK + 'K');
+      if (_req.minOutputK && _measOutK > 0 && _measOutK < _req.minOutputK) _warnings.push('输出 ' + _measOutK + 'K < 推荐 ' + _req.minOutputK + 'K·主推演 JSON 易被截断');
+      if (_warnings.length > 0) {
+        var _msg = '⚠ 本剧本推荐：' + (_req.recommendedModels||[]).join('/').slice(0,80) + '\n当前模型：' + P.ai.model + '\n\n检出问题：\n  · ' + _warnings.join('\n  · ') + '\n\n' + (_req.warningThreshold||'') + '\n\n是否仍要开始？';
+        if (!confirm(_msg)) { toast('已取消·请在设置中更换模型或跑"模型能力校验"'); return; }
+      }
+    }
+  } catch(_mrE) { console.warn('[M1 modelReq check]', _mrE); }
   _$("scn-page").classList.remove("show");
   _$("launch").style.display="none";_$("bar").style.display="flex";_$("bar-btns").innerHTML="";_$("G").style.display="grid";_$("E").style.display="none";
   _$("shiji-btn").classList.add("show");_$("save-btn").classList.add("show");

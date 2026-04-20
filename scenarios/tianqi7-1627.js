@@ -2157,6 +2157,15 @@
       role: '明思宗·朱由检',
       tags: ['明末', '天启', '崇祯即位', '魏忠贤', '阉党', '皇帝视角', '官方'],
       active: true,
+      // M1·模型推荐·用于 startGame 时警告玩家当前模型能力可能不足
+      modelRequirements: {
+        minOutputK: 8,           // 单次输出≥8K tokens（本剧本 46 角色+17 省+复杂 schema）
+        minContextK: 32,         // 上下文≥32K（多子调用+累积记忆）
+        needsChineseClassical: true,  // 需要中文古典/文言生成
+        recommendedTier: 'high',      // 推荐档位：high/medium/low
+        recommendedModels: ['claude-sonnet', 'claude-opus', 'gpt-4o', 'gpt-4.1', 'deepseek-r1', 'gemini-2.5'],
+        warningThreshold: '若模型单次输出＜8K 或中文能力较弱·SC1 主推演 JSON 易被截断·体验会明显劣化'
+      },
       overview:
         '天启七年(1627)八月廿二，明熹宗朱由校崩于乾清宫，年二十三，无嗣。信王朱由检以皇弟入继大统，年十七。\n' +
         '【政治局势】魏忠贤九千岁掌司礼监兼提督东厂，党羽黄立极辅政、崔呈秀总兵政、阎鸣泰督辽东，号"五虎十狗十孩儿四十孙"，占据内阁、六部、都察院过半。东林党自天启四年"六君子"惨案后凋零——杨涟、左光斗死诏狱，高攀龙自沉；韩爌/钱龙锡/徐光启等散居乡里。\n' +
