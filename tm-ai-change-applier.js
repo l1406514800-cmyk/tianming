@@ -1003,24 +1003,32 @@
         if (typeof global.addEB === 'function') global.addEB('\u4EFB\u547D', ch.name + ' \u8D74 ' + oa.toLocation + ' \u4EFB ' + (oa.post||'') + '\uFF08\u9884\u8BA1 ' + days + ' \u65E5\u5230\u4EFB\uFF09');
       } else {
         // 无需走位·直接就任·沿用原 onAppointment
-        var r;
-        if (action === 'appoint') r = onAppointment(oa.name, oa.post, { dept: oa.dept });
-        else if (action === 'dismiss') r = onDismissal(oa.name, oa.reason);
-        else if (action === 'transfer') r = onTransfer(oa.name, oa.fromPost, oa.post, { dept: oa.dept });
-        if (r && r.ok) {
-          officeCount++;
-          G._turnReport.push({ type:'appointment', action: action, charName: oa.name, position: oa.post, turn:G.turn||0 });
-          // 仕途追加
-          if (!Array.isArray(ch.careerHistory)) ch.careerHistory = [];
-          ch.careerHistory.push({
-            turn: G.turn||0,
-            date: (typeof getTSText==='function'?getTSText(G.turn):'T'+(G.turn||0)),
-            title: oa.post,
-            dept: oa.dept,
-            action: action,
-            reason: oa.reason || ''
-          });
+        // 若 post 为复合名（如"中书侍郎、同平章事"）拆分多个分别任命
+        var r = null;
+        var posList = [oa.post];
+        if (typeof oa.post === 'string' && /[、,·\s]/.test(oa.post)) {
+          posList = oa.post.split(/[、,·\s]+/).filter(function(s){return s&&s.trim();});
         }
+        posList.forEach(function(singlePost, idx) {
+          var rr;
+          if (action === 'appoint') rr = onAppointment(oa.name, singlePost, { dept: oa.dept });
+          else if (action === 'dismiss') rr = onDismissal(oa.name, oa.reason);
+          else if (action === 'transfer') rr = onTransfer(oa.name, oa.fromPost, singlePost, { dept: oa.dept });
+          if (rr && rr.ok) {
+            if (idx === 0) r = rr;
+            officeCount++;
+            G._turnReport.push({ type:'appointment', action: action, charName: oa.name, position: singlePost, turn:G.turn||0 });
+            if (!Array.isArray(ch.careerHistory)) ch.careerHistory = [];
+            ch.careerHistory.push({
+              turn: G.turn||0,
+              date: (typeof getTSText==='function'?getTSText(G.turn):'T'+(G.turn||0)),
+              title: singlePost,
+              dept: oa.dept,
+              action: action,
+              reason: oa.reason || ''
+            });
+          }
+        });
       }
       officeCount++;
     });
