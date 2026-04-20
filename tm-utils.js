@@ -1487,10 +1487,13 @@ async function callAIMessages(messages,maxTok,signal){
   var url=_buildAIUrl();
   if(!url)throw new Error("API\u5730\u5740\u672A\u914D\u7F6E");
   var _scaledTok2 = Math.round((maxTok||500) * ((typeof getCompressionParams==='function') ? Math.max(1.0, getCompressionParams().scale) : 1.0));
-  // S4：Anthropic 自动 cache_control——若 system message 较大(>1500 字符)·加 ephemeral 缓存标记
+  // S4：Anthropic 自动 cache_control——仅对"原生 Anthropic API"应用数组 content
+  //   第三方 Claude 代理（openrouter 等走 /chat/completions）多数要求 content 为字符串·数组格式会 400
+  //   故只在 URL 明确为 api.anthropic.com 时才包装数组
   var _provider = (typeof _detectAIProvider === 'function') ? _detectAIProvider() : 'openai_compat';
+  var _isNativeAnthropic = (P.ai && P.ai.url && /api\.anthropic\.com/i.test(P.ai.url));
   var _msgs = messages;
-  if (_provider === 'anthropic' && messages && messages.length > 0) {
+  if (_provider === 'anthropic' && _isNativeAnthropic && messages && messages.length > 0) {
     var firstSys = messages[0];
     if (firstSys && firstSys.role === 'system' && typeof firstSys.content === 'string' && firstSys.content.length > 1500) {
       _msgs = messages.slice();

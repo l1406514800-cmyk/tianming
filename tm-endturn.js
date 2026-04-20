@@ -1748,17 +1748,21 @@ function _updateFactionArcs() {
   if (!GM) return;
   if (!GM._factionArcs) GM._factionArcs = {};
   var p1 = (GM._turnAiResults && GM._turnAiResults.subcall1) || {};
-  // 从 faction_updates + faction_events 推断阶段
+  // 从 faction_changes (SC1 schema 实际字段) + faction_events 推断阶段
   var factions = {};
-  (p1.faction_updates || []).forEach(function(fu) {
-    if (!fu || !fu.name) return;
-    if (!factions[fu.name]) factions[fu.name] = { events: [], deltas: {} };
-    if (fu.updates) Object.assign(factions[fu.name].deltas, fu.updates);
+  (p1.faction_changes || []).forEach(function(fc) {
+    if (!fc || !fc.name) return;
+    if (!factions[fc.name]) factions[fc.name] = { events: [], deltas: {} };
+    // faction_changes schema: {name, strength_delta, economy_delta, playerRelation_delta, reason}
+    if (fc.strength_delta != null) factions[fc.name].deltas.strength_delta = (factions[fc.name].deltas.strength_delta||0) + fc.strength_delta;
+    if (fc.economy_delta != null) factions[fc.name].deltas.economy_delta = (factions[fc.name].deltas.economy_delta||0) + fc.economy_delta;
+    if (fc.reason) factions[fc.name].events.push(fc.reason.substring(0, 40));
   });
   (p1.faction_events || []).forEach(function(fe) {
     if (!fe || !fe.actor) return;
     if (!factions[fe.actor]) factions[fe.actor] = { events: [], deltas: {} };
     factions[fe.actor].events.push((fe.action || '') + (fe.result ? '→' + fe.result : ''));
+    if (fe.strength_effect != null) factions[fe.actor].deltas.strength_delta = (factions[fe.actor].deltas.strength_delta||0) + fe.strength_effect;
   });
   Object.keys(factions).forEach(function(fn) {
     if (!GM._factionArcs[fn]) {
@@ -4115,6 +4119,9 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
 
       if (candidates.length === 0) return;
 
+      // XML 转义辅助（防用户自定义名字/事件文本含特殊字符打破 XML）
+      var _xE = (typeof _escXML === 'function') ? _escXML : function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); };
+
       var xmlLines = ['<npc-hearts ctx="' + ((_hcp.contextK||'?')+'K') + '">'];
       var heartCount = 0;
       candidates.forEach(function(cand){
@@ -4122,31 +4129,28 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         var c = cand.ch;
         var mood = c._mood || '平';
         var curTitle = c.officialTitle || c.title || '';
-        // 活跃 arc
         var activeArcs = (c._arcs || []).filter(function(a){ return a.phase !== 'resolved'; });
-        var arcAttr = activeArcs.length ? ' active_arcs="' + activeArcs.slice(0,3).map(function(a){return a.title;}).join('·') + '"' : '';
-        xmlLines.push('  <heart char="' + (c.name||'') + '" mood="' + mood + '" title="' + curTitle + '"' + arcAttr + '>');
+        var arcAttr = activeArcs.length ? ' active_arcs="' + _xE(activeArcs.slice(0,3).map(function(a){return a.title;}).join('·')) + '"' : '';
+        xmlLines.push('  <heart char="' + _xE(c.name||'') + '" mood="' + _xE(mood) + '" title="' + _xE(curTitle) + '"' + arcAttr + '>');
         var sorted = c._memory.slice().sort(function(a,b){ return (b.importance||0) - (a.importance||0); });
         var top = sorted.slice(0, perChar).filter(function(m){ return (m.importance||0) >= impMin; });
         top.forEach(function(m){
           if (heartCount >= totalCap) return;
           var attrs = [
             'turn="' + (m.turn||0) + '"',
-            'emotion="' + (m.emotion||'平') + '"',
+            'emotion="' + _xE(m.emotion||'平') + '"',
             'importance="' + Math.round(m.importance||5) + '"'
           ];
-          if (m.source && m.source !== 'witnessed') attrs.push('source="' + m.source + '"');
+          if (m.source && m.source !== 'witnessed') attrs.push('source="' + _xE(m.source) + '"');
           if (m.credibility != null && m.credibility < 80) attrs.push('credibility="' + m.credibility + '"');
-          if (m.location) attrs.push('location="' + m.location + '"');
-          if (m.arcId) attrs.push('arc="' + m.arcId + '"');
-          xmlLines.push('    <memory ' + attrs.join(' ') + '>' + (m.event || '').substring(0, 80) + '</memory>');
+          if (m.location) attrs.push('location="' + _xE(m.location) + '"');
+          if (m.arcId) attrs.push('arc="' + _xE(m.arcId) + '"');
+          xmlLines.push('    <memory ' + attrs.join(' ') + '>' + _xE((m.event || '').substring(0, 80)) + '</memory>');
           heartCount++;
         });
-        // 最重要的活跃 arc
         activeArcs.slice(0, 2).forEach(function(a){
-          xmlLines.push('    <arc id="' + a.id + '" phase="' + a.phase + '" type="' + a.type + '">' + a.title + (a.emotionalTrajectory ? '·'+a.emotionalTrajectory : '') + (a.unresolved ? '｜悬而未决：'+a.unresolved : '') + '</arc>');
+          xmlLines.push('    <arc id="' + _xE(a.id) + '" phase="' + _xE(a.phase) + '" type="' + _xE(a.type) + '">' + _xE(a.title + (a.emotionalTrajectory ? '·'+a.emotionalTrajectory : '') + (a.unresolved ? '｜悬而未决：'+a.unresolved : '')) + '</arc>');
         });
-        // 关系显著变化
         if (c._relationHistory) {
           Object.keys(c._relationHistory).slice(0, 2).forEach(function(otherName){
             var rh = c._relationHistory[otherName];
@@ -4155,7 +4159,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
             var firstFavor = recent[0].favor - recent[0].delta;
             var lastFavor = recent[recent.length-1].favor;
             if (Math.abs(lastFavor - firstFavor) >= 15) {
-              xmlLines.push('    <relation-shift other="' + otherName + '" from="' + firstFavor + '" to="' + lastFavor + '" reason="' + (recent[recent.length-1].reason||'').substring(0,30) + '"/>');
+              xmlLines.push('    <relation-shift other="' + _xE(otherName) + '" from="' + firstFavor + '" to="' + lastFavor + '" reason="' + _xE((recent[recent.length-1].reason||'').substring(0,30)) + '"/>');
             }
           });
         }
@@ -7166,6 +7170,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         }
       }
       if (!_streamSC1) {
+        delete _sc1Body.stream;  // 确保 fallback 不发 stream:true
         var resp1=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},body:JSON.stringify(_sc1Body)});
         if(!resp1.ok) throw new Error('HTTP ' + resp1.status);
         data1=await resp1.json();

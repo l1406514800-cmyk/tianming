@@ -799,6 +799,12 @@ function _prepareGMForSave() {
   if (GM._fakeDeathHolding && Object.keys(GM._fakeDeathHolding).length > 0) GM._savedFakeDeathHolding = _safeClone(GM._fakeDeathHolding);
   if (GM._fiscalValidatorLog && GM._fiscalValidatorLog.length > 0) GM._savedFiscalValidatorLog = _safeClone(GM._fiscalValidatorLog);
   // M1-M4 新增字段
+  // 清理 ephemeral post-turn 任务（Promise 不可序列化）
+  if (GM._postTurnJobs) delete GM._postTurnJobs;
+  // 无上限保护：_memoryArchiveFull 保留最近 5000 条（约 100-200 回合全记忆）
+  if (GM._memoryArchiveFull && GM._memoryArchiveFull.length > 5000) {
+    GM._memoryArchiveFull = GM._memoryArchiveFull.slice(-5000);
+  }
   if (GM._memoryArchiveFull && GM._memoryArchiveFull.length > 0) GM._savedMemoryArchiveFull = _safeClone(GM._memoryArchiveFull);
   if (GM._causalGraph && (GM._causalGraph.nodes && GM._causalGraph.nodes.length || GM._causalGraph.edges && GM._causalGraph.edges.length)) GM._savedCausalGraph = _safeClone(GM._causalGraph);
   if (GM._factionArcs && Object.keys(GM._factionArcs).length > 0) GM._savedFactionArcs = _safeClone(GM._factionArcs);

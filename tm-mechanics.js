@@ -1698,11 +1698,11 @@ var NpcMemorySystem = {
       NpcMemorySystem._mirrorToOther(charName, event, emotion, importance, relatedPerson, meta);
     }
 
-    // === 方向2扩展：为所有 participants 写入 ===
-    if (meta && Array.isArray(meta.participants) && meta.participants.length > 0) {
+    // === 方向2扩展：为所有 participants 写入（防镜像递归 + 必须是顶层调用）===
+    if (meta && !meta._noMirror && Array.isArray(meta.participants) && meta.participants.length > 0) {
       meta.participants.forEach(function(pName) {
         if (!pName || pName === charName || pName === relatedPerson) return;
-        NpcMemorySystem._mirrorToOther(charName, event, emotion, importance, pName, Object.assign({}, meta, { _noMirror: true, _asParticipant: true }));
+        NpcMemorySystem._mirrorToOther(charName, event, emotion, importance, pName, Object.assign({}, meta, { _noMirror: true, _asParticipant: true, participants: [] }));
       });
     }
   },
