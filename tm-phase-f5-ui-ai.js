@@ -40,7 +40,7 @@
     return '<button class="btn" style="font-size:0.78rem;padding:10px;text-align:left;border:1px solid var(--bdr);" onclick="' +
            onClickExpr + ';this.closest(\'div[style*=position]\').remove();">' +
       '<div style="color:var(--gold-300);font-size:0.86rem;">' + label + '</div>' +
-      '<div style="color:var(--ink-400);font-size:0.72rem;margin-top:2px;">' + hint + '</div>' +
+      '<div style="color:#d4be7a;font-size:0.72rem;margin-top:2px;">' + hint + '</div>' +
     '</button>';
   }
 
@@ -74,7 +74,7 @@
     var body = '<div style="max-width:500px;font-family:inherit;">';
     body += '<div style="font-size:1.0rem;color:var(--gold-300);margin-bottom:0.6rem;">🗻 改土归流</div>';
     if (tusis.length === 0) {
-      body += '<div style="color:var(--ink-400);font-size:0.82rem;">当前无羁縻/土司可改流</div>';
+      body += '<div style="color:#d4be7a;font-size:0.82rem;">当前无羁縻/土司可改流</div>';
     } else {
       body += '<div style="font-size:0.78rem;color:var(--gold-400);margin-bottom:4px;">选择欲废土司：</div>';
       tusis.forEach(function(t) {
@@ -179,7 +179,7 @@
     body += '<div style="background:var(--vermillion-400);width:' + (taoohu/total*100) + '%;" title="逃户 ' + taoohu + '"></div>';
     body += '<div style="background:var(--ink-600);width:' + (hidden/total*100) + '%;" title="隐户 ' + hidden + '"></div>';
     body += '</div>';
-    body += '<div style="font-size:0.68rem;color:var(--ink-400);margin-bottom:10px;">黄籍 ' + (huangji/total*100).toFixed(1) + '% | 逃户 ' + (taoohu/total*100).toFixed(1) + '% | 隐户 ' + (hidden/total*100).toFixed(1) + '%</div>';
+    body += '<div style="font-size:0.68rem;color:#d4be7a;margin-bottom:10px;">黄籍 ' + (huangji/total*100).toFixed(1) + '% | 逃户 ' + (taoohu/total*100).toFixed(1) + '% | 隐户 ' + (hidden/total*100).toFixed(1) + '%</div>';
     // 50 年曲线（若有归档）
     if (P.yearlyArchive && P.yearlyArchive.length > 0) {
       body += '<div style="font-size:0.82rem;color:var(--gold-400);margin-bottom:4px;">近 ' + P.yearlyArchive.length + ' 年人口曲线</div>';
@@ -210,7 +210,7 @@
       var s = COUNTER[sid];
       body += '<button class="btn" style="display:block;width:100%;padding:8px;margin-bottom:4px;text-align:left;" onclick="PhaseD.invokeCounterStrategy(\''+sid+'\');this.closest(\'div[style*=position]\').remove();">';
       body += '<b>' + s.name + '</b><br>';
-      body += '<span style="color:var(--ink-400);font-size:0.72rem;">' + s.description + '</span>';
+      body += '<span style="color:#d4be7a;font-size:0.72rem;">' + s.description + '</span>';
       body += '</button>';
     });
     body += '</div>';
@@ -227,12 +227,12 @@
     var body = '<div style="max-width:720px;font-family:inherit;">';
     body += '<div style="font-size:1.0rem;color:var(--gold-300);margin-bottom:0.6rem;">📜 制度志</div>';
     if (insts.length === 0) {
-      body += '<div style="color:var(--ink-400);font-size:0.82rem;">暂无动态设立机构</div>';
+      body += '<div style="color:#d4be7a;font-size:0.82rem;">暂无动态设立机构</div>';
     } else {
       insts.forEach(function(inst) {
         body += '<div style="padding:10px;margin-bottom:8px;background:var(--bg-2);border-left:3px solid ' + (inst.stage === 'abolished' ? 'var(--vermillion-400)' : 'var(--gold-500)') + ';border-radius:4px;">';
         body += '<div style="font-size:0.86rem;color:var(--gold-300);">' + inst.name + ' · 品 ' + inst.rank + '</div>';
-        body += '<div style="font-size:0.72rem;color:var(--ink-400);">设 ' + inst.createdTurn + ' 回合 · 状态 ' + inst.stage + ' · 员额 ' + (inst.staffSize||0) + ' · 岁支 ' + (inst.annualBudget||0);
+        body += '<div style="font-size:0.72rem;color:#d4be7a;">设 ' + inst.createdTurn + ' 回合 · 状态 ' + inst.stage + ' · 员额 ' + (inst.staffSize||0) + ' · 岁支 ' + (inst.annualBudget||0);
         if (inst.abolishedTurn) body += ' · 废 ' + inst.abolishedTurn;
         body += '</div>';
         body += '<div style="font-size:0.72rem;color:var(--ink-300);margin-top:4px;">效率 ' + ((inst.effectiveness||0)*100).toFixed(0) + '% · 腐败 ' + (inst.corruption||0).toFixed(0) + '</div>';

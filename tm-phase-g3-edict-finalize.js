@@ -123,7 +123,7 @@
       body += '<div style="padding:10px;background:var(--bg-2);border-left:3px solid var(--gold-400);border-radius:4px;">';
       body += '<div style="font-size:0.86rem;color:var(--gold-300);"><b>' + o.code + '：' + o.name + '</b></div>';
       body += '<div style="font-size:0.72rem;color:var(--ink-300);margin-top:4px;">' + o.description + '</div>';
-      body += '<div style="font-size:0.7rem;margin-top:6px;color:var(--ink-400);">';
+      body += '<div style="font-size:0.7rem;margin-top:6px;color:#d4be7a;">';
       body += '期 ' + o.estimatedDuration + ' · 费 ' + o.estimatedCost + ' 钱<br>';
       body += '死 ' + o.estimatedDeathRate + ' · 民心 ' + (o.estimatedMinxinDelta >= 0 ? '+' : '') + o.estimatedMinxinDelta + '<br>';
       body += '皇威 +' + o.estimatedHwDelta;

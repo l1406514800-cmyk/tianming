@@ -48,15 +48,27 @@ function _renderGuoku() {
     ? g.ledgers.cloth.stock
     : (g.cloth || 0);
   var phase = money < -(g.annualIncome || 1) * 0.5 ? 'bankrupt' : '';
-  // 统一单位
   var U = (typeof CurrencyUnit !== 'undefined') ? CurrencyUnit.getUnit() : { money:'两', grain:'石', cloth:'匹' };
   var turnDays = g.turnDays || 30;
   var incomeLabel = turnDays === 30 ? '月入' : ('每' + turnDays + '日入');
   var expenseLabel = turnDays === 30 ? '月支' : ('每' + turnDays + '日支');
+  // 三账本回预估变化
+  var moneyDelta = (g.turnIncome || g.monthlyIncome || 0) - (g.turnExpense || g.monthlyExpense || 0);
+  var grainDelta = (g.ledgers && g.ledgers.grain && g.ledgers.grain.turnDelta != null)
+    ? g.ledgers.grain.turnDelta
+    : ((g.turnGrainIncome || 0) - (g.turnGrainExpense || 0));
+  var clothDelta = (g.ledgers && g.ledgers.cloth && g.ledgers.cloth.turnDelta != null)
+    ? g.ledgers.cloth.turnDelta
+    : ((g.turnClothIncome || 0) - (g.turnClothExpense || 0));
   return {
     value: _barFmtNum(money),
     trend: g.trend || 'stable',
     phase: phase,
+    subItems: [
+      { k:'银', v:_barFmtNum(money), d:moneyDelta },
+      { k:'粮', v:_barFmtNum(grain), d:grainDelta },
+      { k:'布', v:_barFmtNum(cloth), d:clothDelta }
+    ],
     tip: {
       title: '帑廪（国库·三账）',
       phase: phase === 'bankrupt' ? '⚠ 财政破产' : '正常',
@@ -88,10 +100,22 @@ function _renderNeitang() {
   var turnDays = (GM.guoku && GM.guoku.turnDays) || n.turnDays || 30;
   var incomeLabel = turnDays === 30 ? '月入' : ('每' + turnDays + '日入');
   var expenseLabel = turnDays === 30 ? '月支' : ('每' + turnDays + '日支');
+  var moneyDelta = (n.turnIncome || n.monthlyIncome || 0) - (n.turnExpense || n.monthlyExpense || 0);
+  var grainDelta = (n.ledgers && n.ledgers.grain && n.ledgers.grain.turnDelta != null)
+    ? n.ledgers.grain.turnDelta
+    : ((n.turnGrainIncome || 0) - (n.turnGrainExpense || 0));
+  var clothDelta = (n.ledgers && n.ledgers.cloth && n.ledgers.cloth.turnDelta != null)
+    ? n.ledgers.cloth.turnDelta
+    : ((n.turnClothIncome || 0) - (n.turnClothExpense || 0));
   return {
     value: _barFmtNum(money),
     trend: n.trend || 'stable',
     phase: '',
+    subItems: [
+      { k:'银', v:_barFmtNum(money), d:moneyDelta },
+      { k:'粮', v:_barFmtNum(grain), d:grainDelta },
+      { k:'布', v:_barFmtNum(cloth), d:clothDelta }
+    ],
     tip: {
       title: '内帑（皇室私库·三账）',
       phase: '皇室私产',
@@ -292,7 +316,22 @@ function renderTopBarVars() {
     if (!renderer) continue;
     var r = renderer();
     var arrow = _barTrendArrow(r.trend);
-    html += '<div class="bar-var" data-var="' + cfg.key + '"' +
+    var _isWide = !!(r.subItems && r.subItems.length);
+    var _subHtml = '';
+    if (_isWide) {
+      _subHtml = '<div class="bar-var-sub">';
+      for (var _si = 0; _si < r.subItems.length; _si++) {
+        var _s = r.subItems[_si];
+        var _d = _s.d || 0;
+        var _dCls = _d > 0 ? 'up' : (_d < 0 ? 'down' : 'flat');
+        var _dTxt = _d > 0 ? ('+' + _barFmtNum(_d)) : (_d < 0 ? ('-' + _barFmtNum(Math.abs(_d))) : '±0');
+        _subHtml += '<div class="bar-var-sub-item"><span class="sk">' + _s.k + '</span>' +
+                    '<span class="sv">' + _s.v + '</span>' +
+                    '<span class="sd ' + _dCls + '">' + _dTxt + '</span></div>';
+      }
+      _subHtml += '</div>';
+    }
+    html += '<div class="bar-var' + (_isWide ? ' wide' : '') + '" data-var="' + cfg.key + '"' +
             ' data-phase="' + (r.phase || '') + '"' +
             ' data-tip-idx="' + i + '"' +
             ' onclick="_handleBarVarClick(\'' + cfg.key + '\')"' +
@@ -300,9 +339,9 @@ function renderTopBarVars() {
             ' onmouseleave="_hideBarVarTip()"' +
             ' onmousemove="_moveBarVarTip(event)">' +
             '<span class="bar-var-name">' + cfg.name + '</span>' +
-            '<span class="bar-var-value">' + r.value +
+            (_isWide ? _subHtml : ('<span class="bar-var-value">' + r.value +
               ' <span class="bar-var-trend ' + arrow.cls + '">' + arrow.sym + '</span>' +
-            '</span>' +
+            '</span>')) +
             '</div>';
   }
   // 注：6 新徽标已撤销——子系统内容已并入对应 7 主变量详情面板：
@@ -821,7 +860,7 @@ function _renderNeitangFullPanel() {
 // ── 户口：整合承载力+徭役+兵役+大徭役+军调+迁徙+阶层 ──
 function _renderHukouFullPanel() {
   var P = GM.population; var h = '';
-  if (!P || !P.national) return '<div style="color:var(--ink-400);">户口未初始化</div>';
+  if (!P || !P.national) return '<div style="color:#d4be7a;">户口未初始化</div>';
   h += '<div style="font-size:0.82rem;color:var(--gold-400);margin-bottom:0.3rem;">户口总览</div>';
   h += '<table style="width:100%;font-size:0.8rem;">';
   h += '<tr><td>户</td><td>' + _barFmtNum(P.national.households) + '</td>';

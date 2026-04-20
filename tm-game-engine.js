@@ -2422,7 +2422,7 @@ function renderLeftPanel(){
 
   // P9: 渐进式引导（前3回合，每次renderLeftPanel都检查）
   if (GM.turn && GM.turn <= 3) {
-    var _guideMap = {1:{t:'初临朝堂',h:'左侧查看资源和势力·右侧"谕令"下诏·"奏议"批折·"静待时变"推进'},2:{t:'察言观势',h:'查看诏令执行情况·召开朝议·关注势力动态·建议库有方案'},3:{t:'运筹帷幄',h:'人物关系因决策变化·大臣记住你的选择·利用派系矛盾·此后不再提示'}};
+    var _guideMap = {1:{t:'初临朝堂',h:'左侧查看资源和势力·右侧"谕令"下诏·"奏议"批折·"诏付有司"推进'},2:{t:'察言观势',h:'查看诏令执行情况·召开朝议·关注势力动态·建议库有方案'},3:{t:'运筹帷幄',h:'人物关系因决策变化·大臣记住你的选择·利用派系矛盾·此后不再提示'}};
     var _gm = _guideMap[GM.turn];
     if (_gm) {
       var _gDiv = document.createElement('div');
@@ -2456,11 +2456,45 @@ function renderLeftPanel(){
     + (_tsExtra ? "<div style=\"font-size:0.68rem;color:var(--txt-d);margin-top:2px;\">" + _tsExtra + "</div>" : "")
     + "<div style=\"font-size:0.72rem;color:var(--txt-d);\">" + (typeof getTSText==='function'?getTSText(GM.turn):'') + "</div>";
   gl.appendChild(ti);
-  // 顶栏年号/时代指示
+  // 顶栏年号/时代指示（兼容旧/新结构）
   var barEra=_$("bar-era");
-  if(barEra){
-    var _sc=findScenarioById&&findScenarioById(GM.sid);
-    barEra.textContent=(_sc?_sc.name:'')+(GM.eraName?' · '+GM.eraName:'');
+  var _sc=findScenarioById&&findScenarioById(GM.sid);
+  if(barEra){ barEra.textContent=(_sc?_sc.name:'')+(GM.eraName?' · '+GM.eraName:''); }
+  var _barDyn=_$("bar-dynasty"), _barDate=_$("bar-date"), _barTurnT=_$("bar-turn-text");
+  if(_barDyn){ _barDyn.textContent=(_sc?_sc.name:'')+(GM.eraName?' · '+GM.eraName:''); }
+  if(_barDate){ _barDate.textContent=(typeof getTSText==='function'?getTSText(GM.turn):''); }
+  if(_barTurnT){ _barTurnT.textContent='第 '+(GM.turn||1)+' 回合'; }
+  // 四时物候：按 GM.turn 月份推算
+  var _wSeal=_$("bar-weather-seal"), _wName=_$("bar-weather-name"), _wDesc=_$("bar-weather-desc");
+  if(_wSeal && _wName){
+    var _mon=(((GM.turn||1)-1)%12)+1; // 1..12
+    var _s='春',_sTxt='春分',_sDesc='桃李始华';
+    if(_mon>=3&&_mon<=5){_s='春';_sTxt=['孟春','仲春','季春'][_mon-3];_sDesc=['立春·东风解冻','春分·雷乃发声','谷雨·萍始生'][_mon-3];}
+    else if(_mon>=6&&_mon<=8){_s='夏';_sTxt=['孟夏','仲夏','季夏'][_mon-6];_sDesc=['立夏·蝼蝈鸣','夏至·蜩始鸣','大暑·腐草为萤'][_mon-6];}
+    else if(_mon>=9&&_mon<=11){_s='秋';_sTxt=['孟秋','仲秋','季秋'][_mon-9];_sDesc=['立秋·凉风至','秋分·鸿雁来','霜降·草木黄落'][_mon-9];}
+    else {_s='冬';var _wi=(_mon===12?0:_mon+1);_sTxt=['孟冬','仲冬','季冬'][_wi];_sDesc=['立冬·水始冰','冬至·蚯蚓结','大寒·鸡始乳'][_wi];}
+    _wSeal.textContent=_s;
+    _wName.textContent=_sTxt;
+    if(_wDesc)_wDesc.textContent=_sDesc;
+  }
+  // 悬浮推演按钮 + 底栏状态条显示
+  var _gsTurnFloat=_$("gs-turn-float"), _gsStatusBar=_$("gs-status-bar");
+  if(_gsTurnFloat) _gsTurnFloat.classList.add('show');
+  if(_gsStatusBar) _gsStatusBar.classList.add('show');
+  var _gsStatusSave=_$("gs-status-save"), _gsStatusTurn=_$("gs-status-turn");
+  if(_gsStatusSave) _gsStatusSave.textContent=(GM.saveName||'未命名');
+  if(_gsStatusTurn) _gsStatusTurn.textContent='第 '+(GM.turn||1)+' 回合';
+  // 同步悬浮推演按钮 disabled 状态
+  var _gsTurnBig=_$("gs-turn-big");
+  if(_gsTurnBig){
+    _gsTurnBig.disabled = !!(GM.busy || GM._endTurnBusy);
+  }
+  // 摘要
+  var _gsTurnSummary=_$("gs-turn-summary");
+  if(_gsTurnSummary){
+    var _ec=(GM._edictSuggestions||[]).filter(function(e){return !e.used;}).length;
+    var _mc=(GM.memorials||[]).filter(function(m){return !m.reviewed;}).length;
+    _gsTurnSummary.innerHTML='诏 <span class="hl">'+_ec+'</span> · 疏 <span class="hl">'+_mc+'</span>'+(_ec+_mc>0?' · <span class="warn">待处置</span>':' · <span style="color:var(--celadon-400);">朕意已决</span>');
   }
   // 顶栏七官方变量
   if(typeof renderTopBarVars==='function') renderTopBarVars();
@@ -2922,7 +2956,7 @@ function _rwpRenderRadar(ch) {
 /** 渲染简化家族树 SVG */
 function _rwpRenderFamilyTree(ch) {
   var members = (ch.familyMembers && Array.isArray(ch.familyMembers)) ? ch.familyMembers : [];
-  if (members.length === 0) return '<div style="padding:24px;text-align:center;color:var(--ink-400);font-style:italic;">家 谱 暂 缺 · 史 笔 未 录</div>';
+  if (members.length === 0) return '<div style="padding:24px;text-align:center;color:#d4be7a;font-style:italic;">家 谱 暂 缺 · 史 笔 未 录</div>';
   // 按代分组
   var groups = {'-2':[],'-1':[],'0':[],'1':[],'2':[]};
   members.forEach(function(m) {
@@ -3165,7 +3199,7 @@ function openCharDetail(charName) {
     h += '<div class="qp-sec"><div class="qp-sec-title">个 人 志 向</div>';
     h += '<div style="padding:8px 10px;background:rgba(0,0,0,0.22);border-left:2px solid var(--gold-500);border-radius:0 3px 3px 0;font-size:11px;line-height:1.6;">';
     h += escHtml(ch.personalGoal);
-    h += '<div style="margin-top:4px;font-size:10px;"><span style="color:var(--ink-400);">满足度</span> <span style="color:'+gpc+';font-weight:600;">'+gsat+'%</span></div>';
+    h += '<div style="margin-top:4px;font-size:10px;"><span style="color:#d4be7a;">满足度</span> <span style="color:'+gpc+';font-weight:600;">'+gsat+'%</span></div>';
     h += '</div></div>';
   }
 
@@ -3368,7 +3402,7 @@ function openCharRenwuPage(charName) {
     h += '</div>';
     if (wc.气质) h += '<div style="text-align:center;font-size:11px;color:var(--gold-400);margin-top:6px;letter-spacing:0.2em;">气 质：'+wc.气质+'</div>';
   } else {
-    h += '<div style="color:var(--ink-400);font-size:11px;">五 常 未 启</div>';
+    h += '<div style="color:#d4be7a;font-size:11px;">五 常 未 启</div>';
   }
   h += '</div>';
   h += '<div class="rwp-sec" style="margin-bottom:0;"><div class="rwp-sec-title">性 格 特 质</div>';
@@ -3391,7 +3425,7 @@ function openCharRenwuPage(charName) {
     });
     h += '</div>';
   } else {
-    h += '<div style="color:var(--ink-400);font-size:11px;">特 质 未 录</div>';
+    h += '<div style="color:#d4be7a;font-size:11px;">特 质 未 录</div>';
   }
   if (ch.personality) h += '<div style="font-size:11px;color:var(--ink-300);margin-top:6px;line-height:1.6;font-style:italic;">'+escHtml(ch.personality)+'</div>';
   h += '</div>';
@@ -3505,7 +3539,7 @@ function openCharRenwuPage(charName) {
     });
     h += '</div>';
   } else {
-    h += '<div style="padding:12px;text-align:center;color:var(--ink-400);font-style:italic;">仕 途 尚 浅 · 事 迹 未 录</div>';
+    h += '<div style="padding:12px;text-align:center;color:#d4be7a;font-style:italic;">仕 途 尚 浅 · 事 迹 未 录</div>';
   }
   h += '</div>';
   // 颜面+志向
@@ -5029,22 +5063,61 @@ function renderGameState(){
   var gc=_$("gc");if(!gc)return;
   gc.innerHTML="";
 
-  // 标签栏
-  var tabBar=document.createElement("div");tabBar.style.cssText="display:flex;gap:0.3rem;padding:0.5rem;background:var(--bg-2);border-bottom:1px solid var(--bdr);flex-wrap:wrap;";
+  // 面包屑
+  var _bc=document.createElement("div");_bc.className="gs-breadcrumb";
+  _bc.innerHTML='<span>朝野要务</span><span class="sep">›</span><span>本朝纪要</span><span class="sep">›</span><span class="cur" id="gs-bc-cur">朝 政</span>'
+    +'<div class="gs-breadcrumb-right">'
+    +'<button class="gs-bc-btn" onclick="if(typeof openGlobalSearch===\'function\')openGlobalSearch();">搜 寻</button>'
+    +'<button class="gs-bc-btn" onclick="if(typeof openHelp===\'function\')openHelp();">帮 助</button>'
+    +'</div>';
+  gc.appendChild(_bc);
+
+  // 标签栏（5 组分栏：政务/问答/纪录/臣子/文考）
+  var tabBar=document.createElement("div");tabBar.className="gs-tab-bar";
   var _ti = typeof tmIcon === 'function' ? tmIcon : function(){return '';};
-  var tabs=[{id:"gt-zhaozheng",label:"\u671D\u653F",icon:'office'},{id:"gt-edict",label:"\u8BCF\u4EE4",icon:'scroll'},{id:"gt-memorial",label:"\u594F\u758F",icon:'memorial'},{id:"gt-wendui",label:"\u95EE\u5BF9",icon:'dialogue'},{id:"gt-letter",label:"\u9E3F\u96C1",icon:'scroll'},{id:"gt-biannian",label:"\u7F16\u5E74",icon:'chronicle'},{id:"gt-office",label:"\u5B98\u5236",icon:'office'},{id:"gt-wenyuan",label:"\u6587\u82D1",icon:'scroll'},{id:"gt-qiju",label:"\u8D77\u5C45\u6CE8",icon:'qiju'},{id:"gt-jishi",label:"\u7EAA\u4E8B",icon:'event'},{id:"gt-shiji",label:"\u53F2\u8BB0",icon:'history'},{id:"gt-chaoyi",label:"\u671D\u8BAE",icon:'dialogue',action:'openChaoyi'},{id:"gt-keju",label:"\u79D1\u4E3E",icon:'scroll',action:'openKejuPanel'}];
-  tabs.forEach(function(t,i){
-    var btn=document.createElement("button");btn.className="g-tab-btn"+(i===0?" active":"");btn.innerHTML=_ti(t.icon,13)+' '+t.label;
+  var tabs=[
+    {id:"gt-zhaozheng",label:"\u671D\u653F",icon:'office',group:'政务'},
+    {id:"gt-edict",label:"\u8BCF\u4EE4",icon:'scroll',group:'政务'},
+    {id:"gt-memorial",label:"\u594F\u758F",icon:'memorial',group:'政务'},
+    {id:"gt-chaoyi",label:"\u671D\u8BAE",icon:'dialogue',group:'政务',action:'openChaoyi'},
+    {id:"gt-wendui",label:"\u95EE\u5BF9",icon:'dialogue',group:'问答'},
+    {id:"gt-letter",label:"\u9E3F\u96C1",icon:'scroll',group:'问答'},
+    {id:"gt-biannian",label:"\u7F16\u5E74",icon:'chronicle',group:'纪录'},
+    {id:"gt-qiju",label:"\u8D77\u5C45\u6CE8",icon:'qiju',group:'纪录'},
+    {id:"gt-jishi",label:"\u7EAA\u4E8B",icon:'event',group:'纪录'},
+    {id:"gt-shiji",label:"\u53F2\u8BB0",icon:'history',group:'纪录'},
+    {id:"gt-office",label:"\u5B98\u5236",icon:'office',group:'臣子'},
+    {id:"gt-renwu",label:"\u4EBA\u7269\u5FD7",icon:'person',group:'臣子'},
+    {id:"gt-difang",label:"\u5730\u65B9",icon:'faction',group:'臣子'},
+    {id:"gt-wenyuan",label:"\u6587\u82D1",icon:'scroll',group:'文考'},
+    {id:"gt-keju",label:"\u79D1\u4E3E",icon:'scroll',group:'文考',action:'openKejuPanel'}
+  ];
+  // 按 group 分组
+  var _curGroup=null, _curGroupEl=null, _tabIdx=0;
+  tabs.forEach(function(t){
+    if (t.group !== _curGroup){
+      _curGroupEl=document.createElement('div');
+      _curGroupEl.className='gs-tab-group';
+      _curGroupEl.setAttribute('data-label', t.group || '');
+      tabBar.appendChild(_curGroupEl);
+      _curGroup=t.group;
+    }
+    var btn=document.createElement("button");
+    btn.className='g-tab-btn gs-tab-btn'+(_tabIdx===0?" active":"");
+    btn.innerHTML=_ti(t.icon,12)+' '+t.label;
     if (t.action) {
-      // 动作型标签（朝议/科举等）——点击触发函数而非切换面板
       btn.onclick=function(){ if(typeof window[t.action]==='function') window[t.action](); };
     } else {
-      btn.onclick=function(){
-        switchGTab(btn,t.id);
-        if(t.id==='gt-zhaozheng'){var zp=_$('gt-zhaozheng');if(zp)zp.innerHTML=_renderZhaozhengCenter();}
-      };
+      (function(_t,_b){
+        _b.onclick=function(){
+          switchGTab(_b,_t.id);
+          if(_t.id==='gt-zhaozheng'){var zp=_$('gt-zhaozheng');if(zp)zp.innerHTML=_renderZhaozhengCenter();}
+          var bc=_$('gs-bc-cur'); if(bc) bc.textContent=_t.label;
+        };
+      })(t,btn);
     }
-    tabBar.appendChild(btn);
+    _curGroupEl.appendChild(btn);
+    _tabIdx++;
   });
   gc.appendChild(tabBar);
 
@@ -5210,7 +5283,7 @@ function renderGameState(){
 
   // 结束回合按钮
   edictHTML += '<div class="ed-action-bar">';
-  edictHTML += '<button class="bt bp" id="btn-end" onclick="confirmEndTurn()" style="padding:var(--space-3) var(--space-8);font-size:var(--text-md);letter-spacing:0.15em;border:2px solid var(--gold-400);box-shadow:0 2px 12px rgba(184,154,83,0.2);">'+_ei('end-turn',16)+' 静待时变</button>';
+  edictHTML += '<button class="bt bp" id="btn-end" onclick="confirmEndTurn()" style="padding:var(--space-3) var(--space-8);font-size:var(--text-md);letter-spacing:0.15em;border:2px solid var(--gold-400);box-shadow:0 2px 12px rgba(184,154,83,0.2);">'+_ei('end-turn',16)+' 诏付有司</button>';
   edictHTML += '<button class="bt" onclick="openMapViewer()" style="padding:var(--space-3) var(--space-6);font-size:var(--text-md);">'+_ei('map',16)+' 查看地图</button>';
   edictHTML += '</div>';
   edictHTML += '</div>'; // 关闭右侧诏书编辑区

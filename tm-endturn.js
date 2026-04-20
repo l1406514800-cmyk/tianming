@@ -13616,7 +13616,7 @@ function _qijuZoom(idx) {
   var html = '<div class="modal-bg show" id="_qijuZoomModal" onclick="if(event.target===this)this.remove()">';
   html += '<div class="modal-box" style="max-width:640px;">';
   html += '<h3 style="color:var(--gold-300);margin:0 0 0.4rem;letter-spacing:0.12em;">\u3010' + escHtml(n.cat) + '\u3011\u7B2C' + (r.turn||'?') + '\u56DE\u5408</h3>';
-  html += '<div style="font-size:0.82rem;color:var(--ink-500,#a69470);font-style:italic;letter-spacing:0.08em;margin-bottom:0.8rem;">' + escHtml(dt) + '</div>';
+  html += '<div style="font-size:0.82rem;color:#d4c9b0;font-style:italic;letter-spacing:0.08em;margin-bottom:0.8rem;">' + escHtml(dt) + '</div>';
   html += '<div class="qj-rec ' + _cls + '" style="padding:10px 14px;">';
   html += '<div class="qj-rec-text" style="font-size:14.5px;line-height:2;">' + _qijuHighlight(n.text) + '</div>';
   if (r._annotation) html += '<div class="qj-annot">' + escHtml(r._annotation) + '</div>';
@@ -13939,10 +13939,10 @@ function _rwRenderCard(c) {
   var _offRow = '';
   if (_ch.officialTitle) _offRow += '<span class="rw-pos">'+escHtml(_ch.officialTitle)+'</span>';
   else if (_ch.title) _offRow += '<span class="rw-pos">'+escHtml(_ch.title)+'</span>';
-  else if (_ch.role) _offRow += '<span class="rw-pos" style="color:var(--ink-500);">'+escHtml(_ch.role)+'</span>';
-  else if (_ch.occupation) _offRow += '<span class="rw-pos" style="color:var(--ink-500);">'+escHtml(_ch.occupation)+'</span>';
+  else if (_ch.role) _offRow += '<span class="rw-pos" style="color:#d4c9b0;">'+escHtml(_ch.role)+'</span>';
+  else if (_ch.occupation) _offRow += '<span class="rw-pos" style="color:#d4c9b0;">'+escHtml(_ch.occupation)+'</span>';
   else if (_ch.spouse) _offRow += '<span class="rw-pos" style="color:var(--vermillion-300,#d15c47);">\u540E\u5BAB</span>';
-  else _offRow += '<span class="rw-pos" style="color:var(--ink-500);">\u5E03\u8863</span>';
+  else _offRow += '<span class="rw-pos" style="color:#d4c9b0;">\u5E03\u8863</span>';
   _offRow += _rwRankChip(_ch);
   if (_ch.faction) _offRow += '<span class="rw-fac-chip">'+escHtml(_ch.faction)+'</span>';
 
@@ -15197,8 +15197,14 @@ function renderSidePanels(){
     gl.appendChild(ppd);
   }
 
-  // 将整个侧面板容器追加到真实gl
+  // 注意：把 shell extras 注入到 gl_real（而非 _wrap），这样 #side-panels-ext 被 CSS 隐藏后仍显示
+  try { if (typeof _renderShellExtrasLeft === 'function') _renderShellExtrasLeft(gl_real); } catch(e){}
+
+  // 将整个侧面板容器追加到真实gl（将被 CSS .gs-drawer-body #side-panels-ext 隐藏）
   gl_real.appendChild(_wrap);
+
+  // 右侧 drawer 面板 — shell extras
+  try { if (typeof _renderShellExtrasRight === 'function') _renderShellExtrasRight(); } catch(e){}
 }
 
 // 皇城详情弹窗

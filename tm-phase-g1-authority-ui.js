@@ -219,8 +219,8 @@
     body += '<div style="font-size:1.0rem;color:var(--gold-300);margin-bottom:0.6rem;">天威之察</div>';
     // 真实 vs 感知
     body += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">';
-    body += '<div style="padding:10px;background:var(--bg-2);border-radius:4px;"><div style="font-size:0.74rem;color:var(--ink-400);">真值</div><div style="font-size:1.4rem;color:var(--gold-300);">' + Math.round(hw.index) + '</div><div style="font-size:0.72rem;color:var(--ink-300);">' + (hw.phase||'normal') + '</div></div>';
-    body += '<div style="padding:10px;background:var(--bg-2);border-radius:4px;"><div style="font-size:0.74rem;color:var(--ink-400);">地方视值</div><div style="font-size:1.4rem;color:var(--celadon-300);">' + Math.round(hw.perceivedIndex || hw.index) + '</div><div style="font-size:0.72rem;color:var(--ink-300);">粉饰 ' + (Math.round((hw.perceivedIndex||hw.index)-hw.index)) + '</div></div>';
+    body += '<div style="padding:10px;background:var(--bg-2);border-radius:4px;"><div style="font-size:0.74rem;color:#d4be7a;">真值</div><div style="font-size:1.4rem;color:var(--gold-300);">' + Math.round(hw.index) + '</div><div style="font-size:0.72rem;color:var(--ink-300);">' + (hw.phase||'normal') + '</div></div>';
+    body += '<div style="padding:10px;background:var(--bg-2);border-radius:4px;"><div style="font-size:0.74rem;color:#d4be7a;">地方视值</div><div style="font-size:1.4rem;color:var(--celadon-300);">' + Math.round(hw.perceivedIndex || hw.index) + '</div><div style="font-size:0.72rem;color:var(--ink-300);">粉饰 ' + (Math.round((hw.perceivedIndex||hw.index)-hw.index)) + '</div></div>';
     body += '</div>';
     // 四维
     body += '<div style="font-size:0.82rem;color:var(--gold-400);margin-bottom:4px;">四维分项</div>';
@@ -271,7 +271,7 @@
     var body = '<div style="max-width:700px;font-family:inherit;">';
     body += '<div style="font-size:1.0rem;color:var(--gold-300);margin-bottom:0.6rem;">乾纲之察</div>';
     body += '<div style="padding:10px;background:var(--bg-2);border-radius:4px;margin-bottom:10px;">';
-    body += '<div style="font-size:0.76rem;color:var(--ink-400);">皇权指数</div>';
+    body += '<div style="font-size:0.76rem;color:#d4be7a;">皇权指数</div>';
     body += '<div style="font-size:1.6rem;color:var(--gold-300);">' + Math.round(hq.index) + '</div>';
     var hqPhase = hq.index >= 70 ? '专制' : hq.index >= 35 ? '制衡' : '权臣';
     body += '<div style="font-size:0.82rem;color:var(--celadon-300);">' + hqPhase + '段</div>';
@@ -318,8 +318,8 @@
     var body = '<div style="max-width:760px;font-family:inherit;">';
     body += '<div style="font-size:1.0rem;color:var(--gold-300);margin-bottom:0.6rem;">民心之察</div>';
     body += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">';
-    body += '<div style="padding:10px;background:var(--bg-2);"><div style="font-size:0.74rem;color:var(--ink-400);">真实</div><div style="font-size:1.4rem;color:var(--gold-300);">' + Math.round(mx.trueIndex) + '</div><div style="font-size:0.72rem;">' + (mx.phase||'peaceful') + '</div></div>';
-    body += '<div style="padding:10px;background:var(--bg-2);"><div style="font-size:0.74rem;color:var(--ink-400);">感知</div><div style="font-size:1.4rem;color:var(--celadon-300);">' + Math.round(mx.perceivedIndex || mx.trueIndex) + '</div></div>';
+    body += '<div style="padding:10px;background:var(--bg-2);"><div style="font-size:0.74rem;color:#d4be7a;">真实</div><div style="font-size:1.4rem;color:var(--gold-300);">' + Math.round(mx.trueIndex) + '</div><div style="font-size:0.72rem;">' + (mx.phase||'peaceful') + '</div></div>';
+    body += '<div style="padding:10px;background:var(--bg-2);"><div style="font-size:0.74rem;color:#d4be7a;">感知</div><div style="font-size:1.4rem;color:var(--celadon-300);">' + Math.round(mx.perceivedIndex || mx.trueIndex) + '</div></div>';
     body += '</div>';
     // byClass 表格
     if (mx.byClass && Object.keys(mx.byClass).length > 0) {
@@ -423,7 +423,7 @@
     if (!G.minxin || !G.minxin.byRegion) { if (global.toast) global.toast('无分区民心'); return; }
     var body = '<div style="max-width:760px;font-family:inherit;">';
     body += '<div style="font-size:1.0rem;color:var(--gold-300);margin-bottom:0.6rem;">天下民情图</div>';
-    body += '<div style="font-size:0.74rem;color:var(--ink-400);margin-bottom:6px;">按民心 5 级着色</div>';
+    body += '<div style="font-size:0.74rem;color:#d4be7a;margin-bottom:6px;">按民心 5 级着色</div>';
     body += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:4px;">';
     Object.keys(G.minxin.byRegion).forEach(function(rid) {
       var r = G.minxin.byRegion[rid];

@@ -388,7 +388,7 @@
     body += '<div style="padding:10px;background:rgba(192,64,48,0.1);border-left:3px solid var(--vermillion-400);border-radius:4px;margin-bottom:0.8rem;">';
     body += '<div style="font-size:0.84rem;color:var(--vermillion-300);">' + (revolt.region || '某地') + ' · ' + levelDef.name + '</div>';
     body += '<div style="font-size:0.76rem;color:var(--ink-300);margin-top:4px;">规模 ' + (revolt.scale || 0).toLocaleString() + ' · 起于 ' + (revolt.turn || 0) + ' 回合前</div>';
-    body += '<div style="font-size:0.72rem;color:var(--ink-400);margin-top:4px;">' + (levelDef.description || '') + '</div>';
+    body += '<div style="font-size:0.72rem;color:#d4be7a;margin-top:4px;">' + (levelDef.description || '') + '</div>';
     body += '</div>';
     // 四干预
     body += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">';
@@ -408,7 +408,7 @@
   function _interventionButton(action, label, hint, revoltId) {
     return '<button class="btn" style="font-size:0.74rem;padding:10px;text-align:left;" onclick="PhaseD._interveneRevolt(\''+revoltId+'\',\''+action+'\');this.parentNode.parentNode.parentNode.remove();">' +
       '<div style="color:var(--gold-300);font-size:0.8rem;">' + label + '</div>' +
-      '<div style="color:var(--ink-400);font-size:0.7rem;margin-top:2px;">' + hint + '</div>' +
+      '<div style="color:#d4be7a;font-size:0.7rem;margin-top:2px;">' + hint + '</div>' +
     '</button>';
   }
 

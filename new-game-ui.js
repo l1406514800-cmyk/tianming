@@ -59,7 +59,7 @@ function initNewGameUI() {
                     </div>
                 </div>
                 <div class="ngui-endturn-wrap">
-                    <button id="btn-end-turn" class="ngui-endturn" onclick="confirmEndTurn()">${tmIcon('end-turn',16)} 静待时变</button>
+                    <button id="btn-end-turn" class="ngui-endturn" onclick="confirmEndTurn()">${tmIcon('end-turn',16)} 诏付有司</button>
                 </div>
             </div>
         </div>
