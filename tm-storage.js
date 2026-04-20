@@ -20,16 +20,31 @@ var SaveCompression = {
   },
 
   decompress: async function(data) {
-    if (!this.supported) return typeof data === 'string' ? data : await data.text();
-    // 检测是否是压缩数据（Blob类型）
-    if (typeof data === 'string') return data; // 未压缩的旧存档
+    if (data == null) return '{}';
+    if (typeof data === 'string') return data; // 未压缩的旧存档（字符串）
+    // Blob·ArrayBuffer·Uint8Array 等
+    if (!this.supported) {
+      // 浏览器不支持 gzip解压·尝试直接读文本
+      try { return typeof data.text === 'function' ? await data.text() : String(data); }
+      catch(e) { console.error('[SaveCompression] decompress-no-gzip failed:', e); return '{}'; }
+    }
+    // 检查是否是 gzip 压缩（前两字节 0x1f 0x8b）
+    var blob = data instanceof Blob ? data : new Blob([data]);
     try {
-      var ds = new DecompressionStream('gzip');
-      var stream = data.stream().pipeThrough(ds);
-      return await new Response(stream).text();
+      var headBuf = await blob.slice(0, 2).arrayBuffer();
+      var head = new Uint8Array(headBuf);
+      var isGzip = head.length >= 2 && head[0] === 0x1f && head[1] === 0x8b;
+      if (isGzip) {
+        var ds = new DecompressionStream('gzip');
+        var stream = blob.stream().pipeThrough(ds);
+        return await new Response(stream).text();
+      }
+      // 不是 gzip·当作纯文本
+      return await blob.text();
     } catch(e) {
-      // 可能是未压缩的旧存档Blob
-      try { return await data.text(); } catch(e2) { return '{}'; }
+      console.error('[SaveCompression] decompress failed:', e);
+      // 最后尝试：直接读 text
+      try { return await blob.text(); } catch(e2) { return '{}'; }
     }
   }
 };

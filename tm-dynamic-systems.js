@@ -1122,23 +1122,78 @@ var SaveManager = {
     }
   },
 
-  // 导出存档为文件（异步）
+  // 导出存档为文件（异步·防御 Blob 未解压/压缩失败/空数据多种边界）
   exportSave: function(slotId) {
     var slotKey = 'slot_' + slotId;
+
+    // 辅助：确保 record.gameState 是可 JSON 化的对象
+    function _ensureDecompressed(record) {
+      if (!record) return Promise.resolve(null);
+      var gs = record.gameState;
+      // 已是对象或字符串化 JSON → 直接用
+      if (gs && typeof gs === 'object' && !(gs instanceof Blob)) return Promise.resolve(record);
+      if (typeof gs === 'string') {
+        try { record.gameState = JSON.parse(gs); } catch(_) {}
+        return Promise.resolve(record);
+      }
+      // 是 Blob → 尝试解压
+      if (gs instanceof Blob) {
+        return SaveCompression.decompress(gs).then(function(jsonStr) {
+          try { record.gameState = JSON.parse(jsonStr); }
+          catch(_e) {
+            // 再尝试把 Blob 当纯文本读
+            return gs.text().then(function(t) { try { record.gameState = JSON.parse(t); } catch(_){ record.gameState = null; } return record; });
+          }
+          return record;
+        });
+      }
+      return Promise.resolve(record);
+    }
+
     TM_SaveDB.load(slotKey).then(function(record) {
       if (!record) { toast('该槽位没有存档'); return; }
-      var json = JSON.stringify(record);
+      return _ensureDecompressed(record);
+    }).then(function(record) {
+      if (!record) return;
+      if (!record.gameState || (typeof record.gameState === 'object' && Object.keys(record.gameState).length === 0)) {
+        toast('❌ 存档数据为空·无法导出');
+        console.error('[exportSave] record.gameState empty:', record);
+        return;
+      }
+      // 统一用未压缩·可人读的 JSON 导出
+      var exportRec = {
+        id: record.id,
+        name: record.name,
+        type: record.type,
+        timestamp: record.timestamp,
+        turn: record.turn,
+        scenarioName: record.scenarioName,
+        eraName: record.eraName,
+        date: record.date,
+        dynastyPhase: record.dynastyPhase,
+        gameState: record.gameState,
+        _format: 'tianming-save-v1'
+      };
+      var json;
+      try { json = JSON.stringify(exportRec, null, 2); }
+      catch(_e) { console.error('[exportSave] JSON.stringify failed:', _e); toast('❌ 序列化失败'); return; }
+      if (!json || json.length < 100) {
+        toast('❌ 导出内容异常·请重试');
+        console.error('[exportSave] serialized too short:', json && json.length);
+        return;
+      }
       var blob = new Blob([json], {type: 'application/json'});
       var url = URL.createObjectURL(blob);
       var a = document.createElement('a');
       a.href = url;
-      a.download = (record.name || 'save') + '.json';
+      a.download = (record.name || 'save') + '_T' + (record.turn||0) + '.json';
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
-      toast('存档已导出');
+      setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+      toast('✅ 存档已导出 · ' + (json.length/1024).toFixed(1) + 'KB');
     }).catch(function(e) {
-      console.error('导出失败:', e);
-      toast('导出失败');
+      console.error('[exportSave] 异常:', e);
+      toast('❌ 导出失败: ' + (e.message || e));
     });
   },
 
