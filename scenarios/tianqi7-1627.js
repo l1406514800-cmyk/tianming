@@ -6855,6 +6855,191 @@
         resources: { privateWealth: { money: 2500, grain: 200, cloth: 15 } },
         familyMembers: [ { name: '左光斗', relation: '师(殁)', note: '东林六君子之一·死阉党诏狱' }, { name: '史从质', relation: '父' } ],
         bio: '河南祥符(今开封)人·字宪之。师从左光斗(东林六君子之一·已死诏狱)。现年二十六在国子监读书待仕。心中刻恨阉党·志期复仇。'
+      },
+      // ═══ 扩展·地方士人与官员（分散各地，丰富场景） ═══
+      {
+        name: '张溥', title: '太仓举人', officialTitle: '', alive: true,
+        age: 25, gender: '男', personality: '倔强·博学·广交·有号召力', location: '南直隶·苏州府太仓',
+        loyalty: 75, ambition: 65, intelligence: 88, valor: 25, integrity: 85,
+        stance: '士人·结社讲学', faction: '明朝廷', party: '东林(承)', family: '张氏·太仓',
+        traits: ['scholar', 'honest', 'zealous', 'gregarious'],
+        resources: { privateWealth: { money: 8000, grain: 400, cloth: 120 } },
+        bio: '太仓人·字天如·号西铭。幼颖敏·读书 100 遍。结应社于故乡·将衍为复社。今在家苦读+会友。'
+      },
+      {
+        name: '陈子龙', title: '松江少年', officialTitle: '', alive: true,
+        age: 19, gender: '男', personality: '风流俊逸·诗文豪放', location: '南直隶·松江府华亭',
+        loyalty: 72, ambition: 55, intelligence: 85, valor: 35, integrity: 82,
+        stance: '青年才俊·复社先声', faction: '明朝廷', party: '东林(承)', family: '陈氏·华亭',
+        traits: ['scholar', 'gregarious', 'just'],
+        resources: { privateWealth: { money: 6500, grain: 300, cloth: 90 } },
+        bio: '松江华亭人·字卧子·号大樽。19 岁·才华显露·与夏允彝等结几社。诗文雄奇。'
+      },
+      {
+        name: '侯恂', title: '户部主事', officialTitle: '户部主事', alive: true,
+        age: 37, gender: '男', personality: '方正·清峭·恶阉', location: '河南·商丘(告归)',
+        loyalty: 80, ambition: 45, intelligence: 78, valor: 30, integrity: 88,
+        stance: '东林外围·告归待起', faction: '明朝廷', party: '东林', family: '侯氏·商丘',
+        traits: ['honest', 'just', 'stubborn'],
+        resources: { privateWealth: { money: 18000, grain: 900, cloth: 250 } },
+        familyMembers: [ { name: '侯方域', relation: '子', note: '现年 9 岁' }, { name: '侯恪', relation: '弟·进士' } ],
+        bio: '商丘人·字大真。万历四十四年进士。原户部主事·阉党兴后告归。与东林交游甚广。'
+      },
+      {
+        name: '黄道周', title: '翰林编修', officialTitle: '翰林院编修', alive: true,
+        age: 42, gender: '男', personality: '刚烈·博学·笃实·倔强', location: '福建·漳州府漳浦(在翰林)',
+        loyalty: 90, ambition: 30, intelligence: 92, valor: 45, integrity: 98,
+        stance: '清峭·守经', faction: '明朝廷', party: '', family: '黄氏·漳浦',
+        traits: ['scholar', 'honest', 'just', 'zealous', 'diligent'],
+        resources: { privateWealth: { money: 6500, grain: 280, cloth: 85 } },
+        bio: '福建漳浦人·字幼玄·号石斋。天启二年进士·现翰林院编修。《易》学大家·正直刚烈·不畏权贵。'
+      },
+      {
+        name: '刘宗周', title: '顺天府尹', officialTitle: '顺天府尹', alive: true,
+        age: 49, gender: '男', personality: '峻整·严苛·理学宗师', location: '京师·顺天府',
+        loyalty: 88, ambition: 35, intelligence: 90, valor: 25, integrity: 96,
+        stance: '理学宗师·东林外围', faction: '明朝廷', party: '东林', family: '刘氏·山阴',
+        traits: ['scholar', 'honest', 'just', 'stubborn'],
+        resources: { privateWealth: { money: 22000, grain: 900, cloth: 280 } },
+        familyMembers: [ { name: '刘汋', relation: '子' }, { name: '黄宗羲', relation: '门生' }, { name: '刘杼', relation: '族弟' } ],
+        bio: '浙江山阴人·字启东·号念台。万历二十九年进士·王阳明后学集大成者·蕺山学派宗师。任顺天府尹。'
+      },
+      {
+        name: '倪元璐', title: '翰林院编修', officialTitle: '翰林院编修', alive: true,
+        age: 34, gender: '男', personality: '清峻·博学·书法冠世', location: '京师·翰林院',
+        loyalty: 85, ambition: 50, intelligence: 85, valor: 20, integrity: 90,
+        stance: '清流·善书', faction: '明朝廷', party: '东林(外围)', family: '倪氏·上虞',
+        traits: ['scholar', 'honest'],
+        resources: { privateWealth: { money: 9000, grain: 320, cloth: 110 } },
+        bio: '浙江上虞人·字玉汝·号鸿宝。天启二年进士·翰林院编修。与黄道周同榜·齐名。书画双绝。'
+      },
+      {
+        name: '朱燮元', title: '四川总督·剿奢安', officialTitle: '兵部尚书·总督云贵川湖广军务', alive: true,
+        age: 66, gender: '男', personality: '老辣·持重·善抚·熟边务', location: '四川·成都(军中)',
+        loyalty: 90, ambition: 40, intelligence: 85, valor: 50, integrity: 88,
+        military: 82, administration: 82, management: 80,
+        stance: '剿贼老帅', faction: '明朝廷', party: '', family: '朱氏·山阴',
+        traits: ['brave', 'diligent', 'just', 'honest'],
+        resources: { privateWealth: { money: 85000, grain: 3200, cloth: 800 } },
+        bio: '浙江山阴人·字懋和·号恒岳。万历二十年进士。久任四川·善于边务。天启二年奢崇明起兵·即督剿至今六年。'
+      },
+      {
+        name: '毛羽健', title: '刑科给事中', officialTitle: '刑科给事中', alive: true,
+        age: 29, gender: '男', personality: '干练·好议·急进', location: '京师·刑科',
+        loyalty: 72, ambition: 58, intelligence: 75, valor: 28, integrity: 70,
+        stance: '言官·热衷改制', faction: '明朝廷', party: '东林(新进)', family: '毛氏·公安',
+        traits: ['just', 'diligent', 'gregarious'],
+        resources: { privateWealth: { money: 7500, grain: 300, cloth: 90 } },
+        bio: '湖广公安人·字芝田。天启二年进士·现刑科给事中。心系吏治·或将议裁驿。'
+      },
+      {
+        name: '马士英', title: '浙江巡抚', officialTitle: '右佥都御史·巡抚浙江', alive: true,
+        age: 36, gender: '男', personality: '工心机·趋炎附势·工文辞', location: '浙江·杭州',
+        loyalty: 55, ambition: 72, intelligence: 72, valor: 30, integrity: 40,
+        stance: '阉党外围·善变', faction: '明朝廷', party: '', family: '马氏·贵阳',
+        traits: ['deceitful', 'ambitious'],
+        resources: { privateWealth: { money: 65000, grain: 1500, cloth: 400 } },
+        bio: '贵州贵阳人·字瑶草。万历四十七年进士。历官多地·现浙江巡抚。外谦而内忮·善察时变。'
+      },
+      {
+        name: '杨嗣昌', title: '南京户部郎中', officialTitle: '南京户部福建清吏司郎中', alive: true,
+        age: 39, gender: '男', personality: '多谋·深沉·喜兵略', location: '南京·户部',
+        loyalty: 80, ambition: 65, intelligence: 85, valor: 35, integrity: 65,
+        military: 70, administration: 75,
+        stance: '实务派·好兵法', faction: '明朝廷', party: '', family: '杨氏·武陵',
+        traits: ['diligent', 'patient', 'ambitious'],
+        resources: { privateWealth: { money: 22000, grain: 1000, cloth: 280 } },
+        familyMembers: [ { name: '杨鹤', relation: '父·延绥巡抚' } ],
+        bio: '湖广武陵人·字文弱。万历三十八年进士。父杨鹤任延绥巡抚。深通兵略·文采亦佳。'
+      },
+      {
+        name: '阮大铖', title: '光禄寺少卿', officialTitle: '光禄寺少卿(阉党)', alive: true,
+        age: 40, gender: '男', personality: '才华横溢·奸佞·工戏曲·阴狠', location: '京师·光禄寺',
+        loyalty: 40, ambition: 85, intelligence: 88, valor: 20, integrity: 15,
+        stance: '阉党附庸·才子奸人', faction: '明朝廷', party: '阉党', family: '阮氏·怀宁',
+        traits: ['deceitful', 'ambitious', 'wrathful'],
+        resources: { privateWealth: { money: 75000, grain: 1400, cloth: 420 } },
+        bio: '安徽怀宁人·字集之·号圆海。万历四十四年进士。以投靠魏忠贤升光禄寺少卿。文辞戏曲皆绝。'
+      },
+      {
+        name: '钱谦益', title: '翰林侍读学士·告归', officialTitle: '', alive: true,
+        age: 45, gender: '男', personality: '才高文华·名利熏心·善变', location: '南直隶·苏州府常熟',
+        loyalty: 65, ambition: 70, intelligence: 90, valor: 15, integrity: 55,
+        stance: '东林领袖·告归待召', faction: '明朝廷', party: '东林', family: '钱氏·常熟',
+        traits: ['scholar', 'gregarious', 'ambitious'],
+        resources: { privateWealth: { money: 120000, grain: 3200, cloth: 1100 } },
+        familyMembers: [ { name: '柳如是', relation: '妾(未定)', note: '秦淮名妓' } ],
+        bio: '常熟虞山人·字受之·号牧斋。万历三十八年探花·翰林侍读学士·阉党兴后告归。江南文坛领袖·藏书冠天下(绛云楼)。'
+      },
+      {
+        name: '查继佐', title: '海宁举子', officialTitle: '', alive: true,
+        age: 26, gender: '男', personality: '博学·沉郁·善史', location: '浙江·杭州府海宁',
+        loyalty: 70, ambition: 40, intelligence: 82, valor: 20, integrity: 80,
+        stance: '士人·修史', faction: '明朝廷', party: '', family: '查氏·海宁',
+        traits: ['scholar', 'diligent'],
+        resources: { privateWealth: { money: 6500, grain: 300, cloth: 80 } },
+        bio: '浙江海宁人·字伊璜·号敬修。26 岁·苦读治史·将著《罪惟录》。'
+      },
+      {
+        name: '方以智', title: '桐城少年', officialTitle: '', alive: true,
+        age: 16, gender: '男', personality: '博学·奇才·通百家', location: '南直隶·安庆府桐城',
+        loyalty: 68, ambition: 55, intelligence: 90, valor: 25, integrity: 82,
+        stance: '世家少年·博通诸学', faction: '明朝廷', party: '', family: '方氏·桐城',
+        traits: ['scholar', 'young', 'gregarious'],
+        resources: { privateWealth: { money: 4500, grain: 200, cloth: 60 } },
+        familyMembers: [ { name: '方孔炤', relation: '父·湖广巡抚' }, { name: '方大镇', relation: '祖·大理寺少卿' } ],
+        bio: '桐城方氏子·字密之。祖父方大镇为大理寺少卿。年 16 通经史天文算学·少有才名。'
+      },
+      {
+        name: '孙可望', title: '陕西饥童', officialTitle: '', alive: true,
+        age: 11, gender: '男', personality: '聪颖·沉毅·有谋', location: '陕西·延安',
+        loyalty: 50, ambition: 10, intelligence: 60, valor: 20,
+        stance: '饥民之子', faction: '陕北饥民', party: '', family: '孙氏·延安',
+        traits: ['young'],
+        resources: { privateWealth: { money: 120, grain: 12, cloth: 1 } },
+        bio: '陕西延安·贫农家生。现年十一·随父母乡居。',
+        _dormant: true
+      },
+      {
+        name: '吴三桂', title: '宁远游击子弟', officialTitle: '', alive: true,
+        age: 15, gender: '男', personality: '英武·早熟·倨傲', location: '辽东·宁远',
+        loyalty: 60, ambition: 50, intelligence: 70, valor: 80, integrity: 65,
+        military: 62,
+        stance: '将门之后', faction: '明朝廷', party: '', family: '吴氏·辽东',
+        traits: ['brave', 'young', 'ambitious'],
+        resources: { privateWealth: { money: 15000, grain: 500, cloth: 120 } },
+        familyMembers: [ { name: '吴襄', relation: '父·辽东副总兵' }, { name: '祖大寿', relation: '舅' } ],
+        bio: '父吴襄为辽东副总兵。舅祖大寿为宁远守将。现年十五·武艺初成·随父军中历练。'
+      },
+      {
+        name: '张煌言', title: '鄞县童子', officialTitle: '', alive: true,
+        age: 7, gender: '男', personality: '早慧·刚直·沉静', location: '浙江·宁波府鄞县',
+        loyalty: 65, ambition: 0, intelligence: 75, valor: 0, integrity: 85,
+        stance: '蒙学', faction: '明朝廷', party: '', family: '张氏·鄞县',
+        traits: ['scholar', 'young'],
+        resources: { privateWealth: { money: 400, grain: 35, cloth: 5 } },
+        bio: '浙江鄞县人·字玄著·号苍水。现年七岁·随父读书。',
+        _dormant: true
+      },
+      {
+        name: '陈新甲', title: '宁前道监军', officialTitle: '分巡宁前兵备道', alive: true,
+        age: 32, gender: '男', personality: '干练·好功·喜自任', location: '辽东·宁远',
+        loyalty: 72, ambition: 60, intelligence: 72, valor: 40, integrity: 55,
+        military: 65, administration: 68,
+        stance: '边事实务', faction: '明朝廷', party: '', family: '陈氏·射洪',
+        traits: ['diligent', 'ambitious'],
+        resources: { privateWealth: { money: 18000, grain: 700, cloth: 180 } },
+        bio: '四川射洪人。万历三十六年举人(后由他途进)。现分巡宁前兵备道·主管宁远前线军政。'
+      },
+      {
+        name: '熊文灿', title: '福建巡抚', officialTitle: '都察院右佥都御史·巡抚福建', alive: true,
+        age: 53, gender: '男', personality: '干练·善抚·喜冒进', location: '福建·福州',
+        loyalty: 70, ambition: 62, intelligence: 72, valor: 35, integrity: 55,
+        military: 60, administration: 70,
+        stance: '主抚派', faction: '明朝廷', party: '', family: '熊氏·贵阳',
+        traits: ['diligent', 'ambitious'],
+        resources: { privateWealth: { money: 52000, grain: 1200, cloth: 350 } },
+        bio: '贵州贵阳人·字大濩。万历三十五年进士。现福建巡抚·拟招抚郑芝龙。'
       }
     ];
   }
