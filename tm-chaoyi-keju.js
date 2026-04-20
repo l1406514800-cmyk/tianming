@@ -489,12 +489,29 @@ function kejuConsultGuanGe() {
 // v5·F1·殿试主持人选任 / 考官自动选
 // ══════════════════════════════════════════════════════════════════
 
+/**
+ * 判定角色是否属于玩家势力（科举等国事官职只能从玩家势力派任）
+ * @param {Object} c
+ * @returns {boolean}
+ */
+function _isPlayerFactionChar(c) {
+  if (!c || c.alive === false) return false;
+  var pc = (GM.chars || []).find(function(x){ return x && x.isPlayer; });
+  if (!pc) return !c.faction;  // 无 player char 时·只认无 faction 者
+  // 同势力（按 faction 名匹配）
+  if (c.faction && pc.faction && c.faction === pc.faction) return true;
+  // 玩家势力首领可能 faction 字段留空·但 isPlayer=true·此时其同僚 faction 也可能空
+  if (!c.faction && !pc.faction) return true;
+  return false;
+}
+
 /** 打开殿试主持人选任面板 */
 function openDianshiDelegatePicker() {
   var exam = P.keju.currentExam;
   if (!exam) return;
   var candidates = (GM.chars||[]).filter(function(c){
-    return c && c.alive !== false && !c.isPlayer && c.officialTitle && _isAtCapital(c);
+    return c && c.alive !== false && !c.isPlayer && c.officialTitle && _isAtCapital(c)
+           && _isPlayerFactionChar(c);  // ★ 仅本朝/玩家势力官员可代主殿试
   });
   if (!candidates.length) { toast('\u4EAC\u4E2D\u65E0\u5728\u4EFB\u5B98\u5458\u53EF\u4EE3\u4E3B\u6BBE\u8BD5'); return; }
   // 排序：品级→智力
@@ -582,7 +599,8 @@ function _pickDianshiDelegate(name) {
 function _kejuAutoPickExaminer(exam) {
   if (!exam) return;
   var cands = (GM.chars || []).filter(function(c){
-    return c && c.alive !== false && !c.isPlayer && (c.intelligence||0) >= 60;
+    return c && c.alive !== false && !c.isPlayer && (c.intelligence||0) >= 60
+           && _isPlayerFactionChar(c);  // ★ 仅玩家势力
   }).sort(function(a,b){ return (b.intelligence||0)-(a.intelligence||0); });
   if (cands.length === 0) return;
   var chosen = cands[0];
@@ -1184,7 +1202,7 @@ function _buildChangchaoPrompt() {
   }
   // 在京官员（用于确定奏报者）
   var capital = GM._capital || '京城';
-  var _inKy = (GM.chars||[]).filter(function(c) { return c.alive !== false && _isAtCapital(c) && !c.isPlayer; });
+  var _inKy = (GM.chars||[]).filter(function(c) { return c.alive !== false && _isAtCapital(c) && !c.isPlayer && _isPlayerFactionChar(c); });
   if (_inKy.length > 0) {
     p += '在京官员：' + _inKy.slice(0, 15).map(function(c) { return c.name + '(' + (c.officialTitle||c.title||'') + ')'; }).join('、') + '\n';
   }
@@ -1323,8 +1341,8 @@ function _renderChangchaoAgenda() {
 
   // footer with full controls——传召名单：分"在京缺朝"和"远地召入"两组
   var _loc = _getPlayerLocation();
-  var _summonInCapital = (GM.chars||[]).filter(function(c) { return c.alive !== false && _isAtCapital(c) && !c.isPlayer && !CY._ccAttendees.some(function(a){return a.name===c.name;}); });
-  var _summonRemote = (GM.chars||[]).filter(function(c) { return c.alive !== false && !c.isPlayer && !_isAtCapital(c) && !c._retired && !CY._ccAttendees.some(function(a){return a.name===c.name;}); }).slice(0, 30);
+  var _summonInCapital = (GM.chars||[]).filter(function(c) { return c.alive !== false && _isAtCapital(c) && !c.isPlayer && _isPlayerFactionChar(c) && !CY._ccAttendees.some(function(a){return a.name===c.name;}); });
+  var _summonRemote = (GM.chars||[]).filter(function(c) { return c.alive !== false && !c.isPlayer && _isPlayerFactionChar(c) && !_isAtCapital(c) && !c._retired && !CY._ccAttendees.some(function(a){return a.name===c.name;}); }).slice(0, 30);
   var _summonOpts = '';
   if (_summonInCapital.length > 0) {
     _summonOpts += '<optgroup label="在京缺朝">';
@@ -6917,7 +6935,7 @@ function _cc2_openPrepareDialog() {
     absent: []              // 缺朝
   };
 
-  var _allInKy = (GM.chars||[]).filter(function(c) { return c.alive !== false && _isAtCapital(c) && !c.isPlayer; });
+  var _allInKy = (GM.chars||[]).filter(function(c) { return c.alive !== false && _isAtCapital(c) && !c.isPlayer && _isPlayerFactionChar(c); });
   _allInKy.forEach(function(ch) {
     var _absent = false, _reason = '';
     if (ch._mourning) { _absent = true; _reason = '丁忧'; }

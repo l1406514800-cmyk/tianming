@@ -6542,6 +6542,8 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         }
         _hardConstraints += '③ 死亡→墓志铭：若本回合新增 character_deaths·必须在 reason 中写清死因(病/诛/战/自尽/意外/诈死)·type:fake则系统会走holding不归档。\n';
         _hardConstraints += '④ 数据与叙事不得互悖：宁可不写不可写而不改。所有"实际变化"必须落到对应结构化字段。\n';
+        _hardConstraints += '⑤ 忠诚语义：每个角色的 loyalty 是"对自己所属势力/首领"的忠诚，不是"对玩家"的忠诚。皇太极忠于后金·不忠于明廷皇帝；岳飞忠于宋廷·不忠于金国皇帝。敌对势力角色 loyalty 再高也不会为玩家效力。\n';
+        _hardConstraints += '⑥ 角色归属铁律：c.faction 决定角色阵营——非玩家势力角色（敌对/附属/外邦）不得作为本朝官员任命（如不能让皇太极当明朝主考官/宰相/将军）。只有投降/归顺（先改 faction·再任命）才能跨势力任官。任命 office_assignments/任命类 changes 必须先检查 faction 与玩家同·否则视为荒唐诏令按字面执行+剧烈混乱+皇威暴跌。\n';
         _hardConstraints += '═════════════════════════════════════════════\n';
       } catch(_hcE) { _dbg('[HardConstraints] build failed', _hcE); }
       var tp1=tp+_preAnalysis + _hardConstraints + "\n请仅返回绝JSON，包含:\n"+
@@ -13484,14 +13486,22 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           } catch(_eE) {}
 
           var histCheckPrompt = "你是历史顾问 AI。剧本背景：" + (sc ? sc.dynasty : "") + "，" + (sc ? sc.emperor : "") + "皇帝时期。\n\n";
-          histCheckPrompt += "【不可改的部分】玩家本回合诏令原文：\n · " + (_edictText || '（无明确诏令）') + "\n";
-          histCheckPrompt += '【铁律】玩家诏令字面执行是最高原则。即使诏令本身时代错乱（如唐代用白银、刑部管科举等），历史检查者也绝不得将其「修正」回「历史正确版本」——那是玩家的选择·后果由玩家承担·推演中以混乱/阻力形式体现。你只负责检查 AI 自己产出的、与玩家诏令无关的内容是否错乱。\n\n';
-          histCheckPrompt += "【只检查·不重写】下方时政记/正文·只查 AI 自生的与玩家诏令无关的时代错乱（如 AI 自行虚构了 火枪/蒸汽船/拿破仑/共和国 等超时代元素）：\n\n";
+          histCheckPrompt += "【不可改的部分·玩家诏令原文】\n · " + (_edictText || '（无明确诏令）') + "\n";
+          histCheckPrompt += '【铁律一】玩家诏令字面执行是最高原则。即使诏令本身时代错乱（如唐代用白银、刑部管科举），你绝不得将其改回「历史正确版本」——那是玩家的选择·以混乱/阻力形式体现。与玩家诏令相关的叙事文字原样保留。\n';
+          histCheckPrompt += '【铁律二】纯 AI 自生的时代错乱（如 AI 凭空写出 火枪/蒸汽船/拿破仑/共和国/未出生的历史人物 等超时代元素）必须修正。此为你的核心职责。\n\n';
+          histCheckPrompt += "【检查并修正】下方时政记/正文：\n";
           histCheckPrompt += "时政记：" + shizhengji + "\n";
           histCheckPrompt += "正文：" + zhengwen.substring(0, 500) + "\n\n";
           histCheckPrompt += "返回 JSON：\n";
-          histCheckPrompt += '{"has_ai_hallucination": true/false, "ai_errors":["AI 自虚构的错误描述"], "note": "若 has_ai_hallucination=true·给一段 30-80 字的"史官按"注释·以文言体·用于追加在时政记末尾"}\n';
-          histCheckPrompt += "如全部都是玩家诏令所导致（即便荒唐）·一律返回 has_ai_hallucination:false。";
+          histCheckPrompt += '{\n';
+          histCheckPrompt += '  "has_ai_hallucination": true/false,\n';
+          histCheckPrompt += '  "ai_errors": ["AI 自虚构的错误描述·列举具体错误点"],\n';
+          histCheckPrompt += '  "corrected_shizhengji": "修正后的时政记全文·仅替换 AI 自生错误的词句·玩家诏令引起的内容原样保留",\n';
+          histCheckPrompt += '  "corrected_zhengwen": "修正后的正文全文·同规则",\n';
+          histCheckPrompt += '  "note": "一段 30-60 字的「史官按」注释·文言体·说明 AI 幻觉已被修正"\n';
+          histCheckPrompt += '}\n';
+          histCheckPrompt += "★ 修正原则：只换 AI 错的词句·不删不增玩家内容·不改叙事框架。\n";
+          histCheckPrompt += "★ 若全部是玩家诏令引起（即便荒唐）·返回 has_ai_hallucination:false·其他字段留空。";
 
           var histResp = await fetch(url,{
             method:"POST",
@@ -13514,12 +13524,15 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
             var histJson = extractJSON(histContent);
             if(histJson && histJson.has_ai_hallucination) {
               _dbg('[历史检查] AI 幻觉:', histJson.ai_errors);
-              // 仅追加史官按注释·不改原文
+              // 替换 AI 自生的错误·玩家诏令引起的内容由 AI 保留
+              if (histJson.corrected_shizhengji) shizhengji = histJson.corrected_shizhengji;
+              if (histJson.corrected_zhengwen) zhengwen = histJson.corrected_zhengwen;
+              // 追加史官按注释
               if (histJson.note) {
                 shizhengji = (shizhengji || '') + '\n\n【史官按】' + histJson.note;
               }
               if(histJson.ai_errors && histJson.ai_errors.length > 0) {
-                console.warn('[历史检查] AI 幻觉已标注:', histJson.ai_errors.join('; '));
+                console.warn('[历史检查] AI 幻觉已修正:', histJson.ai_errors.join('; '));
               }
             } else {
               _dbg('[历史检查] 未发现 AI 幻觉');
