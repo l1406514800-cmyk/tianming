@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<title>整体游戏界面·深化美化预览 v6</title>
+<title>整体游戏界面·深化美化预览 v7</title>
 <style>
 :root {
   --bg-1: #0f0d0a; --bg-2: #1a1510; --bg-paper: #241e18; --bg-sunken: #120f0a;
@@ -654,6 +654,88 @@ body{margin:0;padding:0;background:radial-gradient(ellipse at top,#1a1510 0%,#0f
 
 .legend{padding:22px 24px;background:var(--bg-1);border-top:1px solid var(--border-subtle);font-size:11px;color:var(--ink-500);text-align:center;letter-spacing:0.08em;line-height:2.1;}
 .legend .k{color:var(--gold-400);}.legend .m{color:var(--vermillion-400);}.legend .c{color:var(--celadon-400);}.legend .p{color:var(--purple-400);}
+
+/* ═══ 人物卡 v2 · 参考 preview-char-full 格局 ═══ */
+.gs-char2{position:relative;padding:10px 12px;background:var(--bg-paper);background-image:repeating-linear-gradient(90deg,transparent 0,transparent 2.5em,rgba(107,93,71,0.03) 2.5em,rgba(107,93,71,0.03) calc(2.5em + 1px));border:1px solid var(--border-subtle);border-left:3px solid var(--ch-c,var(--gold-d));border-radius:3px;cursor:pointer;transition:all 0.2s;margin-bottom:8px;}
+.gs-char2:hover{border-color:var(--gold-400);box-shadow:0 2px 10px rgba(184,154,83,0.15);transform:translateX(1px);}
+.gs-char2.f-dongin{--ch-c:var(--celadon-400);}
+.gs-char2.f-mili{--ch-c:var(--vermillion-400);}
+.gs-char2.f-eunuch{--ch-c:var(--purple-400);}
+.gs-char2.f-consort{--ch-c:var(--vermillion-300);}
+.gs-char2.f-kun{--ch-c:var(--amber-400);}
+.gs-char2-row{display:flex;gap:10px;align-items:flex-start;}
+.gs-char2-port{width:52px;height:52px;border-radius:50%;background:radial-gradient(circle,rgba(42,35,24,0.9) 60%,rgba(26,22,18,1));border:2px solid var(--ch-c,var(--gold-400));display:flex;align-items:center;justify-content:center;color:var(--gold-300);font-family:var(--font-serif);font-size:22px;font-weight:500;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.4),inset 0 1px 0 rgba(184,154,83,0.15);overflow:hidden;position:relative;}
+.gs-char2-port::before{content:"";position:absolute;inset:2px;border:0.5px solid rgba(244,234,221,0.1);border-radius:50%;}
+.gs-char2-body{flex:1;min-width:0;padding-top:1px;}
+.gs-char2-name-row{display:flex;align-items:baseline;gap:5px;flex-wrap:wrap;margin-bottom:2px;}
+.gs-char2-name{font-family:var(--font-serif);font-size:15px;color:var(--gold-300);letter-spacing:0.14em;font-weight:600;line-height:1.1;}
+.gs-char2-zi{font-size:10px;color:var(--ink-300);font-family:var(--font-serif);font-style:italic;letter-spacing:0.06em;}
+.gs-char2-zi::before{content:"字\u00A0";font-size:8.5px;color:var(--gold-d);letter-spacing:0.2em;}
+.gs-char2-gender{display:inline-flex;align-items:center;padding:0 5px;font-size:9.5px;border:1px solid;border-radius:2px;letter-spacing:0.08em;line-height:14px;}
+.gs-char2-gender.male{color:var(--indigo-400);border-color:rgba(90,111,168,0.5);background:rgba(90,111,168,0.06);}
+.gs-char2-gender.female{color:var(--vermillion-300);border-color:rgba(209,92,71,0.5);background:rgba(209,92,71,0.06);}
+.gs-char2-title{font-family:var(--font-serif);font-size:11px;color:var(--ink-500);letter-spacing:0.06em;margin:2px 0 4px;line-height:1.4;}
+.gs-char2-title b{color:var(--ch-c,var(--gold-400));letter-spacing:0.1em;font-weight:500;}
+.gs-char2-tags{display:flex;gap:3px;flex-wrap:wrap;margin-bottom:6px;}
+.gs-char2-tag{font-family:var(--font-serif);font-size:9px;padding:0 5px;border:1px solid rgba(184,154,83,0.3);border-radius:2px;color:var(--ink-500);background:rgba(184,154,83,0.04);letter-spacing:0.08em;line-height:14px;}
+.gs-char2-tag.loc{color:var(--gold-300);border-color:rgba(184,154,83,0.5);background:rgba(184,154,83,0.08);}
+.gs-char2-tag.travel{color:var(--amber-400);border-color:rgba(201,160,69,0.4);}
+.gs-char2-tag.fac{color:var(--vermillion-300);border-color:rgba(209,92,71,0.3);background:rgba(192,64,48,0.05);}
+.gs-char2-tag.clan{color:var(--celadon-400);border-color:rgba(106,154,127,0.3);background:rgba(106,154,127,0.05);}
+.gs-char2-tag.origin{color:var(--indigo-400);border-color:rgba(90,111,168,0.3);background:rgba(90,111,168,0.05);}
+.gs-char2-hearts{display:flex;flex-direction:column;gap:4px;padding-top:5px;border-top:1px dashed var(--border-subtle);margin-top:4px;}
+.gs-char2-heart{display:flex;align-items:center;gap:6px;font-family:var(--font-serif);font-size:10px;}
+.gs-char2-heart .lbl{color:var(--gold-400);letter-spacing:0.25em;width:26px;flex-shrink:0;}
+.gs-char2-heart .bar{flex:1;height:4px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden;}
+.gs-char2-heart .fill{height:100%;border-radius:2px;}
+.gs-char2-heart.loyalty .fill.hi{background:linear-gradient(90deg,var(--celadon-600),var(--celadon-400));}
+.gs-char2-heart.loyalty .fill.mid{background:linear-gradient(90deg,var(--gold-500),var(--gold-300));}
+.gs-char2-heart.loyalty .fill.lo{background:linear-gradient(90deg,var(--vermillion-600),var(--vermillion-300));}
+.gs-char2-heart.ambition .fill.hi{background:linear-gradient(90deg,var(--purple-600),var(--vermillion-400));}
+.gs-char2-heart.ambition .fill.mid{background:linear-gradient(90deg,var(--gold-500),var(--gold-300));}
+.gs-char2-heart.ambition .fill.lo{background:linear-gradient(90deg,var(--celadon-600),var(--celadon-400));}
+.gs-char2-heart .val{font-size:11px;color:var(--ink-900);font-weight:600;min-width:22px;text-align:right;font-variant-numeric:tabular-nums;}
+.gs-char2-heart .verd{font-size:9px;color:var(--ink-300);letter-spacing:0.1em;font-style:italic;padding-left:4px;border-left:1px solid var(--border-subtle);margin-left:2px;}
+.gs-char2-verdict{margin-top:5px;padding:3px 8px;background:rgba(106,154,127,0.06);border:1px solid rgba(106,154,127,0.22);border-radius:2px;font-family:var(--font-serif);font-size:10px;color:var(--celadon-400);letter-spacing:0.12em;text-align:center;}
+.gs-char2-verdict.warn{background:rgba(201,160,69,0.06);border-color:rgba(201,160,69,0.25);color:var(--amber-400);}
+.gs-char2-verdict.danger{background:rgba(192,64,48,0.06);border-color:rgba(192,64,48,0.25);color:var(--vermillion-300);}
+
+/* ═══ 主题：字体大小+字体选择 ═══ */
+.gs-font-row{display:flex;align-items:center;gap:6px;margin-top:8px;padding-top:6px;border-top:1px dashed var(--border-subtle);font-family:var(--font-serif);font-size:10.5px;}
+.gs-font-row .lbl{color:var(--ink-500);letter-spacing:0.15em;min-width:54px;}
+.gs-font-sizes{display:flex;gap:2px;flex:1;}
+.gs-sz-btn{flex:1;padding:3px 0;background:transparent;border:1px solid var(--border-subtle);color:var(--ink-500);font-family:var(--font-serif);cursor:pointer;border-radius:2px;letter-spacing:0.1em;}
+.gs-sz-btn.sm{font-size:9.5px;}
+.gs-sz-btn.md{font-size:11px;}
+.gs-sz-btn.lg{font-size:12.5px;}
+.gs-sz-btn.xl{font-size:14px;}
+.gs-sz-btn.active{background:linear-gradient(to bottom,rgba(201,168,95,0.15),rgba(184,154,83,0.06));color:var(--gold-300);border-color:var(--gold-d);}
+.gs-sz-btn:hover{color:var(--gold-400);border-color:var(--gold-d);}
+.gs-font-select{flex:1;padding:4px 8px;background:rgba(26,20,16,0.6);border:1px solid var(--border-subtle);color:var(--ink-700);font-family:var(--font-serif);font-size:10.5px;border-radius:2px;letter-spacing:0.08em;cursor:pointer;}
+.gs-font-select:hover{border-color:var(--gold-d);}
+
+/* ═══ 音声：曲谱导入 ═══ */
+.gs-audio-custom{margin-top:8px;padding-top:6px;border-top:1px dashed var(--border-subtle);}
+.gs-audio-import{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:6px 10px;background:linear-gradient(to bottom,rgba(90,143,184,0.12),rgba(90,143,184,0.04));border:1px dashed var(--blue-400);color:var(--blue-400);font-family:var(--font-serif);font-size:11px;letter-spacing:0.15em;border-radius:3px;cursor:pointer;transition:all 0.15s;}
+.gs-audio-import::before{content:"\2756";font-size:11px;opacity:0.8;}
+.gs-audio-import:hover{background:linear-gradient(to bottom,rgba(90,143,184,0.22),rgba(90,143,184,0.08));border-style:solid;}
+.gs-audio-lib{margin-top:6px;display:flex;flex-direction:column;gap:3px;max-height:100px;overflow-y:auto;}
+.gs-audio-song{display:flex;align-items:center;gap:6px;padding:3px 6px;background:rgba(90,143,184,0.04);border-left:2px solid var(--blue-400);border-radius:0 2px 2px 0;font-family:var(--font-serif);font-size:10px;color:var(--ink-700);letter-spacing:0.04em;}
+.gs-audio-song.playing{background:rgba(90,143,184,0.12);color:var(--blue-400);}
+.gs-audio-song.playing::before{content:"\25B6";font-size:9px;color:var(--blue-400);}
+.gs-audio-song.paused::before{content:"";width:7px;height:7px;border-radius:50%;border:1px solid var(--ink-500);display:inline-block;}
+.gs-audio-song .title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gs-audio-song .meta{font-size:8.5px;color:var(--ink-300);font-style:italic;}
+.gs-audio-song .del{background:transparent;border:none;color:var(--ink-300);cursor:pointer;padding:0 3px;font-size:10px;}
+.gs-audio-song .del:hover{color:var(--vermillion-400);}
+.gs-audio-loop{display:flex;gap:3px;margin-top:6px;font-family:var(--font-serif);font-size:9.5px;}
+.gs-audio-loop-btn{flex:1;padding:2px 0;background:transparent;border:1px solid var(--border-subtle);color:var(--ink-500);font-family:var(--font-serif);font-size:10px;letter-spacing:0.1em;border-radius:2px;cursor:pointer;}
+.gs-audio-loop-btn.active{background:rgba(90,143,184,0.15);color:var(--blue-400);border-color:var(--blue-400);}
+
+/* drawer 打开/关闭切换 */
+.gs-drawer{transform:translateX(-110%);}
+.gs-drawer.right{transform:translateX(110%);}
+.gs-drawer.open{transform:translateX(0);}
 </style>
 </head>
 <body>
@@ -665,7 +747,7 @@ body{margin:0;padding:0;background:radial-gradient(ellipse at top,#1a1510 0%,#0f
   <div class="gs-logo"><div class="gs-seal">天<br>命</div><span class="gs-wentian">问　天</span></div>
   <div class="gs-era">
     <div class="dynasty">大明 · 崇祯元年</div>
-    <div class="date">戊辰 · 孟夏 · 己卯</div>
+    <div class="date">戊辰 · 仲秋 · 己卯</div>
     <div class="turn">第 四 十 二 回 合</div>
   </div>
   <div class="gs-weather">
@@ -797,7 +879,7 @@ body{margin:0;padding:0;background:radial-gradient(ellipse at top,#1a1510 0%,#0f
 </aside>
 
 <!-- 左 drawer 打开态示例 -->
-<div class="gs-drawer left open">
+<div class="gs-drawer left" id="drawerLeft">
   <div class="gs-drawer-hdr">
     <div class="gs-drawer-title">朝 野 内 情</div>
     <button class="gs-drawer-close">×</button>
@@ -991,7 +1073,7 @@ body{margin:0;padding:0;background:radial-gradient(ellipse at top,#1a1510 0%,#0f
     </div>
 
     <div class="gs-panel p-theme">
-      <div class="gs-panel-hdr"><div class="gs-panel-title">界 面 主 题</div><span class="gs-panel-cnt">4</span></div>
+      <div class="gs-panel-hdr"><div class="gs-panel-title">界 面 主 题</div><span class="gs-panel-cnt">4 色</span></div>
       <div class="gs-theme-grid">
         <div class="gs-theme-card active">
           <div class="gs-theme-swatch"><span class="c" style="background:#b89a53;"></span><span class="c" style="background:#c9a85f;"></span><span class="c" style="background:#6a9a7f;"></span><span class="c" style="background:#b84738;"></span></div>
@@ -1014,6 +1096,35 @@ body{margin:0;padding:0;background:radial-gradient(ellipse at top,#1a1510 0%,#0f
           <div class="desc">青绿山水·雅</div>
         </div>
       </div>
+      <div class="gs-font-row">
+        <span class="lbl">字 号</span>
+        <div class="gs-font-sizes">
+          <button class="gs-sz-btn sm">小</button>
+          <button class="gs-sz-btn md active">中</button>
+          <button class="gs-sz-btn lg">大</button>
+          <button class="gs-sz-btn xl">特大</button>
+        </div>
+      </div>
+      <div class="gs-font-row">
+        <span class="lbl">正 文</span>
+        <select class="gs-font-select">
+          <option>宋体 SimSun</option>
+          <option>楷体 STKaiti</option>
+          <option>仿宋 FangSong</option>
+          <option>方正启体</option>
+          <option>思源宋体</option>
+          <option>霞鹜文楷</option>
+        </select>
+      </div>
+      <div class="gs-font-row">
+        <span class="lbl">标 题</span>
+        <select class="gs-font-select">
+          <option>楷体 STKaiti</option>
+          <option>行楷</option>
+          <option>隶书</option>
+          <option>华文行楷</option>
+        </select>
+      </div>
     </div>
 
     <div class="gs-panel p-audio">
@@ -1022,6 +1133,22 @@ body{margin:0;padding:0;background:radial-gradient(ellipse at top,#1a1510 0%,#0f
       <div class="gs-audio-row"><span class="gs-audio-name">朝 钟</span><div class="gs-audio-ctrl"><div class="gs-audio-slider" style="--p:45%;"></div><span class="gs-audio-val">45</span></div></div>
       <div class="gs-audio-row"><span class="gs-audio-name">笔 墨</span><div class="gs-audio-ctrl"><div class="gs-audio-slider" style="--p:60%;"></div><span class="gs-audio-val">60</span></div></div>
       <div class="gs-audio-now">正 奏：<span class="h">《秋声赋》</span>·古琴独奏</div>
+      <div class="gs-audio-custom">
+        <button class="gs-audio-import" onclick="document.getElementById('audioFile').click();">导 入 曲 谱</button>
+        <input type="file" id="audioFile" accept="audio/*" multiple style="display:none;">
+        <div class="gs-audio-lib">
+          <div class="gs-audio-song playing"><span class="title">秋声赋</span><span class="meta">古琴</span><button class="del">×</button></div>
+          <div class="gs-audio-song paused"><span class="title">流水</span><span class="meta">古琴</span><button class="del">×</button></div>
+          <div class="gs-audio-song paused"><span class="title">阳关三叠</span><span class="meta">琵琶</span><button class="del">×</button></div>
+          <div class="gs-audio-song paused"><span class="title">渔樵问答</span><span class="meta">洞箫</span><button class="del">×</button></div>
+          <div class="gs-audio-song paused"><span class="title">(自导) 宫廷组曲.mp3</span><span class="meta">自导</span><button class="del">×</button></div>
+        </div>
+        <div class="gs-audio-loop">
+          <button class="gs-audio-loop-btn active">顺 序</button>
+          <button class="gs-audio-loop-btn">单 曲</button>
+          <button class="gs-audio-loop-btn">随 机</button>
+        </div>
+      </div>
     </div>
 
     <div class="gs-panel p-help">
@@ -1036,7 +1163,7 @@ body{margin:0;padding:0;background:radial-gradient(ellipse at top,#1a1510 0%,#0f
 </div>
 
 <!-- 右 drawer 打开态示例 -->
-<div class="gs-drawer right open">
+<div class="gs-drawer right" id="drawerRight">
   <div class="gs-drawer-hdr">
     <div class="gs-drawer-title">朕 之 案 上</div>
     <button class="gs-drawer-close">×</button>
@@ -1092,18 +1219,135 @@ body{margin:0;padding:0;background:radial-gradient(ellipse at top,#1a1510 0%,#0f
       </div>
     </div>
 
-    <!-- 紧要之臣 (恢复) -->
+    <!-- 紧要之臣 (v2 · 参考 char-full) -->
     <div class="gs-panel p-quick">
       <div class="gs-panel-hdr"><div class="gs-panel-title">紧 要 之 臣</div><span class="gs-panel-cnt">7</span></div>
-      <div class="gs-chars-grid">
-        <div class="gs-char-card f-mili"><div class="gs-char-port">袁</div><div class="gs-char-info"><div class="gs-char-name-row"><span class="gs-char-name">袁崇焕</span><span class="gs-char-age">45</span><span class="gs-char-loy hi">忠 78</span></div><div class="gs-char-office">兵部尚书·督师蓟辽</div><div class="gs-char-ministat"><span class="gs-char-mini">军<span class="v">92</span></span><span class="gs-char-mini">智<span class="v">85</span></span><span class="gs-char-state new">请饷</span></div></div></div>
-        <div class="gs-char-card f-dongin"><div class="gs-char-port">钱</div><div class="gs-char-info"><div class="gs-char-name-row"><span class="gs-char-name">钱谦益</span><span class="gs-char-age">46</span><span class="gs-char-loy mid">忠 62</span></div><div class="gs-char-office">礼部尚书</div><div class="gs-char-ministat"><span class="gs-char-mini">智<span class="v">88</span></span><span class="gs-char-mini">政<span class="v">72</span></span></div></div></div>
-        <div class="gs-char-card f-kun"><div class="gs-char-port">温</div><div class="gs-char-info"><div class="gs-char-name-row"><span class="gs-char-name">温体仁</span><span class="gs-char-age">55</span><span class="gs-char-loy mid">忠 58</span></div><div class="gs-char-office">礼部侍郎</div><div class="gs-char-ministat"><span class="gs-char-mini">政<span class="v">78</span></span><span class="gs-char-mini">智<span class="v">80</span></span><span class="gs-char-state">谋算</span></div></div></div>
-        <div class="gs-char-card f-dongin"><div class="gs-char-port">毕</div><div class="gs-char-info"><div class="gs-char-name-row"><span class="gs-char-name">毕自严</span><span class="gs-char-age">60</span><span class="gs-char-loy hi">忠 82</span></div><div class="gs-char-office">户部尚书</div><div class="gs-char-ministat"><span class="gs-char-mini">政<span class="v">85</span></span><span class="gs-char-mini">管<span class="v">88</span></span></div></div></div>
-        <div class="gs-char-card f-mili"><div class="gs-char-port">卢</div><div class="gs-char-info"><div class="gs-char-name-row"><span class="gs-char-name">卢象升</span><span class="gs-char-age">29</span><span class="gs-char-loy hi">忠 85</span></div><div class="gs-char-office">宣大总督</div><div class="gs-char-ministat"><span class="gs-char-mini">军<span class="v">88</span></span><span class="gs-char-mini">勇<span class="v">90</span></span></div></div></div>
-        <div class="gs-char-card f-eunuch"><div class="gs-char-port">曹</div><div class="gs-char-info"><div class="gs-char-name-row"><span class="gs-char-name">曹化淳</span><span class="gs-char-age">39</span><span class="gs-char-loy mid">忠 68</span></div><div class="gs-char-office">司礼监秉笔·东厂</div><div class="gs-char-ministat"><span class="gs-char-mini">智<span class="v">72</span></span><span class="gs-char-mini">交<span class="v">76</span></span></div></div></div>
-        <div class="gs-char-card f-consort"><div class="gs-char-port">周</div><div class="gs-char-info"><div class="gs-char-name-row"><span class="gs-char-name">周后</span><span class="gs-char-age">17</span><span class="gs-char-loy hi">忠 95</span></div><div class="gs-char-office">坤宁宫·皇后</div><div class="gs-char-ministat"><span class="gs-char-mini">仁<span class="v">86</span></span><span class="gs-char-mini">礼<span class="v">82</span></span></div></div></div>
+
+      <div class="gs-char2 f-mili">
+        <div class="gs-char2-row">
+          <div class="gs-char2-port">袁</div>
+          <div class="gs-char2-body">
+            <div class="gs-char2-name-row">
+              <span class="gs-char2-name">袁崇焕</span>
+              <span class="gs-char2-zi">元素</span>
+              <span class="gs-char2-gender male">男·45</span>
+            </div>
+            <div class="gs-char2-title"><b>兵部尚书</b> · 正二品 · 督师蓟辽</div>
+            <div class="gs-char2-tags">
+              <span class="gs-char2-tag loc">宁远</span>
+              <span class="gs-char2-tag travel">→ 京师</span>
+              <span class="gs-char2-tag fac">朝廷·辽党</span>
+              <span class="gs-char2-tag clan">袁氏·寒门</span>
+              <span class="gs-char2-tag origin">科举·进士</span>
+            </div>
+            <div class="gs-char2-hearts">
+              <div class="gs-char2-heart loyalty"><span class="lbl">忠诚</span><div class="bar"><div class="fill hi" style="width:78%;"></div></div><span class="val">78</span><span class="verd">忠贞可托</span></div>
+              <div class="gs-char2-heart ambition"><span class="lbl">野心</span><div class="bar"><div class="fill mid" style="width:62%;"></div></div><span class="val">62</span><span class="verd">有所图</span></div>
+            </div>
+            <div class="gs-char2-verdict">综合：可托以一方 · 良臣之选</div>
+          </div>
+        </div>
       </div>
+
+      <div class="gs-char2 f-dongin">
+        <div class="gs-char2-row">
+          <div class="gs-char2-port">钱</div>
+          <div class="gs-char2-body">
+            <div class="gs-char2-name-row">
+              <span class="gs-char2-name">钱谦益</span>
+              <span class="gs-char2-zi">受之</span>
+              <span class="gs-char2-gender male">男·46</span>
+            </div>
+            <div class="gs-char2-title"><b>礼部尚书</b> · 正二品 · 东林领袖</div>
+            <div class="gs-char2-tags">
+              <span class="gs-char2-tag loc">京师</span>
+              <span class="gs-char2-tag fac">朝廷·东林</span>
+              <span class="gs-char2-tag clan">钱氏·常熟甲</span>
+              <span class="gs-char2-tag origin">科举·探花</span>
+            </div>
+            <div class="gs-char2-hearts">
+              <div class="gs-char2-heart loyalty"><span class="lbl">忠诚</span><div class="bar"><div class="fill mid" style="width:62%;"></div></div><span class="val">62</span><span class="verd">存观望心</span></div>
+              <div class="gs-char2-heart ambition"><span class="lbl">野心</span><div class="bar"><div class="fill hi" style="width:76%;"></div></div><span class="val">76</span><span class="verd">志在首揆</span></div>
+            </div>
+            <div class="gs-char2-verdict warn">综合：才华绝世 · 须加防范</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gs-char2 f-kun">
+        <div class="gs-char2-row">
+          <div class="gs-char2-port">温</div>
+          <div class="gs-char2-body">
+            <div class="gs-char2-name-row">
+              <span class="gs-char2-name">温体仁</span>
+              <span class="gs-char2-zi">长卿</span>
+              <span class="gs-char2-gender male">男·55</span>
+            </div>
+            <div class="gs-char2-title"><b>礼部侍郎</b> · 正三品 · 昆党</div>
+            <div class="gs-char2-tags">
+              <span class="gs-char2-tag loc">京师</span>
+              <span class="gs-char2-tag fac">朝廷·昆党</span>
+              <span class="gs-char2-tag clan">温氏·乌程</span>
+              <span class="gs-char2-tag origin">科举·进士</span>
+            </div>
+            <div class="gs-char2-hearts">
+              <div class="gs-char2-heart loyalty"><span class="lbl">忠诚</span><div class="bar"><div class="fill mid" style="width:58%;"></div></div><span class="val">58</span><span class="verd">诡随</span></div>
+              <div class="gs-char2-heart ambition"><span class="lbl">野心</span><div class="bar"><div class="fill hi" style="width:85%;"></div></div><span class="val">85</span><span class="verd">图相</span></div>
+            </div>
+            <div class="gs-char2-verdict danger">综合：智术工巧 · 恐成权奸</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gs-char2 f-dongin">
+        <div class="gs-char2-row">
+          <div class="gs-char2-port">毕</div>
+          <div class="gs-char2-body">
+            <div class="gs-char2-name-row">
+              <span class="gs-char2-name">毕自严</span>
+              <span class="gs-char2-zi">景曾</span>
+              <span class="gs-char2-gender male">男·60</span>
+            </div>
+            <div class="gs-char2-title"><b>户部尚书</b> · 正二品 · 理财能臣</div>
+            <div class="gs-char2-tags">
+              <span class="gs-char2-tag loc">京师</span>
+              <span class="gs-char2-tag fac">朝廷·清流</span>
+              <span class="gs-char2-tag clan">毕氏·淄川</span>
+              <span class="gs-char2-tag origin">科举·进士</span>
+            </div>
+            <div class="gs-char2-hearts">
+              <div class="gs-char2-heart loyalty"><span class="lbl">忠诚</span><div class="bar"><div class="fill hi" style="width:82%;"></div></div><span class="val">82</span><span class="verd">鞠躬尽瘁</span></div>
+              <div class="gs-char2-heart ambition"><span class="lbl">野心</span><div class="bar"><div class="fill lo" style="width:28%;"></div></div><span class="val">28</span><span class="verd">恬淡</span></div>
+            </div>
+            <div class="gs-char2-verdict">综合：社稷之臣 · 赤心可鉴</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gs-char2 f-consort">
+        <div class="gs-char2-row">
+          <div class="gs-char2-port">周</div>
+          <div class="gs-char2-body">
+            <div class="gs-char2-name-row">
+              <span class="gs-char2-name">周后</span>
+              <span class="gs-char2-zi">周嘉玉</span>
+              <span class="gs-char2-gender female">女·17</span>
+            </div>
+            <div class="gs-char2-title"><b>坤宁宫·皇后</b> · 中宫</div>
+            <div class="gs-char2-tags">
+              <span class="gs-char2-tag loc">坤宁宫</span>
+              <span class="gs-char2-tag fac">后宫·中宫</span>
+              <span class="gs-char2-tag clan">周氏·苏州</span>
+            </div>
+            <div class="gs-char2-hearts">
+              <div class="gs-char2-heart loyalty"><span class="lbl">忠诚</span><div class="bar"><div class="fill hi" style="width:95%;"></div></div><span class="val">95</span><span class="verd">同心同德</span></div>
+              <div class="gs-char2-heart ambition"><span class="lbl">野心</span><div class="bar"><div class="fill lo" style="width:12%;"></div></div><span class="val">12</span><span class="verd">无求</span></div>
+            </div>
+            <div class="gs-char2-verdict">综合：贤德可依 · 夫妻同心</div>
+          </div>
+        </div>
+      </div>
+
     </div>
 
     <!-- 关系网 -->
@@ -1265,5 +1509,69 @@ body{margin:0;padding:0;background:radial-gradient(ellipse at top,#1a1510 0%,#0f
 </div>
 
 </div>
+
+<script>
+// v7 · 抽屉开关交互
+(function(){
+  var L = document.getElementById('drawerLeft');
+  var R = document.getElementById('drawerRight');
+  // 左栏 rail 按钮点击 → 打开 left drawer
+  document.querySelectorAll('.gs-rail-left .gs-rail-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){ e.stopPropagation(); L.classList.add('open'); });
+  });
+  // 右栏 rail 按钮点击 → 打开 right drawer
+  document.querySelectorAll('.gs-rail-right .gs-rail-btn').forEach(function(btn){
+    btn.addEventListener('click', function(e){ e.stopPropagation(); R.classList.add('open'); });
+  });
+  // × 关闭按钮
+  document.querySelectorAll('.gs-drawer-close').forEach(function(btn){
+    btn.addEventListener('click', function(e){ e.stopPropagation(); btn.closest('.gs-drawer').classList.remove('open'); });
+  });
+  // 键盘 [ ] 切换
+  document.addEventListener('keydown', function(e){
+    if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    if (e.key === '[') L.classList.toggle('open');
+    else if (e.key === ']') R.classList.toggle('open');
+    else if (e.key === 'Escape'){ L.classList.remove('open'); R.classList.remove('open'); }
+  });
+  // 字号按钮切换
+  document.querySelectorAll('.gs-font-sizes').forEach(function(grp){
+    grp.querySelectorAll('.gs-sz-btn').forEach(function(b){
+      b.addEventListener('click', function(){
+        grp.querySelectorAll('.gs-sz-btn').forEach(function(x){ x.classList.remove('active'); });
+        b.classList.add('active');
+      });
+    });
+  });
+  // 主题卡切换
+  document.querySelectorAll('.gs-theme-grid').forEach(function(grp){
+    grp.querySelectorAll('.gs-theme-card').forEach(function(c){
+      c.addEventListener('click', function(){
+        grp.querySelectorAll('.gs-theme-card').forEach(function(x){ x.classList.remove('active'); });
+        c.classList.add('active');
+      });
+    });
+  });
+  // 循环模式
+  document.querySelectorAll('.gs-audio-loop').forEach(function(grp){
+    grp.querySelectorAll('.gs-audio-loop-btn').forEach(function(b){
+      b.addEventListener('click', function(){
+        grp.querySelectorAll('.gs-audio-loop-btn').forEach(function(x){ x.classList.remove('active'); });
+        b.classList.add('active');
+      });
+    });
+  });
+  // 面板展开/折叠
+  document.querySelectorAll('.gs-panel-chev').forEach(function(chev){
+    chev.addEventListener('click', function(e){
+      e.stopPropagation();
+      chev.closest('.gs-panel').classList.toggle('expanded');
+    });
+  });
+  // 导入曲谱提示
+  var aIn = document.getElementById('audioFile');
+  if (aIn) aIn.addEventListener('change', function(){ alert('已选择 ' + (aIn.files ? aIn.files.length : 0) + ' 首曲目（实施时将加入曲库）'); });
+})();
+</script>
 </body>
 </html>
