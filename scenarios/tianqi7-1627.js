@@ -6269,7 +6269,8 @@
         stance: '贤后', faction: '明朝廷', party: '', family: '周氏',
         traits: ['chaste', 'humble', 'compassionate', 'diligent'],
         _memory: [ { event: '自苏州寒门入信王府，十五岁册信王妃；朱由检即位，册立为皇后', emotion: '敬', weight: 9, turn: 0 } ],
-        bio: '苏州人，出身寒微。贤明节俭，与夫君同甘共苦。亲操针黹，不涉外朝。'
+        bio: '苏州人，出身寒微。贤明节俭，与夫君同甘共苦。亲操针黹，不涉外朝。',
+        resources: { privateWealth: { money: 35000, grain: 1800, cloth: 500 } },
       },
       {
         name: '张懿安', title: '懿安皇后·皇嫂', officialTitle: '懿安皇后', isRoyal: true, royalRelation: 'former_empress', alive: true,
@@ -6278,7 +6279,8 @@
         stance: '清流', faction: '明朝廷', party: '东林党', family: '张氏',
         traits: ['just', 'honest', 'stubborn', 'compassionate'],
         _memory: [ { event: '熹宗在世时屡劝除客氏魏忠贤；客氏诬后流产怀仇', emotion: '恨', weight: 9, turn: 0 } ],
-        bio: '熹宗皇后。河南祥符人。素恶魏忠贤与客氏，多次劝熹宗除阉。新帝即位，可咨其计。'
+        bio: '熹宗皇后。河南祥符人。素恶魏忠贤与客氏，多次劝熹宗除阉。新帝即位，可咨其计。',
+        resources: { privateWealth: { money: 85000, grain: 3000, cloth: 800 } },
       },
       {
         name: '袁贵妃', title: '贵妃', officialTitle: '贵妃', isRoyal: true, royalRelation: 'emperor_family', alive: true,
@@ -6286,14 +6288,16 @@
         loyalty: 85, ambition: 15, intelligence: 65, benevolence: 75, integrity: 80,
         stance: '内廷', faction: '明朝廷', party: '', family: '袁氏',
         traits: ['shy', 'temperate'],
-        bio: '天启末信王府选侍，新帝即位册贵妃。'
+        bio: '天启末信王府选侍，新帝即位册贵妃。',
+        resources: { privateWealth: { money: 18000, grain: 700, cloth: 250 } },
       },
       {
         name: '李选侍', title: '选侍·光宗遗妃·移宫案当事人', officialTitle: '先朝选侍', isRoyal: true, royalRelation: 'former_consort', alive: true,
         age: 30, gender: '女', birthYear: 1597, personality: '贪利·好权·已败', location: '京师·紫禁城·哕鸾宫',
         loyalty: 40, ambition: 55, intelligence: 65, integrity: 30,
         stance: '失势', faction: '明朝廷', party: '', family: '李氏',
-        bio: '万历末年选侍。与光宗有子。移宫案中被东林党逼出乾清宫。'
+        bio: '万历末年选侍。与光宗有子。移宫案中被东林党逼出乾清宫。',
+        resources: { privateWealth: { money: 42000, grain: 900, cloth: 300 } },
       },
       // ──── 阉党核心 ────
       {
@@ -6351,7 +6355,8 @@
         stance: '失势', faction: '明朝廷', party: '阉党', family: '客氏',
         traits: ['deceitful', 'sadistic', 'lustful', 'vengeful'],
         _memory: [ { event: '即位数日被新帝遣出宫，居私第未被杖毙', emotion: '恐', weight: 10, turn: 0 } ],
-        bio: '熹宗乳母。与魏忠贤"对食"（内廷情侣）。内廷多少宫人宫婢死于其手。日后或可元年初即被追究杖毙。'
+        bio: '熹宗乳母。与魏忠贤"对食"（内廷情侣）。内廷多少宫人宫婢死于其手。日后或可元年初即被追究杖毙。',
+        resources: { privateWealth: { money: 95000, grain: 1500, cloth: 550 } },
       },
       {
         name: '崔呈秀', title: '兵部尚书·总督京营戎政', officialTitle: '兵部尚书·总督京营戎政', alive: true,
@@ -6369,7 +6374,8 @@
         loyalty: 15, ambition: 70, intelligence: 60, valor: 55, benevolence: 5, integrity: 8,
         stance: '阉党五彪·武官', faction: '明朝廷', party: '阉党', family: '田氏',
         traits: ['deceitful', 'sadistic', 'callous'],
-        bio: '世袭锦衣卫官，阉党"五彪"之首。天启中掌诏狱，诛东林无数。日后或可元年伏法。'
+        bio: '世袭锦衣卫官，阉党"五彪"之首。天启中掌诏狱，诛东林无数。日后或可元年伏法。',
+        resources: { privateWealth: { money: 45000, grain: 2200, cloth: 450 } },
       },
       {
         name: '许显纯', title: '锦衣卫北镇抚使', officialTitle: '锦衣卫北镇抚使', alive: true,
@@ -6377,7 +6383,8 @@
         loyalty: 10, ambition: 50, intelligence: 58, integrity: 5,
         stance: '阉党五彪', faction: '明朝廷', party: '阉党', family: '许氏',
         traits: ['sadistic', 'callous', 'deceitful'],
-        bio: '辽东定辽人，武进士。阉党五彪之一。天启四年手刃杨涟、左光斗、袁化中、魏大中、顾大章、周朝瑞于诏狱。日后或可元年弃市。'
+        bio: '辽东定辽人，武进士。阉党五彪之一。天启四年手刃杨涟、左光斗、袁化中、魏大中、顾大章、周朝瑞于诏狱。日后或可元年弃市。',
+        resources: { privateWealth: { money: 120000, grain: 2000, cloth: 800 } },
       },
       {
         name: '黄立极', title: '内阁首辅·建极殿大学士', officialTitle: '内阁首辅·建极殿大学士', alive: true,
@@ -6386,7 +6393,8 @@
         administration: 55, integrity: 20,
         stance: '阉党文臣', faction: '明朝廷', party: '阉党', family: '黄氏',
         traits: ['shy', 'deceitful', 'content'],
-        bio: '河南元氏人。万历三十二年进士。天启六年入阁。票拟多秉魏忠贤意。日后或可元年罢归。'
+        bio: '河南元氏人。万历三十二年进士。天启六年入阁。票拟多秉魏忠贤意。日后或可元年罢归。',
+        resources: { privateWealth: { money: 85000, grain: 1800, cloth: 550 } },
       },
       {
         name: '施凤来', title: '文华殿大学士', officialTitle: '文华殿大学士', alive: true,
@@ -6394,7 +6402,8 @@
         loyalty: 35, ambition: 35, intelligence: 62, integrity: 25,
         stance: '阉党文臣', faction: '明朝廷', family: '施氏', location: '京师',
         traits: ['deceitful', 'gregarious'],
-        bio: '浙江平湖人。万历三十五年进士。天启六年入阁。阉党"外相"之一。'
+        bio: '浙江平湖人。万历三十五年进士。天启六年入阁。阉党"外相"之一。',
+        resources: { privateWealth: { money: 85000, grain: 1800, cloth: 550 } },
       },
       {
         name: '冯铨', title: '武英殿大学士', officialTitle: '武英殿大学士', alive: true,
@@ -6402,7 +6411,8 @@
         loyalty: 30, ambition: 70, intelligence: 78, integrity: 15,
         stance: '阉党文臣', faction: '明朝廷', family: '冯氏', location: '京师',
         traits: ['deceitful', 'ambitious', 'lustful'],
-        bio: '北直隶涿州人。年少以献媚魏忠贤骤进。日后或可元年罢归。清入关后复出仕清。'
+        bio: '北直隶涿州人。年少以献媚魏忠贤骤进。日后或可元年罢归。清入关后复出仕清。',
+        resources: { privateWealth: { money: 85000, grain: 1800, cloth: 550 } },
       },
       {
         name: '阎鸣泰', title: '辽东经略(前任)·兵部侍郎', officialTitle: '兵部侍郎·原辽东经略', alive: true,
@@ -6410,7 +6420,8 @@
         loyalty: 30, ambition: 45, intelligence: 55, valor: 20, integrity: 20,
         stance: '阉党督抚', faction: '明朝廷', family: '阎氏', location: '京师',
         traits: ['craven', 'deceitful'],
-        bio: '山西太原人。阉党督抚。为魏忠贤建生祠 25 处。日后或可元年戍边，后戍死。'
+        bio: '山西太原人。阉党督抚。为魏忠贤建生祠 25 处。日后或可元年戍边，后戍死。',
+        resources: { privateWealth: { money: 35000, grain: 1000, cloth: 300 } },
       },
       // ──── 东林党/中立老臣 ────
       {
@@ -6424,7 +6435,8 @@
           { event: '天启四年杨涟、左光斗等六君子死于诏狱；遭阉党构陷罢归乡', emotion: '恨', weight: 10, turn: -1100 },
           { event: '蒲州闻帝崩新帝立，沉吟未发', emotion: '疑', weight: 7, turn: 0 }
         ],
-        bio: '山西蒲州人。万历二十年进士。万历末入阁，天启四年被阉党构陷罢归。日后或可元年召还为首辅，三年致仕。'
+        bio: '山西蒲州人。万历二十年进士。万历末入阁，天启四年被阉党构陷罢归。日后或可元年召还为首辅，三年致仕。',
+        resources: { privateWealth: { money: 85000, grain: 1800, cloth: 550 } },
       },
       {
         name: '钱龙锡', title: '前礼部右侍郎（罢归）', officialTitle: '礼部右侍郎（已罢）', alive: true,
@@ -6432,7 +6444,8 @@
         loyalty: 80, ambition: 35, intelligence: 75, integrity: 82,
         stance: '东林', faction: '明朝廷', party: '东林党', family: '钱氏',
         traits: ['honest', 'just', 'shy'],
-        bio: '松江华亭人。万历三十五年进士。东林干将，天启五年被贬。日后或可元年入阁。三年因袁崇焕案连坐遣戍。'
+        bio: '松江华亭人。万历三十五年进士。东林干将，天启五年被贬。日后或可元年入阁。三年因袁崇焕案连坐遣戍。',
+        resources: { privateWealth: { money: 35000, grain: 1000, cloth: 300 } },
       },
       {
         name: '成基命', title: '礼部右侍郎（罢归）', officialTitle: '礼部右侍郎（已罢）', alive: true,
@@ -6440,7 +6453,8 @@
         loyalty: 85, ambition: 25, intelligence: 72, integrity: 88,
         stance: '东林老成', faction: '明朝廷', party: '东林党', family: '成氏',
         traits: ['honest', 'patient', 'humble'],
-        bio: '河南大名人。万历三十五年进士。东林之老成者。日后或可二年入阁。'
+        bio: '河南大名人。万历三十五年进士。东林之老成者。日后或可二年入阁。',
+        resources: { privateWealth: { money: 35000, grain: 1000, cloth: 300 } },
       },
       {
         name: '刘鸿训', title: '礼部右侍郎·告归', officialTitle: '礼部右侍郎（已罢）', alive: true,
@@ -6448,7 +6462,8 @@
         loyalty: 82, ambition: 45, intelligence: 82, integrity: 78,
         stance: '东林/中立', faction: '明朝廷', party: '东林党', family: '刘氏',
         traits: ['just', 'impatient', 'diligent'],
-        bio: '山东长山人。万历四十一年进士。才学出众。日后或可元年入阁，二年因加藻饰被崇祯罢戍。'
+        bio: '山东长山人。万历四十一年进士。才学出众。日后或可元年入阁，二年因加藻饰被崇祯罢戍。',
+        resources: { privateWealth: { money: 35000, grain: 1000, cloth: 300 } },
       },
       {
         name: '李标', title: '礼部右侍郎', officialTitle: '礼部右侍郎', alive: true,
@@ -6456,7 +6471,8 @@
         loyalty: 80, ambition: 30, intelligence: 72, integrity: 85,
         stance: '中立', faction: '明朝廷', party: '', family: '李氏',
         traits: ['honest', 'patient'],
-        bio: '北直隶高邑人。万历三十五年进士。日后或可元年入阁。'
+        bio: '北直隶高邑人。万历三十五年进士。日后或可元年入阁。',
+        resources: { privateWealth: { money: 35000, grain: 1000, cloth: 300 } },
       },
       {
         name: '郭允厚', title: '户部尚书', officialTitle: '户部尚书', alive: true,
@@ -6464,7 +6480,8 @@
         loyalty: 70, ambition: 40, intelligence: 82, administration: 85, integrity: 75,
         stance: '中立理财', faction: '明朝廷', party: '', family: '郭氏',
         traits: ['diligent', 'patient', 'stubborn'],
-        bio: '山东福山人。万历二十六年进士。管钱粮八年，心力交瘁。日后或可元年罢。'
+        bio: '山东福山人。万历二十六年进士。管钱粮八年，心力交瘁。日后或可元年罢。',
+        resources: { privateWealth: { money: 60000, grain: 1500, cloth: 450 } },
       },
       {
         name: '毕自严', title: '南京户部尚书', officialTitle: '南京户部尚书', alive: true,
@@ -6473,7 +6490,8 @@
         stance: '能吏', faction: '明朝廷', party: '', family: '毕氏',
         traits: ['honest', 'diligent', 'just'],
         _memory: [ { event: '理南京户部数年，熟南漕北运，眼见天下财计日蹙', emotion: '忧', weight: 8, turn: -300 } ],
-        bio: '山东淄川人。万历二十年进士。善度支。日后或可元年召入掌户部，支撑危局八年，病卒任上。'
+        bio: '山东淄川人。万历二十年进士。善度支。日后或可元年召入掌户部，支撑危局八年，病卒任上。',
+        resources: { privateWealth: { money: 60000, grain: 1500, cloth: 450 } },
       },
       {
         name: '王在晋', title: '南京兵部尚书', officialTitle: '南京兵部尚书', alive: true,
@@ -6481,7 +6499,8 @@
         loyalty: 75, ambition: 40, intelligence: 70, administration: 72, integrity: 75,
         stance: '主守派', faction: '明朝廷', party: '', family: '王氏',
         traits: ['craven', 'patient'],
-        bio: '江苏太仓人。万历二十年进士。主张"弃宁锦守山海"——与孙承宗主战派不合。'
+        bio: '江苏太仓人。万历二十年进士。主张"弃宁锦守山海"——与孙承宗主战派不合。',
+        resources: { privateWealth: { money: 60000, grain: 1500, cloth: 450 } },
       },
       {
         name: '徐光启', title: '前礼部左侍郎·告归', officialTitle: '礼部左侍郎（告归养病）', alive: true,
@@ -6491,7 +6510,8 @@
         stance: '东林实学', faction: '明朝廷', party: '东林党', family: '徐氏',
         traits: ['honest', 'diligent', 'patient', 'humble'],
         _memory: [ { event: '受洗入天主教，与利玛窦合作译《几何原本》', emotion: '喜', weight: 9, turn: -7000 } ],
-        bio: '松江上海人。万历三十二年进士。天主教徒。与利玛窦译《几何原本》《农政全书》。精通西学火器历法。日后或可元年礼部尚书，五年入阁，六年病卒。'
+        bio: '松江上海人。万历三十二年进士。天主教徒。与利玛窦译《几何原本》《农政全书》。精通西学火器历法。日后或可元年礼部尚书，五年入阁，六年病卒。',
+        resources: { privateWealth: { money: 35000, grain: 1000, cloth: 300 } },
       },
       // ──── 将崛起者 ────
       {
@@ -6500,7 +6520,8 @@
         loyalty: 60, ambition: 88, intelligence: 85, integrity: 20,
         stance: '中立·将崛起', faction: '明朝廷', party: '浙党', family: '温氏',
         traits: ['deceitful', 'ambitious', 'patient', 'vengeful'],
-        bio: '浙江乌程人。万历二十六年进士。柔佞机敏，以反东林之柄伺机而进。'
+        bio: '浙江乌程人。万历二十六年进士。柔佞机敏，以反东林之柄伺机而进。',
+        resources: { privateWealth: { money: 35000, grain: 1000, cloth: 300 } },
       },
       {
         name: '周延儒', title: '翰林院侍读学士', officialTitle: '翰林院侍读学士', alive: true,
@@ -6508,7 +6529,8 @@
         loyalty: 65, ambition: 85, intelligence: 88, integrity: 30,
         stance: '清流·将崛起', faction: '明朝廷', party: '', family: '周氏',
         traits: ['arrogant', 'ambitious', 'deceitful'],
-        bio: '南直隶宜兴人。万历四十一年状元。以才名。日后或可二年入阁，三年首辅，六年罢；十四年再首辅，十六年赐死。'
+        bio: '南直隶宜兴人。万历四十一年状元。以才名。日后或可二年入阁，三年首辅，六年罢；十四年再首辅，十六年赐死。',
+        resources: { privateWealth: { money: 8500, grain: 280, cloth: 90 } },
       },
       // ──── 辽东/边关将帅 ────
       {
@@ -6551,7 +6573,8 @@
         loyalty: 80, ambition: 50, intelligence: 55, valor: 88, benevolence: 50, integrity: 70,
         stance: '蒙古裔骁将', faction: '明朝廷', party: '', family: '满氏',
         traits: ['brave', 'wrathful', 'stubborn'],
-        bio: '蒙古人。行伍出身。宁远大战与袁崇焕同守城。与袁崇焕争功有隙。日后或可二年己巳之变战死永定门外。'
+        bio: '蒙古人。行伍出身。宁远大战与袁崇焕同守城。与袁崇焕争功有隙。日后或可二年己巳之变战死永定门外。',
+        resources: { privateWealth: { money: 45000, grain: 2200, cloth: 450 } },
       },
       {
         name: '赵率教', title: '山海关总兵·左都督', officialTitle: '山海关总兵·左都督', alive: true,
@@ -6559,7 +6582,8 @@
         loyalty: 88, ambition: 40, intelligence: 65, valor: 82, benevolence: 68, integrity: 80,
         stance: '关宁骁将', faction: '明朝廷', party: '', family: '赵氏',
         traits: ['brave', 'honest', 'just'],
-        bio: '陕西靖虏卫人。袁崇焕旧部。日后或可二年战死遵化。'
+        bio: '陕西靖虏卫人。袁崇焕旧部。日后或可二年战死遵化。',
+        resources: { privateWealth: { money: 45000, grain: 2200, cloth: 450 } },
       },
       {
         name: '祖大寿', title: '宁远副总兵·后都督', officialTitle: '宁远副总兵', alive: true,
@@ -6567,7 +6591,8 @@
         loyalty: 70, ambition: 55, intelligence: 62, valor: 82, integrity: 58,
         stance: '辽东武将世家', faction: '明朝廷', party: '', family: '祖氏·辽东',
         traits: ['brave', 'paranoid', 'stubborn'],
-        bio: '辽东宁远人。辽东世将。与袁崇焕关系紧密。性骁勇而善保家兵，宁远一线为其大本。'
+        bio: '辽东宁远人。辽东世将。与袁崇焕关系紧密。性骁勇而善保家兵，宁远一线为其大本。',
+        resources: { privateWealth: { money: 45000, grain: 2200, cloth: 450 } },
       },
       {
         name: '洪承畴', title: '陕西布政使司参政', officialTitle: '陕西参政', alive: true,
@@ -6576,7 +6601,8 @@
         administration: 82, management: 78, integrity: 65,
         stance: '待崛起', faction: '明朝廷', party: '', family: '洪氏',
         traits: ['ambitious', 'brave', 'patient', 'deceitful'],
-        bio: '福建南安人。万历四十四年进士。日后或可二年迁延绥巡抚剿陕北民变，崛起为三边总督、蓟辽总督。十五年松锦战败降清。'
+        bio: '福建南安人。万历四十四年进士。日后或可二年迁延绥巡抚剿陕北民变，崛起为三边总督、蓟辽总督。十五年松锦战败降清。',
+        resources: { privateWealth: { money: 5000, grain: 200, cloth: 60 } },
       },
       {
         name: '卢象升', title: '大名府知府', officialTitle: '大名知府', alive: true,
@@ -6585,7 +6611,8 @@
         administration: 75, integrity: 92,
         stance: '待崛起', faction: '明朝廷', party: '', family: '卢氏',
         traits: ['brave', 'honest', 'diligent', 'zealous'],
-        bio: '南直隶宜兴人。天启二年进士。力能引八石弓。日后或可二年入卫京师崭露头角，后历任宣大总督、兵部尚书。十一年鹿庄战死。'
+        bio: '南直隶宜兴人。天启二年进士。力能引八石弓。日后或可二年入卫京师崭露头角，后历任宣大总督、兵部尚书。十一年鹿庄战死。',
+        resources: { privateWealth: { money: 5000, grain: 200, cloth: 60 } },
       },
       {
         name: '孙传庭', title: '(削籍闲居)前吏部主事', officialTitle: '(天启五年削籍归乡)', alive: true,
@@ -6594,7 +6621,8 @@
         administration: 78, integrity: 88,
         stance: '待崛起(阉党削籍)', faction: '明朝廷', party: '', family: '孙氏',
         traits: ['stubborn', 'honest', 'brave', 'just'],
-        bio: '山西代州人。万历四十七年进士。天启中任吏部验封司主事时以不附魏忠贤被削籍归乡。日后或可八年起陕西巡抚，擒高迎祥。十六年潼关战死。"传庭死而明亡矣"。'
+        bio: '山西代州人。万历四十七年进士。天启中任吏部验封司主事时以不附魏忠贤被削籍归乡。日后或可八年起陕西巡抚，擒高迎祥。十六年潼关战死。"传庭死而明亡矣"。',
+        resources: { privateWealth: { money: 9500, grain: 320, cloth: 110 } },
       },
       {
         name: '孙元化', title: '兵部职方司主事', officialTitle: '兵部主事', alive: true,
@@ -6603,7 +6631,8 @@
         administration: 75, learning: 92, integrity: 85,
         stance: '实学派', faction: '明朝廷', party: '东林党', family: '孙氏',
         traits: ['honest', 'diligent', 'humble'],
-        bio: '南直隶嘉定人。徐光启门生。天主教徒。通红衣大炮铸造与操法。日后或可三年登莱巡抚，四年孔有德吴桥兵变被杀。'
+        bio: '南直隶嘉定人。徐光启门生。天主教徒。通红衣大炮铸造与操法。日后或可三年登莱巡抚，四年孔有德吴桥兵变被杀。',
+        resources: { privateWealth: { money: 9500, grain: 320, cloth: 110 } },
       },
       // ──── 宦官 ────
       {
@@ -6612,7 +6641,8 @@
         loyalty: 100, ambition: 15, intelligence: 68, benevolence: 70, integrity: 95,
         stance: '帝之心腹', faction: '明朝廷', party: '', family: '王氏',
         traits: ['honest', 'diligent', 'humble', 'zealous'],
-        bio: '信邸旧侍。朱由检入继大统后倚为耳目。日后或可十七年随帝自缢煤山。'
+        bio: '信邸旧侍。朱由检入继大统后倚为耳目。日后或可十七年随帝自缢煤山。',
+        resources: { privateWealth: { money: 35000, grain: 800, cloth: 250 } },
       },
       {
         name: '曹化淳', title: '(贬南京)前内廷太监', officialTitle: '(南京留守·待召还)', alive: true,
@@ -6620,7 +6650,8 @@
         loyalty: 55, ambition: 55, intelligence: 75, benevolence: 50, integrity: 40,
         stance: '待召还(王安旧徒)', faction: '明朝廷', party: '', family: '曹氏',
         traits: ['deceitful', 'gregarious'],
-        bio: '天津武清人。王安旧徒。天启初因王安被魏忠贤诛被贬至南京。新帝即位有望召还。'
+        bio: '天津武清人。王安旧徒。天启初因王安被魏忠贤诛被贬至南京。新帝即位有望召还。',
+        resources: { privateWealth: { money: 220000, grain: 3800, cloth: 1500 } },
       },
       {
         name: '方正化', title: '司礼监秉笔', officialTitle: '司礼监秉笔太监', alive: true,
@@ -6628,7 +6659,8 @@
         loyalty: 90, ambition: 25, intelligence: 65, valor: 78, integrity: 85,
         stance: '忠宦', faction: '明朝廷', party: '', family: '方氏',
         traits: ['brave', 'honest', 'zealous'],
-        bio: '宦官少见武勇者。日后或可十七年监军保定，城破搏斗而死。'
+        bio: '宦官少见武勇者。日后或可十七年监军保定，城破搏斗而死。',
+        resources: { privateWealth: { money: 150000, grain: 2500, cloth: 900 } },
       },
       // ──── 后金 ────
       {
@@ -6642,7 +6674,8 @@
           { event: '天命十一年父汗努尔哈赤崩，与三兄共议继位，终以智谋夺之', emotion: '喜', weight: 10, turn: -400 },
           { event: '天聪元年春伐朝鲜，江都兄弟之盟成', emotion: '喜', weight: 9, turn: -200 }
         ],
-        bio: '努尔哈赤第八子。天命十一年（1626）继位。天聪元年（1627）伐朝鲜，定江都盟。正图谋南下，志在中原。'
+        bio: '努尔哈赤第八子。天命十一年（1626）继位。天聪元年（1627）伐朝鲜，定江都盟。正图谋南下，志在中原。',
+        resources: { privateWealth: { money: 420000, grain: 13000, cloth: 3500 } },
       },
       {
         name: '代善', title: '礼亲王·大贝勒', officialTitle: '礼亲王', alive: true,
@@ -6650,7 +6683,8 @@
         loyalty: 85, ambition: 40, intelligence: 72, valor: 85, integrity: 75,
         stance: '后金宗室长兄', faction: '后金', party: '', family: '爱新觉罗',
         traits: ['patient', 'calm', 'honest'],
-        bio: '努尔哈赤次子。四大贝勒之首，与皇太极并立。'
+        bio: '努尔哈赤次子。四大贝勒之首，与皇太极并立。',
+        resources: { privateWealth: { money: 480000, grain: 12000, cloth: 3200 } },
       },
       {
         name: '多尔衮', title: '贝勒（此时未封）', officialTitle: '贝勒', alive: true,
@@ -6658,7 +6692,8 @@
         loyalty: 80, ambition: 90, intelligence: 88, valor: 75,
         stance: '后金幼弟·潜龙', faction: '后金', party: '', family: '爱新觉罗',
         traits: ['ambitious', 'patient', 'just'],
-        bio: '努尔哈赤第十四子。此时十五岁。正白旗主，少聪颖，与多铎齐名。'
+        bio: '努尔哈赤第十四子。此时十五岁。正白旗主，少聪颖，与多铎齐名。',
+        resources: { privateWealth: { money: 180000, grain: 6500, cloth: 1400 } },
       },
       {
         name: '阿敏', title: '二大贝勒', officialTitle: '二大贝勒', alive: true,
@@ -6666,7 +6701,8 @@
         loyalty: 50, ambition: 75, intelligence: 65, valor: 82,
         stance: '后金宗室·不睦', faction: '后金', party: '', family: '爱新觉罗',
         traits: ['wrathful', 'arrogant', 'ambitious'],
-        bio: '努尔哈赤侄。镶蓝旗主，位列四大贝勒。与皇太极龃龉不断，自恃勋高不服。'
+        bio: '努尔哈赤侄。镶蓝旗主，位列四大贝勒。与皇太极龃龉不断，自恃勋高不服。',
+        resources: { privateWealth: { money: 180000, grain: 6500, cloth: 1400 } },
       },
       {
         name: '范文程', title: '文馆大学士', officialTitle: '文馆大学士', alive: true,
@@ -6675,7 +6711,8 @@
         administration: 85, management: 80, integrity: 70,
         stance: '汉人谋主', faction: '后金', party: '', family: '范氏',
         traits: ['patient', 'just', 'calm'],
-        bio: '沈阳降人，秀才出身。天命十年入仕后金。为皇太极赞画军政，谋主之才。'
+        bio: '沈阳降人，秀才出身。天命十年入仕后金。为皇太极赞画军政，谋主之才。',
+        resources: { privateWealth: { money: 85000, grain: 1800, cloth: 550 } },
       },
       // ──── 蒙古 ────
       {
@@ -6684,7 +6721,8 @@
         loyalty: 100, ambition: 80, intelligence: 65, valor: 70, benevolence: 40,
         stance: '蒙古共主(名存实亡)', faction: '察哈尔', party: '', family: '孛儿只斤',
         traits: ['arrogant', 'wrathful', 'zealous'],
-        bio: '元裔。欲统合漠南蒙古对抗后金。天启七年西迁归化。日后或可五年败于皇太极走青海，明年病死。'
+        bio: '元裔。欲统合漠南蒙古对抗后金。天启七年西迁归化。日后或可五年败于皇太极走青海，明年病死。',
+        resources: { privateWealth: { money: 420000, grain: 13000, cloth: 3500 } },
       },
       // ──── 朝鲜 ────
       {
@@ -6693,7 +6731,8 @@
         loyalty: 80, ambition: 30, intelligence: 60, valor: 40, integrity: 65,
         stance: '明藩·夹缝', faction: '朝鲜', party: '', family: '李氏·朝鲜',
         traits: ['craven', 'honest'],
-        bio: '李氏朝鲜第十六代国王。1623 反正废光海君。1627 被后金所伐，被迫定兄弟之盟。事大明以诚，被后金所迫，两面为难。'
+        bio: '李氏朝鲜第十六代国王。1623 反正废光海君。1627 被后金所伐，被迫定兄弟之盟。事大明以诚，被后金所迫，两面为难。',
+        resources: { privateWealth: { money: 5000, grain: 200, cloth: 60 } },
       },
       // ──── 海商 ────
       {
@@ -6703,7 +6742,8 @@
         administration: 60, integrity: 45,
         stance: '海商·游走', faction: '郑氏海商', party: '', family: '郑氏',
         traits: ['ambitious', 'gregarious', 'brave', 'deceitful'],
-        bio: '福建南安人。天启六年据台湾，大战荷兰。日后或可元年受招抚为海防游击。日后福建海上霸主，清入关降清。子郑成功复起抗清。'
+        bio: '福建南安人。天启六年据台湾，大战荷兰。日后或可元年受招抚为海防游击。日后福建海上霸主，清入关降清。子郑成功复起抗清。',
+        resources: { privateWealth: { money: 15000, grain: 300, cloth: 120 } },
       },
       // ──── 逆雄（此时未起） ────
       {
@@ -6712,7 +6752,8 @@
         loyalty: 10, ambition: 72, intelligence: 45, valor: 78, benevolence: 50,
         stance: '流民首', faction: '陕北饥民', party: '', family: '王氏',
         traits: ['brave', 'wrathful', 'gregarious'],
-        bio: '陕西府谷人。明边军逃兵。日后或可元年起事，为陕北民变第一把火；四年被招抚而杀于内讧。'
+        bio: '陕西府谷人。明边军逃兵。日后或可元年起事，为陕北民变第一把火；四年被招抚而杀于内讧。',
+        resources: { privateWealth: { money: 200, grain: 18, cloth: 3 } },
       },
       {
         name: '高迎祥', title: '贩马贩子', officialTitle: '', alive: true,
@@ -6720,7 +6761,8 @@
         loyalty: 30, ambition: 60, intelligence: 55, valor: 82,
         stance: '将为闯王', faction: '陕北饥民', party: '', family: '高氏',
         traits: ['brave', 'gregarious'],
-        bio: '陕西安塞人。以贩马为业。日后或可元年起事自号闯王。九年被孙传庭擒斩。'
+        bio: '陕西安塞人。以贩马为业。日后或可元年起事自号闯王。九年被孙传庭擒斩。',
+        resources: { privateWealth: { money: 200, grain: 18, cloth: 3 } },
       },
       {
         name: '李自成', title: '银川驿驿卒', officialTitle: '驿卒', alive: true,
@@ -6728,7 +6770,8 @@
         loyalty: 25, ambition: 75, intelligence: 70, valor: 82, integrity: 50,
         stance: '蛰伏·未起', faction: '陕北饥民', party: '', family: '李氏',
         traits: ['brave', 'patient', 'ambitious'],
-        bio: '陕西米脂人。此时二十一岁银川驿驿卒(一说为甘州驿，学界有争议)。性善骑射，多谋略，时日艰困。'
+        bio: '陕西米脂人。此时二十一岁银川驿驿卒(一说为甘州驿，学界有争议)。性善骑射，多谋略，时日艰困。',
+        resources: { privateWealth: { money: 180, grain: 15, cloth: 2 } },
       },
       {
         name: '张献忠', title: '延安卫军卒', officialTitle: '延安卫军卒', alive: true,
@@ -6736,7 +6779,8 @@
         loyalty: 20, ambition: 72, intelligence: 62, valor: 85,
         stance: '蛰伏·未起', faction: '陕北饥民', party: '', family: '张氏',
         traits: ['brave', 'wrathful', 'callous'],
-        bio: '陕西延安定边人。初为延安府捕快，后在延绥镇为军(此时约已当兵)。日后或可三年米脂十八寨起事。十六年据武昌建大西。'
+        bio: '陕西延安定边人。初为延安府捕快，后在延绥镇为军(此时约已当兵)。日后或可三年米脂十八寨起事。十六年据武昌建大西。',
+        resources: { privateWealth: { money: 180, grain: 15, cloth: 2 } },
       },
       {
         name: '秦良玉', title: '石柱宣抚使·总兵官·忠义典范', officialTitle: '石柱宣抚使(正三品袭)·勤王总兵官', alive: true,
@@ -6744,7 +6788,8 @@
         loyalty: 95, ambition: 30, intelligence: 75, valor: 88, military: 85, benevolence: 82, administration: 70, integrity: 92,
         stance: '忠义土司', faction: '明朝廷', party: '', family: '秦氏(石柱土司)',
         traits: ['brave', 'honest', 'just', 'diligent', 'zealous'],
-        bio: '忠州土官马千乘妻(马氏世袭石柱宣抚使)。万历末万历三大征参战。天启元年奢安之乱随兄秦邦屏征永宁，邦屏战死。天启三年以奇功升石柱宣抚使。天启七年仍驻石柱，白杆兵六千雄据川东。明唯一列传女将。'
+        bio: '忠州土官马千乘妻(马氏世袭石柱宣抚使)。万历末万历三大征参战。天启元年奢安之乱随兄秦邦屏征永宁，邦屏战死。天启三年以奇功升石柱宣抚使。天启七年仍驻石柱，白杆兵六千雄据川东。明唯一列传女将。',
+        resources: { privateWealth: { money: 45000, grain: 2200, cloth: 450 } },
       },
       // ═══ 幼年/少年历史人物（_dormant 标识 · 待时生长） ═══
       {
@@ -7804,6 +7849,145 @@
           { name: '宁夏总兵', rank: '从一品', perPersonSalary: '888石', holder: '', establishedCount: 1, vacancyCount: 1, bindingHint: 'military', duties: '节制宁夏镇。', publicTreasuryInit: { money: 30000, grain: 60000, cloth: 6000 } },
           { name: '甘肃总兵', rank: '从一品', perPersonSalary: '888石', holder: '', establishedCount: 1, vacancyCount: 1, bindingHint: 'military', duties: '节制甘肃镇。河西走廊。与诸番、吐鲁番对峙。', publicTreasuryInit: { money: 30000, grain: 50000, cloth: 5000 } },
           { name: '固原总兵', rank: '从一品', perPersonSalary: '888石', holder: '', establishedCount: 1, vacancyCount: 1, bindingHint: 'military', duties: '节制固原镇。陕西腹地军备。', publicTreasuryInit: { money: 25000, grain: 40000, cloth: 4000 } }
+        ],
+        subs: []
+      },
+      // ═══ 小九卿·寺监 ═══
+      {
+        id: _uid('off_'), name: '光禄寺', desc: '掌宫廷膳羞·祭祀牲醴·宴会',
+        positions: [
+          { name: '光禄寺卿', rank: '从三品', perPersonSalary: '312石', holder: '', establishedCount: 1, vacancyCount: 1, duties: '掌宫廷膳食、祭祀牲醴、百官宴会。岁贡 3 万石米。', publicTreasuryInit: { money: 18000, grain: 30000, cloth: 2000 }, bindingHint: 'ministry' },
+          { name: '光禄寺少卿', rank: '正五品', perPersonSalary: '192石', holder: '', establishedCount: 2, vacancyCount: 1 },
+          { name: '光禄寺寺丞', rank: '从六品', perPersonSalary: '96石', holder: '', establishedCount: 4, vacancyCount: 1 }
+        ],
+        subs: []
+      },
+      {
+        id: _uid('off_'), name: '太仆寺', desc: '掌马政·牧马草场',
+        positions: [
+          { name: '太仆寺卿', rank: '从三品', perPersonSalary: '312石', holder: '', establishedCount: 1, vacancyCount: 1, duties: '掌天下马政。北直隶、山东、河南设寺丞分管。军马来源。', publicTreasuryInit: { money: 45000, grain: 8000, cloth: 1500 }, bindingHint: 'ministry' },
+          { name: '太仆寺少卿', rank: '正五品', perPersonSalary: '192石', holder: '', establishedCount: 2, vacancyCount: 0 }
+        ],
+        subs: []
+      },
+      {
+        id: _uid('off_'), name: '鸿胪寺', desc: '掌朝会·典礼·接待外夷贡使',
+        positions: [
+          { name: '鸿胪寺卿', rank: '正四品', perPersonSalary: '288石', holder: '', establishedCount: 1, vacancyCount: 1, duties: '掌朝会纠仪、册封颁诏、蕃国朝贡礼。红丸案当事即本寺丞。', publicTreasuryInit: { money: 12000, grain: 1500, cloth: 800 }, bindingHint: 'ministry' },
+          { name: '鸿胪寺少卿', rank: '从五品', perPersonSalary: '168石', holder: '', establishedCount: 2, vacancyCount: 0 },
+          { name: '鸿胪寺寺丞', rank: '从六品', perPersonSalary: '96石', holder: '', establishedCount: 4, vacancyCount: 1 }
+        ],
+        subs: []
+      },
+      {
+        id: _uid('off_'), name: '国子监', desc: '国家最高学府·掌监生教育',
+        positions: [
+          { name: '国子监祭酒', rank: '从四品', perPersonSalary: '252石', holder: '林尧俞', establishedCount: 1, vacancyCount: 0, duties: '国子监首官。掌天下监生(恩/荫/例/贡)教育。与南京国子监并立。', publicTreasuryInit: { money: 22000, grain: 3000, cloth: 800 }, bindingHint: 'ministry' },
+          { name: '国子监司业', rank: '正六品', perPersonSalary: '120石', holder: '', establishedCount: 1, vacancyCount: 0 },
+          { name: '国子监博士', rank: '从八品', perPersonSalary: '72石', holder: '', establishedCount: 5, vacancyCount: 2 },
+          { name: '国子监助教', rank: '从八品', perPersonSalary: '72石', holder: '', establishedCount: 15, vacancyCount: 5 },
+          { name: '国子监学正', rank: '正九品', perPersonSalary: '66石', holder: '', establishedCount: 10, vacancyCount: 3 }
+        ],
+        subs: []
+      },
+      {
+        id: _uid('off_'), name: '翰林院', desc: '皇帝顾问·修史·起草诏令',
+        positions: [
+          { name: '翰林院学士', rank: '正五品', perPersonSalary: '192石', holder: '', establishedCount: 1, vacancyCount: 1, duties: '翰林院首官。掌制诰、经筵讲读、纂修国史。储相之所。', publicTreasuryInit: { money: 15000, grain: 1200, cloth: 500 }, bindingHint: 'ministry' },
+          { name: '翰林院侍读学士', rank: '从五品', perPersonSalary: '168石', holder: '周延儒', establishedCount: 2, vacancyCount: 0, duties: '侍读经筵。周延儒(状元·翰林)位此伺机。' },
+          { name: '翰林院侍讲学士', rank: '从五品', perPersonSalary: '168石', holder: '', establishedCount: 2, vacancyCount: 0 },
+          { name: '翰林院修撰', rank: '从六品', perPersonSalary: '96石', holder: '', establishedCount: 3, vacancyCount: 1, duties: '状元初授。掌修国史。' },
+          { name: '翰林院编修', rank: '正七品', perPersonSalary: '90石', holder: '', establishedCount: 6, vacancyCount: 2, duties: '榜眼探花初授。' },
+          { name: '翰林院检讨', rank: '从七品', perPersonSalary: '84石', holder: '', establishedCount: 8, vacancyCount: 3 },
+          { name: '翰林院庶吉士', rank: '(未叙品)', holder: '', establishedCount: 28, vacancyCount: 10, duties: '新科进士中优选入馆·三年散馆后分授馆职或部曹。储相之源。' }
+        ],
+        subs: []
+      },
+      {
+        id: _uid('off_'), name: '詹事府', desc: '辅导东宫太子',
+        positions: [
+          { name: '詹事府詹事', rank: '正三品', perPersonSalary: '420石', holder: '', establishedCount: 1, vacancyCount: 1, duties: '辅导太子。新帝尚无嫡子，本府暂无实职，以资格为翰林大学士进阶。', publicTreasuryInit: { money: 10000, grain: 800, cloth: 300 }, bindingHint: 'ministry' },
+          { name: '詹事府少詹事', rank: '正四品', perPersonSalary: '288石', holder: '', establishedCount: 2, vacancyCount: 2 },
+          { name: '左春坊大学士', rank: '正五品', perPersonSalary: '192石', holder: '', establishedCount: 1, vacancyCount: 1 },
+          { name: '右春坊大学士', rank: '正五品', perPersonSalary: '192石', holder: '', establishedCount: 1, vacancyCount: 1 },
+          { name: '司经局洗马', rank: '从五品', perPersonSalary: '168石', holder: '', establishedCount: 1, vacancyCount: 1 }
+        ],
+        subs: []
+      },
+      {
+        id: _uid('off_'), name: '钦天监', desc: '掌天文历法·观测天象·占卜吉凶',
+        positions: [
+          { name: '钦天监监正', rank: '正五品', perPersonSalary: '192石', holder: '', establishedCount: 1, vacancyCount: 1, duties: '掌天文观测+历法编纂+占卜灾异。汤若望等西洋教士正参编新历。', publicTreasuryInit: { money: 8000, grain: 600, cloth: 200 }, bindingHint: 'ministry' },
+          { name: '钦天监监副', rank: '正六品', perPersonSalary: '120石', holder: '', establishedCount: 2, vacancyCount: 0 },
+          { name: '钦天监五官正', rank: '从六品', perPersonSalary: '96石', holder: '', establishedCount: 5, vacancyCount: 2, duties: '天官/地官/四时官等分掌。' },
+          { name: '钦天监博士', rank: '从九品', perPersonSalary: '60石', holder: '', establishedCount: 4, vacancyCount: 2 }
+        ],
+        subs: []
+      },
+      {
+        id: _uid('off_'), name: '太医院', desc: '掌医药·宫廷医疗',
+        positions: [
+          { name: '太医院使', rank: '正五品', perPersonSalary: '192石', holder: '', establishedCount: 1, vacancyCount: 1, duties: '掌宫廷医药+太医值值·奉旨诊疾。', publicTreasuryInit: { money: 15000, grain: 800, cloth: 400 }, bindingHint: 'ministry', privateIncome: { illicitRisk: 'medium', bonusNote: '内廷赏银·药料回扣' } },
+          { name: '太医院判', rank: '正六品', perPersonSalary: '120石', holder: '', establishedCount: 2, vacancyCount: 0 },
+          { name: '太医院御医', rank: '正八品', perPersonSalary: '78石', holder: '', establishedCount: 10, vacancyCount: 2 },
+          { name: '太医院吏目', rank: '从九品', perPersonSalary: '60石', holder: '', establishedCount: 20, vacancyCount: 5 }
+        ],
+        subs: []
+      },
+      {
+        id: _uid('off_'), name: '上林苑监', desc: '掌皇家苑囿·果园·牲畜',
+        positions: [
+          { name: '上林苑监正', rank: '正五品', perPersonSalary: '192石', holder: '', establishedCount: 1, vacancyCount: 1, duties: '北京城外皇家苑囿。番牧山川等四署。', publicTreasuryInit: { money: 10000, grain: 1200, cloth: 300 }, bindingHint: 'imperial' },
+          { name: '上林苑监副', rank: '正六品', perPersonSalary: '120石', holder: '', establishedCount: 4, vacancyCount: 2 }
+        ],
+        subs: []
+      },
+      {
+        id: _uid('off_'), name: '宗人府', desc: '掌宗室册封·玉牒',
+        positions: [
+          { name: '宗人府宗人令', rank: '正一品', perPersonSalary: '1044石', holder: '', establishedCount: 1, vacancyCount: 1, duties: '掌皇族属籍+玉牒+皇族婚丧嫁娶+宗室纠察。宗室 20 余万。', publicTreasuryInit: { money: 35000, grain: 5000, cloth: 1500 }, bindingHint: 'imperial' },
+          { name: '宗人府左宗正', rank: '正一品', perPersonSalary: '1044石', holder: '', establishedCount: 1, vacancyCount: 1 },
+          { name: '宗人府右宗正', rank: '正一品', perPersonSalary: '1044石', holder: '', establishedCount: 1, vacancyCount: 1 },
+          { name: '宗人府经历', rank: '正五品', perPersonSalary: '192石', holder: '', establishedCount: 1, vacancyCount: 0 }
+        ],
+        subs: []
+      },
+      {
+        id: _uid('off_'), name: '六科给事中', desc: '科道·封驳诏旨·监督六部',
+        positions: [
+          { name: '吏科都给事中', rank: '正七品', perPersonSalary: '90石', holder: '', establishedCount: 1, vacancyCount: 1, duties: '监察吏部+封驳吏科诏旨+参议铨选。科道之一。', publicTreasuryInit: { money: 4500, grain: 300, cloth: 80 }, bindingHint: 'ministry', powers: { impeach: true } },
+          { name: '户科都给事中', rank: '正七品', perPersonSalary: '90石', holder: '', establishedCount: 1, vacancyCount: 0, powers: { impeach: true } },
+          { name: '礼科都给事中', rank: '正七品', perPersonSalary: '90石', holder: '杨所修', establishedCount: 1, vacancyCount: 0, duties: '原任，新迁通政使。', powers: { impeach: true } },
+          { name: '兵科都给事中', rank: '正七品', perPersonSalary: '90石', holder: '', establishedCount: 1, vacancyCount: 1, powers: { impeach: true } },
+          { name: '刑科都给事中', rank: '正七品', perPersonSalary: '90石', holder: '', establishedCount: 1, vacancyCount: 1, powers: { impeach: true } },
+          { name: '工科都给事中', rank: '正七品', perPersonSalary: '90石', holder: '', establishedCount: 1, vacancyCount: 1, powers: { impeach: true } },
+          { name: '六科给事中', rank: '从七品', perPersonSalary: '84石', holder: '', establishedCount: 40, vacancyCount: 10, duties: '各科给事中·掌科道监察事务。' }
+        ],
+        subs: []
+      },
+      {
+        id: _uid('off_'), name: '尚宝司', desc: '掌宝玺·印符',
+        positions: [
+          { name: '尚宝司卿', rank: '正五品', perPersonSalary: '192石', holder: '', establishedCount: 1, vacancyCount: 1, duties: '掌御宝、金银牌符。与司礼监掌印互制。', publicTreasuryInit: { money: 6000, grain: 400, cloth: 150 }, bindingHint: 'imperial' },
+          { name: '尚宝司少卿', rank: '从五品', perPersonSalary: '168石', holder: '', establishedCount: 1, vacancyCount: 0 }
+        ],
+        subs: []
+      },
+      {
+        id: _uid('off_'), name: '顺天府', desc: '京师首府·掌京畿民政',
+        positions: [
+          { name: '顺天府尹', rank: '正三品', perPersonSalary: '420石', holder: '刘宗周', establishedCount: 1, vacancyCount: 0, duties: '京畿首府·地位特重·例由都察院堂官或侍郎充任。', publicTreasuryInit: { money: 55000, grain: 12000, cloth: 2200 }, bindingHint: 'ministry' },
+          { name: '顺天府丞', rank: '正四品', perPersonSalary: '288石', holder: '', establishedCount: 1, vacancyCount: 0 },
+          { name: '顺天府治中', rank: '正五品', perPersonSalary: '192石', holder: '', establishedCount: 1, vacancyCount: 0 },
+          { name: '顺天府通判', rank: '正六品', perPersonSalary: '120石', holder: '', establishedCount: 3, vacancyCount: 1 }
+        ],
+        subs: []
+      },
+      {
+        id: _uid('off_'), name: '应天府', desc: '南京陪都首府',
+        positions: [
+          { name: '应天府尹', rank: '正三品', perPersonSalary: '420石', holder: '', establishedCount: 1, vacancyCount: 1, duties: '南京首府。掌陪都民政。', publicTreasuryInit: { money: 45000, grain: 10000, cloth: 1800 }, bindingHint: 'ministry' },
+          { name: '应天府丞', rank: '正四品', perPersonSalary: '288石', holder: '', establishedCount: 1, vacancyCount: 0 }
         ],
         subs: []
       }
