@@ -456,9 +456,23 @@
   }
 
   async function crystallizePendingCharacter(name, extraOpts) {
-    if (typeof findCharByName === 'function' && findCharByName(name)) {
-      if (typeof toast === 'function') toast(name + ' \u5DF2\u5728\u4EBA\u7269\u5FD7');
-      return findCharByName(name);
+    // 主查·再按别名/字/号二次查（严格查不到→别名）
+    var _found = (typeof findCharByName === 'function') ? findCharByName(name) : null;
+    if (!_found && Array.isArray(GM.chars)) {
+      _found = GM.chars.find(function(c){
+        if (!c) return false;
+        if (c.name === name) return true;
+        if (c.zi === name || c.hao === name || c.milkName === name) return true;
+        if (Array.isArray(c.aliases) && c.aliases.indexOf(name) >= 0) return true;
+        if (Array.isArray(c.formerNames) && c.formerNames.indexOf(name) >= 0) return true;
+        return false;
+      });
+    }
+    if (_found) {
+      if (typeof toast === 'function') toast(name + ' \u5DF2\u5728\u4EBA\u7269\u5FD7（' + (_found.name || '') + '）');
+      // 从 pending 列表移除（若存在）·避免下次再触发
+      if (GM._pendingCharacters) GM._pendingCharacters = GM._pendingCharacters.filter(function(p){ return p.name !== name; });
+      return _found;
     }
     var pending = (GM._pendingCharacters||[]).find(function(p){ return p.name === name; });
     _openCharGenProgress(name, '\u68C0\u7D22\u53F2\u6599\u4E0E\u4E0A\u4E0B\u6587\u2026');
@@ -703,12 +717,39 @@
     var candidates = extractMentionedCharacterNames(aiResult);
     if (!candidates.length) return { generated: [], pending: [] };
 
+    // ═══ 二次防御：剔除已存在于人物志的候选（模糊匹配+别名+字号） ═══
+    // _extractNames 已做 findCharByName 严格匹配·但可能漏过别名/字/号/旧名
+    // 此处再做一次宽松检查·避免对已存在角色发起无效 AI 调用
+    var _aliveMap = {};
+    (GM.chars || []).forEach(function(c) {
+      if (!c) return;
+      _aliveMap[c.name] = c;
+      // 别名索引：字 / 号 / 乳名 / 曾用名
+      if (c.zi) _aliveMap[c.zi] = c;
+      if (c.hao) _aliveMap[c.hao] = c;
+      if (c.milkName) _aliveMap[c.milkName] = c;
+      if (Array.isArray(c.aliases)) c.aliases.forEach(function(al) { if (al) _aliveMap[al] = c; });
+      if (Array.isArray(c.formerNames)) c.formerNames.forEach(function(fn) { if (fn) _aliveMap[fn] = c; });
+    });
+    candidates = candidates.filter(function(name) {
+      if (!name) return false;
+      // 严格匹配
+      if (_aliveMap[name]) return false;
+      // 去除可能的前后空格/全角空格
+      var trimmed = name.replace(/[\s\u3000]/g, '');
+      if (trimmed !== name && _aliveMap[trimmed]) return false;
+      return true;
+    });
+    if (!candidates.length) return { generated: [], pending: [] };
+
     var generated = [];
     var pendingAdded = [];
     var fullTexts = typeof aiResult === 'string' ? aiResult : JSON.stringify(aiResult).slice(0, 2000);
 
     for (var i=0; i<candidates.length && i<20; i++) {  // 单回合最多 20 名候选
       var name = candidates[i];
+      // 循环内再次防御——异步期间可能有其他代码往 GM.chars 添加
+      if (typeof findCharByName === 'function' && findCharByName(name)) continue;
       var importance = _judgeImportance(name, aiResult);
       // 检查 pending 累计 mentions
       var existing = GM._pendingCharacters.find(function(p){ return p.name === name; });
