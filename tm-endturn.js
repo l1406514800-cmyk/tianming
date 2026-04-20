@@ -2628,6 +2628,33 @@ var ChronicleSystem = {
       prompt += '\n\u672C\u5E74\u5404\u56DE\u5408\u4E00\u53E5\u8BDD\u6458\u8981\uFF1A\n';
       GM._yearlyDigest.forEach(function(d) { prompt += 'T' + d.turn + ': ' + d.summary + '\n'; });
     }
+    // 6.7联动：本年度下达诏令+其后续影响（colorEdicts + _chainEffects）
+    if (GM._edictTracker && GM._edictTracker.length > 0) {
+      var _yearEdicts = GM._edictTracker.filter(function(e) {
+        if (!e || !e.turn) return false;
+        var _d = (typeof calcDateFromTurn === 'function') ? calcDateFromTurn(e.turn) : null;
+        return _d && _d.adYear === year;
+      });
+      if (_yearEdicts.length > 0) {
+        prompt += '\n\u3010\u672C\u5E74\u9881\u4E0B\u8BCF\u4EE4\u00B7\u7F16\u5E74\u4E2D\u5FC5\u987B\u8BB0\u5176\u9881\u5E03\u00B7\u6267\u884C\u00B7\u4F59\u6CE2\u3011\n';
+        _yearEdicts.slice(0, 10).forEach(function(e) {
+          prompt += '  T' + e.turn + '\u00B7' + (e.category||'\u8BCF\u4EE4') + '\uFF1A' + (e.content||'').slice(0, 80) + '\n';
+          prompt += '      \u00B7\u72B6\u6001: ' + (e.status||'pending');
+          if (e.assignee) prompt += '  \u6267\u884C: ' + e.assignee;
+          if (e.progressPercent) prompt += '  \u8FDB\u5EA6: ' + e.progressPercent + '%';
+          prompt += '\n';
+          if (e.feedback) prompt += '      \u00B7\u53CD\u9988: ' + e.feedback.slice(0, 100) + '\n';
+          if (e._chainEffects && e._chainEffects.length) {
+            prompt += '      \u00B7\u8FDE\u9501\u6548\u5E94: ';
+            e._chainEffects.slice(-5).forEach(function(ce) {
+              prompt += (ce.turn ? 'T'+ce.turn+' ' : '') + (ce.effect||'') + '; ';
+            });
+            prompt += '\n';
+          }
+        });
+        prompt += '  \u203B \u7F16\u5E74\u4E2D\u8BE5\u4EE5\u300C\u8BCFXX\u300D\u300C\u884C\u81F3X\u6708\u67D0\u65E5\uFF0CXX\u4E8B\u5E94\u300D\u7B49\u53E5\u5F0F\uFF0C\u5C06\u8BCF\u4EE4\u9881\u5E03\u2014\u6267\u884C\u2014\u4F59\u6CE2\u7ED3\u6210\u56E0\u679C\u94FE\uFF0C\u4E0D\u53EF\u53EA\u63D0\u9881\u5E03\u800C\u4E0D\u63D0\u7ED3\u679C\n';
+      }
+    }
     prompt += '\n\u5404\u5B63\u6458\u8981\uFF1A\n';
     drafts.forEach(function(d) {
       var seasonName = (P.time.seasons || ['\u6625','\u590F','\u79CB','\u51AC'])[d.season] || '';
@@ -3383,12 +3410,18 @@ function _endTurn_collectInput() {
   if (edicts.military) recordPlayerDecision('edict', '军令:' + edicts.military.substring(0, 80));
   if (edicts.diplomatic) recordPlayerDecision('edict', '外交:' + edicts.diplomatic.substring(0, 80));
   if (edicts.economic) recordPlayerDecision('edict', '经济:' + edicts.economic.substring(0, 80));
-  // 1.1: 诏令执行追踪——记录本回合所有诏令
+  // 1.1: 诏令执行追踪——记录本回合所有诏令·同 content 未完成诏令去重
   if (!GM._edictTracker) GM._edictTracker = [];
   var _edictCats = [{key:'political',label:'政令'},{key:'military',label:'军令'},{key:'diplomatic',label:'外交'},{key:'economic',label:'经济'},{key:'other',label:'其他'}];
   _edictCats.forEach(function(cat) {
-    if (edicts[cat.key]) {
-      GM._edictTracker.push({ id: uid(), content: edicts[cat.key], category: cat.label, turn: GM.turn, status: 'pending', assignee: '', feedback: '', progressPercent: 0 });
+    if (!edicts[cat.key]) return;
+    var _content = edicts[cat.key];
+    var _dup = GM._edictTracker.some(function(t) {
+      if (!t || t.content !== _content) return false;
+      return t.status === 'pending' || t.status === 'executing' || t.status === 'partial' || t.status === 'obstructed' || t.status === 'pending_delivery';
+    });
+    if (!_dup) {
+      GM._edictTracker.push({ id: uid(), content: _content, category: cat.label, turn: GM.turn, status: 'pending', assignee: '', feedback: '', progressPercent: 0 });
     }
   });
   // 清理超过10回合的旧追踪记录
@@ -3397,6 +3430,39 @@ function _endTurn_collectInput() {
     if (e.turn === GM.turn) return true;  // 本回合全部保留
     if (e.status === 'executing' || e.status === 'pending' || e.status === 'partial' || e.status === 'obstructed' || e.status === 'pending_delivery') return true;
     return GM.turn - e.turn < 24;  // 已完成/失败·保留两年
+  });
+
+  // 1.15: 跨势力识别——检测诏令目标中的非玩家势力（人/势力名）
+  // 若涉及，标记为外交文书·AI 须以外交方式处理（对方可接受/拒绝/敷衍/反击）
+  var _playerFac = (P.playerInfo && P.playerInfo.factionName) || '';
+  var _allFactions = (GM.facs || []).filter(function(f){ return f && f.name && f.name !== _playerFac; });
+  GM._edictTracker.forEach(function(et) {
+    if (et.turn !== GM.turn || et._crossFactionChecked) return;
+    et._crossFactionChecked = true;
+    var _targetFacs = [], _targetNpcs = [];
+    // 1) 势力名命中
+    _allFactions.forEach(function(f) {
+      var _nm = f.name || '';
+      if (!_nm) return;
+      if (et.content.indexOf(_nm) >= 0) _targetFacs.push(_nm);
+      // alias/variant 检测（略·仅首名命中即可）
+    });
+    // 2) 非玩家势力人物名命中
+    (GM.chars||[]).forEach(function(c) {
+      if (c.alive === false || c.isPlayer) return;
+      if (!c.name || c.name.length < 2) return;
+      if (c.faction && c.faction !== _playerFac && et.content.indexOf(c.name) >= 0) {
+        _targetNpcs.push({ name: c.name, faction: c.faction });
+        if (_targetFacs.indexOf(c.faction) < 0) _targetFacs.push(c.faction);
+      }
+    });
+    if (_targetFacs.length > 0) {
+      et._crossFaction = true;
+      et._targetFactions = _targetFacs;
+      et._targetNpcs = _targetNpcs.map(function(t){ return t.name; });
+      et._diplomaticMsg = true; // 标志此条为外交文书
+      et.category = (et.category === '外交' ? '外交文书' : (et.category + '·外交文书'));
+    }
   });
 
   // 1.2: 诏令分流——检测涉及远方NPC的诏令，自动转为信件传递
@@ -3417,7 +3483,9 @@ function _endTurn_collectInput() {
       et._remoteTargets = _remoteTargets.map(function(c){ return c.name; });
       et._deliveryStatus = 'sending'; // sending/delivered/lost
       et._letterIds = [];
-      var _ltType = et.category === '军令' ? 'military_order' : 'formal_edict';
+      // 跨势力诏令·letterType 为外交文书·否则走原路径
+      var _ltType = et._crossFaction ? 'diplomatic_dispatch' :
+                    (et.category === '军令' ? 'military_order' : 'formal_edict');
       var _urgency = et.category === '军令' ? 'urgent' : 'normal';
       _remoteTargets.forEach(function(ch) {
         var toLoc = ch.location || _capital;
@@ -3456,7 +3524,10 @@ function _endTurn_collectInput() {
     NpcMemorySystem.remember(P.playerInfo.characterName, xinglu, '\u5E73', 5);
   }
   var memRes=GM.memorials.map(function(m){return{from:m.from,type:m.type,status:m.status,reply:m.reply};});
-  GM.qijuHistory.push({turn:GM.turn,time:getTSText(GM.turn),edicts:edicts,xinglu:xinglu,memorials:memRes});
+  // 判定本回合 edicts 来源：已颁行润色稿 / 玩家原文（不含润色）
+  var _thisTurnPromulgated = (GM.edicts||[]).filter(function(e){ return e && typeof e === 'object' && e.turn === GM.turn && e.status === 'promulgated'; });
+  var _edictsSource = _thisTurnPromulgated.length > 0 ? 'promulgated' : 'original';
+  GM.qijuHistory.push({turn:GM.turn,time:getTSText(GM.turn),edicts:edicts,xinglu:xinglu,memorials:memRes,edictsSource:_edictsSource});
   resetTurnChanges();
   // 注意：不在此处清空 _couplingReport/_edictExecutionReport/_buildingOutputReport/_npcIntents/_healthAlerts/_decisionAlerts
   // 这些字段由上一回合的 SettlementPipeline 设置，在本回合 AI prompt 中读取（"上回合发生了什么"）
@@ -3479,6 +3550,23 @@ function _endTurn_collectInput() {
   }
 
   var edictActions = extractEdictActions(allEdictText);
+  // 跨势力过滤：对非玩家势力 NPC 的任命/免职/赐死改为外交意图·不做内政执行
+  var _pFacDip = (P.playerInfo && P.playerInfo.factionName) || '';
+  ['appointments','dismissals','deaths'].forEach(function(k) {
+    if (!Array.isArray(edictActions[k])) return;
+    edictActions[k] = edictActions[k].filter(function(a) {
+      var nm = a.character || a.name || '';
+      if (!nm) return true;
+      var ch = (typeof findCharByName === 'function') ? findCharByName(nm) : null;
+      if (!ch || ch.isPlayer) return true;
+      if (ch.faction && ch.faction !== _pFacDip) {
+        var _opLabel = k === 'appointments' ? '\u4EFB\u547D' : k === 'dismissals' ? '\u7F62\u9EDC' : '\u8D50\u6B7B';
+        if (typeof addEB === 'function') addEB('\u5916\u4EA4\u6587\u4E66', '\u5BF9' + ch.faction + '\u2022' + nm + '\u4E4B' + _opLabel + '\u00B7\u975E\u5185\u653F\u8BCF\u4EE4\u00B7\u7531AI\u63A8\u6F14\u88C1\u5B9A');
+        return false;
+      }
+      return true;
+    });
+  });
   // 不再在AI推演前直接执行——改为将操作意图传给AI，由AI在推演中决定结果
   // AI推演后，npc_actions中会包含对这些操作的执行/抵制/变通
   if (edictActions.appointments.length || edictActions.dismissals.length || edictActions.deaths.length) {
@@ -6977,14 +7065,34 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       if (GM._edictTracker) {
         var _pendingEdicts = GM._edictTracker.filter(function(e) { return e.turn === GM.turn && e.status === 'pending'; });
         if (_pendingEdicts.length > 0) {
-          tp1 += '\n\n【本回合诏令——每条必须在edict_feedback中逐条报告执行情况，填写assignee和feedback】\n';
-          _pendingEdicts.forEach(function(e) {
-            tp1 += '  【' + e.category + '】' + e.content;
-            if (e._deliveryStatus === 'sending' && e._remoteTargets) {
-              tp1 += ' ⚠信使在途→' + e._remoteTargets.join('、') + '（远方NPC尚未收到，status应为pending_delivery）';
-            }
-            tp1 += '\n';
-          });
+          // 按内政/外交分类注入
+          var _domesticEdicts = _pendingEdicts.filter(function(e){ return !e._crossFaction; });
+          var _diplomaticEdicts = _pendingEdicts.filter(function(e){ return e._crossFaction; });
+          if (_domesticEdicts.length > 0) {
+            tp1 += '\n\n【本回合内政诏令——每条必须在edict_feedback中逐条报告执行情况，填写assignee和feedback】\n';
+            _domesticEdicts.forEach(function(e) {
+              tp1 += '  【' + e.category + '】' + e.content;
+              if (e._deliveryStatus === 'sending' && e._remoteTargets) {
+                tp1 += ' ⚠信使在途→' + e._remoteTargets.join('、') + '（远方NPC尚未收到，status应为pending_delivery）';
+              }
+              tp1 += '\n';
+            });
+          }
+          if (_diplomaticEdicts.length > 0) {
+            tp1 += '\n\n【本回合外交文书·对他势力——此非内政诏令·对方非本朝臣属·未必奉诏】\n';
+            tp1 += '  ※ 对方势力有独立的君主/国策/宗教/敌友关系·可能：(1) 接受但变通执行 (2) 敷衍推诿 (3) 明确拒绝 (4) 反唇相讥甚至兴兵 (5) 暂缓答复以观望\n';
+            tp1 += '  ※ 依势力对本朝 relation/attitude/militaryStrength 与议题内容择合理回应·不可如内政般"执行→反馈"·应按外交逻辑回报\n';
+            tp1 += '  ※ edict_feedback 的 status 用 executing/partial/obstructed 映射外交层级（受理/半允/拒绝）·feedback 写对方朝堂/酋长/酋使的实际回应态度\n';
+            tp1 += '  ※ 连带反映到 faction_updates（relation_delta/attitude_shift 等）·必要时触发 factionsAffected/revolt_update/map_changes\n';
+            _diplomaticEdicts.forEach(function(e) {
+              tp1 += '  【' + e.category + '】致' + (e._targetFactions||[]).join('·') + '：' + e.content;
+              if (e._targetNpcs && e._targetNpcs.length) tp1 += ' (目标人物: ' + e._targetNpcs.join('、') + ')';
+              if (e._deliveryStatus === 'sending' && e._remoteTargets) {
+                tp1 += ' ⚠使节在途→' + e._remoteTargets.join('、') + '（尚未送达·status应为pending_delivery）';
+              }
+              tp1 += '\n';
+            });
+          }
         }
         // ═══ 长期诏令连带·跨回合·AI 须交代进展 ═══
         // 包括：前回合未完成(executing/partial/obstructed)、本回合刚下延续(pending_delivery)的诏令
@@ -7381,7 +7489,9 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       } catch(_fctxErr) { console.warn('[endturn] fullCtx inject:', _fctxErr); }
 
       // 1.2+1.8+S1：ModelAdapter温度 + OpenAI原生JSON模式 + 流式感知进度
-      var _sc1Body = {model:P.ai.model||"gpt-4o",messages:[{role:"system",content:sysP},{role:"user",content:tp1}],temperature:_modelTemp,max_tokens:_tok(16000)};
+      // 动态 max_tokens：取模型单次最大输出（_MODEL_CTX_MAP）与业务需要 16K 的较小值·避免小模型被要求超限、大模型被限制过保守
+      var _sc1BaseTok = Math.min(_effectiveOutCap || 16384, 16384);
+      var _sc1Body = {model:P.ai.model||"gpt-4o",messages:[{role:"system",content:sysP},{role:"user",content:tp1}],temperature:_modelTemp,max_tokens:_tok(_sc1BaseTok)};
       if (_modelFamily === 'openai') _sc1Body.response_format = { type: 'json_object' };
       var _streamSC1 = (P.ai && P.ai.stream_sc1 !== false);  // 默认开·可通过 P.ai.stream_sc1=false 关闭
       var c1 = "";
@@ -7418,10 +7528,13 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       GM._turnAiResults.subcall1_raw = c1;
       GM._turnAiResults.subcall1 = p1;
 
+      // ═══ Sub-call 1b + 1c · 并行执行（S3 优化）══════════════════════════════
+      // 两者无交集字段，通过 async IIFE 并行启动，Promise.all 等待
+      var _sc1bP = (async function() {
       // ═══ Sub-call 1b · 文事鸿雁人际专项（独立预算 8k，避免文事/鸿雁/互动被 sc1 庞大 schema 挤出）═══
       try {
         var _sc1bStart = Date.now();
-        showLoading('\u6587\u4E8B\u9E3F\u96C1\u4EBA\u9645\u63A8\u6F14', 58);
+        showLoading('\u6587\u4E8B\u00B7\u52BF\u529B\u00B7\u5E76\u884C\u63A8\u6F14', 58);
 
         var _charsBriefB = '';
         try {
@@ -7495,7 +7608,9 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         tp1b += '\n\u8FD4\u56DE\u683C\u5F0F\uFF1A\n';
         tp1b += '{\n  "cultural_works":[{...}],\n  "npc_letters":[{...}],\n  "npc_correspondence":[{...}],\n  "npc_interactions":[{...}]\n}';
 
-        var _sc1bBody = {model:P.ai.model||'gpt-4o', messages:[{role:'system',content:sysP},{role:'user',content:tp1b}], temperature:_modelTemp, max_tokens:_tok(8000)};
+        // 动态 max_tokens：取模型输出上限与业务 8K 的较小值
+        var _sc1bBaseTok = Math.min(_effectiveOutCap || 8192, 8192);
+        var _sc1bBody = {model:P.ai.model||'gpt-4o', messages:[{role:'system',content:sysP},{role:'user',content:tp1b}], temperature:_modelTemp, max_tokens:_tok(_sc1bBaseTok)};
         if (_modelFamily === 'openai') _sc1bBody.response_format = { type:'json_object' };
 
         var resp1b = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+P.ai.key}, body:JSON.stringify(_sc1bBody)});
@@ -7522,11 +7637,12 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       } catch(_sc1bErr) {
         console.warn('[sc1b] \u5931\u8D25\uFF08\u4E0D\u5F71\u54CD\u4E3B\u6D41\u7A0B\uFF09:', _sc1bErr.message || _sc1bErr);
       }
+      })();  // end SC1b IIFE
 
+      var _sc1cP = (async function() {
       // ═══ Sub-call 1c · 势力 & NPC 自主博弈专项（独立预算 8k，丰富势力外交+NPC 阴谋）═══
       try {
         var _sc1cStart = Date.now();
-        showLoading('\u52BF\u529B\u5916\u4EA4\u00B7NPC\u9634\u8C0B\u63A8\u6F14', 59);
 
         var _facsBriefC = '';
         try {
@@ -7825,7 +7941,9 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         tp1c += '\n\u8FD4\u56DE\u683C\u5F0F\u793A\u4F8B\uFF1A\n';
         tp1c += '{\n  "faction_interactions_advanced":[{...}],\n  "faction_events":[{...}],\n  "faction_relation_changes":[{...}],\n  "faction_succession":[{...}],\n  "npc_schemes":[{...}],\n  "scheme_actions":[{...}],\n  "hidden_moves":["..."],\n  "fengwen_snippets":[{...}]\n}';
 
-        var _sc1cBody = {model:P.ai.model||'gpt-4o', messages:[{role:'system',content:sysP},{role:'user',content:tp1c}], temperature:_modelTemp, max_tokens:_tok(8000)};
+        // 动态 max_tokens：取模型输出上限与业务 8K 的较小值
+        var _sc1cBaseTok = Math.min(_effectiveOutCap || 8192, 8192);
+        var _sc1cBody = {model:P.ai.model||'gpt-4o', messages:[{role:'system',content:sysP},{role:'user',content:tp1c}], temperature:_modelTemp, max_tokens:_tok(_sc1cBaseTok)};
         if (_modelFamily === 'openai') _sc1cBody.response_format = { type:'json_object' };
 
         var resp1c = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+P.ai.key}, body:JSON.stringify(_sc1cBody)});
@@ -7914,6 +8032,10 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       } catch(_sc1cErr) {
         console.warn('[sc1c] \u5931\u8D25\uFF08\u4E0D\u5F71\u54CD\u4E3B\u6D41\u7A0B\uFF09:', _sc1cErr.message || _sc1cErr);
       }
+      })();  // end SC1c IIFE
+
+      // 并行等待 SC1b + SC1c 完成（S3 优化·两者无交集字段）
+      try { await Promise.all([_sc1bP, _sc1cP]); } catch(_sc1bcErr) { console.warn('[sc1b+1c parallel]', _sc1bcErr); }
 
       if(p1){
         // 方案融入：AI 产出的通用变化/任免/机构/区划/事件/NPC行动/关系 → 统一应用
@@ -14960,7 +15082,7 @@ var _qijuPage=0,_qijuKw='',_qijuCat='all',_qijuPageSize=15,_qijuAnnotOnly=false,
 /** 统一获取起居注条目的显示文本和类别 */
 function _qijuNormalize(r) {
   var text = '', cat = r.category || '';
-  // schema1: 回合结算 {edicts, xinglu, memorials}
+  // schema1: 回合结算 {edicts, xinglu, memorials, edictsSource?}
   if (r.edicts) {
     var parts = [];
     if (r.edicts.political) parts.push('\u653F\uFF1A' + r.edicts.political);
@@ -14968,7 +15090,14 @@ function _qijuNormalize(r) {
     if (r.edicts.diplomatic) parts.push('\u5916\uFF1A' + r.edicts.diplomatic);
     if (r.edicts.economic) parts.push('\u7ECF\uFF1A' + r.edicts.economic);
     if (r.edicts.other) parts.push('\u5176\u4ED6\uFF1A' + r.edicts.other);
-    if (parts.length > 0) { text += parts.join('\n'); cat = cat || '\u8BCF\u4EE4'; }
+    if (parts.length > 0) {
+      // 来源标签：已颁行润色稿 / 玩家原文（未润色）
+      var _srcTag = '';
+      if (r.edictsSource === 'promulgated') _srcTag = '\u3010\u8BCF\u4EE4\u00B7\u9881\u884C\u7A3F\u00B7\u5DF2\u6DA6\u8272\u3011\n';
+      else if (r.edictsSource === 'original') _srcTag = '\u3010\u8BCF\u4EE4\u00B7\u73A9\u5BB6\u539F\u6587\u00B7\u672A\u6DA6\u8272\u3011\n';
+      text += _srcTag + parts.join('\n');
+      cat = cat || '\u8BCF\u4EE4';
+    }
     if (r.xinglu) { text += (text ? '\n' : '') + '\u3010\u884C\u6B62\u3011' + r.xinglu; if (!cat) cat = '\u884C\u6B62'; }
   }
   // schema2: AI叙事 {zhengwen}
@@ -15138,6 +15267,40 @@ function renderQiju(){
           h += '<div class="qj-rec-text wd-selectable">' + _qijuHighlight(n.text) + '</div>';
         }
         if (n.annotation) h += '<div class="qj-annot">' + escHtml(n.annotation) + '</div>';
+        // 诏令类·附加后续连锁效应（从 _edictTracker 取 _chainEffects）
+        if (n.cat === '\u8BCF\u4EE4' && GM._edictTracker && GM._edictTracker.length) {
+          var _matchedTrackers = [];
+          var _rawText = n.raw && n.raw.content ? n.raw.content : n.text;
+          var _rawTurn = n.turn;
+          GM._edictTracker.forEach(function(t) {
+            if (!t || !t._chainEffects || !t._chainEffects.length) return;
+            // 匹配：同回合 & 文本包含或反向包含
+            if (t.turn === _rawTurn) {
+              var _tc = (t.content||'').slice(0, 30);
+              if (_tc && _rawText.indexOf(_tc) >= 0) _matchedTrackers.push(t);
+              else if (!_tc && _matchedTrackers.indexOf(t) < 0) _matchedTrackers.push(t);
+            }
+            // 或 tracker.content 前缀命中 raw text
+            else if (_rawText && t.content && _rawText.indexOf(t.content.slice(0, 20)) >= 0) {
+              _matchedTrackers.push(t);
+            }
+          });
+          if (_matchedTrackers.length > 0) {
+            h += '<div class="qj-chain">';
+            h += '<div class="qj-chain-hdr">\u540E\u7EED\u8FDE\u9501\uFF1A</div>';
+            _matchedTrackers.forEach(function(t) {
+              var _status = t.status ? '\u00B7' + t.status : '';
+              var _prog = t.progressPercent ? '\u00B7' + t.progressPercent + '%' : '';
+              if (t.assignee) h += '<div class="qj-chain-item">\u6267\u884C\uFF1A' + escHtml(t.assignee) + _status + _prog + '</div>';
+              if (t.feedback) h += '<div class="qj-chain-item">\u53CD\u9988\uFF1A' + escHtml(t.feedback.slice(0, 100)) + '</div>';
+              (t._chainEffects||[]).slice(-6).forEach(function(ce) {
+                var _tn = ce.turn ? ('T' + ce.turn + ' ') : '';
+                h += '<div class="qj-chain-item">' + escHtml(_tn + (ce.effect||'')) + '</div>';
+              });
+            });
+            h += '</div>';
+          }
+        }
         h += '</div>';
       });
       h += '</div>'; // day-body

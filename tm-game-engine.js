@@ -5849,8 +5849,8 @@ function _renderPolishedEdict(panel, text) {
     + '</div>'
     + '<div class="ed-scroll-actions">'
     +   '<button class="ed-scroll-btn" onclick="_polishEdicts()" title="\u91CD\u65B0\u7531\u6709\u53F8\u6DA6\u8272">\u91CD \u65B0 \u6DA6 \u8272</button>'
-    +   '<button class="ed-scroll-btn" onclick="_applyPolishedEdict(\'keep\')" title="\u4FDD\u7559\u5206\u7C7B\u539F\u6587\u4E0D\u53D8\uFF0C\u8BCF\u4E66\u4EC5\u5B58\u6863\u5C55\u793A">\u7F16 \u8BA2 \u5B58 \u6863</button>'
-    +   '<button class="ed-scroll-btn primary" onclick="_applyPolishedEdict(\'replace\')" title="\u5C06\u8BCF\u4E66\u66FF\u6362\u5230\u653F\u4EE4\u680F">\u9881 \u884C \u5929 \u4E0B</button>'
+    +   '<button class="ed-scroll-btn" onclick="_applyPolishedEdict(\'keep\')" title="\u5B58\u4E3A\u8BCF\u4E66\u624B\u7A3F\u00B7\u5F52\u6863\u8D77\u5C45\u6CE8\u00B7\u672A\u9881\u884C">\u624B \u7A3F \u5165 \u6863</button>'
+    +   '<button class="ed-scroll-btn primary" onclick="_applyPolishedEdict(\'replace\')" title="\u8BCF\u4E66\u9881\u884C\u5929\u4E0B\u00B7\u5F55\u5165\u653F\u4EE4\u680F\u00B7\u540C\u65F6\u5F52\u6863\u8D77\u5C45\u6CE8">\u9881 \u884C \u5929 \u4E0B</button>'
     +   '<button class="ed-scroll-btn" onclick="_$(\'edict-polished\').style.display=\'none\'">\u6536 \u8D77</button>'
     + '</div>';
 }
@@ -5861,22 +5861,69 @@ function _applyPolishedEdict(mode) {
   var text = ta.value.trim();
   if (!text) { toast('\u8BCF\u4E66\u5185\u5BB9\u4E3A\u7A7A'); return; }
 
+  // 升级 GM.edicts 为结构化数组·兼容老字符串数据
+  if (!Array.isArray(GM.edicts)) GM.edicts = [];
+  for (var _i = 0; _i < GM.edicts.length; _i++) {
+    if (typeof GM.edicts[_i] === 'string') {
+      GM.edicts[_i] = { id: 'legacy-' + _i, turn: 0, time: '', text: GM.edicts[_i], status: 'draft', source: 'polish', style: '', styleLabel: '', polishVersion: 1, _chainEffects: [] };
+    }
+  }
+
+  var styleEl = _$('edict-polish-style');
+  var style = styleEl ? styleEl.value : 'elegant';
+  var styleLabel = ({elegant:'\u5178\u96C5', concise:'\u7B80\u6D01', ornate:'\u534E\u4E3D', plain:'\u767D\u8BDD'})[style] || '\u5178\u96C5';
+
+  // 本回合已有几次润色
+  var _curTurn = GM.turn || 0;
+  var _thisTurnPolish = GM.edicts.filter(function(e) { return e.turn === _curTurn && e.source === 'polish'; });
+  var polishVersion = _thisTurnPolish.length + 1;
+
+  var status;
   if (mode === 'replace') {
-    // 替换模式：诏书写入政令栏，清空其他分类
+    status = 'promulgated';
+    // 同回合之前已颁行的·回落为"诏书手稿"(被后润色稿替代)
+    GM.edicts.forEach(function(e) {
+      if (e.turn === _curTurn && e.status === 'promulgated') e.status = 'draft';
+    });
     var polEl = _$('edict-pol');
     if (polEl) polEl.value = text;
     ['edict-mil', 'edict-dip', 'edict-eco', 'edict-oth'].forEach(function(id) {
       var el = _$(id); if (el) el.value = '';
     });
-    toast('\u8BCF\u4E66\u5DF2\u5F55\u5165\u653F\u4EE4\u680F');
+    toast('\u8BCF\u4E66\u9881\u884C\u5929\u4E0B\u00B7\u5DF2\u5F55\u5165\u653F\u4EE4\u680F');
   } else {
-    // 展示模式：不改动各类textarea，诏书存入GM.edicts供展示
-    toast('\u8BCF\u4E66\u5DF2\u5B58\u6863\uFF0C\u5404\u7C7B\u8BCF\u4EE4\u4FDD\u6301\u4E0D\u53D8');
+    status = 'draft';
+    toast('\u8BCF\u4E66\u5DF2\u7F16\u8BA2\u5165\u6863\u00B7\u672A\u9881\u884C\uFF08\u8BCF\u4E66\u624B\u7A3F\uFF09');
   }
-  // 存入GM.edicts供起居注等引用
-  if (!GM.edicts) GM.edicts = [];
-  GM.edicts.push(text);
+
+  var rec = {
+    id: 'edict-' + _curTurn + '-' + Date.now() + '-' + polishVersion,
+    turn: _curTurn,
+    time: (typeof getTSText === 'function') ? getTSText(_curTurn) : '',
+    text: text,
+    status: status,
+    source: 'polish',
+    style: style,
+    styleLabel: styleLabel,
+    polishVersion: polishVersion,
+    _chainEffects: []
+  };
+  GM.edicts.push(rec);
+
+  // 诏书入起居注（"诏令"分类·即时可见）
+  if (!GM.qijuHistory) GM.qijuHistory = [];
+  var _statusLabel = status === 'promulgated' ? '\u9881\u884C\u5929\u4E0B' : '\u8BCF\u4E66\u624B\u7A3F';
+  var _headline = '\u3010\u8BCF\u4E66\u00B7' + _statusLabel + '\u00B7\u7B2C' + polishVersion + '\u6B21\u6DA6\u8272\u00B7' + styleLabel + '\u3011';
+  GM.qijuHistory.push({
+    turn: _curTurn,
+    time: rec.time,
+    category: '\u8BCF\u4EE4',
+    content: _headline + '\n' + text,
+    _edictRef: rec.id
+  });
+
   _$('edict-polished').style.display = 'none';
+  if (typeof renderQiju === 'function') renderQiju();
 }
 
 // 官职公库初始化：walk officeTree，从 publicTreasuryInit 建立 live publicTreasury
@@ -6320,7 +6367,8 @@ function enterGame(){
   // 触发钩子，各模块在此注入标签页/按钮
   GameHooks.run('enterGame:after');
 
-  // AI深度预热已移到doActualStart中在进度条阶段同步完成
+  // 结束载入进度条（startGame/loadSave 入口若有 showLoading·此时关闭）
+  if (typeof hideLoading === 'function') hideLoading();
 }
 
 // 时局概览面板（开局展示天下大势）
@@ -6492,6 +6540,8 @@ function startGame(sid){
   _$("scn-page").classList.remove("show");
   _$("launch").style.display="none";_$("bar").style.display="flex";_$("bar-btns").innerHTML="";_$("G").style.display="grid";_$("E").style.display="none";
   _$("shiji-btn").classList.add("show");_$("save-btn").classList.add("show");
+  // 进度条·消除载入期黑屏·showLoading 内部 setInterval 自动增长到 95%
+  if (typeof showLoading === 'function') showLoading('\u542F\u7528\u5267\u672C\u00B7\u94FA\u9648\u5929\u4E0B\u2026', 8);
 
   var _prevSaveName=GM.saveName||'';GM={running:true,sid:sid,turn:1,vars:{},rels:{},chars:[],facs:[],items:[],armies:[],evtLog:[],conv:[],busy:false,memorials:[],qijuHistory:[],jishiRecords:[],biannianItems:[],officeTree:P.officeTree?deepClone(P.officeTree):[],wenduiTarget:null,wenduiHistory:{},officeChanges:[],shijiHistory:[],allCharacters:[],classes:[],parties:[],techTree:[],civicTree:[],autoSummary:"",summarizedTurns:[],currentDay:0,eraName:"",eraNames:[],eraState:sc.eraState?deepClone(sc.eraState):(P.eraState?deepClone(P.eraState):{politicalUnity:0.7,centralControl:0.6,legitimacySource:'hereditary',socialStability:0.6,economicProsperity:0.6,culturalVibrancy:0.7,bureaucracyStrength:0.6,militaryProfessionalism:0.5,landSystemType:'mixed',dynastyPhase:'peak',contextDescription:''}),taxPressure:52,playerAbilities:{management:0,military:0,scholarship:0,politics:0},currentIssues:[],pendingConsequences:[],memoryAnchors:[],provinceStats:{},playerPendingTasks:[],playerCharacterId:null,npcContext:null,turnChanges:{variables:[],characters:[],factions:[],parties:[],classes:[],military:[],map:[]},_listeners:{},_changeQueue:[],triggeredHistoryEvents:{},rigidTriggers:{},offendGroupScores:{},activeRebounds:[],triggeredOffendEvents:{},_indices:null,postSystem:null,mapData:null,eraStateHistory:[],culturalWorks:[],_forgottenWorks:[],factionRelationsMap:{}};if(_prevSaveName)GM.saveName=_prevSaveName;
 // 行政区划：从剧本/P 深拷贝到 GM，税收级联/bridge/aggregate 都读 GM.adminHierarchy

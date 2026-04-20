@@ -1344,7 +1344,9 @@ function _renderUnifiedChanges(oldVars) {
     GM.turnChanges.parties.forEach(function(pc){
       (pc.changes||[]).forEach(function(ch){
         var fMap = {'influence':'\u5F71\u54CD\u529B','satisfaction':'\u6EE1\u610F\u5EA6','cohesion':'\u51DD\u805A\u529B'};
-        ptyItems.push({name:pc.name, field:fMap[ch.field]||ch.field, ov:ch.oldValue||0, nv:ch.newValue||0, reason:ch.reason||''});
+        // 跳过非数字字段（如 status/new_agenda）·避免 Math.round('活跃') 产生 NaN
+        if (!fMap[ch.field] || typeof ch.oldValue !== 'number' || typeof ch.newValue !== 'number') return;
+        ptyItems.push({name:pc.name, field:fMap[ch.field], ov:ch.oldValue||0, nv:ch.newValue||0, reason:ch.reason||''});
       });
     });
     if (ptyItems.length > 0) {
@@ -1369,7 +1371,8 @@ function _renderUnifiedChanges(oldVars) {
     GM.turnChanges.classes.forEach(function(cc){
       (cc.changes||[]).forEach(function(ch){
         var fMap = {'satisfaction':'\u6EE1\u610F\u5EA6','influence':'\u5F71\u54CD\u529B','population':'\u4EBA\u53E3'};
-        clsItems.push({name:cc.name, field:fMap[ch.field]||ch.field, ov:ch.oldValue||0, nv:ch.newValue||0, reason:ch.reason||''});
+        if (!fMap[ch.field] || typeof ch.oldValue !== 'number' || typeof ch.newValue !== 'number') return;
+        clsItems.push({name:cc.name, field:fMap[ch.field], ov:ch.oldValue||0, nv:ch.newValue||0, reason:ch.reason||''});
       });
     });
     if (clsItems.length > 0) {
@@ -1582,8 +1585,11 @@ function _renderUnifiedChangesLegacy(oldVars) {
   if (GM.turnChanges && GM.turnChanges.parties) {
     GM.turnChanges.parties.forEach(function(pc) {
       (pc.changes||[]).forEach(function(ch) {
-        var _fN = ch.field === 'influence' ? '\u5F71\u54CD\u529B' : ch.field === 'satisfaction' ? '\u6EE1\u610F\u5EA6' : ch.field;
-        var line = pc.name + ' ' + _fN + '（' + (ch.oldValue||0) + ' → ' + (ch.newValue||0) + '）' + (ch.reason?'：'+ch.reason:'');
+        var _fN = ch.field === 'influence' ? '\u5F71\u54CD\u529B' : ch.field === 'satisfaction' ? '\u6EE1\u610F\u5EA6' : ch.field === 'status' ? '\u72B6\u6001' : ch.field;
+        // 数字字段 fallback 0；非数字字段原样显示
+        var _ov = (typeof ch.oldValue === 'number' || typeof ch.oldValue === 'string') ? ch.oldValue : 0;
+        var _nv = (typeof ch.newValue === 'number' || typeof ch.newValue === 'string') ? ch.newValue : 0;
+        var line = pc.name + ' ' + _fN + '（' + _ov + ' → ' + _nv + '）' + (ch.reason?'：'+ch.reason:'');
         groups['\u515A\u6D3E'].push(line);
       });
     });

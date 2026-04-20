@@ -149,6 +149,39 @@ function buildIndices() {
       }
     });
   }
+
+  // 13. 官职索引（按职位名）——walk officeTree·替代反复 walk 查询
+  GM._indices.officeByName = new Map();
+  GM._indices.officeByHolder = new Map();
+  if (GM.officeTree && GM.officeTree.length > 0) {
+    (function _walk(nodes, path) {
+      (nodes || []).forEach(function(n) {
+        if (!n) return;
+        var _dept = (path ? path + '/' : '') + (n.name || '');
+        (n.positions || []).forEach(function(p) {
+          if (!p || !p.name) return;
+          // 若同名职位多处·保留首个·附加 dept 字段便于区分
+          if (!GM._indices.officeByName.has(p.name)) GM._indices.officeByName.set(p.name, { pos: p, dept: _dept, node: n });
+          if (p.holder && p.holder !== '\u7A7A' && p.holder !== '') GM._indices.officeByHolder.set(p.holder, { pos: p, dept: _dept, node: n });
+        });
+        if (n.subs) _walk(n.subs, _dept);
+      });
+    })(GM.officeTree, '');
+  }
+
+  // 14. 行政区划索引（按名字/ID）——扁平化 adminHierarchy 树（支持对象根+数组根）
+  GM._indices.divisionByName = new Map();
+  if (GM.adminHierarchy) {
+    var _divFlat = function(n) {
+      if (!n) return;
+      if (n.name) GM._indices.divisionByName.set(n.name, n);
+      if (n.id && !GM._indices.divisionByName.has(n.id)) GM._indices.divisionByName.set(n.id, n);
+      var _kids = n.children || n.subs || [];
+      if (Array.isArray(_kids)) _kids.forEach(_divFlat);
+    };
+    if (Array.isArray(GM.adminHierarchy)) GM.adminHierarchy.forEach(_divFlat);
+    else _divFlat(GM.adminHierarchy);
+  }
 }
 
 // initAchievements 在 tm-dynamic-systems.js 中定义，此处不能直接调用（尚未加载）
@@ -6309,19 +6342,25 @@ function _offPickerConfirm(charName, deptName, posName, oldHolder) {
     content: edictLine, turn: GM.turn, used: true
   });
 
-  // Step 5: edictTracker 记入本回合诏令（确保 AI prompt 能看到）
+  // Step 5: edictTracker 记入本回合诏令（确保 AI prompt 能看到）·跨回合去重·防止重复任命累积
   if (!GM._edictTracker) GM._edictTracker = [];
-  GM._edictTracker.push({
-    id: 'appoint_' + Date.now() + '_' + charName,
-    content: edictLine, category: '政令',
-    turn: GM.turn, status: 'pending',
-    assignee: charName, feedback: '',
-    progressPercent: 0,
-    _appointmentAction: { character: charName, position: posName, dept: deptName, oldHolder: oldHolder },
-    _chainEffects: []  // 后续回合连带效应记录
+  var _dupT = (GM._edictTracker||[]).some(function(t) {
+    if (!t || t.content !== edictLine) return false;
+    return t.status === 'pending' || t.status === 'executing' || t.status === 'partial' || t.status === 'obstructed' || t.status === 'pending_delivery';
   });
+  if (!_dupT) {
+    GM._edictTracker.push({
+      id: 'appoint_' + Date.now() + '_' + charName,
+      content: edictLine, category: '政令',
+      turn: GM.turn, status: 'pending',
+      assignee: charName, feedback: '',
+      progressPercent: 0,
+      _appointmentAction: { character: charName, position: posName, dept: deptName, oldHolder: oldHolder },
+      _chainEffects: []  // 后续回合连带效应记录
+    });
+  }
 
-  toast((oldHolder ? ('改换·' + oldHolder + '→' + charName) : ('任命·' + charName)) + ' 已即时生效并写入本回合诏令');
+  toast((oldHolder ? ('改换·' + oldHolder + '→' + charName) : ('任命·' + charName)) + (_dupT ? ' 已即时生效（同内容诏令已在跟踪）' : ' 已即时生效并写入本回合诏令'));
   _offClosePicker();
   if (typeof renderOfficeTree === 'function') { try { renderOfficeTree(); } catch(_){} }
   if (typeof renderRenwu === 'function') { try { renderRenwu(); } catch(_){} }

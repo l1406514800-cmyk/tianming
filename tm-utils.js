@@ -1532,13 +1532,15 @@ async function callAIMessagesStream(messages, maxTok, opts) {
   if (opts.signal) opts.signal.addEventListener('abort', function() { ctrl.abort(); });
   var _scaledTok = Math.round((maxTok || 500) * ((typeof getCompressionParams === 'function') ? Math.max(1.0, getCompressionParams().scale) : 1.0));
   try {
+    var _bodyCore = {
+      model: P.ai.model || 'gpt-4o', messages: messages,
+      temperature: P.ai.temp || 0.8, max_tokens: _scaledTok, stream: true
+    };
+    if (opts.extraBody) Object.assign(_bodyCore, opts.extraBody);
     var resp = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
-      body: JSON.stringify({
-        model: P.ai.model || 'gpt-4o', messages: messages,
-        temperature: P.ai.temp || 0.8, max_tokens: _scaledTok, stream: true
-      }),
+      body: JSON.stringify(_bodyCore),
       signal: ctrl.signal
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);

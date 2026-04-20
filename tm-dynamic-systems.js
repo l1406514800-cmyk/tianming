@@ -1197,43 +1197,85 @@ var SaveManager = {
     });
   },
 
-  // 导入存档文件
+  // 导入存档文件·返回 Promise·兼容三种历史格式
   importSave: function(file, slotId) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        var saveData = e.target.result;
-        var save = JSON.parse(saveData);
+    return new Promise(function(resolve) {
+      var reader = new FileReader();
+      reader.onerror = function() {
+        console.error('[importSave] FileReader 读文件失败');
+        toast('\u274C \u8BFB\u6587\u4EF6\u5931\u8D25');
+        resolve(false);
+      };
+      reader.onload = function(e) {
+        try {
+          var saveData = e.target.result;
+          var save;
+          try { save = JSON.parse(saveData); }
+          catch(_pe) { console.error('[importSave] JSON 解析失败:', _pe); toast('\u274C JSON \u89E3\u6790\u5931\u8D25\u00B7' + (_pe.message||'')); resolve(false); return; }
+          if (!save || typeof save !== 'object') { toast('\u274C \u5B58\u6863\u7ED3\u6784\u5F02\u5E38'); resolve(false); return; }
 
-        // 验证存档格式
-        if (!save.gameState) {
-          toast('无效的存档文件');
-          return;
-        }
-
-        // 写入 IndexedDB（与正常存档同一存储）
-        var slotKey = 'slot_' + slotId;
-        var meta = {
-          name: save.name || ('导入存档 ' + (slotId + 1)),
-          type: 'imported',
-          turn: save.turn || (save.gameState.GM && save.gameState.GM.turn) || (save.gameState.turn) || 0,
-          scenarioName: save.scenarioName || '',
-          eraName: save.eraName || ''
-        };
-        TM_SaveDB.save(slotKey, save.gameState, meta).then(function(ok) {
-          if (ok) {
-            _updateSaveIndex(slotId, meta);
-            toast('存档已导入到槽位 ' + (slotId + 1));
+          // ── 规范化 gameState 为 {GM, P} 结构·兼容三种导出格式 ──
+          // 格式 A（SaveManager.exportSave）: save = {id, name, ..., gameState: {GM, P}, _format:'tianming-save-v1'}
+          // 格式 B（doSaveGame/desktopDoSave）: save = P 本体 + { gameState: GM_only }
+          // 格式 C（极早期/手工导出）: save = { GM, P } 直接顶层无 wrapper
+          var gs = save.gameState;
+          var normalized = null;
+          if (gs && typeof gs === 'object' && gs.GM && gs.P) {
+            // 格式 A
+            normalized = { GM: gs.GM, P: gs.P };
+          } else if (gs && typeof gs === 'object' && (gs.turn !== undefined || gs.chars !== undefined || gs.sid !== undefined)) {
+            // 格式 B：gameState 是 GM 本体（含 turn/chars/sid）·save 顶层其余字段作为 P
+            var _pObj = {};
+            var _skipMeta = {gameState:1,_format:1,id:1,name:1,type:1,timestamp:1,turn:1,scenarioName:1,eraName:1,date:1,dynastyPhase:1};
+            Object.keys(save).forEach(function(k) { if (!_skipMeta[k]) _pObj[k] = save[k]; });
+            normalized = { GM: gs, P: _pObj };
+          } else if (save.GM && save.P) {
+            // 格式 C
+            normalized = { GM: save.GM, P: save.P };
+          } else if (save.turn !== undefined || save.chars !== undefined) {
+            // 兜底：save 整体当 GM
+            normalized = { GM: save, P: {} };
           } else {
-            toast('导入失败');
+            console.error('[importSave] 无法识别存档格式·keys:', Object.keys(save).slice(0,10));
+            toast('\u274C \u65E0\u6CD5\u8BC6\u522B\u7684\u5B58\u6863\u683C\u5F0F');
+            resolve(false); return;
           }
-        });
-      } catch (err) {
-        console.error('导入失败:', err);
-        toast('导入失败：' + err.message);
-      }
-    };
-    reader.readAsText(file);
+
+          var slotKey = 'slot_' + slotId;
+          var _gmRef = normalized.GM || {};
+          var meta = {
+            name: save.name || ('导入存档 ' + (slotId + 1)),
+            type: 'imported',
+            turn: save.turn || _gmRef.turn || 0,
+            scenarioName: save.scenarioName || '',
+            eraName: save.eraName || _gmRef.eraName || '',
+            date: save.date || _gmRef.date || '',
+            dynastyPhase: save.dynastyPhase || (_gmRef.eraState && _gmRef.eraState.dynastyPhase) || ''
+          };
+          console.log('[importSave] 规范化完成·slot=' + slotId + '·turn=' + meta.turn + '·gameState keys:', Object.keys(normalized));
+
+          TM_SaveDB.save(slotKey, normalized, meta).then(function(ok) {
+            if (ok) {
+              _updateSaveIndex(slotId, meta);
+              toast('\u2705 \u5B58\u6863\u5DF2\u5F52\u6863\u5230\u5361\u4F4D ' + (slotId + 1));
+              resolve(true);
+            } else {
+              toast('\u274C \u5199\u5165 IndexedDB \u5931\u8D25');
+              resolve(false);
+            }
+          }).catch(function(_wE) {
+            console.error('[importSave] TM_SaveDB.save 异常:', _wE);
+            toast('\u274C \u5199\u5165\u5F02\u5E38\uFF1A' + (_wE.message || _wE));
+            resolve(false);
+          });
+        } catch (err) {
+          console.error('[importSave] 内部异常:', err);
+          toast('\u274C \u5BFC\u5165\u5F02\u5E38\uFF1A' + (err.message || err));
+          resolve(false);
+        }
+      };
+      reader.readAsText(file);
+    });
   }
 };
 
@@ -1616,20 +1658,29 @@ function importSaveFileToSlot() {
   var fileInput = document.getElementById('import-save-file');
   var slotSelect = document.getElementById('import-save-slot');
 
-  if (!fileInput.files || fileInput.files.length === 0) {
-    toast('❌ 请选择文件');
+  if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+    toast('❌ 请先选择卷宗文件');
     return;
   }
+  if (!slotSelect) { toast('❌ 未找到槽位选择器'); return; }
 
   var file = fileInput.files[0];
   var slotId = parseInt(slotSelect.value);
+  if (isNaN(slotId) || slotId < 0) { toast('❌ 槽位无效'); return; }
 
-  SaveManager.importSave(file, slotId);
-
-  setTimeout(function() {
-    closeSaveManager();
-    openSaveManager(); // 刷新显示
-  }, 500);
+  // 等待 Promise 完成后再刷新·避免 setTimeout 500ms 竞态
+  var _ret = SaveManager.importSave(file, slotId);
+  if (_ret && typeof _ret.then === 'function') {
+    _ret.then(function(ok) {
+      if (ok) {
+        closeSaveManager();
+        openSaveManager();
+      }
+    });
+  } else {
+    // 兜底（旧版本同步返回）
+    setTimeout(function() { closeSaveManager(); openSaveManager(); }, 800);
+  }
 }
 
 // ============================================================

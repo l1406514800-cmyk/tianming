@@ -7512,31 +7512,36 @@ async function _cc2_genRoundSpeeches(item, picks, roundNum) {
     prompt += (typeof _aiDialogueWordHint === 'function' ? _aiDialogueWordHint('cy') + '\n' : '（发言约 150-300 字）\n');
     prompt += '文言/半文言·符合身份·针对前文·不空话套话。';
 
-    // 3) 流式生成
+    // 3) 流式生成·A3: onChunk 经 requestAnimationFrame 节流·减少 DOM 抖动
     var tokens = (typeof _aiDialogueTok==='function' ? _aiDialogueTok("cy", 1) : 500);
     CY.abortCtrl = new AbortController();
     var full = '';
+    var _ccRaf = false;
     try {
       full = await callAIMessagesStream(
         [{ role: 'user', content: prompt }], tokens,
         {
           signal: CY.abortCtrl.signal,
           onChunk: function(txt) {
-            if (!bubbleEl) return;
-            // 解析第一行类型
-            var lines = (txt||'').split(/\r?\n/);
-            var typeVal = (lines[0]||'').trim().replace(/[【】\[\]〔〕·:：\s]/g, '').slice(0, 4);
-            var bodyTxt = lines.slice(1).join('\n').trim() || txt;
-            var typeColors = { '附议':'var(--celadon-400)','反驳':'var(--vermillion-400)','弹劾':'var(--vermillion-400)','劝谏':'var(--amber-400)','讽喻':'var(--indigo-400)','请旨':'var(--gold-400)','折中':'var(--color-foreground)','冷眼':'var(--ink-300)' };
-            if (typeColors[typeVal]) {
-              if (typeTagEl) { typeTagEl.textContent = '〔' + typeVal + '〕'; typeTagEl.style.color = typeColors[typeVal]; typeTagEl.style.display = 'inline-block'; }
-              bubbleEl.textContent = bodyTxt;
-              bubbleEl.style.color = typeColors[typeVal];
-            } else {
-              bubbleEl.textContent = txt;
-              bubbleEl.style.color = '';
-            }
-            body.scrollTop = body.scrollHeight;
+            if (!bubbleEl || _ccRaf) return;
+            _ccRaf = true;
+            requestAnimationFrame(function() {
+              _ccRaf = false;
+              // 解析第一行类型
+              var lines = (txt||'').split(/\r?\n/);
+              var typeVal = (lines[0]||'').trim().replace(/[【】\[\]〔〕·:：\s]/g, '').slice(0, 4);
+              var bodyTxt = lines.slice(1).join('\n').trim() || txt;
+              var typeColors = { '附议':'var(--celadon-400)','反驳':'var(--vermillion-400)','弹劾':'var(--vermillion-400)','劝谏':'var(--amber-400)','讽喻':'var(--indigo-400)','请旨':'var(--gold-400)','折中':'var(--color-foreground)','冷眼':'var(--ink-300)' };
+              if (typeColors[typeVal]) {
+                if (typeTagEl) { typeTagEl.textContent = '〔' + typeVal + '〕'; typeTagEl.style.color = typeColors[typeVal]; typeTagEl.style.display = 'inline-block'; }
+                bubbleEl.textContent = bodyTxt;
+                bubbleEl.style.color = typeColors[typeVal];
+              } else {
+                bubbleEl.textContent = txt;
+                bubbleEl.style.color = '';
+              }
+              body.scrollTop = body.scrollHeight;
+            });
           }
         }
       );
@@ -7552,6 +7557,18 @@ async function _cc2_genRoundSpeeches(item, picks, roundNum) {
     var _type = (_lines[0]||'').trim().replace(/[【】\[\]〔〕·:：\s]/g, '').slice(0, 4);
     var _line = _lines.slice(1).join('\n').trim();
     if (!_line) _line = full;
+    // A3 修·RAF 尾帧丢失保护：强制最终更新 bubble（RAF pending 时 await 已完成、下一人循环立即覆盖）
+    if (bubbleEl) {
+      var _typeColorsFinal = { '附议':'var(--celadon-400)','反驳':'var(--vermillion-400)','弹劾':'var(--vermillion-400)','劝谏':'var(--amber-400)','讽喻':'var(--indigo-400)','请旨':'var(--gold-400)','折中':'var(--color-foreground)','冷眼':'var(--ink-300)' };
+      if (_typeColorsFinal[_type]) {
+        if (typeTagEl) { typeTagEl.textContent = '〔' + _type + '〕'; typeTagEl.style.color = _typeColorsFinal[_type]; typeTagEl.style.display = 'inline-block'; }
+        bubbleEl.textContent = _line;
+        bubbleEl.style.color = _typeColorsFinal[_type];
+      } else {
+        bubbleEl.textContent = _line || full;
+        bubbleEl.style.color = '';
+      }
+    }
     CY._cc2._spokenThisAgenda.push(name);
     speechHistoryThisRound.push({ name: name, type: _type || '发言', line: _line });
 
@@ -8228,15 +8245,16 @@ function _ty2_openSetup() {
   bg.id = 'ty2-setup-bg';
   bg.style.cssText = 'position:fixed;inset:0;z-index:1300;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;';
   var capital = GM._capital || '京城';
+  // 廷议仅限同势力 & 在玩家所在地（首都或行在）
   var defaultAttendees = (GM.chars||[]).filter(function(c){
-    if (c.alive === false || c.isPlayer || !_isAtCapital(c)) return false;
+    if (c.alive === false || c.isPlayer || !_isAtCapital(c) || !_isPlayerFactionChar(c)) return false;
     var rankLv = typeof getRankLevel === 'function' ? getRankLevel(_cyGetRank(c)) : 99;
     return rankLv <= 12; // 从三品以上（18 级制，12 = 正五品, 6 = 从三品）
   });
   // 若三品以上人数不足——放宽到五品
   if (defaultAttendees.length < 5) {
     defaultAttendees = (GM.chars||[]).filter(function(c){
-      if (c.alive === false || c.isPlayer || !_isAtCapital(c)) return false;
+      if (c.alive === false || c.isPlayer || !_isAtCapital(c) || !_isPlayerFactionChar(c)) return false;
       var rankLv = typeof getRankLevel === 'function' ? getRankLevel(_cyGetRank(c)) : 99;
       return rankLv <= 14;
     });
@@ -8279,9 +8297,10 @@ function _ty2_openSetup() {
     html += '</label>';
   });
   html += '</div>';
-  // 额外召人
+  // 额外召人：仅同势力 & 在玩家所在地（外邦使臣/远地官员不入廷议）
   var extraPool = (GM.chars||[]).filter(function(c){
     if (c.alive === false || c.isPlayer) return false;
+    if (!_isAtCapital(c) || !_isPlayerFactionChar(c)) return false;
     if (defaultAttendees.some(function(d){return d.name===c.name;})) return false;
     return true;
   });
@@ -8498,18 +8517,38 @@ async function _ty2_genOneSpeech(name, roundNum, prevSpeeches) {
   prompt += '\n请根据以上推断你对本议题的立场（不给预设选项，自行判断），写发言（文言/半文言，符合身份）。' + (typeof _aiDialogueWordHint === 'function' ? _aiDialogueWordHint() : '') + '\n';
   prompt += '返回 JSON：{"stance":"极力支持/支持/倾向支持/中立/倾向反对/反对/极力反对/折中/另提议","confidence":0-100,"line":"发言内容","reason":"内在动机"}';
 
+  // A1: 流式化——先建占位气泡·onChunk 用 regex 渐进显示 "line" 字段
+  var _tyDiv = addCYBubble(name, '\u2026', false);
+  var _tyBubble = _tyDiv && _tyDiv.querySelector ? _tyDiv.querySelector('.cy-bubble') : null;
+  var _tyRaf = false;
+  CY.abortCtrl = new AbortController();  // 每次新建·避免前次 abort 污染
   try {
-    var raw = await callAI(prompt, (typeof _aiDialogueTok==='function'?_aiDialogueTok("cy", 1):600));
+    var raw = await callAIMessagesStream(
+      [{role:'user', content: prompt}],
+      (typeof _aiDialogueTok==='function'?_aiDialogueTok("cy", 1):600),
+      { signal: CY.abortCtrl.signal, onChunk: function(txt) {
+          if (!_tyBubble || _tyRaf) return;
+          _tyRaf = true;
+          requestAnimationFrame(function() {
+            _tyRaf = false;
+            var m = (txt||'').match(/"line"\s*:\s*"((?:[^"\\]|\\.)*)/);
+            if (m && m[1]) {
+              _tyBubble.textContent = m[1].replace(/\\n/g,'\n').replace(/\\"/g,'"').replace(/\\\\/g,'\\');
+              _tyBubble.style.color = '';
+            }
+          });
+      } }
+    );
     var obj = (typeof extractJSON === 'function') ? extractJSON(raw) : null;
     if (obj && obj.line) {
       var colors = { '极力支持':'var(--celadon-400)','支持':'var(--celadon-400)','倾向支持':'var(--celadon-400)','中立':'var(--ink-300)','倾向反对':'var(--vermillion-400)','反对':'var(--vermillion-400)','极力反对':'var(--vermillion-400)','折中':'var(--amber-400)','另提议':'var(--indigo-400)' };
       var c = colors[obj.stance] || '';
-      addCYBubble(name, '〔' + (obj.stance||'中立') + '〕<span style="color:' + c + ';">' + escHtml(obj.line) + '</span>', false, true);
+      if (_tyBubble) _tyBubble.innerHTML = '\u3014' + (obj.stance||'\u4E2D\u7ACB') + '\u3015<span style="color:' + c + ';">' + escHtml(obj.line) + '</span>';
       _cy_jishiAdd('tinyi', CY._ty2.topic, name, obj.line, { round: roundNum, stance: obj.stance });
       if (typeof NpcMemorySystem !== 'undefined') NpcMemorySystem.remember(name, '廷议「' + CY._ty2.topic.slice(0,20) + '」持' + (obj.stance||'中立') + '：' + obj.line.slice(0,40), '平', 5);
       return obj;
-    }
-  } catch(e){}
+    } else if (_tyBubble && raw) { _tyBubble.textContent = raw.slice(0, 200); }
+  } catch(e){ if (_tyBubble) { _tyBubble.textContent = '\uFF08\u672A\u80FD\u9648\u8BCD\uFF09'; _tyBubble.style.color = 'var(--red)'; } }
   return null;
 }
 
@@ -8892,9 +8931,9 @@ function _yq2_openSetup() {
   var bg = document.createElement('div');
   bg.id = 'yq2-setup-bg';
   bg.style.cssText = 'position:fixed;inset:0;z-index:1300;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;';
-  // 候选：高忠诚 + 高品级 + 在京
+  // 候选：同势力 + 高忠诚 + 在玩家所在地（御前密议·异族不入）
   var candidates = (GM.chars||[]).filter(function(c) {
-    if (c.alive === false || c.isPlayer || !_isAtCapital(c)) return false;
+    if (c.alive === false || c.isPlayer || !_isAtCapital(c) || !_isPlayerFactionChar(c)) return false;
     return (c.loyalty||50) >= 50; // 至少中等忠诚可入密议
   }).sort(function(a,b) {
     // 按"机密适合度"排序：忠*0.5 + 品*0.3 + 恩遇*0.2
@@ -8992,8 +9031,19 @@ async function _yq2_startSession() {
     summonedAdvisor: null,
     currentPhase: 'retreating',
     leakRisk: 0,
-    excluded: []          // 被排除的重臣（有资格但未被召）
+    excluded: [],         // 被排除的重臣（有资格但未被召）
+    candorMap: {}         // B3·预计算 candor·避免 _yq2_oneAdvisorSpeak 每次重算
   };
+  // B3·坦白度预计算（一次性为所有心腹算好）
+  advisors.forEach(function(_nm) {
+    var _ch = findCharByName(_nm); if (!_ch) return;
+    var _de = 0;
+    var _tids = (_ch.traits||[]).concat(_ch.traitIds||[]);
+    if (_tids.indexOf('deceitful') >= 0) _de = 30;
+    if (_tids.indexOf('honest') >= 0) _de = -20;
+    var _cd = Math.max(0, Math.min(100, (_ch.loyalty||50) * 0.5 + (100 - _de) * 0.3 + 20));
+    CY._yq2.candorMap[_nm] = { candor: _cd, level: _cd > 80 ? '\u63A8\u5FC3\u7F6E\u8179' : _cd > 50 ? '\u5927\u81F4\u5766\u8A00' : '\u63E3\u6469\u5723\u610F' };
+  });
   // 计算被排除者——资格达标但未被召
   (GM.chars||[]).forEach(function(c) {
     if (c.alive === false || c.isPlayer || !_isAtCapital(c)) return;
@@ -9075,15 +9125,19 @@ async function _yq2_oneAdvisorSpeak(name, roundNum) {
   roundNum = roundNum || 1;
   var ch = findCharByName(name);
   if (!ch) return;
-  // 坦白度公式
-  var deceit = 0;
-  var tids = (ch.traits||[]).concat(ch.traitIds||[]);
-  if (tids.indexOf('deceitful') >= 0) deceit = 30;
-  if (tids.indexOf('honest') >= 0) deceit = -20;
-  var candor = Math.max(0, Math.min(100,
-    (ch.loyalty||50) * 0.5 + (100 - deceit) * 0.3 + 20 // 密议氛围 +20
-  ));
-  var candorLevel = candor > 80 ? '推心置腹' : candor > 50 ? '大致坦言' : '揣摩圣意';
+  // B3·坦白度从预计算表取·无则兜底
+  var _cachedCand = (CY._yq2 && CY._yq2.candorMap && CY._yq2.candorMap[name]) || null;
+  var candor, candorLevel;
+  if (_cachedCand) {
+    candor = _cachedCand.candor; candorLevel = _cachedCand.level;
+  } else {
+    var deceit = 0;
+    var tids = (ch.traits||[]).concat(ch.traitIds||[]);
+    if (tids.indexOf('deceitful') >= 0) deceit = 30;
+    if (tids.indexOf('honest') >= 0) deceit = -20;
+    candor = Math.max(0, Math.min(100, (ch.loyalty||50) * 0.5 + (100 - deceit) * 0.3 + 20));
+    candorLevel = candor > 80 ? '推心置腹' : candor > 50 ? '大致坦言' : '揣摩圣意';
+  }
 
   if (!P.ai || !P.ai.key) {
     addCYBubble(name, '（臣以为……）', false);
@@ -9096,10 +9150,7 @@ async function _yq2_oneAdvisorSpeak(name, roundNum) {
   prompt += '性格：' + (ch.personality||'') + '\n';
   prompt += '忠' + (ch.loyalty||50) + ' 野' + (ch.ambition||40) + ' 学识:' + (ch.learning||'') + ' 党:' + (ch.party||'无') + '\n';
   prompt += '近期记忆：' + ((ch._memory||[]).slice(-3).map(function(m){return (m.event||'').slice(0,30);}).join('；')||'无') + '\n';
-  prompt += '你的坦白度：' + candor + '/100（' + candorLevel + '）\n';
-  prompt += '· 推心置腹：说全部真话，不避讳敏感\n';
-  prompt += '· 大致坦言：说真话但隐去敏感细节\n';
-  prompt += '· 揣摩圣意：迎合皇帝可能倾向\n';
+  prompt += '你的坦白度：' + candor + '/100（' + candorLevel + '·\u8D8A\u9AD8\u8D8A\u76F4\u8A00\u00B7\u8D8A\u4F4E\u8D8A\u8FCE\u5408\uFF09\n';
   if (CY._yq2._transcript) {
     prompt += '\n已有对话（仅供参考，你可附议/反驳/补充/转圜）：\n' + CY._yq2._transcript.slice(-1600) + '\n';
   } else {
@@ -9111,11 +9162,31 @@ async function _yq2_oneAdvisorSpeak(name, roundNum) {
   prompt += '\n请给出你的答复（文言/半文言）。' + (typeof _aiDialogueWordHint === 'function' ? _aiDialogueWordHint('cy') + '（发言必须达到此字数范围）' : '') + '\n';
   prompt += '返回 JSON：{"line":"...","stance":"支持/反对/保留/另提/推诿","inwardThought":"真实内心(10-30字)"}';
 
+  // A2: 流式化——建占位气泡·onChunk 渐进显示 "line" 字段
+  var _yqDiv = addCYBubble(name, '\u2026', false);
+  var _yqBubble = _yqDiv && _yqDiv.querySelector ? _yqDiv.querySelector('.cy-bubble') : null;
+  var _yqRaf = false;
+  CY.abortCtrl = new AbortController();  // 每次新建·避免前次 abort 污染
   try {
-    var raw = await callAI(prompt, (typeof _aiDialogueTok==='function'?_aiDialogueTok("cy", 1):700));
+    var raw = await callAIMessagesStream(
+      [{role:'user', content: prompt}],
+      (typeof _aiDialogueTok==='function'?_aiDialogueTok("cy", 1):700),
+      { signal: CY.abortCtrl.signal, onChunk: function(txt) {
+          if (!_yqBubble || _yqRaf) return;
+          _yqRaf = true;
+          requestAnimationFrame(function() {
+            _yqRaf = false;
+            var m = (txt||'').match(/"line"\s*:\s*"((?:[^"\\]|\\.)*)/);
+            if (m && m[1]) {
+              _yqBubble.textContent = m[1].replace(/\\n/g,'\n').replace(/\\"/g,'"').replace(/\\\\/g,'\\');
+              _yqBubble.style.color = '';
+            }
+          });
+      } }
+    );
     var obj = (typeof extractJSON === 'function') ? extractJSON(raw) : null;
     if (obj && obj.line) {
-      addCYBubble(name, '〔' + candorLevel + '·第' + roundNum + '轮〕' + escHtml(obj.line), false, true);
+      if (_yqBubble) _yqBubble.innerHTML = '\u3014' + candorLevel + '\u00B7\u7B2C' + roundNum + '\u8F6E\u3015' + escHtml(obj.line);
       CY._yq2.opinions[name] = { line: obj.line, candor: candor, stance: obj.stance, inward: obj.inwardThought, round: roundNum };
       if (CY._yq2._transcript != null) CY._yq2._transcript += '\n' + name + '：' + obj.line;
       if (CY._yq2.record !== 'secret') {
@@ -9124,8 +9195,8 @@ async function _yq2_oneAdvisorSpeak(name, roundNum) {
       if (typeof NpcMemorySystem !== 'undefined') {
         NpcMemorySystem.remember(name, '御前密议「' + CY._yq2.topic.slice(0,20) + '」第' + roundNum + '轮陈言——' + (obj.stance||''), '平', 5);
       }
-    }
-  } catch(e){}
+    } else if (_yqBubble && raw) { _yqBubble.textContent = raw.slice(0, 200); }
+  } catch(e){ if (_yqBubble) { _yqBubble.textContent = '\uFF08\u672A\u80FD\u9648\u8BCD\uFF09'; _yqBubble.style.color = 'var(--red)'; } }
 }
 
 function _yq2_offerFollowUp() {

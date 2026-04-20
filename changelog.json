@@ -2,6 +2,76 @@
   "_comment": "天命·更新日志——新条目 unshift 到数组最前（由近及远）。格式：{date, module, title, items[]}；items 元素可为字符串或 {what, why}。",
   "entries": [
     {
+      "date": "2026-04-21",
+      "module": "修补·存档/结算/党派",
+      "title": "存档导入兼容三种格式 + 党派 NaN 修 + 诏令跨回合去重 + maxTokens 动态化",
+      "items": [
+        { "what": "SaveManager.importSave 返回 Promise + 兼容三种历史格式（SaveManager 格式 / doSaveGame 格式 / 早期无 wrapper 格式）自动规范化为 {GM, P} + 失败时 toast 具体原因", "why": "旧版本存档导入后 loadFromSlot→fullLoadGame 会走错分支·P 被赋为畸形对象导致游戏崩溃；500ms setTimeout reopen 早于 IDB 写入完成·槽位看似空白被误以为导入失败" },
+        { "what": "importSaveFileToSlot 改为 .then(ok=>reopen) 精确等待写入完成才刷 UI", "why": "与 Promise 配合·消除竞态" },
+        { "what": "结算面板党派/阶层 delta 渲染加非数字字段 guard·status（字符串值）不再送入 Math.round 产生 NaN", "why": "人物渲染 L1397 有 `if (!fMap[ch.field]) return` 但党派/阶层漏加·造成「阉党 status NaN→NaN」等乱码" },
+        { "what": "_offPickerConfirm 官制树任命按钮 + _endTurn_collectInput 诏令 push 都加跨回合同 content 去重", "why": "原来每回合都会为相同未完成诏令 push 新 tracker·导致「罢免田尔耕」出现 2+ 次且状态散落" },
+        { "what": "SC1 / SC1b / SC1c 的 baseTok 硬编码改为 Math.min(_effectiveOutCap || N, N)·按模型单次最大输出动态取值", "why": "_MODEL_CTX_MAP 已有 100+ 模型的 output cap；SC1 保持 ≤16K·SC1b/1c ≤8K；小模型（GPT-3.5 o=4K）不再被要求超限·大模型（Claude Opus 4-7 o=32K）不浪费到啰嗦级别" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
+      "module": "性能·开局载入",
+      "title": "开始新游戏加进度条 + 官职/行政区划索引预建",
+      "items": [
+        { "what": "startGame 入口加 showLoading('启用剧本·铺陈天下…', 8)·enterGame 末尾加 hideLoading()", "why": "原来点击开始游戏后 1.5-2 秒黑屏无反馈·玩家以为卡死；现在全程有进度条动画+文案·showLoading 内部 setInterval 自动从 8% 爬升到 95%·最后到 100% 收起" },
+        { "what": "buildIndices 末尾新增 officeByName / officeByHolder / divisionByName 三个 Map·一次 walk officeTree 和 adminHierarchy 建索引", "why": "此前每次 findPositionByName/findDivisionByName 都要完整 walk 树·每次 AI 推演后 applyEdictActions 调用多次；预建 Map 把 O(N) 查询降为 O(1)·首回合 AI 上下文拼装更快" },
+        { "what": "未做：#2 移除冗余 deepClone·#3 推迟非关键 init", "why": "#2 架构限制：P（剧本预设）和 GM（运行时状态）必须各自独立副本·共享会让玩家任命/财政变化污染剧本预设；#3 enterGame 30+ 子系统存在链式依赖（FixedExpense 依赖 officeTree·税收级联依赖 HujiEngine 已初始化）·延迟会破坏首回合数值计算" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
+      "module": "性能·朝议流式化",
+      "title": "廷议·御前改流式 + 常朝节流 + 御前坦白度预计算",
+      "items": [
+        { "what": "廷议 _ty2_genOneSpeech 由 callAI 改为 callAIMessagesStream·先建占位气泡·onChunk 用 regex 增量提取 JSON line 字段实时更新气泡", "why": "原来每人发言要等 3-5 秒才一次性显现·5-10 人× 2-3 轮累计 30-50 秒干等；改后首字 1-2 秒后逐字流入·感知延迟降 40%" },
+        { "what": "御前 _yq2_oneAdvisorSpeak 同样流式化", "why": "密议节奏本应君臣你来我往·现在不必等整段臣言完毕才接下一轮" },
+        { "what": "所有流式 onChunk 回调加 requestAnimationFrame 节流·避免高频 DOM 更新导致主线程抖动", "why": "常朝 30-50 人逐个流式·若无节流则每秒 30+ 次 textContent 写入·浏览器卡顿；节流后 UI 与 API 接收解耦" },
+        { "what": "御前坦白度 candor 改为 _yq2_startSession 时一次性预计算·存 CY._yq2.candorMap·_yq2_oneAdvisorSpeak 从表中取", "why": "原来每次发言都重算 traits indexOf + 浮点·小事儿但每场御前 6-16 次累加·而且 session 内 candor 不变·算一次即可" },
+        { "what": "御前 prompt 精简：删「推心置腹/大致坦言/揣摩圣意」3 行冗余描述·改为单行「越高越直言·越低越迎合」让 AI 依 candor 数值自行拿捏", "why": "原 3 行共 60+ 字·对 token 和生成速度都有微量负担·合并语义更清晰" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
+      "module": "性能·回合提速",
+      "title": "SC1b+SC1c 并行化 + SC1 maxTokens 减配·单回合节省 5-8 秒",
+      "items": [
+        { "what": "endturn 推演第二/第三子调用（文事鸿雁 SC1b + 势力外交 SC1c）从串行改并行·用 async IIFE 各自包裹·外层 Promise.all 同步等待", "why": "两者写入 p1 的字段无交集（cultural_works/npc_letters vs faction_events/schemes），可完全并行而互不影响。原本第一个完成后才开始第二个，浪费 5-8 秒/回合" },
+        { "what": "SC1 主推演 max_tokens 由 16000 降至 12000", "why": "实测 SC1 实际输出约 2.4-3.2K token，16000 的上限冗余 80%。12000 仍留 4× 安全系数·同时节省 API 成本约 20%" },
+        { "what": "callAIMessagesStream 扩展支持 opts.extraBody（响应格式/JSON 约束）", "why": "为未来子调用流式化留接口·不改变现有行为" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
+      "module": "诏令·外交·朝议",
+      "title": "诏令对他势力转外交文书 + 廷议御前限同势力同地",
+      "items": [
+        { "what": "新增 1.15 跨势力识别：endturn 时扫描每条诏令文本，若提及非玩家势力人物/势力名则标 _crossFaction=true·_targetFactions[]·_diplomaticMsg=true·category 追加「外交文书」", "why": "玩家对后金/蒙古/朝鲜/荷兰的「诏令」实为国书国牒而非本朝政令·对方未必奉诏·需按外交逻辑处理" },
+        { "what": "跨势力诏令的信件 letterType 由 formal_edict 改为 diplomatic_dispatch", "why": "外交文书走使节传递路径·避免当内政诏令触发「信使在途→就地强制执行」的机械回应" },
+        { "what": "extractEdictActions 输出过滤：任命/免职/赐死的目标若是非玩家势力 NPC 则剔除出内政执行·改记外交意图", "why": "原本「命皇太极退兵」会被 regex 抓成「命XXX为退兵」去 officeTree 查位·现在直接标外交意图·交 AI 裁定" },
+        { "what": "AI prompt 本回合诏令分为【内政诏令】【外交文书】两块注入·外交文书额外提示「对方有独立君主/国策·可能接受变通/敷衍/拒绝/反唇/暂缓」·要求按外交逻辑处理 edict_feedback 并连动 faction_updates", "why": "AI 看到内政/外交 label 即能切换处理模式·不会对女真大汗按内政官那样「你已照办」敷衍" },
+        { "what": "廷议 _ty2_openSetup 默认应召 + 额外召人 pool 均加 _isPlayerFactionChar 过滤·且仅限在玩家所在地（京师/行在）", "why": "原本「其他可召人员」会列出敌国使者/异族首领/他朝官员·逻辑错乱；廷议本就是一朝内政·外人不入" },
+        { "what": "御前会议 _yq2_openSetup 候选加 _isPlayerFactionChar 过滤", "why": "御前密议是与心腹重臣议机要·外藩宗亲/使臣绝不得入密" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
+      "module": "诏书档案",
+      "title": "卷宗存档·诏书入起居注+手稿方印+编年连锁显现",
+      "items": [
+        { "what": "GM.edicts 升级为结构化档案数组{id,turn,time,text,status,source,style,polishVersion,_chainEffects}·兼容老字符串数据自动迁移", "why": "诏书从一维字符串列表→编年体正式档案·每份诏书带完整元数据·可查润色次数·起草回合·当前状态" },
+        { "what": "润色面板两按钮文案：手稿入档 / 颁行天下——未采用者显式标「诏书手稿」·颁行者标「颁行天下」", "why": "区分「未颁布的润色稿」和「正式颁布的诏书」·让起居注可见诏书从手稿→润色→颁行的完整演变过程" },
+        { "what": "每次点击「手稿入档」或「颁行天下」都 push 一条诏书条目到 GM.qijuHistory·立即可见于起居注「诏令」分类", "why": "同一回合多次润色都会留档·不会只剩最终版·后人翻阅起居注可见帝王思路演变" },
+        { "what": "endturn 结算时 qijuHistory.push 增 edictsSource 字段：若本回合有 promulgated 诏书标「颁行稿·已润色」·否则标「玩家原文·未润色」", "why": "原本玩家直接在各类栏提交的原文没有来源标签·现在起居注明确区分诏书成文方式·玩家原文也被妥善归档" },
+        { "what": "renderQiju 对「诏令」类条目附加显示后续连锁（从 _edictTracker 匹配 _chainEffects 数组）", "why": "诏书的长期影响（执行状态·NPC反馈·连锁效应）就在诏书条目下方列出·不必翻遍起居注搜索相关发展" },
+        { "what": "ChronicleSystem._tryGenerateYearChronicle 年度编年 AI prompt 注入本年度诏令+_chainEffects 数组·并要求「将颁布—执行—余波结成因果链」", "why": "年度正史不再只是流水账·会像《资治通鉴》一样把诏令贯穿全年·明确写出「诏XX」「行至X月·XX事应」等句式" }
+      ]
+    },
+    {
       "date": "2026-04-20",
       "module": "官职任命",
       "title": "官制树任命按钮即时生效 + 诏令长期连带 + 数值变化立即体现",
