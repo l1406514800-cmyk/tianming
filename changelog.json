@@ -3,6 +3,19 @@
   "entries": [
     {
       "date": "2026-04-20",
+      "module": "官职任命",
+      "title": "诏令官职识别大幅加强 + AI prompt 重点突出",
+      "items": [
+        { "what": "动词表从 9 个扩到 25+：加入起用/起复/授/拜/召/着/除/进/升/迁/转/加封等明清常用诏令用语", "why": "原正则遗漏「起用韩爌」「授徐光启礼部尚书」「着韩爌入阁」等主流表述" },
+        { "what": "改用非贪婪匹配 + 已知姓名锚定（含字/号/aliases）", "why": "避免「命袁崇焕为蓟辽督师」被切成奇怪片段；以字号提及（如玄扈）自动映射为主名（徐光启）" },
+        { "what": "从 officeTree 构建已知职位表·regex 抓到的职位字符串若含已知职名则取已知职名", "why": "过滤尾巴「之／至／的」；多个「礼部+尚书」粘连时也正确识别" },
+        { "what": "任命/免职/赐死三类皆加去重集合·防同一动作输出两次", "why": "正则有两种模式·同条诏令可能被两种都抓到·去重后 applyEdictActions 不会重复执行" },
+        { "what": "AI prompt 诏令注入改为醒目双线框 + 诏令编号 #1/#2·末尾显式要求 edict_feedback 数组长度等于诏令数", "why": "原「【诏令】」头部太弱易被忽略；现在 AI 明确看到「★ 必须落到数据 ★」和「缺一不可」强约束" },
+        { "what": "applyEdictActions 三路径查位（postSystem + officeTree 精确+模糊 + 特设兜底）+ 同步更新 char.officialTitle/careerHistory/官职公库 currentHead", "why": "即使剧本未设 postSystem.posts·officeTree 也能直接改 holder·且角色卡和史记同步更新" }
+      ]
+    },
+    {
+      "date": "2026-04-20",
       "module": "Bug 修复",
       "title": "诏令不生效 / 官职任免无效 / 时政记漏录三连根因",
       "items": [
