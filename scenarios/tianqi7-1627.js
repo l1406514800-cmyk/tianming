@@ -1530,6 +1530,277 @@
         '郑芝龙': { affinity: 10, trust: 5, respect: 55, fear: 10, hostility: 75, labels: ['台海贸易敌手'] },
         '朱由检': { affinity: 15, trust: 10, respect: 50, fear: 20, hostility: 45, labels: ['被驱退台湾'] }
       }
+    },
+    // ═══ 补充·新增角色家谱+关系（对齐 76 位） ═══
+    '施凤来': {
+      familyMembers: [ { name: '施子奇', relation: '子' } ],
+      relations: {
+        '魏忠贤': { affinity: 55, trust: 45, respect: 55, fear: 30, hostility: 10, labels: ['阉党附庸'] },
+        '黄立极': { affinity: 45, trust: 40, respect: 55, fear: 15, hostility: 5, labels: ['同阁'] }
+      }
+    },
+    '冯铨': {
+      familyMembers: [ { name: '冯溥', relation: '族弟·将入清朝' } ],
+      relations: {
+        '魏忠贤': { affinity: 60, trust: 50, respect: 55, fear: 20, hostility: 5, labels: ['阉党亲附'] },
+        '东林党': { affinity: 0, trust: 0, respect: 10, fear: 15, hostility: 70, labels: ['东林死敌'] }
+      }
+    },
+    '阎鸣泰': {
+      familyMembers: [],
+      relations: {
+        '袁崇焕': { affinity: 5, trust: 0, respect: 20, fear: 15, hostility: 60, labels: ['辽东同僚·反对其战略'] },
+        '魏忠贤': { affinity: 65, trust: 55, respect: 60, fear: 25, hostility: 0, labels: ['阉党建生祠'] }
+      }
+    },
+    '满桂': {
+      familyMembers: [],
+      relations: {
+        '袁崇焕': { affinity: 15, trust: 10, respect: 60, fear: 5, hostility: 55, labels: ['同袍不和'] },
+        '赵率教': { affinity: 75, trust: 65, respect: 70, fear: 0, hostility: 0, labels: ['同辽东将'] }
+      }
+    },
+    '赵率教': {
+      familyMembers: [ { name: '赵璧', relation: '子' } ],
+      relations: {
+        '袁崇焕': { affinity: 80, trust: 75, respect: 82, fear: 5, hostility: 0, labels: ['督师·知遇'] },
+        '满桂': { affinity: 75, trust: 65, respect: 70, fear: 0, hostility: 0, labels: ['同袍'] }
+      }
+    },
+    '祖大寿': {
+      familyMembers: [
+        { name: '祖大乐', relation: '弟' },
+        { name: '祖大弼', relation: '弟' },
+        { name: '吴襄', relation: '妹夫·辽东副总兵' },
+        { name: '吴三桂', relation: '外甥', note: '15 岁·随父宁远' }
+      ],
+      relations: {
+        '袁崇焕': { affinity: 70, trust: 60, respect: 80, fear: 10, hostility: 0, labels: ['本部督师'] },
+        '吴三桂': { affinity: 85, trust: 80, respect: 40, fear: 0, hostility: 0, labels: ['外甥'] }
+      }
+    },
+    '曹化淳': {
+      familyMembers: [],
+      relations: {
+        '王安': { affinity: 75, trust: 70, respect: 60, fear: 0, hostility: 0, labels: ['师父(殁)'], note: '已殁' },
+        '魏忠贤': { affinity: 10, trust: 5, respect: 30, fear: 45, hostility: 65, labels: ['阉党迫害·贬南京'] }
+      }
+    },
+    '方正化': {
+      familyMembers: [],
+      relations: {
+        '王承恩': { affinity: 50, trust: 45, respect: 55, fear: 0, hostility: 0, labels: ['同宫'] }
+      }
+    },
+    '王体乾': {
+      familyMembers: [],
+      relations: {
+        '魏忠贤': { affinity: 40, trust: 35, respect: 50, fear: 50, hostility: 5, labels: ['位上实屈下'] }
+      }
+    },
+    '李永贞': {
+      familyMembers: [],
+      relations: {
+        '魏忠贤': { affinity: 85, trust: 80, respect: 70, fear: 30, hostility: 0, labels: ['义父·第一心腹'] },
+        '崔呈秀': { affinity: 65, trust: 55, respect: 55, fear: 10, hostility: 10, labels: ['五虎同党'] }
+      }
+    },
+    '涂文辅': {
+      familyMembers: [],
+      relations: {
+        '魏忠贤': { affinity: 80, trust: 75, respect: 65, fear: 35, hostility: 0, labels: ['义父·御马监心腹'] }
+      }
+    },
+    '魏良卿': {
+      familyMembers: [ { name: '魏忠贤', relation: '叔父' } ],
+      relations: {
+        '魏忠贤': { affinity: 95, trust: 90, respect: 92, fear: 50, hostility: 0, labels: ['叔父·宁国公·恃势横'] }
+      }
+    },
+    '阿敏': {
+      familyMembers: [ { name: '舒尔哈齐', relation: '父(殁)', note: '努尔哈赤弟' } ],
+      relations: {
+        '皇太极': { affinity: 15, trust: 5, respect: 50, fear: 20, hostility: 70, labels: ['汗-贝勒紧张'] },
+        '代善': { affinity: 30, trust: 25, respect: 50, fear: 10, hostility: 35, labels: ['同大贝勒'] }
+      }
+    },
+    // ═══ 新增地方士人/官员的家谱+关系 ═══
+    '史可法': {
+      familyMembers: [
+        { name: '左光斗', relation: '师(殁)', note: '东林六君子·死阉党诏狱' },
+        { name: '史从质', relation: '父' }
+      ],
+      relations: {
+        '左光斗': { affinity: 100, trust: 100, respect: 100, fear: 0, hostility: 0, labels: ['恩师·死仇'], note: '已殁' },
+        '魏忠贤': { affinity: 0, trust: 0, respect: 10, fear: 15, hostility: 100, labels: ['杀师之仇'] },
+        '黄宗羲': { affinity: 70, trust: 65, respect: 75, fear: 0, hostility: 0, labels: ['共赴国仇'] }
+      }
+    },
+    '黄宗羲': {
+      familyMembers: [
+        { name: '黄尊素', relation: '父(殁)', note: '东林名士·死阉党诏狱' },
+        { name: '姚氏', relation: '母·督学' },
+        { name: '刘宗周', relation: '师' }
+      ],
+      relations: {
+        '刘宗周': { affinity: 95, trust: 90, respect: 98, fear: 5, hostility: 0, labels: ['恩师·蕺山学派'] },
+        '魏忠贤': { affinity: 0, trust: 0, respect: 10, fear: 10, hostility: 100, labels: ['弑父仇敌'] },
+        '史可法': { affinity: 70, trust: 65, respect: 75, fear: 0, hostility: 0, labels: ['同仇共赴'] }
+      }
+    },
+    '刘宗周': {
+      familyMembers: [
+        { name: '刘汋', relation: '子' },
+        { name: '黄宗羲', relation: '门生' },
+        { name: '刘杼', relation: '族弟' }
+      ],
+      relations: {
+        '黄宗羲': { affinity: 85, trust: 80, respect: 78, fear: 0, hostility: 0, labels: ['高足门生'] },
+        '魏忠贤': { affinity: 0, trust: 0, respect: 15, fear: 20, hostility: 85, labels: ['反阉清流'] }
+      }
+    },
+    '顾炎武': {
+      familyMembers: [
+        { name: '王氏', relation: '嗣母', note: '苦节教子' },
+        { name: '顾同应', relation: '本生父' }
+      ],
+      relations: {
+        '张溥': { affinity: 55, trust: 50, respect: 65, fear: 0, hostility: 0, labels: ['江南士子'] }
+      }
+    },
+    '王夫之': {
+      familyMembers: [ { name: '王朝聘', relation: '父·举人' } ],
+      relations: {}
+    },
+    '张溥': {
+      familyMembers: [ { name: '张采', relation: '族弟·复社同创(未来)' } ],
+      relations: {
+        '陈子龙': { affinity: 80, trust: 75, respect: 75, fear: 0, hostility: 0, labels: ['江南文社'] },
+        '钱谦益': { affinity: 72, trust: 65, respect: 85, fear: 0, hostility: 0, labels: ['望重士林前辈'] }
+      }
+    },
+    '陈子龙': {
+      familyMembers: [ { name: '夏允彝', relation: '盟友', note: '几社同志' } ],
+      relations: {
+        '张溥': { affinity: 80, trust: 75, respect: 75, fear: 0, hostility: 0, labels: ['江南文社'] }
+      }
+    },
+    '侯恂': {
+      familyMembers: [
+        { name: '侯方域', relation: '子', note: '现年 9 岁' },
+        { name: '侯恪', relation: '弟·进士' }
+      ],
+      relations: {
+        '东林党': { affinity: 70, trust: 65, respect: 75, fear: 0, hostility: 0, labels: ['东林外围'] }
+      }
+    },
+    '黄道周': {
+      familyMembers: [ { name: '叶氏', relation: '妻' } ],
+      relations: {
+        '倪元璐': { affinity: 85, trust: 80, respect: 80, fear: 0, hostility: 0, labels: ['同榜同道'] },
+        '钱谦益': { affinity: 55, trust: 45, respect: 70, fear: 0, hostility: 0, labels: ['清流但不同派'] }
+      }
+    },
+    '倪元璐': {
+      familyMembers: [],
+      relations: {
+        '黄道周': { affinity: 85, trust: 80, respect: 80, fear: 0, hostility: 0, labels: ['同榜同道'] }
+      }
+    },
+    '朱燮元': {
+      familyMembers: [],
+      relations: {
+        '秦良玉': { affinity: 80, trust: 75, respect: 82, fear: 0, hostility: 0, labels: ['剿奢安联手'] },
+        '奢崇明': { affinity: 0, trust: 0, respect: 40, fear: 15, hostility: 95, labels: ['死敌'] }
+      }
+    },
+    '毛羽健': {
+      familyMembers: [],
+      relations: {
+        '东林党': { affinity: 60, trust: 55, respect: 65, fear: 5, hostility: 5, labels: ['新进清流'] }
+      }
+    },
+    '马士英': {
+      familyMembers: [],
+      relations: {
+        '阮大铖': { affinity: 75, trust: 65, respect: 65, fear: 0, hostility: 0, labels: ['阉党骑墙盟友'] }
+      }
+    },
+    '杨嗣昌': {
+      familyMembers: [ { name: '杨鹤', relation: '父·延绥巡抚' } ],
+      relations: {
+        '东林党': { affinity: 40, trust: 30, respect: 55, fear: 5, hostility: 25, labels: ['不党而实务'] }
+      }
+    },
+    '阮大铖': {
+      familyMembers: [],
+      relations: {
+        '魏忠贤': { affinity: 60, trust: 50, respect: 50, fear: 30, hostility: 10, labels: ['阉党附庸'] },
+        '马士英': { affinity: 75, trust: 65, respect: 65, fear: 0, hostility: 0, labels: ['后同党'] },
+        '东林党': { affinity: 0, trust: 0, respect: 15, fear: 15, hostility: 85, labels: ['被东林斥不齿'] }
+      }
+    },
+    '钱谦益': {
+      familyMembers: [ { name: '柳如是', relation: '妾(未定)', note: '秦淮名妓' } ],
+      relations: {
+        '韩爌': { affinity: 70, trust: 65, respect: 80, fear: 0, hostility: 0, labels: ['同东林'] },
+        '温体仁': { affinity: 0, trust: 0, respect: 30, fear: 10, hostility: 85, labels: ['将仇'] },
+        '张溥': { affinity: 72, trust: 65, respect: 70, fear: 0, hostility: 0, labels: ['提携后辈'] }
+      }
+    },
+    '查继佐': {
+      familyMembers: [],
+      relations: {}
+    },
+    '方以智': {
+      familyMembers: [
+        { name: '方孔炤', relation: '父·湖广巡抚' },
+        { name: '方大镇', relation: '祖·大理寺少卿' }
+      ],
+      relations: {}
+    },
+    '孙可望': {
+      familyMembers: [],
+      relations: {}
+    },
+    '吴三桂': {
+      familyMembers: [
+        { name: '吴襄', relation: '父·辽东副总兵' },
+        { name: '祖大寿', relation: '舅' }
+      ],
+      relations: {
+        '祖大寿': { affinity: 90, trust: 85, respect: 85, fear: 0, hostility: 0, labels: ['舅父·授军'] },
+        '吴襄': { affinity: 95, trust: 90, respect: 85, fear: 0, hostility: 0, labels: ['父'] }
+      }
+    },
+    '张煌言': {
+      familyMembers: [],
+      relations: {}
+    },
+    '陈新甲': {
+      familyMembers: [],
+      relations: {
+        '袁崇焕': { affinity: 60, trust: 55, respect: 70, fear: 5, hostility: 0, labels: ['辽东同僚'] }
+      }
+    },
+    '熊文灿': {
+      familyMembers: [],
+      relations: {
+        '郑芝龙': { affinity: 60, trust: 50, respect: 55, fear: 5, hostility: 5, labels: ['将招抚'] }
+      }
+    },
+    '郑成功': {
+      familyMembers: [
+        { name: '郑芝龙', relation: '父' },
+        { name: '田川松', relation: '母·日本平户人' }
+      ],
+      relations: {
+        '郑芝龙': { affinity: 85, trust: 70, respect: 75, fear: 10, hostility: 0, labels: ['父·孝母·日后分道'] }
+      }
+    },
+    '李定国': {
+      familyMembers: [],
+      relations: {}
     }
   };
 
