@@ -2716,48 +2716,124 @@ function extractEdictActions(edictText) {
   var actions = { appointments: [], dismissals: [], deaths: [] };
   var text = edictText.replace(/\s+/g, '');
 
-  // 任命模式：任命/擢升/改任 + 角色名 + 为/任 + 职位名
+  // 预构建已知姓名集（含字号）——用于扫名优先
+  var knownChars = [];
+  var knownMap = {};
+  (GM.chars || []).forEach(function(c) {
+    if (!c || !c.name) return;
+    if (!knownMap[c.name]) { knownMap[c.name] = c.name; knownChars.push(c.name); }
+    ['zi','haoName','milkName'].forEach(function(k){
+      if (c[k] && c[k].length >= 2 && !knownMap[c[k]]) { knownMap[c[k]] = c.name; knownChars.push(c[k]); }
+    });
+    if (Array.isArray(c.aliases)) c.aliases.forEach(function(a){
+      if (a && a.length >= 2 && !knownMap[a]) { knownMap[a] = c.name; knownChars.push(a); }
+    });
+  });
+  // 长名优先避免"张惟" 遮挡 "张惟贤"
+  knownChars.sort(function(a,b){ return b.length - a.length; });
+  var knownRx = knownChars.length ? new RegExp('(' + knownChars.map(function(n){return n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}).join('|') + ')', 'g') : null;
+
+  // 已知职位（从 officeTree 收集）——用于更精确的 position 边界识别
+  var knownPosts = [];
+  function _collectPosts(nodes) {
+    (nodes||[]).forEach(function(n){
+      if (!n) return;
+      (n.positions||[]).forEach(function(p){ if (p && p.name && knownPosts.indexOf(p.name)<0) knownPosts.push(p.name); });
+      if (n.subs) _collectPosts(n.subs);
+    });
+  }
+  _collectPosts(GM.officeTree || []);
+  knownPosts.sort(function(a,b){ return b.length - a.length; });
+
+  function _findKnownPosition(raw) {
+    if (!raw) return null;
+    // 先找含已知职位的最长子串
+    for (var i=0; i<knownPosts.length; i++) {
+      if (raw.indexOf(knownPosts[i]) >= 0) return knownPosts[i];
+    }
+    // 否则返回首尾剥掉标点的原串
+    return raw.replace(/[，。、的之至]/g, '');
+  }
+
+  // ═══ 任命模式（扩展动词表 + 非贪婪 + 已知名字锚定） ═══
+  // 动词：任/命/擢/拜/召/授/令/起用/起复/加/封/册/迁/进/升/改任/转/除
+  var appointVerbs = '(?:任命|擢升|擢任|擢拜|改任|起用|起复|授任|着任|特命|特授|授|命|令|擢|拜|召|迁|进|升|加|封|册封|册立|加封|除授|除|转)';
+  var appointLinks = '(?:为|任|出任|担任|兼任|兼|领|主|掌|督|统|行|权|摄)';
   var appointPatterns = [
-    /(?:任命|擢升|擢任|改任|命|令|册封|册立|加封)(.{2,8})(?:为|任|出任|担任|兼任)(.{2,12})/g,
-    /(.{2,8})(?:出任|担任|兼任|调任)(.{2,12})/g
+    // V + 名 + 连接词 + 职
+    new RegExp(appointVerbs + '([\\u4e00-\\u9fa5]{2,6}?)' + appointLinks + '([\\u4e00-\\u9fa5]{2,14})', 'g'),
+    // 着/令 + 名 + 职（无连接词·如"着韩爌内阁首辅"）
+    new RegExp('(?:着|令|使)([\\u4e00-\\u9fa5]{2,6}?)((?:内阁|翰林|都察|五军|六部|中书|礼部|户部|吏部|兵部|刑部|工部|司礼|锦衣|光禄|太仆|鸿胪|国子)[\\u4e00-\\u9fa5]{2,12})', 'g'),
+    // 名 + 连接词 + 职（"韩爌出任首辅"）
+    new RegExp('([\\u4e00-\\u9fa5]{2,6}?)(?:出任|担任|兼任|调任|迁任|转任|就任)([\\u4e00-\\u9fa5]{2,14})', 'g')
   ];
+  var _appointSet = {};
   appointPatterns.forEach(function(pat) {
     var m;
     while ((m = pat.exec(text)) !== null) {
-      var charName = m[1].replace(/[，。、]/g, '');
-      var posName = m[2].replace(/[，。、]/g, '');
-      if (charName.length >= 2 && posName.length >= 2) {
-        actions.appointments.push({ character: charName, position: posName });
+      var rawName = m[1].replace(/[，。、的]/g, '');
+      var rawPos = m[2].replace(/[，。、]/g, '');
+      // 已知名字匹配 — 若原 regex 截长了·取最末的已知名
+      var char = rawName;
+      if (knownChars.length) {
+        var best = null;
+        for (var i=0; i<knownChars.length; i++) {
+          if (rawName.indexOf(knownChars[i]) >= 0) { best = knownChars[i]; break; }
+        }
+        if (best) char = knownMap[best]; // 字号→主名
       }
+      // 已知职位匹配
+      var pos = _findKnownPosition(rawPos);
+      if (char.length < 2 || pos.length < 2) continue;
+      var key = char + '→' + pos;
+      if (_appointSet[key]) continue;
+      _appointSet[key] = true;
+      actions.appointments.push({ character: char, position: pos });
     }
   });
 
-  // 免职模式
+  // ═══ 免职模式 ═══
+  var dismissVerbs = '(?:免去|罢免|革去|撤去|免职|撤职|革职|削职|黜|罢|削|贬|黜陟|谪|戍|贬谪|着革|着免)';
   var dismissPatterns = [
-    /(?:免去|罢免|革去|撤去|免职|撤职|革职|削职)(.{2,8})(?:的)?(.{2,12})?/g,
-    /(.{2,8})(?:免职|去职|撤职|革职|削职)/g
+    new RegExp(dismissVerbs + '([\\u4e00-\\u9fa5]{2,6}?)(?:的|之)?([\\u4e00-\\u9fa5]{0,14})', 'g'),
+    new RegExp('([\\u4e00-\\u9fa5]{2,6}?)(?:免职|去职|撤职|革职|削职|下狱)', 'g')
   ];
+  var _dismissSet = {};
   dismissPatterns.forEach(function(pat) {
     var m;
     while ((m = pat.exec(text)) !== null) {
-      var charName = m[1].replace(/[，。、的]/g, '');
-      if (charName.length >= 2) {
-        actions.dismissals.push({ character: charName, position: m[2] ? m[2].replace(/[，。、]/g, '') : '' });
+      var rawName = m[1].replace(/[，。、的之]/g, '');
+      var char = rawName;
+      if (knownChars.length) {
+        for (var i=0; i<knownChars.length; i++) {
+          if (rawName.indexOf(knownChars[i]) >= 0) { char = knownMap[knownChars[i]]; break; }
+        }
       }
+      if (char.length < 2 || _dismissSet[char]) continue;
+      _dismissSet[char] = true;
+      actions.dismissals.push({ character: char, position: m[2] ? m[2].replace(/[，。、]/g, '') : '' });
     }
   });
 
-  // 赐死模式
+  // ═══ 赐死模式 ═══
   var deathPatterns = [
-    /(?:赐死|赐予自尽|处死|处斩|斩首|诛杀|赐鸩)(.{2,8})/g
+    /(?:赐死|赐予自尽|处死|处斩|斩首|诛杀|赐鸩|赐自尽|磔死|弃市|斩于市|着自尽|令自裁)([\u4e00-\u9fa5]{2,6}?)(?:[。，、！]|$)/g,
+    /(?:赐死|赐予自尽|处死|处斩|斩首|诛杀|赐鸩)([\u4e00-\u9fa5]{2,6})/g
   ];
+  var _deathSet = {};
   deathPatterns.forEach(function(pat) {
     var m;
     while ((m = pat.exec(text)) !== null) {
-      var charName = m[1].replace(/[，。、]/g, '');
-      if (charName.length >= 2) {
-        actions.deaths.push({ character: charName });
+      var rawName = m[1].replace(/[，。、]/g, '');
+      var char = rawName;
+      if (knownChars.length) {
+        for (var i=0; i<knownChars.length; i++) {
+          if (rawName.indexOf(knownChars[i]) >= 0) { char = knownMap[knownChars[i]]; break; }
+        }
       }
+      if (char.length < 2 || _deathSet[char]) continue;
+      _deathSet[char] = true;
+      actions.deaths.push({ character: char });
     }
   });
 
