@@ -1155,22 +1155,51 @@ function openSettings(){
     "<div style=\"font-size:0.75rem;color:var(--txt-d);margin:-0.3rem 0 0.5rem;\">\u652F\u6301\u4EFB\u610F OpenAI \u517C\u5BB9\u4E2D\u8F6C\u7AD9\uFF0C\u5730\u5740\u586B\u5199 base URL \u5373\u53EF\u3002</div>"+
     "<button class=\"bt bp bsm\" onclick=\"_saveAPIAndAutoProbe()\">\u4FDD\u5B58\u5E76\u81EA\u52A8\u6821\u9A8C</button>"+
     "<button class=\"bt bs bsm\" onclick=\"P.ai.key=_$('s-key').value;P.ai.url=_$('s-url').value;P.ai.model=_$('s-model').value;try{localStorage.setItem('tm_api',JSON.stringify(P.ai));}catch(e){}if(window.tianming&&window.tianming.isDesktop){window.tianming.autoSave(P).catch(function(){});}saveP();toast('\u2705 \u5DF2\u4FDD\u5B58')\">\u4EC5\u4FDD\u5B58</button>"+
-    // M3·次要 API 配置·用于问对/朝议/文事势力子调用等次要调用·省成本+提速
-    "<div style=\"margin-top:0.6rem;padding-top:0.5rem;border-top:1px solid var(--bdr);\"><div style=\"font-size:0.75rem;color:var(--gold-d);margin-bottom:0.3rem;\">\u6B21\u8981 API\uFF08\u7528\u4E8E\u95EE\u5BF9/\u671D\u8BAE/\u6587\u4E8B\u52BF\u529B\u5B50\u8C03\u7528\u00B7\u7559\u7A7A\u5219\u5168\u8D70\u4E3B API\uFF09</div>"+
-    "<div class=\"rw\"><div class=\"fd\"><label style=\"font-size:0.72rem;\">Key</label><input type=\"password\" id=\"s-sec-key\" value=\""+((P.ai.secondary&&P.ai.secondary.key)||'')+"\" placeholder=\"\u7559\u7A7A\u56DE\u9000\u4E3B API\" style=\"font-size:0.8rem;\"></div></div>"+
-    "<div class=\"rw\"><div class=\"fd\"><label style=\"font-size:0.72rem;\">URL</label><input id=\"s-sec-url\" value=\""+((P.ai.secondary&&P.ai.secondary.url)||'')+"\" placeholder=\"\u5FEB\u6A21\u578B base URL\" style=\"font-size:0.8rem;\"></div><div class=\"fd\"><label style=\"font-size:0.72rem;\">\u6A21\u578B</label><input id=\"s-sec-model\" value=\""+((P.ai.secondary&&P.ai.secondary.model)||'')+"\" placeholder=\"gpt-4o-mini/haiku\" style=\"font-size:0.8rem;\"></div></div>"+
-    "<div style=\"font-size:0.68rem;color:var(--ink-300);margin-bottom:0.4rem;\">\u63A8\u8350\u00B7\u5FEB\u800C\u4FBF\u5B9C\u7684\u6A21\u578B\uFF1A gpt-4o-mini / claude-haiku-4-5 / deepseek-chat / gemini-2.5-flash</div>"+
-    "<button class=\"bt bs bsm\" onclick=\"_saveSecondaryAPI()\">\u4FDD\u5B58\u6B21\u8981 API</button>"+
     "</div>"+
 
-    "<div style=\"margin-top:0.6rem;padding-top:0.5rem;border-top:1px solid var(--bdr);\"><div style=\"font-size:0.75rem;color:var(--gold-d);margin-bottom:0.3rem;\">\u667A\u80FD\u751F\u56FE API\uFF08\u72EC\u7ACB\u914D\u7F6E\uFF0C\u7528\u4E8E\u7ACB\u7ED8\u7B49\u56FE\u7247\u751F\u6210\uFF09</div>"+
-    "<div class=\"rw\"><div class=\"fd\"><label style=\"font-size:0.72rem;\">Key</label><input type=\"password\" id=\"s-img-key\" value=\""+(_imgApiCfg.key||'')+"\" placeholder=\"\u7559\u7A7A\u5219\u590D\u7528\u4E3BAPI\" style=\"font-size:0.8rem;\"></div></div>"+
+    // M3·次要 API·独立 section·明显可见·带状态徽标
+    (function(){
+      var sec = (P.ai && P.ai.secondary) || {};
+      var hasKey = !!(sec.key && sec.url);
+      var enabled = !!P.conf && P.conf.secondaryEnabled !== false; // 默认启用（若配了）
+      var active = hasKey && enabled;
+      var badgeHtml = active
+        ? '<span style="display:inline-block;padding:0.1rem 0.5rem;border-radius:10px;background:rgba(107,176,124,0.15);color:var(--celadon-400);font-size:0.68rem;font-weight:700;letter-spacing:0.05em;">\u25CF \u5DF2\u6FC0\u6D3B</span>'
+        : hasKey
+          ? '<span style="display:inline-block;padding:0.1rem 0.5rem;border-radius:10px;background:rgba(184,154,83,0.15);color:var(--gold);font-size:0.68rem;font-weight:700;letter-spacing:0.05em;">\u25CB \u5DF2\u914D\u00B7\u672A\u542F\u7528</span>'
+          : '<span style="display:inline-block;padding:0.1rem 0.5rem;border-radius:10px;background:rgba(120,120,120,0.15);color:var(--txt-d);font-size:0.68rem;letter-spacing:0.05em;">\u25CB \u672A\u914D\u7F6E\u00B7\u5168\u8D70\u4E3B API</span>';
+      var desc = '\u7528\u4E8E\u95EE\u5BF9/\u4E09\u79CD\u671D\u8BAE/\u6587\u4E8B\u52BF\u529B\u5B50\u8C03\u7528\u7B49\u6B21\u8981\u573A\u666F\u00B7\u4E3B\u63A8\u6F14\u59CB\u7EC8\u8D70\u4E3B API\u3002\u914D\u4E00\u4E2A\u5FEB\u800C\u4FBF\u5B9C\u7684\u6A21\u578B\u53EF\u5927\u5E45\u52A0\u901F\u00B7\u51CF\u5C11\u6210\u672C\u3002';
+      return '<div class="settings-section" style="border-left:3px solid var(--purple,#8a5cf5);">'+
+        '<h4 style="display:flex;align-items:center;gap:0.5rem;"><span>\u6B21\u8981 API\u00B7\u5FEB\u6A21\u578B\u8DEF\u7531</span>' + badgeHtml + '</h4>'+
+        '<div style="font-size:0.72rem;color:var(--ink-300);margin:-0.3rem 0 0.5rem;line-height:1.55;">' + desc + '</div>'+
+        '<div class="rw"><div class="fd"><label style="font-size:0.72rem;">Key</label><input type="password" id="s-sec-key" value="' + escHtml(sec.key||'') + '" placeholder="\u7559\u7A7A\u5219\u56DE\u9000\u4E3B API" style="font-size:0.8rem;"></div></div>'+
+        '<div class="rw"><div class="fd"><label style="font-size:0.72rem;">URL</label><input id="s-sec-url" value="' + escHtml(sec.url||'') + '" placeholder="https://api.openai.com/v1" style="font-size:0.8rem;"></div><div class="fd"><label style="font-size:0.72rem;">\u6A21\u578B</label><input id="s-sec-model" value="' + escHtml(sec.model||'') + '" placeholder="gpt-4o-mini/haiku" style="font-size:0.8rem;"></div></div>'+
+        '<div style="font-size:0.68rem;color:var(--ink-300);margin-bottom:0.4rem;">\u63A8\u8350\u00B7\u5FEB\u6A21\u578B\uFF1Agpt-4o-mini \u00B7 claude-haiku-4-5 \u00B7 deepseek-chat \u00B7 gemini-2.5-flash</div>'+
+        '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">'+
+          '<button class="bt bp bsm" onclick="_saveSecondaryAPI()">\u4FDD\u5B58\u6B21 API</button>'+
+          '<button class="bt bs bsm" onclick="_testSecondaryAPI()" ' + (hasKey?'':'disabled style="opacity:0.5;cursor:not-allowed;"') + '>\u2713 \u6D4B\u8BD5\u8FDE\u63A5</button>'+
+          '<button class="bt bs bsm" onclick="_showAvailableModels(\'secondary\')" ' + (hasKey?'':'disabled style="opacity:0.5;cursor:not-allowed;"') + '>\u5217\u6A21\u578B</button>'+
+          '<label style="display:inline-flex;align-items:center;gap:0.3rem;font-size:0.72rem;color:var(--txt-d);margin-left:auto;cursor:' + (hasKey?'pointer':'not-allowed') + ';">'+
+            '<input type="checkbox" id="s-sec-enabled" ' + (enabled?'checked':'') + ' ' + (hasKey?'':'disabled') + ' onchange="_toggleSecondaryEnabled(this.checked)"> \u542F\u7528\u6B21 API</label>'+
+          (hasKey ? '<button class="bt bd bsm" onclick="if(confirm(\'\u786E\u5B9A\u6E05\u9664\u6B21 API \u914D\u7F6E\uFF1F\')){delete P.ai.secondary;saveP();toast(\'\u5DF2\u6E05\u9664\');closeSettings();openSettings();}">\u6E05\u9664</button>' : '') +
+        '</div>'+
+        (hasKey ? ('<div style="margin-top:0.5rem;padding:0.4rem 0.5rem;background:rgba(138,92,245,0.06);border-left:2px solid var(--purple,#8a5cf5);border-radius:2px;font-size:0.7rem;color:var(--txt-d);line-height:1.6;">'+
+          '<div><b style="color:var(--purple,#8a5cf5);">\u6FC0\u6D3B\u8DEF\u7531\uFF1A</b>\u95EE\u5BF9 \u00B7 \u5EF7\u8BAE \u00B7 \u5FA1\u524D \u00B7 \u5E38\u671D \u00B7 \u6587\u4E8B\u52BF\u529B\u00B7\u8FD9\u4E94\u7C7B\u9AD8\u9891\u5B50\u8C03\u7528\u5728\u542F\u7528\u65F6\u5168\u90E8\u8D70\u6B21 API</div>'+
+          '<div style="margin-top:0.2rem;"><b>\u4E3B API \u8D1F\u8D23\uFF1A</b>\u56DE\u5408\u4E3B\u63A8\u6F14(SC1/SC1b/SC1c) \u00B7 \u8BE2\u5929 \u00B7 \u8BE1\u5199\u6DF1\u5EA6\u6587\u672C</div>'+
+        '</div>') : '')+
+      '</div>';
+    })()+
+
+    // 智能生图 API·独立 section
+    "<div class=\"settings-section\"><h4>\u667A\u80FD\u751F\u56FE API\uFF08\u53EF\u9009\uFF09</h4>"+
+    "<div style=\"font-size:0.7rem;color:var(--ink-300);margin:-0.3rem 0 0.5rem;\">\u7528\u4E8E\u4EBA\u7269\u7ACB\u7ED8\u7B49\u56FE\u7247\u751F\u6210\u00B7\u7559\u7A7A\u5219\u590D\u7528\u4E3B API</div>"+
+    "<div class=\"rw\"><div class=\"fd\"><label style=\"font-size:0.72rem;\">Key</label><input type=\"password\" id=\"s-img-key\" value=\""+(_imgApiCfg.key||'')+"\" placeholder=\"\u7559\u7A7A\u5219\u590D\u7528\u4E3B API\" style=\"font-size:0.8rem;\"></div></div>"+
     "<div class=\"rw\"><div class=\"fd\"><label style=\"font-size:0.72rem;\">URL</label><input id=\"s-img-url\" value=\""+(_imgApiCfg.url||'')+"\" placeholder=\"https://api.openai.com/v1/images/generations\" style=\"font-size:0.8rem;\"></div><div class=\"fd\"><label style=\"font-size:0.72rem;\">\u6A21\u578B</label><input id=\"s-img-model\" value=\""+(_imgApiCfg.model||'dall-e-3')+"\" style=\"font-size:0.8rem;width:80px;\"></div></div>"+
-    "<button class=\"bt bs bsm\" onclick=\"var ik=(_$('s-img-key')||{}).value||'',iu=(_$('s-img-url')||{}).value||'',im=(_$('s-img-model')||{}).value||'dall-e-3';if(ik||iu){localStorage.setItem('tm_api_image',JSON.stringify({key:ik.trim(),url:iu.trim(),model:im.trim()}));}else{localStorage.removeItem('tm_api_image');}toast('\u751F\u56FEAPI\u5DF2\u4FDD\u5B58');\">\u4FDD\u5B58\u751F\u56FE\u8BBE\u7F6E</button></div></div>"+
+    "<button class=\"bt bs bsm\" onclick=\"var ik=(_$('s-img-key')||{}).value||'',iu=(_$('s-img-url')||{}).value||'',im=(_$('s-img-model')||{}).value||'dall-e-3';if(ik||iu){localStorage.setItem('tm_api_image',JSON.stringify({key:ik.trim(),url:iu.trim(),model:im.trim()}));}else{localStorage.removeItem('tm_api_image');}toast('\u751F\u56FEAPI\u5DF2\u4FDD\u5B58');\">\u4FDD\u5B58\u751F\u56FE\u8BBE\u7F6E</button></div>"+
 
     // 模型能力校验·防欺骗
     "<div class=\"settings-section\"><h4>\u6A21\u578B\u80FD\u529B\u6821\u9A8C</h4>"+
-    "<div id=\"s-model-probe-body\">" + _renderModelProbePanel('primary') + ((P.ai&&P.ai.secondary&&P.ai.secondary.key)?('<div style=\"margin-top:0.4rem;\"></div>'+_renderModelProbePanel('secondary')):'') + "</div>"+
+    "<div id=\"s-model-probe-body\">" + _renderModelProbePanel('primary') + '<div style="margin-top:0.4rem;"></div>' + _renderModelProbePanel('secondary') + "</div>"+
     // 主 API 操作
     "<div style=\"margin-top:0.6rem;padding:0.4rem;background:rgba(184,154,83,0.04);border-radius:3px;\">"+
     "<div style=\"font-size:0.7rem;color:var(--gold-d);margin-bottom:0.3rem;\">\u4E3B API \u64CD\u4F5C</div>"+
@@ -1260,6 +1289,12 @@ function _renderModelProbePanel(tier) {
   var _sfx = tier === 'secondary' ? '_secondary' : '';
   var cfg = P.conf || {};
   var isSec = tier === 'secondary';
+  var _hasKey = isSec ? !!(P.ai && P.ai.secondary && P.ai.secondary.key) : !!(P.ai && P.ai.key);
+  if (isSec && !_hasKey) {
+    return '<div style="font-size:0.74rem;padding:0.5rem 0.6rem;background:rgba(138,92,245,0.04);border-left:3px solid var(--purple,#8a5cf5);border-radius:2px;color:var(--txt-d);line-height:1.7;">' +
+      '<b style="color:var(--purple,#8a5cf5);">\u3010\u6B21 API\u3011</b> \u672A\u914D\u7F6E\u00B7\u914D\u7F6E\u540E\u6B64\u5904\u5C06\u663E\u793A\u63A2\u6D4B\u7ED3\u679C\u3002' +
+    '</div>';
+  }
   var model = '(未配置)';
   if (isSec && P.ai.secondary && P.ai.secondary.model) model = P.ai.secondary.model;
   else if (!isSec) model = P.ai.model || '(未配置)';
@@ -1329,9 +1364,7 @@ function _renderModelProbePanel(tier) {
 function _refreshBothProbePanels() {
   var el = _$('s-model-probe-body');
   if (!el) return;
-  var h = _renderModelProbePanel('primary');
-  if (P.ai && P.ai.secondary && P.ai.secondary.key) h += '<div style="margin-top:0.4rem;"></div>' + _renderModelProbePanel('secondary');
-  el.innerHTML = h;
+  el.innerHTML = _renderModelProbePanel('primary') + '<div style="margin-top:0.4rem;"></div>' + _renderModelProbePanel('secondary');
 }
 
 function _tierHasKey(tier) {
@@ -1441,6 +1474,37 @@ function _saveSecondaryAPI() {
   if (window.tianming && window.tianming.isDesktop) { try { window.tianming.autoSave(P).catch(function(){}); } catch(_){} }
   if (sk && su) toast('\u2705 \u6B21\u8981 API \u5DF2\u4FDD\u5B58\u00B7\u95EE\u5BF9/\u671D\u8BAE\u5C06\u8D70\u6B64\u914D\u7F6E');
   else toast('\u2705 \u5DF2\u6E05\u7A7A\u6B21\u8981 API\u00B7\u6240\u6709\u8C03\u7528\u56DE\u9000\u4E3B API');
+  // 重新打开设置以刷新状态徽标和探测面板
+  try { closeSettings(); openSettings(); } catch(_){}
+}
+
+// 次 API 启用开关·切换时即时生效
+function _toggleSecondaryEnabled(on) {
+  if (!P.conf) P.conf = {};
+  P.conf.secondaryEnabled = !!on;
+  if (typeof saveP === 'function') saveP();
+  toast(on ? '\u2705 \u5DF2\u542F\u7528\u6B21 API\u00B7\u95EE\u5BF9/\u671D\u8BAE\u5C06\u8D70\u6B64\u8DEF' : '\u2705 \u5DF2\u5173\u95ED\u6B21 API\u00B7\u6240\u6709\u8C03\u7528\u56DE\u9000\u4E3B API');
+  // 刷新设置面板以更新徽标
+  try { closeSettings(); openSettings(); } catch(_){}
+}
+
+// 测试次 API 连接·发一条极短请求验证 key/url/model 可达
+async function _testSecondaryAPI() {
+  if (!(P.ai && P.ai.secondary && P.ai.secondary.key)) { toast('\u8BF7\u5148\u4FDD\u5B58\u6B21 API \u914D\u7F6E'); return; }
+  if (typeof callAIMessages !== 'function') { toast('\u6D4B\u8BD5\u51FD\u6570\u672A\u52A0\u8F7D'); return; }
+  if (typeof showLoading === 'function') showLoading('\u6B63\u5728\u6D4B\u8BD5\u6B21 API\u8FDE\u63A5\u2026', 20);
+  var t0 = Date.now();
+  try {
+    // callAIMessages(messages, maxTok, signal, tier)
+    var res = await callAIMessages([{ role:'user', content: '\u7528\u4E00\u4E2A\u6C49\u5B57\u56DE\u590D\uFF1A\u597D' }], 10, null, 'secondary');
+    if (typeof hideLoading === 'function') hideLoading();
+    var dt = Date.now() - t0;
+    var text = typeof res === 'string' ? res : ((res && (res.content || res.text)) || '');
+    toast('\u2713 \u6B21 API \u901A\u00B7' + dt + 'ms\u00B7\u6A21\u578B\u56DE\uFF1A' + (text||'').trim().slice(0,24));
+  } catch(e) {
+    if (typeof hideLoading === 'function') hideLoading();
+    toast('\u2717 \u6B21 API \u6D4B\u8BD5\u5931\u8D25\uFF1A' + ((e && e.message)||e));
+  }
 }
 
 // M2·保存 API 配置后自动跑一次上下文探测（轻量层 0-3·不跑实测以免烧钱）

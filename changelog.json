@@ -3,6 +3,22 @@
   "entries": [
     {
       "date": "2026-04-21",
+      "module": "次 API 设置·独立 section + 状态徽标 + 测试连接",
+      "title": "次要 API 从 API 区尾巴独立·加开关+徽标+测试·探测面板常驻",
+      "items": [
+        { "what": "次要 API 配置从主 API section 的 border-top 尾巴提升为独立 settings-section·紫色左边框·H4 标题「次要 API·快模型路由」", "why": "原先四行字挤在主 API 下·没有明显视觉分隔·玩家反映「在设置中没有 ui 显示」——其实在但很难找" },
+        { "what": "H4 右侧加状态徽标三态：● 已激活（绿）/ ○ 已配·未启用（金）/ ○ 未配置·全走主 API（灰）", "why": "玩家一眼知道当前次 API 是否生效·不用翻文档查逻辑" },
+        { "what": "加「启用次 API」复选框·P.conf.secondaryEnabled 控制·_useSecondaryTier() 改为 key+url+enabled 三条件·默认启用（兼容旧）·显式 false 才关闭", "why": "有时玩家想临时回到全主 API 做对比测试·不用删 key；独立开关比删 key 更友好" },
+        { "what": "加「✓ 测试连接」按钮·调 callAIMessages 发 10 token 极短请求·返回耗时+模型回复前 24 字·一键验证 key/url/model 可达", "why": "配完次 API 没个方法立刻验证·以前只能等到第一次 NPC 发言才暴露问题·成本高" },
+        { "what": "加「列模型」「清除」按钮集成到次 API 操作行·清除触发 confirm + 立即 reopen 设置面板", "why": "操作集中在配置行·不用跳到另一 section·减少视线跳转" },
+        { "what": "已配置时显示紫色信息框：激活路由（问对/廷议/御前/常朝/文事势力×5）+主 API 负责（SC1/SC1b/SC1c/问天/诡写）", "why": "明确告知玩家两个 API 的分工·避免误以为「配了次 API 就全走次 API」" },
+        { "what": "「模型能力校验」panel 的 secondary 部分改为常驻·未配置时显占位「未配置·配置后此处将显示探测结果」", "why": "原先次 API 未配时整块不渲染·空白处让人误以为功能缺失" },
+        { "what": "_saveSecondaryAPI/_toggleSecondaryEnabled 保存后自动 closeSettings+openSettings·状态徽标即时刷新", "why": "以前改配置后徽标不变·需要手动关掉再打开·体验不闭环" },
+        { "what": "tm-utils v=f→g·tm-game-engine v=g→h", "why": "强制浏览器加载新代码·避免旧缓存展示旧 UI" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
       "module": "赴程可视化·旅途全链",
       "title": "人物在途状态显示 + 起居注启程条目 + 天数倒计时",
       "items": [

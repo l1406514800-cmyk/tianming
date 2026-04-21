@@ -909,9 +909,13 @@ function _buildAIUrl(base){
   return u+"/chat/completions";
 }
 
-// M3·判断次 API 是否配置完整·供调用方决定是否走次 tier
+// M3·判断次 API 是否配置完整且已启用·供调用方决定是否走次 tier
 function _useSecondaryTier() {
-  return !!(typeof P !== 'undefined' && P.ai && P.ai.secondary && P.ai.secondary.key && P.ai.secondary.url);
+  if (typeof P === 'undefined' || !P.ai || !P.ai.secondary) return false;
+  if (!P.ai.secondary.key || !P.ai.secondary.url) return false;
+  // 启用开关·默认 true（保持旧行为）·显式 false 则关闭
+  if (P.conf && P.conf.secondaryEnabled === false) return false;
+  return true;
 }
 
 // M3·按 tier 获取 AI 配置·secondary 未配时回退 primary
