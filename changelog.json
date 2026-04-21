@@ -3,6 +3,16 @@
   "entries": [
     {
       "date": "2026-04-21",
+      "module": "修·问天数值修改即时生效",
+      "title": "问天「增加国库银100万」等数值诉求·正确识别 hardChange + 立即刷新 UI",
+      "items": [
+        { "what": "问天 AI 解析 prompt 增强 hardChange 识别规则：只要包含金额(万两/石/匹)·具体数值(+N/-N/设为N)·具体字段(国库/帑廪/内帑/忠诚/皇威/皇权/民心)·必须归入 hardChange·不得误分为 narrative/directive", "why": "玩家反映「增加国库银100万两」过回合后 UI 和变量不体现·仅叙事提一嘴——根因是 AI 把明显的数值修改分类为 directive·只入库等推演·而不立即写 guoku.money" },
+        { "what": "Prompt 附常见路径速查：guoku.money/grain/cloth · neitang.money · vars.皇威.value 等·操作符映射(加=add·设为=set·翻倍=mul)·单位强制换算为纯数字(100 万→1000000·禁用汉字)", "why": "让 AI 直接填对 hardChange.path/op/value·避免 path 写错成 guoku.balance·value 写成「100 万」字符串等引起 _wtApplyHardChange 失败的常见坑" },
+        { "what": "_wtApplyHardChange 末尾补齐 UI 刷新调用：renderLeftPanel + renderGameState + renderGuokuPanel + renderNeitangPanel + renderRenwu + varChange 监听广播", "why": "原来只刷 renderLeftPanel·帑廪/内帑独立面板+人物面板+七变量面板都不刷·玩家在对应界面看不到最新数值" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
       "module": "修补·次 API 条件激活 + 存档导入诊断",
       "title": "次 API 条件路由·未配回退主·存档导入写后验证+详细日志",
       "items": [

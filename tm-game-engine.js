@@ -7903,10 +7903,14 @@ async function _wtSend() {
     + '   · narrative — 叙事/规则控制：让剧情走向X、让AI行为Y、保护某人、禁止某事发生（例："不要让袁崇焕被处决"、"AI多写诗词"）\n'
     + '   · setting — 世界背景/设定注入：补充剧本的背景信息/状态/历史（例："此时倭寇已平"、"北方去年大旱未记入"）\n'
     + '   · hardChange — 直接修改数值：要求直接改具体数值/字段（例："帑廪+1000万两"、"某NPC忠诚设为100"、"皇威+10"）\n'
+    + '       ★【识别规则】只要指令提到：具体金额(万两/石/匹)、具体数值(+N/-N/设为N)、具体字段(国库/帑廪/内帑/忠诚/皇威/皇权/民心等)——必须归入 hardChange。不要误判为 narrative/directive。\n'
+    + '       ★【常见路径】白银=guoku.money·粮=guoku.grain·布=guoku.cloth·内帑银=neitang.money·皇威=vars.皇威.value·皇权=vars.皇权.value·民心=vars.民心.value·人物忠诚=chars[N].loyalty\n'
+    + '       ★【操作符】"加/增/+"→op:add · "减/扣/-"→op:add(负数) · "设为/改为/="→op:set · "翻倍/x2"→op:mul\n'
+    + '       ★【单位换算】1 万两=10000·50 万两=500000·100 万石=1000000·玩家说"100 万"一律写成 1000000 数字不要保留"万"字\n'
     + '   · edictSubstitute — 等同诏令：玩家实际想下诏令的事（例："拨银赈灾"、"罢某某官"、"遣使某国"——这些本该走诏令而非问天）\n'
     + '   · absolute — 天意/至高意志：玩家明确以"天意"、"绝对"、"必须"、"神谕"、"不论如何"、"强制"等词修饰·或语气极强要求无条件落实（例："天意让北虏此回合覆灭"、"必须让此人变心"）——此类由世界法则直接生效·AI 无推辞空间·须在叙事中让其字面发生\n'
     + '3. 解析为结构化约束 structured:{target, action, scope, forbidden, measurable, condition}\n'
-    + '4. 若 category=hardChange → 必填 hardChange:{path:"GM/P 字段路径(如 guoku.money)", op:"set|add|mul", value:数字或字符串}\n'
+    + '4. 若 category=hardChange → 必填 hardChange:{path:"GM/P 字段路径(如 guoku.money)", op:"set|add|mul", value:数字(禁用万/亿汉字·须换算为纯数字)}\n'
     + '5. 若 category=edictSubstitute → 必填 edictText:"改写成诏令正式措辞(30-80字)", edictChannel:"pol|mil|dip|eco|oth"\n'
     + '6. 给出 interpretation（30-80字复述）、ambiguity（歧义数组，可空）、plan（一句话下回合怎样落实）\n'
     + '\n【上下文】\n' + ctx
@@ -8121,6 +8125,16 @@ function _wtApplyHardChange(path, op, value) {
   if (root === GM && parts[0] === 'guoku' && parts[1] === 'money') {
     if (GM.guoku) GM.guoku.balance = GM.guoku.money;
   }
+  // 立即刷新 UI·让玩家看到数值变化——原只刷 renderLeftPanel 不够·补全帑廪/内帑/七变量/整体
+  try { if (typeof renderLeftPanel === 'function') renderLeftPanel(); } catch(_){}
+  try { if (typeof renderGameState === 'function') renderGameState(); } catch(_){}
+  try { if (typeof renderGuokuPanel === 'function') renderGuokuPanel(); } catch(_){}
+  try { if (typeof renderNeitangPanel === 'function') renderNeitangPanel(); } catch(_){}
+  try { if (typeof renderRenwu === 'function') renderRenwu(); } catch(_){}
+  // 变量变化广播·供 delta panel 等监听
+  try { if (typeof GM !== 'undefined' && GM._listeners && Array.isArray(GM._listeners.varChange)) {
+    GM._listeners.varChange.forEach(function(fn){ try { fn(path, oldVal, cur[lastKey]); } catch(_){} });
+  } } catch(_){}
   if (typeof addEB === 'function') addEB('\u95EE\u5929', '\u76F4\u6539 ' + path + ' \u00B7 ' + oldVal + '\u2192' + cur[lastKey]);
   return true;
 }
