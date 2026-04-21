@@ -1642,12 +1642,18 @@ function doActualStart(sid){
           await aiDeepReadScenario();
         } catch(e) { console.warn('[DeepRead in doActualStart] error:', e); }
       }
-      // 推演稳定性规划·1 次 AI 调用·所有剧本都跑（提升 NPC 动机/危机节奏/行文风格稳定性）
-      if (typeof aiPlanScenarioForInference === 'function') {
-        try {
-          await aiPlanScenarioForInference();
-        } catch(e) { console.warn('[aiPlan in doActualStart] error:', e); }
-      }
+      // 三项推演规划·并行发射（节省等待）·各 1 次 AI：
+      //   · aiPlanScenarioForInference: NPC 议程/危机分岔/行文指纹
+      //   · aiPlanFactionMatrix: 势力关系矩阵/轨迹/黑天鹅
+      //   · aiPlanFirstTurnEvents: 首 3 回合候选事件池
+      showLoading('\u89C4\u5212\u63A8\u6F14\u9519\u70B9\u00B7\u5E76\u884C 3 \u9879\u2026', 92);
+      try {
+        await Promise.all([
+          (typeof aiPlanScenarioForInference === 'function') ? aiPlanScenarioForInference().catch(function(e){ console.warn('[aiPlan]', e); }) : Promise.resolve(),
+          (typeof aiPlanFactionMatrix === 'function') ? aiPlanFactionMatrix().catch(function(e){ console.warn('[aiFacMatrix]', e); }) : Promise.resolve(),
+          (typeof aiPlanFirstTurnEvents === 'function') ? aiPlanFirstTurnEvents().catch(function(e){ console.warn('[aiFTE]', e); }) : Promise.resolve()
+        ]);
+      } catch(e) { console.warn('[3 plans parallel]', e); }
       showLoading('\u751F\u6210\u521D\u59CB\u594F\u758F...', 98);
       generateMemorials();
       hideLoading();

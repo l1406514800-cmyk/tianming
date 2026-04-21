@@ -2370,6 +2370,20 @@ async function genMemorialsAI(count){
     // 构建极丰富上下文prompt
     var prompt = getTSText(GM.turn) + '第' + GM.turn + '回合。\n';
 
+    // ★ 首 3 回合·优先从 aiPlanFirstTurnEvents 生成的候选事件池抽取·保证贴剧本开局
+    if (GM.turn <= 3 && Array.isArray(GM._candidateEvents) && GM._candidateEvents.length > 0) {
+      var _pool = GM._candidateEvents.filter(function(e) {
+        return e && !e._fired && (e.type === 'memorial' || e.type === 'urgent_memorial');
+      });
+      if (_pool.length > 0) {
+        prompt += '\n【首回合候选事件池·优先采用，除非玩家已用诏令解决】\n';
+        _pool.slice(0, Math.min(count, 6)).forEach(function(ev) {
+          prompt += '  · ' + ev.presenter + '·' + ev.title + '·' + String(ev.payload).slice(0, 150) + '\n';
+        });
+        prompt += '★ 若上述事件与当前局势契合·请以其为基础撰写奏疏·from 字段填 presenter。\n';
+      }
+    }
+
     // 完整局势摘要
     if (GM.eraState) {
       prompt += '局势：' + (GM.eraState.dynastyPhase || '') + '，统一' + Math.round((GM.eraState.politicalUnity||0.5)*100) + '% 集权' + Math.round((GM.eraState.centralControl||0.5)*100) + '% 稳定' + Math.round((GM.eraState.socialStability || 0.5) * 100) + '% 经济' + Math.round((GM.eraState.economicProsperity || 0.5) * 100) + '% 文化' + Math.round((GM.eraState.culturalVibrancy||0.5)*100) + '%\n';

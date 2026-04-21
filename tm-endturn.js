@@ -1357,6 +1357,161 @@ async function aiPlanScenarioForInference() {
 }
 
 // ============================================================
+// 启动势力关系矩阵 aiPlanFactionMatrix
+// 1 次 AI 调用·生成每两个势力间的当前关系+10 回合轨迹+升级/和解触发条件
+// 注入推演：势力互动依据此表·避免"魏忠贤一夜降金"之类荒谬演绎
+// ============================================================
+async function aiPlanFactionMatrix() {
+  if (!P.ai || !P.ai.key) return;
+  if (GM._aiFactionMatrix && GM._aiFactionMatrix.generatedAt) return;
+  if (GM.turn > 1) return;
+
+  var sc = findScenarioById(GM.sid);
+  if (!sc) return;
+  if (sc.skipInferencePlanning === true) return;
+
+  var facs = (GM.facs || []).filter(function(f) { return f && f.name; });
+  if (facs.length < 2) return;
+
+  var facList = facs.slice(0, 12).map(function(f) {
+    var parts = [f.name];
+    if (f.isPlayer) parts.push('玩家');
+    if (f.leader) parts.push('首领:' + f.leader);
+    if (f.strength != null) parts.push('实力' + f.strength);
+    if (f.goal) parts.push('目标:' + String(f.goal).slice(0, 40));
+    return parts.join('·');
+  }).join('\n  · ');
+
+  var presetRels = (sc.presetRelations && Array.isArray(sc.presetRelations.faction)) ? sc.presetRelations.faction : [];
+  var relText = presetRels.slice(0, 20).map(function(r) {
+    return r.facA + '↔' + r.facB + (r.trust != null ? ' 信' + r.trust : '') + (r.hostility != null ? ' 敌' + r.hostility : '') + (r.labels && r.labels.length ? '[' + r.labels.slice(0, 3).join('·') + ']' : '');
+  }).join('；');
+
+  var prompt = '你是' + (sc.era || sc.dynasty || '') + '地缘政治分析专家。基于剧本生成势力关系矩阵+轨迹预判。\n\n';
+  prompt += '【势力·' + facs.length + '】\n  · ' + facList + '\n';
+  if (relText) prompt += '【剧本预设关系】' + relText + '\n';
+  prompt += '\n【剧本总述】' + (sc.overview || '').slice(0, 500) + '\n';
+
+  prompt += '\n返回 JSON：\n';
+  prompt += '{\n';
+  prompt += '  "factionMatrix": [\n';
+  prompt += '    {"facA":"A","facB":"B","currentRelation":"当前关系(15字·如敌对/同盟/牵制/互不信任)","trajectoryNext10Turns":"未来 10 回合走向预判(30-60字)","triggersToEscalate":["升级冲突条件1","条件2"],"triggersToReconcile":["和解条件1","条件2"]},\n';
+  prompt += '    ...（每两个势力一条·至多 N(N-1)/2 条）\n';
+  prompt += '  ],\n';
+  prompt += '  "alliancePotentials": ["可拉拢或结盟的势力·代价与时机·30字"],\n';
+  prompt += '  "strategicTriangles": ["三角博弈·玩家处境·30字"],\n';
+  prompt += '  "blackSwans": ["势力层面的黑天鹅事件·5-8 条·每条 30字"]\n';
+  prompt += '}\n只输出 JSON。';
+
+  try {
+    if (typeof showLoading === 'function') showLoading('规划势力动态·国际格局预判…', 60);
+    var raw = await callAISmart(prompt, 2500, { maxRetries: 2, minLength: 300 });
+    var parsed = (typeof extractJSON === 'function') ? extractJSON(raw) : null;
+    if (!parsed || typeof parsed !== 'object') { console.warn('[aiFacMatrix] 解析失败'); return; }
+    GM._aiFactionMatrix = {
+      factionMatrix: Array.isArray(parsed.factionMatrix) ? parsed.factionMatrix : [],
+      alliancePotentials: Array.isArray(parsed.alliancePotentials) ? parsed.alliancePotentials : [],
+      strategicTriangles: Array.isArray(parsed.strategicTriangles) ? parsed.strategicTriangles : [],
+      blackSwans: Array.isArray(parsed.blackSwans) ? parsed.blackSwans : [],
+      generatedAt: GM.turn || 1
+    };
+    console.log('[aiFacMatrix] 势力矩阵 ' + (GM._aiFactionMatrix.factionMatrix.length) + ' 对·黑天鹅 ' + (GM._aiFactionMatrix.blackSwans.length) + ' 条');
+  } catch(e) {
+    console.warn('[aiFacMatrix] 失败:', e && e.message);
+  } finally {
+    if (typeof hideLoading === 'function') hideLoading();
+  }
+}
+
+// ============================================================
+// 启动首回合候选事件 aiPlanFirstTurnEvents
+// 1 次 AI 调用·生成 5-8 条首 3 回合可能触发的事件候选
+// generateMemorials 优先从此池抽取·保证首回合剧情契合剧本开局
+// ============================================================
+async function aiPlanFirstTurnEvents() {
+  if (!P.ai || !P.ai.key) return;
+  if (GM._candidateEvents && GM._candidateEvents.length > 0) return;
+  if (GM.turn > 1) return;
+
+  var sc = findScenarioById(GM.sid);
+  if (!sc) return;
+  if (sc.skipInferencePlanning === true) return;
+
+  var pi = P.playerInfo || {};
+  var overview = (sc.overview || '').slice(0, 500);
+  var opening = (sc.openingText || '').slice(0, 400);
+  var contradictText = '';
+  if (pi.coreContradictions && pi.coreContradictions.length > 0) {
+    contradictText = pi.coreContradictions.map(function(c) {
+      return '[' + c.dimension + ']' + c.title + (c.description ? '：' + c.description.slice(0, 60) : '');
+    }).join('；');
+  }
+
+  // 关键 NPC 列表（用于做 presenter 候选）
+  var keyNpcs = (GM.chars || []).filter(function(c) {
+    if (!c || c.alive === false || c.isPlayer) return false;
+    return c.officialTitle || c.isHistorical || c.importance >= 60;
+  }).slice(0, 30).map(function(c) {
+    return c.name + (c.officialTitle ? '(' + c.officialTitle + ')' : '');
+  }).join('、');
+
+  var prompt = '你是' + (sc.era || sc.dynasty || '') + '剧本导演。基于剧本生成首 3 回合可能触发的候选事件池。\n\n';
+  prompt += '【剧本总述】' + overview + '\n';
+  if (opening) prompt += '【开场白】' + opening + '\n';
+  if (contradictText) prompt += '【显著矛盾】' + contradictText + '\n';
+  if (pi.factionGoal) prompt += '【玩家目标】' + pi.factionGoal + '\n';
+  if (keyNpcs) prompt += '【关键 NPC】' + keyNpcs + '\n';
+
+  prompt += '\n返回 JSON：\n';
+  prompt += '{\n';
+  prompt += '  "candidateEvents": [\n';
+  prompt += '    {\n';
+  prompt += '      "id":"slug_id",\n';
+  prompt += '      "title":"事件标题(10-20字·紧扣剧本矛盾)",\n';
+  prompt += '      "type":"audience|memorial|urgent_memorial|letter|chaoyi_topic|anomaly",\n';
+  prompt += '      "presenter":"发起人(NPC 姓名·须来自关键 NPC 列表)",\n';
+  prompt += '      "triggerCondition":"触发条件(如 T1 自动/T2-3 若玩家未做 X/陕西未赈灾)",\n';
+  prompt += '      "payload":"事件内容(60-120字·半文言·体现 presenter 立场与隐藏意图)",\n';
+  prompt += '      "rationale":"导演说明·为何此时此事(30字)"\n';
+  prompt += '    },\n';
+  prompt += '    ...（5-8 条·覆盖朝局/军情/民变/阉党/外交等多维度）\n';
+  prompt += '  ],\n';
+  prompt += '  "sequencing":"建议触发顺序(60字)",\n';
+  prompt += '  "branchingLogic":"分支逻辑(玩家做 A 则触发 B·不做则触发 C·80字)"\n';
+  prompt += '}\n只输出 JSON。';
+
+  try {
+    if (typeof showLoading === 'function') showLoading('规划首回合候选事件…', 70);
+    var raw = await callAISmart(prompt, 2500, { maxRetries: 2, minLength: 400 });
+    var parsed = (typeof extractJSON === 'function') ? extractJSON(raw) : null;
+    if (!parsed || !Array.isArray(parsed.candidateEvents)) { console.warn('[aiFTE] 解析失败'); return; }
+    GM._candidateEvents = parsed.candidateEvents.map(function(e) {
+      return {
+        id: e.id || ('evt_' + Math.random().toString(36).slice(2, 8)),
+        title: String(e.title || '').slice(0, 40),
+        type: e.type || 'memorial',
+        presenter: String(e.presenter || '').slice(0, 20),
+        triggerCondition: String(e.triggerCondition || 'T1').slice(0, 60),
+        payload: String(e.payload || '').slice(0, 300),
+        rationale: String(e.rationale || '').slice(0, 60),
+        _fired: false,
+        _createdTurn: GM.turn || 1
+      };
+    });
+    GM._candidateEventMeta = {
+      sequencing: String(parsed.sequencing || '').slice(0, 200),
+      branchingLogic: String(parsed.branchingLogic || '').slice(0, 300),
+      generatedAt: GM.turn || 1
+    };
+    console.log('[aiFTE] 候选事件 ' + GM._candidateEvents.length + ' 条');
+  } catch(e) {
+    console.warn('[aiFTE] 失败:', e && e.message);
+  } finally {
+    if (typeof hideLoading === 'function') hideLoading();
+  }
+}
+
+// ============================================================
 // 记忆锚点系统 - 借鉴 HistorySimAI
 // ============================================================
 
@@ -5472,6 +5627,48 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         Object.keys(_pl.npcFirstTurnReaction).slice(0, 15).forEach(function(n) {
           sysP += '\n  · ' + n + '：' + String(_pl.npcFirstTurnReaction[n]).slice(0, 80);
         });
+      }
+    }
+    // 注入·势力关系矩阵（aiPlanFactionMatrix 生成·每回合参考）
+    if (GM._aiFactionMatrix && GM._aiFactionMatrix.generatedAt) {
+      var _fm = GM._aiFactionMatrix;
+      if (Array.isArray(_fm.factionMatrix) && _fm.factionMatrix.length > 0) {
+        sysP += '\n\n【势力关系矩阵·AI 必须按此演绎势力互动·不得凭空突变】';
+        _fm.factionMatrix.slice(0, 10).forEach(function(m) {
+          if (!m || !m.facA || !m.facB) return;
+          sysP += '\n  · ' + m.facA + '↔' + m.facB + '：' + (m.currentRelation || '') + '·10 回合走向：' + String(m.trajectoryNext10Turns || '').slice(0, 100);
+          if (Array.isArray(m.triggersToEscalate) && m.triggersToEscalate.length) {
+            sysP += '·升级条件：' + m.triggersToEscalate.slice(0, 2).join('/');
+          }
+          if (Array.isArray(m.triggersToReconcile) && m.triggersToReconcile.length) {
+            sysP += '·和解条件：' + m.triggersToReconcile.slice(0, 2).join('/');
+          }
+        });
+      }
+      if (Array.isArray(_fm.alliancePotentials) && _fm.alliancePotentials.length > 0) {
+        sysP += '\n【结盟潜力】' + _fm.alliancePotentials.slice(0, 4).join(' | ');
+      }
+      if (Array.isArray(_fm.strategicTriangles) && _fm.strategicTriangles.length > 0) {
+        sysP += '\n【三角博弈】' + _fm.strategicTriangles.slice(0, 3).join(' | ');
+      }
+      if (GM.turn <= 5 && Array.isArray(_fm.blackSwans) && _fm.blackSwans.length > 0) {
+        sysP += '\n【势力黑天鹅·前 5 回合参考】' + _fm.blackSwans.slice(0, 5).join(' | ');
+      }
+    }
+    // 注入·首回合候选事件（仅 Turn 1-3 时·未触发的）
+    if (GM.turn <= 3 && Array.isArray(GM._candidateEvents) && GM._candidateEvents.length > 0) {
+      var _unfired = GM._candidateEvents.filter(function(e) { return e && !e._fired; });
+      if (_unfired.length > 0) {
+        sysP += '\n\n【首 3 回合候选事件池·AI 推演时可择机触发（优先于凭空生成新事件）】';
+        _unfired.slice(0, 8).forEach(function(ev) {
+          sysP += '\n  · [' + ev.id + '] ' + ev.title + '·由 ' + ev.presenter + ' 发起·触发条件：' + ev.triggerCondition + '·内容：' + String(ev.payload).slice(0, 100);
+        });
+        if (GM._candidateEventMeta && GM._candidateEventMeta.sequencing) {
+          sysP += '\n  建议顺序：' + GM._candidateEventMeta.sequencing;
+        }
+        if (GM._candidateEventMeta && GM._candidateEventMeta.branchingLogic) {
+          sysP += '\n  分支逻辑：' + GM._candidateEventMeta.branchingLogic;
+        }
       }
     }
     // 注入AI深度阅读摘要（10轮预热结果——极高密度剧本理解）
