@@ -6123,9 +6123,22 @@ function _offOpenPicker(pathArr, deptName, posName, currentHolder) {
   var isAdmin = /吏|铨|考|礼|户|度支|工|刑|御史/.test(dutyText);
   var isClose = /学士|侍读|侍讲|翰林|中书|舍人/.test(dutyText);
 
+  // 职位需求推导（match% 基准）
+  var rankLvl = typeof getRankLevel === 'function' ? getRankLevel(pos.rank) : 10;
+  var loyNeeded = rankLvl <= 3 ? 75 : rankLvl <= 6 ? 60 : 45;
+  var req;
+  if (isMilitary) req = { primary:'military', secondary:'valor', label:'武官\u00B7\u519B\u4E8B\u4E3A\u4E3B', loyNeeded:loyNeeded };
+  else if (isClose) req = { primary:'intelligence', secondary:'diplomacy', label:'\u8FD1\u4F8D\u00B7\u5B66\u8BC6+\u8FA9\u624D', loyNeeded:loyNeeded };
+  else if (isAdmin) req = { primary:'administration', secondary:'intelligence', label:'\u6587\u5B98\u00B7\u653F\u52A1\u4E3A\u4E3B', loyNeeded:loyNeeded };
+  else req = { primary:'administration', secondary:'intelligence', label:'\u7EFC\u5408\u804C\u4F4D', loyNeeded:loyNeeded };
+  var statLabel = { administration:'\u653F\u52A1', military:'\u519B\u4E8B', intelligence:'\u667A\u529B', valor:'\u6B66\u52C7', diplomacy:'\u8FA9\u624D' };
+  req.primaryLabel = statLabel[req.primary] || req.primary;
+  req.secondaryLabel = statLabel[req.secondary] || req.secondary;
+
   // 玩家所在势力领袖
   var playerFac = (GM.facs||[]).find(function(f){ return f.isPlayer; });
   var playerFacName = playerFac ? playerFac.name : '';
+  var playerParty = playerFac && playerFac.leaderParty ? playerFac.leaderParty : '';
 
   // 候选池：本势力活人·非玩家·非已在此职
   var cands = (GM.chars || []).filter(function(c) {
@@ -6136,19 +6149,32 @@ function _offOpenPicker(pathArr, deptName, posName, currentHolder) {
     return true;
   });
 
-  // 打分
+  // 打分 + 胜任度百分比
   cands.forEach(function(c) {
+    // 原综合 score（用于默认排序一致）
     var score = 0;
     if (isMilitary) score += (c.military||50) * 2 + (c.valor||50);
     else if (isAdmin) score += (c.administration||50) * 2 + (c.intelligence||50);
     else if (isClose) score += (c.intelligence||50) * 2 + (c.diplomacy||50);
     else score += (c.intelligence||50) + (c.administration||50) + (c.diplomacy||50);
     score += (c.loyalty||50) * 0.6;
-    if (c.officialTitle) score -= 15;            // 兼任扣分
-    if (c.location && c.location !== capital) score -= 10;  // 外地扣分（需赴任）
-    // 品级经验匹配
+    if (c.officialTitle) score -= 15;
+    if (c.location && c.location !== capital) score -= 10;
     if (pos.rank && c._tenure) score += Math.min(30, Object.keys(c._tenure).length * 4);
     c._pickerScore = score;
+
+    // 胜任度 0-100·主属性 60%·次属性 25%·忠诚 15%
+    var primaryVal = c[req.primary] || 50;
+    var secondaryVal = c[req.secondary] || 50;
+    var loyVal = c.loyalty || 50;
+    var loyComponent = loyVal >= req.loyNeeded ? 100 : Math.round((loyVal / req.loyNeeded) * 100);
+    var match = Math.round(primaryVal * 0.6 + secondaryVal * 0.25 + loyComponent * 0.15);
+    c._pickerMatch = Math.max(0, Math.min(100, match));
+
+    // 赴任天数（外地才算·粗估 20 日保底·实际以 AI 推演为准）
+    c._pickerTravelDays = 0;
+    if (c.location && c.location !== capital) c._pickerTravelDays = 20;
+
     // 分类标签
     c._pickerTags = [];
     if (!c.officialTitle) c._pickerTags.push('vacant');
@@ -6156,10 +6182,25 @@ function _offOpenPicker(pathArr, deptName, posName, currentHolder) {
     if ((c.military||50) >= 65) c._pickerTags.push('military');
     if ((c.loyalty||50) >= 75) c._pickerTags.push('loyal');
     if (c.location && c.location !== capital) c._pickerTags.push('remote');
-  });
-  cands.sort(function(a,b){ return (b._pickerScore||0) - (a._pickerScore||0); });
 
-  _OFF_PICKER = { pathArr: pathArr, deptName: deptName, posName: posName, currentHolder: currentHolder, cands: cands, pos: pos, filter: 'all', kw: '' };
+    // 警示标志
+    c._pickerWarnings = [];
+    if (loyVal < req.loyNeeded) c._pickerWarnings.push('\u5FE0\u8BDA\u4E0D\u8DB3');
+    if (c.age && c.age >= 65) c._pickerWarnings.push('\u5E74\u8FC8');
+    if (c.age && c.age < 20) c._pickerWarnings.push('\u5E74\u5E7C');
+  });
+  // 主排序：胜任度 desc；次排序：忠诚 desc
+  cands.sort(function(a,b){
+    var m = (b._pickerMatch||0) - (a._pickerMatch||0);
+    if (m !== 0) return m;
+    return (b.loyalty||50) - (a.loyalty||50);
+  });
+  // 标记冠亚季
+  if (cands.length > 0) cands[0]._pickerRank = 1;
+  if (cands.length > 1) cands[1]._pickerRank = 2;
+  if (cands.length > 2) cands[2]._pickerRank = 3;
+
+  _OFF_PICKER = { pathArr: pathArr, deptName: deptName, posName: posName, currentHolder: currentHolder, cands: cands, pos: pos, filter: 'all', kw: '', req: req };
 
   // 建 modal
   var existing = document.getElementById('off-picker-modal');
@@ -6187,6 +6228,13 @@ function _offOpenPicker(pathArr, deptName, posName, currentHolder) {
     +     '</div>'
     +     (currentHolder ? '<div style="font-size:0.74rem;color:var(--amber-400);margin-top:4px;">\u2192 \u73B0\u4EFB\uFF1A<strong>' + escHtml(currentHolder) + '</strong>\uFF08\u9009\u4EFB\u540E\u5C06\u81EA\u52A8\u51FB\u514D\u65E7\u4EFB\u00B7\u8D77\u7528\u65B0\u4EBA\uFF09</div>' : '')
     +     (pos.desc ? '<div style="font-size:0.74rem;color:var(--ink-300);margin-top:4px;line-height:1.5;">' + escHtml(pos.desc) + '</div>' : '')
+    +     '<div style="margin-top:6px;padding:5px 10px;background:rgba(107,176,124,0.06);border-left:3px solid var(--celadon-400);border-radius:2px;font-size:0.72rem;color:var(--ink-300);">'
+    +       '<span style="color:var(--celadon-400);font-weight:600;letter-spacing:0.1em;">\u3014 \u6B64 \u804C \u6240 \u6C42 \u3015</span> '
+    +       escHtml(req.label) + ' \u00B7 '
+    +       '\u4E3B\u8981' + escHtml(req.primaryLabel) + ' \u00B7 '
+    +       '\u8F85\u4EE5' + escHtml(req.secondaryLabel) + ' \u00B7 '
+    +       '\u5FE0\u8BDA\u2265<strong style="color:var(--gold-400);">' + req.loyNeeded + '</strong>'
+    +     '</div>'
     +   '</div>'
     // 过滤栏
     +   '<div style="padding:0.5rem 1rem;border-bottom:1px solid var(--color-border-subtle);display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">'
@@ -6285,26 +6333,44 @@ function _offRenderPickerList() {
 function _offPickerRowHtml(c) {
   var f1 = (typeof _fmtNum1 === 'function') ? _fmtNum1 : function(v){ return v; };
   var loyClr = (c.loyalty||50) >= 70 ? 'var(--celadon-400)' : (c.loyalty||50) < 40 ? 'var(--vermillion-400)' : 'var(--gold-400)';
-  var scoreClr = c._pickerScore >= 150 ? 'var(--celadon-400)' : c._pickerScore >= 100 ? 'var(--gold-400)' : 'var(--ink-300)';
+  var match = c._pickerMatch || 0;
+  var matchClr = match >= 80 ? 'var(--celadon-400)' : match >= 60 ? 'var(--gold-400)' : match >= 40 ? 'var(--amber-400,#c9a045)' : 'var(--vermillion-400)';
+  var matchLbl = match >= 80 ? '\u5353\u7EDD' : match >= 60 ? '\u80DC\u4EFB' : match >= 40 ? '\u52C9\u5F3A' : '\u4E0D\u80DC';
   var nameSafe = escHtml(c.name).replace(/'/g,"\\'");
   var deptSafe = escHtml(_OFF_PICKER.deptName||'').replace(/'/g,"\\'");
   var posSafe = escHtml(_OFF_PICKER.posName||'').replace(/'/g,"\\'");
   var oldSafe = escHtml(_OFF_PICKER.currentHolder||'').replace(/'/g,"\\'");
+
+  // 冠亚季徽标
+  var medal = '';
+  var medalBg = '';
+  if (c._pickerRank === 1) { medal = '<span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;background:linear-gradient(135deg,#c9a045,#d4b45a);color:#1a1510;font-size:11px;font-weight:700;border-radius:50%;box-shadow:0 0 8px rgba(201,168,95,0.5);margin-right:6px;">\u51A0</span>'; medalBg = 'linear-gradient(to right,rgba(201,168,95,0.08),transparent 60%)'; }
+  else if (c._pickerRank === 2) { medal = '<span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;background:linear-gradient(135deg,#8c8c8c,#b0b0b0);color:#1a1510;font-size:10px;font-weight:700;border-radius:50%;margin-right:6px;">\u4E9A</span>'; medalBg = 'linear-gradient(to right,rgba(160,160,160,0.06),transparent 60%)'; }
+  else if (c._pickerRank === 3) { medal = '<span style="display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;background:linear-gradient(135deg,#8b5a2b,#a67440);color:#1a1510;font-size:10px;font-weight:700;border-radius:50%;margin-right:6px;">\u5B63</span>'; medalBg = 'linear-gradient(to right,rgba(139,90,43,0.05),transparent 60%)'; }
+
   var tags = [];
   if (c.officialTitle) tags.push('<span style="font-size:0.68rem;padding:1px 6px;border-radius:3px;background:rgba(184,154,83,0.12);color:var(--gold-400);">\u73B0\u4EFB ' + escHtml(c.officialTitle) + '</span>');
   else tags.push('<span style="font-size:0.68rem;padding:1px 6px;border-radius:3px;background:rgba(121,175,135,0.12);color:var(--celadon-400);">\u5E03\u8863</span>');
-  if (c.location && c.location !== (GM._capital||'京城')) tags.push('<span style="font-size:0.68rem;padding:1px 6px;border-radius:3px;background:rgba(192,64,48,0.1);color:var(--vermillion-400);">\u5728 ' + escHtml(c.location) + '</span>');
+  if (c.location && c.location !== (GM._capital||'京城')) {
+    var _td = c._pickerTravelDays > 0 ? ('\u00B7\u8D74\u4EFB ' + c._pickerTravelDays + ' \u65E5') : '';
+    tags.push('<span style="font-size:0.68rem;padding:1px 6px;border-radius:3px;background:rgba(192,64,48,0.1);color:var(--vermillion-400);">\u5728 ' + escHtml(c.location) + _td + '</span>');
+  }
   if (c.party && c.party !== '\u65E0\u515A') tags.push('<span style="font-size:0.68rem;padding:1px 6px;border-radius:3px;background:rgba(107,93,79,0.2);color:var(--ink-300);">' + escHtml(c.party) + '</span>');
   if (c.hometown) tags.push('<span style="font-size:0.68rem;color:var(--ink-300);">\u7C4D\uFF1A' + escHtml(c.hometown) + '</span>');
+  // 警示标签
+  (c._pickerWarnings||[]).forEach(function(w){
+    tags.push('<span style="font-size:0.68rem;padding:1px 6px;border-radius:3px;background:rgba(192,64,48,0.18);color:var(--vermillion-400);border:1px solid rgba(192,64,48,0.35);">\u26A0 ' + escHtml(w) + '</span>');
+  });
 
   return ''
-    + '<div style="padding:10px 12px;margin-bottom:6px;background:var(--color-elevated);border:1px solid var(--color-border-subtle);border-radius:6px;cursor:pointer;transition:all 0.12s ease;" '
+    + '<div style="padding:10px 12px;margin-bottom:6px;background:' + (medalBg || 'var(--color-elevated)') + ',var(--color-elevated);border:1px solid var(--color-border-subtle);border-radius:6px;cursor:pointer;transition:all 0.12s ease;" '
     +   'onmouseover="this.style.borderColor=\'var(--gold-400)\';this.style.transform=\'translateX(2px)\';" '
     +   'onmouseout="this.style.borderColor=\'var(--color-border-subtle)\';this.style.transform=\'translateX(0)\';" '
     +   'onclick="_offPickerConfirm(\'' + nameSafe + '\',\'' + deptSafe + '\',\'' + posSafe + '\',\'' + oldSafe + '\')">'
     +   '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.8rem;">'
     +     '<div style="flex:1;min-width:0;">'
     +       '<div style="display:flex;align-items:baseline;gap:0.4rem;margin-bottom:4px;">'
+    +         medal
     +         '<span style="font-size:1rem;font-weight:700;color:var(--color-foreground);">' + escHtml(c.name) + '</span>'
     +         (c.title ? '<span style="font-size:0.74rem;color:var(--ink-300);">' + escHtml(c.title) + '</span>' : '')
     +         (c.age ? '<span style="font-size:0.7rem;color:var(--ink-300);">\u00B7' + c.age + '\u5C81</span>' : '')
@@ -6318,9 +6384,12 @@ function _offPickerRowHtml(c) {
     +         (c.ambition ? ' <span style="color:var(--ink-300);">\u91CE' + f1(c.ambition) + '</span>' : '')
     +       '</div>'
     +     '</div>'
-    +     '<div style="flex-shrink:0;text-align:center;min-width:58px;">'
-    +       '<div style="font-size:1.3rem;font-weight:700;color:' + scoreClr + ';line-height:1;">' + Math.round(c._pickerScore||0) + '</div>'
-    +       '<div style="font-size:0.65rem;color:var(--ink-300);letter-spacing:0.1em;">\u5339\u914D</div>'
+    +     '<div style="flex-shrink:0;text-align:center;min-width:72px;">'
+    +       '<div style="font-size:1.5rem;font-weight:700;color:' + matchClr + ';line-height:1;">' + match + '<span style="font-size:0.7rem;opacity:0.7;">%</span></div>'
+    +       '<div style="margin-top:3px;height:4px;background:rgba(107,93,79,0.15);border-radius:2px;overflow:hidden;">'
+    +         '<div style="height:100%;width:' + match + '%;background:' + matchClr + ';transition:width 0.3s;"></div>'
+    +       '</div>'
+    +       '<div style="font-size:0.64rem;color:' + matchClr + ';letter-spacing:0.1em;margin-top:3px;">' + matchLbl + '</div>'
     +     '</div>'
     +   '</div>'
     + '</div>';
