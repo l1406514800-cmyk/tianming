@@ -3744,7 +3744,7 @@ function openCharRenwuPage(charName) {
     {l:'身 份', v: ch.role || '—'},
     {l:'职 业', v: ch.occupation || ch.officialTitle || '—'},
     {l:'籍 贯', v: ch.birthplace || '—'},
-    {l:'所 在 地', v: ch.location + (ch._travelTo?' → '+ch._travelTo:''), cls: ch._travelTo?'warn':''},
+    {l:'所 在 地', v: ch.location + (ch._travelTo?' \u2192 '+ch._travelTo+((typeof ch._travelRemainingDays==='number'&&ch._travelRemainingDays>0)?'\uFF08\u8FD8\u9700 '+ch._travelRemainingDays+' \u65E5\uFF09':''):''), cls: ch._travelTo?'warn':''},
     {l:'势 力', v: ch.faction || '无'},
     {l:'民 族', v: ch.ethnicity || '—'},
     {l:'信 仰', v: ch.faith || '—'},
@@ -4396,7 +4396,11 @@ function renderLetterPanel() {
 
           var _initial = escHtml(String(ch.name||'?').charAt(0));
           var _portrait = ch.portrait ? '<img src="' + escHtml(ch.portrait) + '">' : _initial;
-          var _travel = ch._travelTo ? '<span class="travel-arrow">\u2192</span>' + escHtml(ch._travelTo) : '';
+          var _travel = '';
+          if (ch._travelTo) {
+            var _rd4 = (typeof ch._travelRemainingDays === 'number' && ch._travelRemainingDays > 0) ? ch._travelRemainingDays : 0;
+            _travel = '<span class="travel-arrow">\u2192</span>' + escHtml(ch._travelTo) + (_rd4 ? '<span style="font-size:0.85em;opacity:0.7;"> \u00B7' + _rd4 + '\u65E5</span>' : '');
+          }
 
           cardsHtml += '<div class="hy-npc-card ' + _cls + sel + '" onclick="_ltSelectTarget(\'' + safeName + '\')">';
           cardsHtml += '<div class="hy-npc-portrait">' + _portrait + '</div>';
@@ -5873,7 +5877,10 @@ function renderGameState(){
         var ageTag=ch.age?'<span style="font-size:0.62rem;color:var(--txt-d);">'+ch.age+'\u5C81</span>':'';
         var _cap=GM._capital||'京城';
         var locTag='';
-        if(ch.location&&ch.location!==_cap) locTag='<span style="font-size:0.55rem;padding:0 3px;border-radius:2px;background:rgba(184,154,83,0.1);color:var(--gold-400);margin-left:2px;">'+(ch._travelTo?'→'+ch._travelTo:ch.location)+'</span>';
+        if(ch._travelTo){
+          var _rd5=(typeof ch._travelRemainingDays==='number'&&ch._travelRemainingDays>0)?ch._travelRemainingDays:0;
+          locTag='<span style="font-size:0.55rem;padding:0 3px;border-radius:2px;background:rgba(184,154,83,0.18);color:var(--gold-400);margin-left:2px;" title="\u5728\u9014">'+escHtml(ch._travelFrom||ch.location||'')+'\u2192'+escHtml(ch._travelTo)+(_rd5?'\u00B7'+_rd5+'\u65E5':'')+'</span>';
+        } else if(ch.location&&ch.location!==_cap) locTag='<span style="font-size:0.55rem;padding:0 3px;border-radius:2px;background:rgba(184,154,83,0.1);color:var(--gold-400);margin-left:2px;">'+ch.location+'</span>';
         // 性格特质缩写
         var traitBrief='';
         if(ch.traitIds&&ch.traitIds.length>0&&P.traitDefinitions){
@@ -8301,7 +8308,13 @@ function showCharPopup(charName, evt) {
   }
   // 所在地
   if (ch.location) {
-    html += '<div class="char-popup-info" style="font-size:0.7rem;">所在：' + escHtml(ch.location) + '</div>';
+    if (ch._travelTo) {
+      var _remD = (typeof ch._travelRemainingDays === 'number' && ch._travelRemainingDays > 0) ? ch._travelRemainingDays : 0;
+      var _fromL = ch._travelFrom || ch.location;
+      html += '<div class="char-popup-info" style="font-size:0.7rem;color:var(--gold-400);">\u5728\u9014\uFF1A' + escHtml(_fromL) + ' \u2192 ' + escHtml(ch._travelTo) + (_remD > 0 ? '\uFF08\u8FD8\u9700 ' + _remD + ' \u65E5\uFF09' : '') + '</div>';
+    } else {
+      html += '<div class="char-popup-info" style="font-size:0.7rem;">所在：' + escHtml(ch.location) + '</div>';
+    }
   }
 
   // 关系网

@@ -3,6 +3,20 @@
   "entries": [
     {
       "date": "2026-04-21",
+      "module": "赴程可视化·旅途全链",
+      "title": "人物在途状态显示 + 起居注启程条目 + 天数倒计时",
+      "items": [
+        { "what": "审计结论：财政/任免 推演→state→UI 完整闭环·赴程仅完成 state 更新·UI 和 起居注 有空缺", "why": "玩家要求「推演结果能引起变量和 ui 变化」·需完整闭环。applyAITurnChanges 写 _travelTo/_travelRemainingDays 正确·但显示处仅用 ch.location·不能感知在途状态" },
+        { "what": "applier.js 两处 travelTo 分支（char_updates 968+ / office_assignments 993+）启程时 unshift qijuHistory：【启程】/【赴任】X 自A 赴B·预计N日抵达", "why": "原先只推 _turnReport + addEB·起居注/编年 不记启程·玩家只在到达时看到一条「入境」记录·看不到「X 日启程」这个关键时间点" },
+        { "what": "char-popup (8303) 所在地行：_travelTo 存在时显示「在途：A → B（还需N日）」金色警示·未在途显示常规「所在」", "why": "弹窗原先只读 ch.location·角色在途期间显示为出发地·误导玩家以为人还没走" },
+        { "what": "人物列表 locTag (5876) 从「→目的地」改为「A→B·N日」·保留出发地信息·带天数", "why": "原先 ternary 替换丢失了出发地·且不显示剩余天数·玩家无法估计何时抵达" },
+        { "what": "信件 hy-npc-loc (4399) travel span 附加「·N日」倒计时", "why": "信件界面筛选在途人物时·需要知道回信大概要等多久" },
+        { "what": "人物详情页 所在地行 (3747) 从「A → B」升级为「A → B（还需N日）」", "why": "详情页是玩家查最详细信息的地方·应包含天数" },
+        { "what": "tm-game-engine.js v=g·tm-ai-change-applier.js v=q→h", "why": "强制浏览器加载最新脚本·避免缓存造成部分修改不生效" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
       "module": "修·问天数值修改即时生效",
       "title": "问天「增加国库银100万」等数值诉求·正确识别 hardChange + 立即刷新 UI",
       "items": [

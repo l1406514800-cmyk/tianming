@@ -976,6 +976,14 @@
         charUpdCount++;
         G._turnReport.push({ type:'travel', char: ch.name, from:ch._travelFrom, to:ch._travelTo, days:days, reason:ch._travelReason, turn:G.turn||0 });
         if (typeof global.addEB === 'function') global.addEB('\u4EBA\u4E8B', ch.name + ' \u8D74 ' + ch._travelTo + '\uFF08\u9884\u8BA1 ' + days + ' \u65E5\uFF09');
+        if (G.qijuHistory) {
+          var _dt0 = (typeof global.getTSText === 'function') ? global.getTSText(G.turn || 0) : ('T' + (G.turn || 0));
+          G.qijuHistory.unshift({
+            turn: G.turn || 0,
+            date: _dt0,
+            content: '\u3010\u542F\u7A0B\u3011' + ch.name + ' \u81EA' + (ch._travelFrom || '\u672C\u5904') + ' \u8D74 ' + ch._travelTo + '\uFF0C\u9884\u8BA1 ' + days + ' \u65E5\u62B5\u8FBE' + (ch._travelReason ? '\u3002\u7F18\u7531\uFF1A' + ch._travelReason : '') + '\u3002'
+          });
+        }
       }
     });
     if (charUpdCount > 0) applied.semantic.char_updates = charUpdCount;
@@ -1001,6 +1009,14 @@
         ch._travelAssignPost = (oa.dept ? oa.dept + '/' : '') + (oa.post || '');
         G._turnReport.push({ type:'travel', char: ch.name, from:ch._travelFrom, to:ch._travelTo, days:days, reason:ch._travelReason, turn:G.turn||0 });
         if (typeof global.addEB === 'function') global.addEB('\u4EFB\u547D', ch.name + ' \u8D74 ' + oa.toLocation + ' \u4EFB ' + (oa.post||'') + '\uFF08\u9884\u8BA1 ' + days + ' \u65E5\u5230\u4EFB\uFF09');
+        if (G.qijuHistory) {
+          var _dt1 = (typeof global.getTSText === 'function') ? global.getTSText(G.turn || 0) : ('T' + (G.turn || 0));
+          G.qijuHistory.unshift({
+            turn: G.turn || 0,
+            date: _dt1,
+            content: '\u3010\u8D74\u4EFB\u3011' + ch.name + ' \u81EA' + (ch._travelFrom || '\u672C\u5904') + ' \u8D74 ' + oa.toLocation + '\uFF0C\u5F85\u5230\u5373\u5C31 ' + (oa.post || '') + '\u4E4B\u4EFB\uFF0C\u9884\u8BA1 ' + days + ' \u65E5\u3002'
+          });
+        }
       } else {
         // 无需走位·直接就任·沿用原 onAppointment
         // 若 post 为复合名（如"中书侍郎、同平章事"）拆分多个分别任命
