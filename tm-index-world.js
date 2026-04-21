@@ -5311,6 +5311,14 @@ function _jishiDownload(txt){
 // ============================================================
 //  官员表（游戏内）
 // ============================================================
+// 官制树·筛选模式切换（空缺/在任/全部）
+function setOfficeFilterMode(mode) {
+  if (mode !== 'all' && mode !== 'empty' && mode !== 'filled') mode = 'all';
+  if (typeof GM === 'undefined' || !GM) return;
+  GM._officeFilterMode = mode;
+  if (typeof renderOfficeTree === 'function') renderOfficeTree();
+}
+
 function renderOfficeTree(){
   var el=_$("office-tree");if(!el)return;
   // 容错：如果 GM.officeTree 为空但 P.officeTree 有数据，恢复
@@ -5507,9 +5515,11 @@ function _ogRenderPosCard(fi, idx, NW, cardH) {
     _holderCls = _loy >= 70 ? 'loyal' : _loy < 35 ? 'danger' : 'mid';
   }
 
+  var _isVacantCard = !_holder;
   var html = '';
-  html += '<div class="og-pos-card ' + _rankCls + '" style="left:' + fi.x + 'px;top:' + fi.y + 'px;width:' + NW + 'px;height:' + cardH + 'px;">';
+  html += '<div class="og-pos-card ' + _rankCls + (_isVacantCard?' og-vacant-card':'') + '" style="left:' + fi.x + 'px;top:' + fi.y + 'px;width:' + NW + 'px;height:' + cardH + 'px;">';
   html += '<div class="og-rank-bar"></div>';
+  if (_isVacantCard) html += '<div class="og-vacant-dot" title="\u6B64\u804C\u7A7A\u7F3A\u5F85\u8865"></div>';
 
   // 顶栏：官职 + 品级 + 主按钮
   html += '<div class="og-pos-top">';
@@ -5645,6 +5655,7 @@ function _ogRenderPosCard(fi, idx, NW, cardH) {
 /** SVG树状图渲染（游戏版 v2 — 大号信息密度卡 · .og-* 类） */
 function _renderOfficeTreeSVG(container) {
   if (!GM._officeCollapsed) GM._officeCollapsed = {};
+  if (!GM._officeFilterMode) GM._officeFilterMode = 'all'; // all | empty | filled
   var _origPTree = P.officeTree;
   P.officeTree = GM.officeTree;
   var _origCollapsed = P._officeCollapsed;
@@ -5659,11 +5670,31 @@ function _renderOfficeTreeSVG(container) {
   var cw = Math.max(layout.width + 80, 700);
   var ch = Math.max(layout.height + 80, 400);
 
-  // SVG elbow connectors
+  // 统计空缺 / 在任·供筛选条徽标显示
+  var empCount = 0, filCount = 0;
+  for (var _ci = 0; _ci < flat.length; _ci++) {
+    var _cfi = flat[_ci];
+    if (!_cfi.isPos) continue;
+    if (_cfi.node && _cfi.node.holder) filCount++;
+    else empCount++;
+  }
+  var allCount = empCount + filCount;
+
+  // 筛选模式·'empty' 只显示空缺职位·'filled' 只显示在任职位·'all' 全部
+  var _fm = GM._officeFilterMode;
+  function _ofMatch(fi) {
+    if (!fi.isPos) return true; // 部门始终保留·保持层级结构
+    if (_fm === 'empty') return !fi.node.holder;
+    if (_fm === 'filled') return !!fi.node.holder;
+    return true;
+  }
+
+  // SVG elbow connectors（被筛掉的位置·连接线也隐藏）
   var svgLines = '';
   for (var i = 0; i < flat.length; i++) {
     var fi = flat[i];
     if (!fi.parent) continue;
+    if (!_ofMatch(fi)) continue;
     var px = fi.parent.x + fi.parent.w / 2;
     var py = fi.parent.y + _ogCardHeight(fi.parent);
     var cx = fi.x + fi.w / 2;
@@ -5679,6 +5710,7 @@ function _renderOfficeTreeSVG(container) {
   var nodesDivs = '';
   for (var i = 0; i < flat.length; i++) {
     var fi = flat[i];
+    if (!_ofMatch(fi)) continue;
     var nd = fi.node;
     var pathStr = JSON.stringify(fi.path);
     var cardH = _ogCardHeight(fi);
@@ -5693,8 +5725,17 @@ function _renderOfficeTreeSVG(container) {
   var wrapperId = 'office-tree-wrap-game';
   var canvasId = 'office-tree-canvas-game';
 
+  // 筛选条·顶部常驻·不随拖拽缩放移动
+  var _fbActive = function(m){ return _fm===m?' active':''; };
+  var filterBar = '<div class="og-filter-bar">'
+    + '<button class="og-fb-btn' + _fbActive('all') + '" onclick="setOfficeFilterMode(\'all\')" title="\u663E\u793A\u5168\u90E8\u804C\u4F4D">\u5168\u90E8 <span class="og-fb-n">' + allCount + '</span></button>'
+    + '<button class="og-fb-btn empty' + _fbActive('empty') + '" onclick="setOfficeFilterMode(\'empty\')" title="\u53EA\u770B\u7A7A\u7F3A\u00B7\u5FEB\u901F\u586B\u8865">\u7A7A\u7F3A <span class="og-fb-n">' + empCount + '</span></button>'
+    + '<button class="og-fb-btn filled' + _fbActive('filled') + '" onclick="setOfficeFilterMode(\'filled\')" title="\u53EA\u770B\u5DF2\u5728\u4EFB">\u5728\u4EFB <span class="og-fb-n">' + filCount + '</span></button>'
+    + '</div>';
+
   container.innerHTML =
-    '<div id="' + wrapperId + '" class="og-tree-frame" style="height:620px;">'
+    filterBar
+    + '<div id="' + wrapperId + '" class="og-tree-frame" style="height:620px;">'
     + '<div class="og-tree-hint">\u25C9 \u9F20 \u8F6E \u7F29 \u653E<span class="sep">\u00B7</span>\u957F \u6309 \u62D6 \u52A8<span class="sep">\u00B7</span>\u70B9 \u51FB \u5C55 \u5F00 \u8BE6 \u60C5</div>'
     + '<div id="' + canvasId + '" class="og-tree-canvas" style="width:' + cw + 'px;height:' + ch + 'px;">'
     + '<svg style="position:absolute;top:0;left:0;pointer-events:none;" width="' + cw + '" height="' + ch + '">' + svgLines + '</svg>'

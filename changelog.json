@@ -3,6 +3,18 @@
   "entries": [
     {
       "date": "2026-04-21",
+      "module": "官制·空缺筛选 + 空缺徽标",
+      "title": "官制树顶 筛选条「全部/空缺/在任」+ 空缺职位加红点脉冲徽标",
+      "items": [
+        { "what": "官制树顶新增筛选条 .og-filter-bar·三按钮「全部 N · 空缺 N · 在任 N」带实时计数·点击立即重渲染只显示匹配的职位卡", "why": "玩家找空缺要眼扫整棵树·漏看漏任·给予「一键只看空缺」直达诉求" },
+        { "what": "新 state GM._officeFilterMode = 'all'/'empty'/'filled'·在 _renderOfficeTreeSVG 入口初始化·在 SVG 连接线 loop 和节点 loop 双路径共同过滤·保证连线与卡片一致", "why": "若只过滤卡片会留下悬空连线·两个 loop 同步过滤最简洁·部门节点始终保留以维持层级" },
+        { "what": "空缺职位卡加 .og-vacant-card 类·右上角加 .og-vacant-dot 红点·1.6s 脉冲动画·并微调卡片边框为朱红·顶部淡红渐变背景", "why": "放眼整棵树 空缺位置视觉立即跳出·呼应「闪烁提示」的注意力机制" },
+        { "what": "新增 setOfficeFilterMode(mode) 全局函数·供筛选按钮 onclick 调用·修改 GM 后触发 renderOfficeTree() 完整重渲染", "why": "保持与现有 GM._officeCollapsed 的一致模式·无需单独 DOM 更新" },
+        { "what": "tm-index-world.js v=e→f·CSS 新增 .og-filter-bar/.og-fb-btn/.og-vacant-card/.og-vacant-dot 约 12 行", "why": "强制浏览器加载新代码" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
       "module": "修·次 API 加到 tm-patches 真正的 openSettings",
       "title": "发现真正生效的是 tm-patches.js:9 的 openSettings 覆盖版·此前改的是 tm-game-engine 被覆盖版本",
       "items": [
