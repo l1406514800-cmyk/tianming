@@ -5698,9 +5698,11 @@ function _renderOfficeTreeSVG(container) {
   var allCount = empCount + filCount;
 
   // 筛选模式·'empty' 只显示空缺职位·'filled' 只显示在任职位·'all' 全部
+  // 本回合有 _pendingEdict 的位置始终保留·否则玩家撤销条会被筛掉看不见
   var _fm = GM._officeFilterMode;
   function _ofMatch(fi) {
     if (!fi.isPos) return true; // 部门始终保留·保持层级结构
+    if (fi.node && fi.node._pendingEdict && fi.node._pendingEdict.turn === GM.turn) return true;
     if (_fm === 'empty') return !fi.node.holder;
     if (_fm === 'filled') return !!fi.node.holder;
     return true;
