@@ -3,6 +3,20 @@
   "entries": [
     {
       "date": "2026-04-21",
+      "module": "官制·每官职底挂「待下诏书」条·回合内可撤销",
+      "title": "任命后对应官职卡底部滑出朱红条·回合末正式颁布·期间点撤销即反悔",
+      "items": [
+        { "what": "_offPickerConfirm 在修改 holder 后·往被任位置挂 p._pendingEdict 快照·含 turn/prevHolder/newHolder/edictLine/trackerId 及若干 snap 标志", "why": "撤销要精确反向到操作前·靠写时快照记住我们改过什么·才能准确回滚" },
+        { "what": "_ogRenderPosCard 末尾检测 nd._pendingEdict && pe.turn === GM.turn·追加 og-pending-edict 条: 〔待下诏书〕改X→Y [撤销]", "why": "玩家预期反馈就在自己刚点的那张卡上·零视线跳转" },
+        { "what": "_ogCardHeight 挂了 pendingEdict 的位置卡高度从 196→230·让 32px 条有容身之地", "why": "不加高会覆盖下方卡片·破坏树布局" },
+        { "what": "新增 _offUndoAppointment(deptName, posName) 执行反向 7 步：回滚 holder/publicTreasury·pop _history·清/恢复 newChar/oldChar 的 officialTitle/careerHistory/_memorySeeds/_displaced·反向 AffinityMap·删 edict-pol textarea 对应行·移除 _edictSuggestions·移除 _edictTracker·清 _pendingEdict", "why": "撤销要彻底·否则 AI 本回合推演还能看到已撤的诏令·造成玩家困惑" },
+        { "what": "endTurn Phase 0-0 遍历 officeTree 清所有 _pendingEdict·此刻诏书正式颁布不再可撤", "why": "跨回合不清会累积 + 在推演后撤销会造成数据不一致" },
+        { "what": "CSS 新增 .og-pending-edict / .og-pe-lbl / .og-pe-txt / .og-pe-undo·朱红渐变底 + 虚线上边 + 印章朱色按钮·与游戏整体文风一致", "why": "视觉上立即识别「这是临时状态」" },
+        { "what": "tm-index-world v=f→g·tm-endturn v=e→f", "why": "强制加载新代码" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
       "module": "官制·空缺筛选 + 空缺徽标",
       "title": "官制树顶 筛选条「全部/空缺/在任」+ 空缺职位加红点脉冲徽标",
       "items": [

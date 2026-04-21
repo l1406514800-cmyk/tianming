@@ -14708,6 +14708,16 @@ async function _endTurnCore(){
 
   await EndTurnHooks.execute('before');
 
+  // Phase 0-0·清理本回合待下诏书快照（任免已正式颁布·不再可撤销）
+  try {
+    (function _clearPE(nodes){
+      (nodes||[]).forEach(function(n){
+        (n.positions||[]).forEach(function(p){ if (p && p._pendingEdict) { try { delete p._pendingEdict; } catch(_){} } });
+        if (n.subs) _clearPE(n.subs);
+      });
+    })(GM.officeTree||[]);
+  } catch(_peE) { console.warn('[endTurn] clear _pendingEdict', _peE); }
+
   // Phase 0-0: 提交本回合所有奏疏决定的副作用（NPC 记忆 + 朱批回传）
   try { if (typeof _commitMemorialDecisions === 'function') _commitMemorialDecisions(); } catch(_cmE) { console.warn('[endTurn] _commitMemorialDecisions', _cmE); }
 

@@ -5348,9 +5348,13 @@ function renderOfficeTree(){
   }
 }
 
-/** v2 helper：每个节点的可视高度（部门 ~120，职位 ~196） */
+/** v2 helper：每个节点的可视高度（部门 ~120，职位 ~196·有「待下诏书」条时 +34） */
 function _ogCardHeight(fi) {
-  if (fi.isPos) return 196;
+  if (fi.isPos) {
+    var _pe = fi.node && fi.node._pendingEdict;
+    var _hasPe = _pe && typeof GM !== 'undefined' && _pe.turn === GM.turn;
+    return _hasPe ? 230 : 196;
+  }
   if (fi.depth === 0) return 100;
   return 110;
 }
@@ -5645,6 +5649,19 @@ function _ogRenderPosCard(fi, idx, NW, cardH) {
       html += '<span class="arr">\u2192</span>';
       html += '<span class="name current">' + escHtml(nd.holder) + '</span>';
     }
+    html += '</div>';
+  }
+
+  // 待下诏书条（回合内生效·可撤销）
+  var _pe = nd._pendingEdict;
+  if (_pe && _pe.turn === GM.turn) {
+    var _peTxt = _pe.prevHolder
+      ? ('改 ' + escHtml(_pe.prevHolder) + ' \u2192 ' + escHtml(_pe.newHolder))
+      : ('任 ' + escHtml(_pe.newHolder));
+    html += '<div class="og-pending-edict" title="\u672C\u56DE\u5408\u672B\u6B63\u5F0F\u9881\u5E03\u00B7\u671F\u95F4\u53EF\u64A4\u9500">';
+    html += '<span class="og-pe-lbl">\u3014\u5F85\u4E0B\u8BCF\u4E66\u3015</span>';
+    html += '<span class="og-pe-txt">' + _peTxt + '</span>';
+    html += '<button class="og-pe-undo" onclick="event.stopPropagation();_offUndoAppointment(\'' + escHtml(_pe.deptName).replace(/'/g,"\\'") + '\',\'' + escHtml(_pe.posName).replace(/'/g,"\\'") + '\')">\u64A4 \u9500</button>';
     html += '</div>';
   }
 
@@ -6310,14 +6327,17 @@ function _offPickerRowHtml(c) {
 }
 
 function _offPickerConfirm(charName, deptName, posName, oldHolder) {
-  // ═══ 三位一体·即时生效 ═══
+  // ═══ 三位一体·即时生效·回合内可撤销 ═══
   // 1. 直接改 officeTree holder（UI 立即刷新）
   // 2. 同步更新 char.officialTitle + careerHistory + 官职公库 currentHead
   // 3. 自动 append 到 edict-pol textarea（交 AI 本回合推演·会引发叙事+后续影响）
   // 4. 同时记入 edictSuggestions 供参考
+  // 5. 往位置对象写 _pendingEdict 快照·供回合内撤销使用
   var newChar = (GM.chars || []).find(function(c){ return c.name === charName; });
   var oldChar = oldHolder ? (GM.chars || []).find(function(c){ return c.name === oldHolder; }) : null;
   var _seatDone = false;
+  var _posRef = null; // 保存被修改的 position 引用·供末尾挂 _pendingEdict
+  var _snapPrevPubHead = undefined;
 
   // Step 1: officeTree 直接查找并改 holder
   function _applyHolder(nodes) {
@@ -6328,10 +6348,12 @@ function _offPickerConfirm(charName, deptName, posName, oldHolder) {
         (n.positions || []).forEach(function(p) {
           if (_seatDone || !p) return;
           if (p.name === posName) {
+            _snapPrevPubHead = (p.publicTreasury && p.publicTreasury.currentHead) || undefined;
             p.holder = charName;
             if (p.publicTreasury) p.publicTreasury.currentHead = charName;
             if (!p._history) p._history = [];
             p._history.push({ holder: oldHolder || '(空)', endTurn: GM.turn, reason: '玩家诏令改任' });
+            _posRef = p;
             _seatDone = true;
           }
         });
@@ -6387,13 +6409,15 @@ function _offPickerConfirm(charName, deptName, posName, oldHolder) {
 
   // Step 5: edictTracker 记入本回合诏令（确保 AI prompt 能看到）·跨回合去重·防止重复任命累积
   if (!GM._edictTracker) GM._edictTracker = [];
+  var _trackerId = null;
   var _dupT = (GM._edictTracker||[]).some(function(t) {
     if (!t || t.content !== edictLine) return false;
     return t.status === 'pending' || t.status === 'executing' || t.status === 'partial' || t.status === 'obstructed' || t.status === 'pending_delivery';
   });
   if (!_dupT) {
+    _trackerId = 'appoint_' + Date.now() + '_' + charName;
     GM._edictTracker.push({
-      id: 'appoint_' + Date.now() + '_' + charName,
+      id: _trackerId,
       content: edictLine, category: '政令',
       turn: GM.turn, status: 'pending',
       assignee: charName, feedback: '',
@@ -6401,6 +6425,26 @@ function _offPickerConfirm(charName, deptName, posName, oldHolder) {
       _appointmentAction: { character: charName, position: posName, dept: deptName, oldHolder: oldHolder },
       _chainEffects: []  // 后续回合连带效应记录
     });
+  }
+
+  // Step 6: 位置挂 _pendingEdict·供「待下诏书」条展示 + 回合内撤销
+  if (_posRef) {
+    _posRef._pendingEdict = {
+      turn: GM.turn,
+      prevHolder: oldHolder || '',
+      newHolder: charName,
+      deptName: deptName,
+      posName: posName,
+      edictLine: edictLine,
+      trackerId: _trackerId,
+      _snapPrevPubHead: _snapPrevPubHead,
+      _snapNewCharCareerPushed: !!newChar,
+      _snapNewCharSeedPushed: !!newChar,
+      _snapOldCharCareerPushed: !!oldChar,
+      _snapOldCharDisplacedSet: !!oldChar,
+      _snapAppliedAffinity: true,
+      ts: Date.now()
+    };
   }
 
   toast((oldHolder ? ('改换·' + oldHolder + '→' + charName) : ('任命·' + charName)) + (_dupT ? ' 已即时生效（同内容诏令已在跟踪）' : ' 已即时生效并写入本回合诏令'));
@@ -6414,6 +6458,96 @@ function _offClosePicker() {
   _OFF_PICKER = null;
   var m = document.getElementById('off-picker-modal');
   if (m) m.remove();
+}
+
+// 撤销本回合任命·反向操作 _offPickerConfirm 的所有副作用
+function _offUndoAppointment(deptName, posName) {
+  var target = null;
+  (function _find(nodes) {
+    if (target) return;
+    (nodes||[]).forEach(function(n) {
+      if (target || !n) return;
+      if (n.name === deptName) {
+        (n.positions||[]).forEach(function(p) {
+          if (target || !p) return;
+          if (p.name === posName) target = p;
+        });
+      }
+      if (!target && n.subs) _find(n.subs);
+    });
+  })(GM.officeTree || []);
+  if (!target || !target._pendingEdict || target._pendingEdict.turn !== GM.turn) {
+    toast('\u8BE5\u804C\u65E0\u53EF\u64A4\u9500\u7684\u8BCF\u4E66'); return;
+  }
+  var pe = target._pendingEdict;
+  var newChar = (GM.chars||[]).find(function(c){ return c.name === pe.newHolder; });
+  var oldChar = pe.prevHolder ? (GM.chars||[]).find(function(c){ return c.name === pe.prevHolder; }) : null;
+
+  // 1. 回滚 holder + publicTreasury
+  target.holder = pe.prevHolder || undefined;
+  if (!pe.prevHolder) { try { delete target.holder; } catch(_){} }
+  if (target.publicTreasury) target.publicTreasury.currentHead = pe._snapPrevPubHead;
+  // 回滚 _history 最末一条（就是刚才写的那条）
+  if (Array.isArray(target._history) && target._history.length > 0) target._history.pop();
+
+  // 2. 回滚 newChar 字段
+  if (newChar) {
+    if (newChar.officialTitle === pe.posName) newChar.officialTitle = '';
+    if (newChar.position === pe.posName) newChar.position = '';
+    if (pe._snapNewCharCareerPushed && Array.isArray(newChar.careerHistory) && newChar.careerHistory.length > 0) {
+      newChar.careerHistory.pop();
+    }
+    if (pe._snapNewCharSeedPushed && Array.isArray(newChar._memorySeeds) && newChar._memorySeeds.length > 0) {
+      newChar._memorySeeds.pop();
+    }
+    // 反向 Affinity +5·回正 -5
+    if (pe._snapAppliedAffinity && typeof AffinityMap !== 'undefined' && AffinityMap.add) {
+      try { AffinityMap.add(pe.newHolder, (P.playerInfo && P.playerInfo.characterName) || '\u9661\u4E0B', -5, '\u8BCF\u4E66\u64A4\u56DE'); } catch(_){}
+    }
+  }
+
+  // 3. 回滚 oldChar 字段（若有改换）
+  if (oldChar) {
+    // 之前清了 officialTitle/position·若仍为空则恢复回原职
+    if (!oldChar.officialTitle) oldChar.officialTitle = pe.posName;
+    if (!oldChar.position) oldChar.position = pe.posName;
+    if (pe._snapOldCharDisplacedSet) { try { delete oldChar._displaced; } catch(_){} }
+    if (pe._snapOldCharCareerPushed && Array.isArray(oldChar.careerHistory) && oldChar.careerHistory.length > 0) {
+      oldChar.careerHistory.pop();
+    }
+    if (pe._snapAppliedAffinity && typeof AffinityMap !== 'undefined' && AffinityMap.add) {
+      try { AffinityMap.add(pe.prevHolder, (P.playerInfo && P.playerInfo.characterName) || '\u9661\u4E0B', 10, '\u8BCF\u4E66\u64A4\u56DE'); } catch(_){}
+    }
+  }
+
+  // 4. 从 edict-pol textarea 移除这一行
+  var polEl = document.getElementById('edict-pol');
+  if (polEl && polEl.value && pe.edictLine) {
+    var lines = polEl.value.split('\n');
+    var idx = lines.lastIndexOf(pe.edictLine);
+    if (idx >= 0) {
+      lines.splice(idx, 1);
+      polEl.value = lines.join('\n');
+    }
+  }
+
+  // 5. 从 edictSuggestions 移除
+  if (Array.isArray(GM._edictSuggestions)) {
+    GM._edictSuggestions = GM._edictSuggestions.filter(function(s){ return !(s && s.content === pe.edictLine && s.turn === pe.turn); });
+  }
+
+  // 6. 从 edictTracker 移除
+  if (pe.trackerId && Array.isArray(GM._edictTracker)) {
+    GM._edictTracker = GM._edictTracker.filter(function(t){ return t && t.id !== pe.trackerId; });
+  }
+
+  // 7. 清 _pendingEdict
+  try { delete target._pendingEdict; } catch(_){}
+
+  toast('\u5DF2\u64A4\u9500\uFF1A' + (pe.prevHolder ? ('\u6062\u590D ' + pe.prevHolder) : ('\u7A7A\u7F3A ' + pe.posName)));
+  if (typeof renderOfficeTree === 'function') { try { renderOfficeTree(); } catch(_){} }
+  if (typeof renderRenwu === 'function') { try { renderRenwu(); } catch(_){} }
+  if (typeof _renderEdictSuggestions === 'function') { try { _renderEdictSuggestions(); } catch(_){} }
 }
 
 /** 廷推——高品级职位由多位大臣联名推荐 */
