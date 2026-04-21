@@ -3,6 +3,20 @@
   "entries": [
     {
       "date": "2026-04-21",
+      "module": "修性别中英错配·周皇后等女性被渲染为♂",
+      "title": "根因：UI 用英文 'female' 判断·剧本数据用中文 '女'·所有女性显示♂",
+      "items": [
+        { "what": "tm-game-engine.js openCharDetail(3407,3422)·中 `if (gender === 'female') '♀':'♂'` 当 gender='女'(中文)时 === 'female' 永假·渲染 ♂·修为 `isFemale = (gender === 'female' || gender === '女' || ch.isFemale === true)`", "why": "根本 bug 起点·周皇后/张懿安/袁贵妃/客氏/李选侍 五位女性全部被渲染为 ♂" },
+        { "what": "tm-game-engine.js renderRenwuPanel(3615,3633,3818)·三处同问题同修·rwp-gender class + 身份档案的性别文本都走 isFemale", "why": "人物列表/问对/身世 三处都受影响" },
+        { "what": "tm-char-full-schema.js:23 SCHEMA 性别 default 由 'male' 改 '男'·options [{v:'男'},{v:'女'}]·与剧本数据类型对齐", "why": "避免 AI 生成或新角色落入英文默认值" },
+        { "what": "tm-char-full-schema.js ensureFullFields 新增 1b 段·gender 规范化：'male'→'男'·'female'→'女'·未设或值异常时据 isFemale/spouseRank/_isConsort 推断·终归统一为中文", "why": "老存档迁移+兼容 AI 生成的英文值·load 后所有 char.gender 必是中文·下游代码可安全 === '女'/'男'" },
+        { "what": "tm-char-full-schema.js:149 AI context 也扩展接受中英·保持一致", "why": "minor·向后兼容" },
+        { "what": "官方剧本 tianqi7-1627 审计 97 真角色·无重复·周皇后/张懿安/袁贵妃/客氏/李选侍 gender 字段全为 '女'·数据本身无误·bug 仅在 UI 渲染层", "why": "用户报周皇后显男·实为渲染侧中英字符串 === 错配所致·剧本数据已经正确" },
+        { "what": "缓存版本 tm-game-engine.js v=i→j", "why": "强制加载" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
       "module": "修·玩家任命旅程+编年",
       "title": "玩家任命远地角色时·启动赴任旅程·编年/起居注同步",
       "items": [

@@ -20,7 +20,7 @@
     { key: 'name',            group: '身份', type: 'text',   label: '姓名',       default: '' },
     { key: 'zi',              group: '身份', type: 'text',   label: '字',         default: '', hint: '表字，如"子直""玄德"' },
     { key: 'haoName',         group: '身份', type: 'text',   label: '号',         default: '', hint: '别号，如"东堤居士"' },
-    { key: 'gender',          group: '身份', type: 'select', label: '性别',       default: 'male', options: [{v:'male',l:'男'},{v:'female',l:'女'}] },
+    { key: 'gender',          group: '身份', type: 'select', label: '性别',       default: '男', options: [{v:'男',l:'男'},{v:'女',l:'女'}] },
     { key: 'age',             group: '身份', type: 'number', label: '年龄',       default: 30, min: 0, max: 120 },
     { key: 'portrait',        group: '身份', type: 'text',   label: '立绘路径',    default: '' },
     { key: 'appearance',      group: '身份', type: 'textarea', label: '外貌',     default: '' },
@@ -91,6 +91,15 @@
       }
     });
 
+    // 1b. gender 规范化·英文 male/female → 中文 男/女（全库 UI 一致）
+    if (ch.gender === 'male') ch.gender = '男';
+    else if (ch.gender === 'female') ch.gender = '女';
+    // 未设置或无法识别时·据 isFemale/spouse/后宫字段推断
+    if (!ch.gender || (ch.gender !== '男' && ch.gender !== '女')) {
+      if (ch.isFemale === true || ch.spouseRank || ch._isConsort) ch.gender = '女';
+      else ch.gender = '男';
+    }
+
     // 2. 字 courtesyName 兼容（旧字段）
     if (!ch.zi && ch.courtesyName) ch.zi = ch.courtesyName;
     if (!ch.courtesyName && ch.zi) ch.courtesyName = ch.zi;
@@ -146,7 +155,7 @@
     var nameLine = '【我是' + (ch.name || '') + '】';
     if (ch.zi) nameLine += '，字' + ch.zi;
     if (ch.haoName) nameLine += '，号' + ch.haoName;
-    if (ch.gender === 'female') nameLine += '（女）';
+    if (ch.gender === 'female' || ch.gender === '女' || ch.isFemale === true) nameLine += '（女）';
     if (ch.age) nameLine += '，今年' + ch.age + '岁';
     lines.push(nameLine);
     // 出身

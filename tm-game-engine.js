@@ -3405,6 +3405,8 @@ function openCharDetail(charName) {
   var health = Math.round(res.health !== undefined ? res.health : (ch.health !== undefined ? ch.health : 80));
   var stress = Math.round(res.stress !== undefined ? res.stress : (ch.stress || 0));
   var gender = ch.gender || (ch.isFemale ? 'female' : 'male');
+  // 兼容中/英 gender 值：'女'|'female' 视为女·'男'|'male' 视为男
+  var isFemale = (gender === 'female' || gender === '女' || ch.isFemale === true);
   var age = ch.age || '';
   var fameS = _rwpFameSeal(fame);
   var xianTier = _rwpXianTier(virtue);
@@ -3419,7 +3421,7 @@ function openCharDetail(charName) {
   h += '<div class="qp-heading">';
   h += '<div><span class="qp-name">' + escHtml(ch.name || '') + '</span>';
   if (ch.zi || ch.courtesyName) h += '<span class="qp-courtesy">'+escHtml(ch.zi||ch.courtesyName)+'</span>';
-  if (gender) h += '<span class="qp-gender-age">' + (gender==='female'?'♀':'♂') + (age?age:'') + '</span>';
+  if (gender) h += '<span class="qp-gender-age">' + (isFemale?'♀':'♂') + (age?age:'') + '</span>';
   h += '</div>';
   if (ch.title || ch.officialTitle) {
     h += '<div class="qp-title">' + escHtml(ch.officialTitle || ch.title || '');
@@ -3613,6 +3615,7 @@ function openCharRenwuPage(charName) {
   var health = Math.round(res.health !== undefined ? res.health : (ch.health !== undefined ? ch.health : 80));
   var stress = Math.round(res.stress !== undefined ? res.stress : (ch.stress || 0));
   var gender = ch.gender || (ch.isFemale ? 'female' : 'male');
+  var isFemale = (gender === 'female' || gender === '女' || ch.isFemale === true);
   var age = ch.age || '';
   var fameS = _rwpFameSeal(fame);
   var xianTier = _rwpXianTier(virtue);
@@ -3630,7 +3633,7 @@ function openCharRenwuPage(charName) {
   h += '<div class="rwp-name-row">';
   h += '<div class="rwp-name">' + escHtml(ch.name || '') + '</div>';
   if (ch.zi || ch.courtesyName) h += '<div class="rwp-courtesy">'+escHtml(ch.zi || ch.courtesyName)+'</div>';
-  if (gender) h += '<span class="rwp-gender '+(gender==='female'?'female':'male')+'">'+(gender==='female'?'女':'男')+(age?' · '+age:'')+'</span>';
+  if (gender) h += '<span class="rwp-gender '+(isFemale?'female':'male')+'">'+(isFemale?'女':'男')+(age?' · '+age:'')+'</span>';
   h += '</div>';
   // 官职
   if (ch.title || ch.officialTitle) {
@@ -3812,7 +3815,7 @@ function openCharRenwuPage(charName) {
   h += '<div class="rwp-sec"><div class="rwp-sec-title">身 份 档 案</div>';
   h += '<div class="rwp-identity-grid">';
   var idCells = [
-    {l:'性 别', v: gender==='female'?'女':'男'},
+    {l:'性 别', v: isFemale?'女':'男'},
     {l:'年 龄', v: age || '未详'},
     {l:'身 份', v: ch.role || '—'},
     {l:'职 业', v: ch.occupation || ch.officialTitle || '—'},
