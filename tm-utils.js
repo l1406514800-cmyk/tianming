@@ -909,6 +909,11 @@ function _buildAIUrl(base){
   return u+"/chat/completions";
 }
 
+// M3·判断次 API 是否配置完整·供调用方决定是否走次 tier
+function _useSecondaryTier() {
+  return !!(typeof P !== 'undefined' && P.ai && P.ai.secondary && P.ai.secondary.key && P.ai.secondary.url);
+}
+
 // M3·按 tier 获取 AI 配置·secondary 未配时回退 primary
 // tier: 'primary'|'secondary'·默认 primary
 function _getAITier(tier) {

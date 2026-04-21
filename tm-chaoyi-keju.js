@@ -1915,6 +1915,7 @@ async function _streamCYSpeech(name, sysPrompt) {
       [{ role: 'user', content: sysPrompt }], 600,
       {
         signal: CY.abortCtrl.signal,
+        tier: (typeof _useSecondaryTier === 'function' && _useSecondaryTier()) ? 'secondary' : undefined,  // M3·朝议走次 API
         onChunk: function(txt) {
           if (bubbleEl) { bubbleEl.textContent = txt; bubbleEl.style.color = ''; }
           body.scrollTop = body.scrollHeight;
@@ -7522,6 +7523,7 @@ async function _cc2_genRoundSpeeches(item, picks, roundNum) {
         [{ role: 'user', content: prompt }], tokens,
         {
           signal: CY.abortCtrl.signal,
+          tier: (typeof _useSecondaryTier === 'function' && _useSecondaryTier()) ? 'secondary' : undefined,  // M3·常朝走次 API
           onChunk: function(txt) {
             if (!bubbleEl || _ccRaf) return;
             _ccRaf = true;
@@ -8526,7 +8528,9 @@ async function _ty2_genOneSpeech(name, roundNum, prevSpeeches) {
     var raw = await callAIMessagesStream(
       [{role:'user', content: prompt}],
       (typeof _aiDialogueTok==='function'?_aiDialogueTok("cy", 1):600),
-      { signal: CY.abortCtrl.signal, onChunk: function(txt) {
+      { signal: CY.abortCtrl.signal,
+        tier: (typeof _useSecondaryTier === 'function' && _useSecondaryTier()) ? 'secondary' : undefined,  // M3·廷议走次 API
+        onChunk: function(txt) {
           if (!_tyBubble || _tyRaf) return;
           _tyRaf = true;
           requestAnimationFrame(function() {
@@ -9171,7 +9175,9 @@ async function _yq2_oneAdvisorSpeak(name, roundNum) {
     var raw = await callAIMessagesStream(
       [{role:'user', content: prompt}],
       (typeof _aiDialogueTok==='function'?_aiDialogueTok("cy", 1):700),
-      { signal: CY.abortCtrl.signal, onChunk: function(txt) {
+      { signal: CY.abortCtrl.signal,
+        tier: (typeof _useSecondaryTier === 'function' && _useSecondaryTier()) ? 'secondary' : undefined,  // M3·御前走次 API
+        onChunk: function(txt) {
           if (!_yqBubble || _yqRaf) return;
           _yqRaf = true;
           requestAnimationFrame(function() {

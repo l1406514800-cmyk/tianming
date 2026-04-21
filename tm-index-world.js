@@ -3601,6 +3601,7 @@ async function _wdNpcInitiateSpeak(name) {
   try {
     var msgs = [{ role: 'system', content: sysP + '\n' + (typeof _aiDialogueWordHint==='function'?_aiDialogueWordHint("wd"):'') }];
     var reply = await callAIMessagesStream(msgs, (typeof _aiDialogueTok==='function'?_aiDialogueTok("wd", 1):800), {
+      tier: (typeof _useSecondaryTier === 'function' && _useSecondaryTier()) ? 'secondary' : undefined,  // M3·问对走次 API
       onChunk: function(txt) {
         var bubble = _$('wd-init-bubble');
         if (bubble) { bubble.textContent = txt; }
@@ -4261,6 +4262,7 @@ async function sendWendui(){
 
       var streamBubble = _$('wd-stream-text');
       var rawReply = await callAIMessagesStream(messages, (typeof _aiDialogueTok==='function'?_aiDialogueTok("wd", 1):800), {
+        tier: (typeof _useSecondaryTier === 'function' && _useSecondaryTier()) ? 'secondary' : undefined,  // M3·问对走次 API
         onChunk: function(txt) {
           if (streamBubble) { streamBubble.textContent = txt; streamBubble.style.color = ''; }
           chat.scrollTop = chat.scrollHeight;
