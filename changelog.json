@@ -3,6 +3,16 @@
   "entries": [
     {
       "date": "2026-04-21",
+      "module": "修·魏忠贤重复定义",
+      "title": "删我误加的魏忠贤重档·他本就在 6584 以丰富档案存在",
+      "items": [
+        { "what": "tianqi7-1627 scenarios 删 6706-6722 我重复插入的魏忠贤简档·保留 6584 原有完整档（zi/haoName/career/familyMembers/_memory 5 条/stressSources/innerThought/privateWealth 4800000 两）", "why": "之前幽灵检测器 regex `name: 'X', (title|...)` 漏匹配以 zi 为首字段的角色·误判魏忠贤为幽灵·遂重复插入覆盖" },
+        { "what": "加注释备忘·「魏忠贤已在上方以完整档案存在·此处不重复」防将来再误加", "why": "记录 pitfall" },
+        { "what": "全库重查：158 真 char·0 重复·22 补齐目标各 1 次 ✓·6 势力 leaderInfo/heirInfo 交叉引用（朱由检/皇太极/林丹汗/郑芝龙/郑成功/王嘉胤）属正常结构非重复", "why": "用户抽查发现问题后的补全验证" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
       "module": "任命·拟态修复+剧本幽灵 holder 补 22 角色",
       "title": "官员任命·根本修复 holder 抹除+拟任醒目视觉+天启剧本补齐 22 历史人物",
       "items": [

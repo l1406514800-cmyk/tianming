@@ -6704,22 +6704,7 @@
         resources: { privateWealth: { cash: 35000, grain: 1000, cloth: 300 } },
       },
       // ──── 阉党·续（补齐剧本 holder 引用） ────
-      {
-        name: '魏忠贤', title: '司礼监秉笔太监·总督东厂·上公', officialTitle: '秉笔太监·提督东厂·上公', alive: true,
-        age: 60, gender: '男', personality: '阴鸷·贪权·狠毒', party: '阉党',
-        loyalty: 5, ambition: 95, intelligence: 65, administration: 40, military: 30, integrity: 0,
-        stance: '阉党首魁', faction: '明朝廷', family: '魏氏', location: '京师·紫禁城',
-        traits: ['ambitious', 'deceitful', 'cruel', 'greedy', 'paranoid'],
-        isHistorical: true,
-        _memory: [
-          { event: '天启二年总督东厂·渐揽司礼秉笔大权', emotion: '喜', weight: 10, turn: -2400 },
-          { event: '天启四年兴诏狱·东林六君子死·杨涟血溅狱墙', emotion: '快', weight: 9, turn: -1100 },
-          { event: '天启六年苏州市民五人殴杀缇骑·江南咆哮', emotion: '惊', weight: 8, turn: -300 },
-          { event: '天启七年八月帝崩·新帝十六岁即位·朝野心惊', emotion: '惧', weight: 10, turn: -30 }
-        ],
-        bio: '北直隶肃宁人。原市井无赖。入宫认魏朝、王安为契父，结客氏专权。天启二年总督东厂，号「九千九百岁」，生祠遍天下。阁臣六部九卿大半其亲党。天启七年八月帝崩，少帝即位，其势已危。日后或可元年崇祯帝凌迟客氏后诏旨勒令前往凤阳祖陵司香，途中自缢于阜城。',
-        resources: { privateWealth: { cash: 500000, grain: 20000, cloth: 5000 } },
-      },
+      // 注：魏忠贤已在上方以完整档案存在（lines 6583+·含 career/familyMembers/_memory 丰富字段），此处不重复。
       {
         name: '王体乾', title: '司礼监掌印太监', officialTitle: '司礼监掌印太监', alive: true,
         age: 60, gender: '男', personality: '谨畏·屈己·工心', party: '阉党',
