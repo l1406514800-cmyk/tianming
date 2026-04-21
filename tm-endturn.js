@@ -5653,6 +5653,50 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       sysP += '\n★ 规则：所有长期诏书每回合都必须体现效果·不可忘记。效果可正可负·可前好后坏或反之。在 shizhengji/zhengwen 中体现·在 var_changes 中实化。';
     }
 
+    // ★ 三系统运行时状态（势力 lifePhase·党派 influence/officeCount·军队 mutinyRisk）
+    try {
+      var _tsBlock = '';
+      if (Array.isArray(GM.facs) && GM.facs.length > 0) {
+        var _facLines = [];
+        GM.facs.forEach(function(f) {
+          if (!f || !f.name) return;
+          var line = '  · ' + f.name + '·阶段' + (f.lifePhase||'stable') + '·实力' + (f.strength||0) + '·合法性' + (f.legitimacy||0) + '·人口' + (f.population||0) + '·民心' + (f.morale||0) + '·稳定' + (f.stability||0);
+          if (f._collapsing) line += '·【濒临崩溃】';
+          if (f.suzerainFaction) line += '·宗主=' + f.suzerainFaction;
+          _facLines.push(line);
+        });
+        if (_facLines.length) _tsBlock += '\n\n【势力运行时态】\n' + _facLines.join('\n');
+      }
+      if (GM.partyState && typeof GM.partyState === 'object') {
+        var _pLines = [];
+        Object.keys(GM.partyState).forEach(function(pn) {
+          var ps = GM.partyState[pn]; if (!ps) return;
+          _pLines.push('  · ' + pn + '·影响' + ps.influence + '·凝聚' + ps.cohesion + '·占官' + ps.officeCount + '·清誉' + ps.reputationBalance + (ps.recentImpeachWin>0?('·近期弹劾胜'+Math.round(ps.recentImpeachWin)):'') + (ps.recentImpeachLose>0?('·近期弹劾败'+Math.round(ps.recentImpeachLose)):''));
+        });
+        if (_pLines.length) _tsBlock += '\n\n【党派数值】\n' + _pLines.join('\n');
+      }
+      if (Array.isArray(GM.armies) && GM.armies.length > 0) {
+        var _riskArmies = GM.armies.filter(function(a){ return (a.mutinyRisk||0) >= 50 || (a.supply||100) < 30 || (a.morale||100) < 30 || (a.payArrearsMonths||0) >= 2; });
+        if (_riskArmies.length > 0) {
+          _tsBlock += '\n\n【军情警报】';
+          _riskArmies.slice(0, 8).forEach(function(a) {
+            _tsBlock += '\n  · ' + a.name + '·驻' + (a.garrison||'') + (a.state==='marching'?('·赴'+a.destination+'中'):'') + (a.state==='sieging'?'·围城中':'') + '·粮' + (a.supply||0) + '·气' + (a.morale||0) + '·欠饷' + (a.payArrearsMonths||0) + '月·兵变险' + (a.mutinyRisk||0);
+          });
+        }
+      }
+      if (_tsBlock) sysP += _tsBlock + '\n★ 推演时必须按上述数值展开·势力 lifePhase 决定基调·党派 influence 决定话语权·军变险 >= 60 必生事件。';
+    } catch(_tsIE) { console.warn('[sysP] 三系统状态注入失败', _tsIE); }
+
+    // ★ NPC 预规划注入(scThreeSystemsAI 生成·未来 3 回合 NPC 势力/党派/将领行动池)
+    try {
+      if (typeof buildNpcDecisionsForSysP === 'function') {
+        var _npcBlock = buildNpcDecisionsForSysP();
+        if (_npcBlock) {
+          sysP += _npcBlock + '\n★ NPC 预规划条目·AI 推演时按 rationale 展开·不得背离 NPC 已设定的动机。';
+        }
+      }
+    } catch(_npcIE) { console.warn('[sysP] NPC 决策注入失败', _npcIE); }
+
     // 注入·启动预演规划（aiPlanScenarioForInference 生成·轻量版·提升推演稳定性）
     if (GM._aiInferencePlan && GM._aiInferencePlan.generatedAt) {
       var _pl = GM._aiInferencePlan;
@@ -15233,6 +15277,20 @@ async function _endTurnCore(){
 
   // 暂存昏君活动供 AI 推演使用
   GM._turnTyrantActivities = input.tyrantActivities || [];
+
+  // Phase 1.7·三系统状态更新(势力/党争/军事)·让 AI 看到最新数值状态
+  try {
+    if (typeof updateThreeSystemsOnEndTurn === 'function') {
+      updateThreeSystemsOnEndTurn();
+    }
+  } catch(_tseE) { console.warn('[endTurn] 三系统更新失败', _tseE); }
+
+  // Phase 1.75·NPC AI 决策器(每 3 回合·批量势力/党派/将领预规划)
+  try {
+    if (typeof scThreeSystemsAI === 'function') {
+      await scThreeSystemsAI();
+    }
+  } catch(_nDE) { console.warn('[endTurn] NPC 决策器失败', _nDE); }
 
   // Phase 1.8·长期行动摘要 AI 调用（过回合前读取全部长期诏书+编年·防长期项被推演遗忘）
   try {

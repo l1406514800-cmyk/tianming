@@ -3,6 +3,23 @@
   "entries": [
     {
       "date": "2026-04-22",
+      "module": "三大系统升级·五波全面实施完成",
+      "title": "势力+党争+军事·数据补全+回合循环+NPC AI+UI+联动·2 新文件 700+行",
+      "items": [
+        { "what": "新文件 tm-three-systems-ext.js·580+行·含 Wave1~3+Wave5·全部核心逻辑集中", "why": "三系统扩展单文件·便于维护+迭代" },
+        { "what": "波1·数据模型补全·extendFactionFields(population/morale/legitimacy/stability/provinceIds/suzerainFaction/vassalType/diplomacyStance/culture/faith/publicAgenda/hiddenAgenda/recentActions/lifePhase/_collapsing)·initPartyState(GM.partyState[name]={influence,cohesion,reputationBalance,alliedWith[],conflictWith[],officeCount,recentImpeachWin/Lose,recentPolicyWin/Lose,historyLog})·buildProvinceOwnerIndex+getFactionProvinces+setProvinceOwner(双向索引)·extendArmyFields(owner/controlLevel/loyalty/state/destination/marchDaysLeft/mutinyRisk/payArrearsMonths)·extendCharacterSocialFields(studentsIds/sameYearMates/sameTownNetwork/partyLoyal/opportunismScore/partyDeviation/partyHistory)·backfillHostileFactionArmies(敌对势力 strength>=20 自动兜底代表军)·inferCharacterNetworks(mentor→studentsIds 反向推导)", "why": "原数据容器字段残缺·AI 无数值抓手·现 10+ 维度全补全" },
+        { "what": "波2·回合结算循环·endturn Phase 1.7 注入 updateThreeSystemsOnEndTurn·_updateFactionState(从 provinceStats 汇总人口民心稳定度·合法性不活动时每回合-1·lifePhase 按 strength/leg 五档判定·变迁写编年)·_updatePartyState(统计 officeTree 党派占官数·每官位差±3 influence·弹劾政策胜负 0.7 衰减·cohesion 内耗下降)·_updateMilitaryState(marching/sieging 消耗粮·supply<20 morale-5·欠饷 3 月 mutinyRisk+5/10·>=80 写军情警报+广播 army:mutinyRisk)", "why": "原系统全静态·无每回合驱动·现势力/党派/军队每回合都动态演化" },
+        { "what": "波3·NPC AI 决策器·scThreeSystemsAI·每 3 回合一次 AI 调用(3000 tokens)·输入三系统快照+近期编年+玩家势力·输出 JSON {factionActions/partyActions/generalActions} 各 3-6 条·含 rationale+likelyTurn·写 GM._npcDecisions·buildNpcDecisionsForSysP 注入主推演 sysP", "why": "原 NPC 势力完全被动·现批量一次 AI 调用让 NPC 主动规划·推演时 AI 按预规划展开而非凭空" },
+        { "what": "波4·新文件 tm-three-systems-ui.js·300+行·openForcesRelationsPanel(势力列表+lifePhase 色条+5 维数值+关系矩阵)·openPartyPanelEnhanced(影响/凝聚/官位/清誉+弹劾/召集/清党/平衡 按钮)·openMilitaryPanelEnhanced(军情告急+按势力分组+粮/气/训/欠/变 五维+调兵/犒军/发饷/易将 按钮)·12 个结构化诏书 handlers(_tsDeclareWar/ProposePeace/GrantVassal/Tribute/ImpeachByParty/SummonParty/PurgeParty/BalanceParty/TransferArmy/BoostMorale/SettleArrears/AppointGeneral)·所有诏书写 _edictTracker+编年·部分立即生效军队数值", "why": "原三系统面板仅 readonly·现具备完整玩家动作·所有动作走 edictTracker 被 AI 推演读取响应" },
+        { "what": "波5·跨系统联动·_wireCrossSystemLinks·监听 7 事件: army:defeat(owner strength-5/leg-3/morale-8)·army:victoryOccupy(setProvinceOwner+strength+5/leg+2)·army:mutiny(army routed+loyalty=0+owner 连带挫损)·faction:collapse(其内附党 cohesion-30/influence-20+写编年)·faction:declareWar(党派 cohesion+5 一致对外)·party:ministershipChange(同党武将 loyalty+5+favored 标记)·party:purge(同党武将 loyalty-25/mutinyRisk+20)·party:impeachSucceed(recentImpeachLose++)·并在 _updateFactionState 内自动检测 collapsing→emit faction:collapse", "why": "三系统原互不相通·现 7 条事件连接·战败→势力挫·势力灭→党派散·清党→武将反·完全打通" },
+        { "what": "主 sysP 注入·endturn.js 5655+后·三系统运行时态(faction lifePhase/strength/legitimacy/population/morale/stability·partyState influence/cohesion/officeCount/reputationBalance·armies 粮气训欠变)·NPC 预规划 buildNpcDecisionsForSysP·推演 AI 按数值+预规划展开", "why": "AI 推演看到最新数值+NPC 计划·不再凭空生成" },
+        { "what": "GameHooks enterGame:after/startGame:after 注册·幂等(已存字段不覆盖·可反复调用)·加载游戏/新游戏都触发·_wireCrossSystemLinks 脚本加载即尝试 wire", "why": "所有入口触发·不遗漏" },
+        { "what": "缓存·tm-three-systems-ext.js v=20260422a·tm-three-systems-ui.js v=20260422a·tm-endturn v=d→e", "why": "强制加载" },
+        { "what": "预估收益·势力/党派/军事运行时状态可见·玩家可用 12 个结构化动作·NPC 每 3 回合主动规划·7 条跨系统事件·总代码 +880 行", "why": "游戏从静态容器升级为动态博弈引擎" }
+      ]
+    },
+    {
+      "date": "2026-04-22",
       "module": "三大系统审查完成·势力/党争/军事全面升级方案",
       "title": "全面诊断·共性病症'数据容器丰富但逻辑核心空壳'·五波实施计划启动",
       "items": [
