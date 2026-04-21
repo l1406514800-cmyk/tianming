@@ -3,6 +3,19 @@
   "entries": [
     {
       "date": "2026-04-21",
+      "module": "修补·次 API 条件激活 + 存档导入诊断",
+      "title": "次 API 条件路由·未配回退主·存档导入写后验证+详细日志",
+      "items": [
+        { "what": "tm-utils.js 加 _useSecondaryTier() helper·检查 P.ai.secondary.key && .url 完整才返 true", "why": "之前无条件传 tier:'secondary' 时·浏览器缓存旧 tm-utils.js 场景下 _getAITier 未加载·导致问对/朝议/问天全挂「未能陈词」" },
+        { "what": "5 处调用点（问对×2·朝议通用·廷议·御前·常朝）改为 tier: _useSecondaryTier() ? 'secondary' : undefined·未配次 API 时完全等同原行为", "why": "加条件判断·配齐次 API 才路由·否则走主 API 不激活 M3·避免激活期间的任何意外" },
+        { "what": "callAI / callAIMessages / callAIMessagesStream 三个核心函数加 typeof 防御 + 三层兜底 (_aiCfg.key || P.ai.key || '')", "why": "即便 _getAITier 未定义也能回退主 API·抵御缓存/加载顺序异常" },
+        { "what": "存档导入 importSaveFileToSlot 改为无条件 reopen·延迟 200ms 等 IDB commit·失败路径 toast 具体错误", "why": "之前 if(ok){reopen} 会在失败时让 UI 卡死·玩家看不到错误提示" },
+        { "what": "SaveManager.importSave 写入后 100ms 再 TM_SaveDB.list 验证条目·详细 console.log 每步状态", "why": "玩家反映导入后列表不显示·加诊断日志定位：是 IDB 写入失败 / 验证未命中 / 还是渲染时序问题" },
+        { "what": "tm-dynamic-systems 缓存 v=a→b·tm-utils v=e→f·tm-chaoyi-keju v=e→f·tm-index-world v=d→e·强制浏览器加载最新脚本", "why": "之前几次事故都因用户浏览器缓存旧 JS·版本号不升级则 hard reload 也未必生效" }
+      ]
+    },
+    {
+      "date": "2026-04-21",
       "module": "M3·次要 API + 可用模型列表",
       "title": "次要 API 配置·问对/朝议走快模型·列出 API 可用模型",
       "items": [
