@@ -23,8 +23,13 @@
     // 附庸宗主关系(补 v2 字段·liege 已有)
     if (!f.suzerainFaction) f.suzerainFaction = f.liege || null;  // 宗主势力名
     if (!f.vassalType) f.vassalType = null;                       // tribute/protectorate/puppet/ally
-    // 省份 ID 绑定(若无 territories 则空)
-    if (!Array.isArray(f.provinceIds)) f.provinceIds = (f.territories || []).slice();
+    // 兼容老数据·territory(单数字符串) → territories(数组)
+    if (!Array.isArray(f.territories)) {
+      if (typeof f.territory === 'string' && f.territory) f.territories = [f.territory];
+      else f.territories = [];
+    }
+    // 省份 ID 绑定
+    if (!Array.isArray(f.provinceIds)) f.provinceIds = f.territories.slice();
     // 外交公开态度
     if (!f.publicAgenda) f.publicAgenda = '';
     if (!f.hiddenAgenda) f.hiddenAgenda = '';
@@ -579,7 +584,7 @@
       var result;
       try {
         if (typeof callAISmart === 'function') {
-          result = await callAISmart(prompt, 3000, { temperature: 0.7, json: true });
+          result = await callAISmart(prompt, 3000, { maxRetries: 2 });
         } else if (typeof callAI === 'function') {
           result = await callAI(prompt, 3000);
         }
@@ -677,8 +682,11 @@
   //  波5 · 跨系统联动(事件总线)
   //  军事→势力 · 势力→党争 · 党争→军事
   // ══════════════════════════════════════════════════════════════════════
+  var _crossLinksWired = false;
   function _wireCrossSystemLinks() {
+    if (_crossLinksWired) return;  // 防重复·一次游戏进程只连一次
     if (!global.GameEventBus || typeof global.GameEventBus.on !== 'function') return;
+    _crossLinksWired = true;
 
     // ─── 军事→势力 ───
     // 战败：faction strength-5·legitimacy-3·士气 morale-8

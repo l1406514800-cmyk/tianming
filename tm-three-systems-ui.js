@@ -14,6 +14,12 @@
     if (s === null || s === undefined) return '';
     return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
+  // 对 JS 字符串字面量转义(双层·内容嵌入 HTML 属性 onclick 的 JS 单引号字符串)
+  // 先 JS 转义再 HTML 转义·HTML 解码后得到合法 JS·JS parser 再解码
+  function jsEsc(s) {
+    if (s === null || s === undefined) return '';
+    return String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/</g, '\\u003c').replace(/>/g, '\\u003e');
+  }
   function _openModal(title, html, onSave) {
     if (typeof openGenericModal === 'function') {
       openGenericModal(title, html, onSave || null);
@@ -105,10 +111,10 @@
       // 动作按钮（仅非玩家势力）
       if (!isPlayer) {
         html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">';
-        html += '<button class="bt bs" onclick="_tsDeclareWar(\''+esc(f.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;background:rgba(200,50,50,0.15);border-color:var(--red,#b04030);">宣战</button>';
-        html += '<button class="bt bs" onclick="_tsProposePeace(\''+esc(f.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;">议和</button>';
-        html += '<button class="bt bs" onclick="_tsGrantVassal(\''+esc(f.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;">册封附庸</button>';
-        html += '<button class="bt bs" onclick="_tsTribute(\''+esc(f.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;">遣使通好</button>';
+        html += '<button class="bt bs" onclick="_tsDeclareWar(\''+jsEsc(f.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;background:rgba(200,50,50,0.15);border-color:var(--red,#b04030);">宣战</button>';
+        html += '<button class="bt bs" onclick="_tsProposePeace(\''+jsEsc(f.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;">议和</button>';
+        html += '<button class="bt bs" onclick="_tsGrantVassal(\''+jsEsc(f.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;">册封附庸</button>';
+        html += '<button class="bt bs" onclick="_tsTribute(\''+jsEsc(f.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;">遣使通好</button>';
         html += '</div>';
       }
       html += '</div>';
@@ -183,10 +189,10 @@
       if (dyn.length) html += '<div style="font-size:0.72rem;margin-bottom:0.5rem;">'+dyn.join(' · ')+'</div>';
       // 动作按钮
       html += '<div style="display:flex;gap:0.4rem;flex-wrap:wrap;">';
-      html += '<button class="bt bs" onclick="_tsImpeachByParty(\''+esc(p.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;background:rgba(200,50,50,0.12);">令言官弹劾</button>';
-      html += '<button class="bt bs" onclick="_tsSummonParty(\''+esc(p.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;">召集议事</button>';
-      html += '<button class="bt bs" onclick="_tsPurgeParty(\''+esc(p.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;background:rgba(200,50,50,0.2);border-color:var(--red);">清算党人</button>';
-      html += '<button class="bt bs" onclick="_tsBalanceParty(\''+esc(p.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;">借势平衡</button>';
+      html += '<button class="bt bs" onclick="_tsImpeachByParty(\''+jsEsc(p.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;background:rgba(200,50,50,0.12);">令言官弹劾</button>';
+      html += '<button class="bt bs" onclick="_tsSummonParty(\''+jsEsc(p.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;">召集议事</button>';
+      html += '<button class="bt bs" onclick="_tsPurgeParty(\''+jsEsc(p.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;background:rgba(200,50,50,0.2);border-color:var(--red);">清算党人</button>';
+      html += '<button class="bt bs" onclick="_tsBalanceParty(\''+jsEsc(p.name)+'\')" style="font-size:0.72rem;padding:0.3rem 0.7rem;">借势平衡</button>';
       html += '</div>';
       html += '</div>';
     });
@@ -253,10 +259,10 @@
         // 动作按钮(仅玩家势力军队)
         if (isPlayer) {
           html += '<div style="display:flex;gap:0.3rem;flex-wrap:wrap;margin-top:0.3rem;">';
-          html += '<button class="bt bs" onclick="_tsTransferArmy(\''+esc(a.name)+'\')" style="font-size:0.68rem;padding:0.2rem 0.6rem;">调兵</button>';
-          html += '<button class="bt bs" onclick="_tsBoostMorale(\''+esc(a.name)+'\')" style="font-size:0.68rem;padding:0.2rem 0.6rem;">犒军鼓舞</button>';
-          html += '<button class="bt bs" onclick="_tsSettleArrears(\''+esc(a.name)+'\')" style="font-size:0.68rem;padding:0.2rem 0.6rem;">发饷清欠</button>';
-          html += '<button class="bt bs" onclick="_tsAppointGeneral(\''+esc(a.name)+'\')" style="font-size:0.68rem;padding:0.2rem 0.6rem;">易将</button>';
+          html += '<button class="bt bs" onclick="_tsTransferArmy(\''+jsEsc(a.name)+'\')" style="font-size:0.68rem;padding:0.2rem 0.6rem;">调兵</button>';
+          html += '<button class="bt bs" onclick="_tsBoostMorale(\''+jsEsc(a.name)+'\')" style="font-size:0.68rem;padding:0.2rem 0.6rem;">犒军鼓舞</button>';
+          html += '<button class="bt bs" onclick="_tsSettleArrears(\''+jsEsc(a.name)+'\')" style="font-size:0.68rem;padding:0.2rem 0.6rem;">发饷清欠</button>';
+          html += '<button class="bt bs" onclick="_tsAppointGeneral(\''+jsEsc(a.name)+'\')" style="font-size:0.68rem;padding:0.2rem 0.6rem;">易将</button>';
           html += '</div>';
         }
         html += '</div>';
@@ -304,6 +310,12 @@
     if (global.GM && GM.partyState && GM.partyState[partyName]) {
       GM.partyState[partyName].recentImpeachLose = (GM.partyState[partyName].recentImpeachLose||0) + 1;
     }
+    // 事件总线：供波5联动(可能导致该党武将 loyalty/opportunism 波动)
+    try {
+      if (global.GameEventBus && global.GameEventBus.emit) {
+        global.GameEventBus.emit('party:impeach', { target: target, party: partyName, charge: charge });
+      }
+    } catch(e) {}
     _toast('已下弹劾');
   }
   function _tsSummonParty(partyName) {
@@ -321,6 +333,12 @@
       GM.partyState[partyName].recentImpeachLose = (GM.partyState[partyName].recentImpeachLose||0) + 5;
       GM.partyState[partyName].influence = Math.max(0, GM.partyState[partyName].influence - 20);
     }
+    // 事件总线：波5 listener 会让同党武将 loyalty-25/mutinyRisk+20
+    try {
+      if (global.GameEventBus && global.GameEventBus.emit) {
+        global.GameEventBus.emit('party:purge', { party: partyName, extent: extent });
+      }
+    } catch(e) {}
     _toast('党祸已起·慎之');
   }
   function _tsBalanceParty(partyName) {

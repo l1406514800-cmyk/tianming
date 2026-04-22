@@ -3,6 +3,19 @@
   "entries": [
     {
       "date": "2026-04-22",
+      "module": "三系统升级·Bug 修复轮 1",
+      "title": "修跨系统钩子重复注册 / UI onclick JS 转义 / callAISmart 无效 options / emit 缺失事件 / territory 单数兼容",
+      "items": [
+        { "what": "修 P0·_wireCrossSystemLinks 无防重复·被 enterGame:after+startGame:after+脚本加载 3 处调用导致 7 事件监听器×3 重复注册·战败 strength 会扣-15 而非-5·军变险累加 3 倍·加 _crossLinksWired 布尔锁·只连一次", "why": "Game 进程生命周期内多次入口触发同一 wire 函数·若无去重会造成倍数计算误差" },
+        { "what": "修 P1·UI 按钮 onclick 的 JS 字符串转义·原仅 esc()(HTML)·但 onclick='_tsDeclareWar(\\''+esc(name)+'\\')' 中 HTML 解码后 &#39;→' 会提前终止 JS 字符串·新增 jsEsc()(转\\\\\\\\/\\\\\\'/\\\\\"/\\u003c/\\u003e)·12 个 onclick 全部改用 jsEsc·防 faction/army 名含 ' 时 JS 破裂", "why": "虽然大多数场景 name 不含特殊字符·但理论破绽必须补" },
+        { "what": "修 P1·_scThreeSystemsAI 的 callAISmart options·原传 {temperature, json} 均不被 callAISmart(prompt,maxTok,options) 识别·改为合法 {maxRetries:2}·默认 3 次可能重复调用造成 tokens 浪费", "why": "虽然不崩溃·但传递了无效参数·降级为默认值" },
+        { "what": "修 P1·_tsImpeachByParty 缺 emit 'party:impeach'·_tsPurgeParty 缺 emit 'party:purge'·波5 _wireCrossSystemLinks 监听的 party:purge listener 依赖此事件扣同党武将 loyalty/mutinyRisk·原代码仅扣 partyState 数值·不触发武将反应·现补 emit", "why": "波5 联动按设计应有的武将反应未触发·bug 让清党效果不完整" },
+        { "what": "修 P2·extendFactionFields 的 territory(单数字符串·老数据) 未转为 territories(数组)·导致 provinceIds 为空·buildProvinceOwnerIndex 找不到该势力的省份·getFactionProvinces 返回[]·势力面板 provCount 显示 0·现 territory 字符串→[territory] 数组·再转 provinceIds", "why": "有些老剧本/数据用 territory 单数字符串·兼容处理" },
+        { "what": "缓存 tm-three-systems-ext.js v=a→b·tm-three-systems-ui.js v=a→b", "why": "强制加载修复版" }
+      ]
+    },
+    {
+      "date": "2026-04-22",
       "module": "三大系统升级·五波全面实施完成",
       "title": "势力+党争+军事·数据补全+回合循环+NPC AI+UI+联动·2 新文件 700+行",
       "items": [
