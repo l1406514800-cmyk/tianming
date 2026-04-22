@@ -8551,7 +8551,28 @@ async function _ty2_genOneSpeech(name, roundNum, prevSpeeches) {
       _cy_jishiAdd('tinyi', CY._ty2.topic, name, obj.line, { round: roundNum, stance: obj.stance });
       if (typeof NpcMemorySystem !== 'undefined') NpcMemorySystem.remember(name, '廷议「' + CY._ty2.topic.slice(0,20) + '」持' + (obj.stance||'中立') + '：' + obj.line.slice(0,40), '平', 5);
       return obj;
-    } else if (_tyBubble && raw) { _tyBubble.textContent = raw.slice(0, 200); }
+    } else if (_tyBubble && raw) {
+      // extractJSON 失败兜底·尽力救出 line 字段(可能 JSON 未完全闭合)·否则展示完整 raw(去 JSON 符号)
+      var _rescuedLine = '';
+      var _rescuedStance = '';
+      try {
+        // 贪婪抓 "line":"..." 直至下一个未转义 "·支持多行
+        var _lm = raw.match(/"line"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        if (!_lm) _lm = raw.match(/"line"\s*:\s*"((?:[^"\\]|\\.)*)/);  // 不闭合兜底
+        if (_lm && _lm[1]) _rescuedLine = _lm[1].replace(/\\n/g,'\n').replace(/\\"/g,'"').replace(/\\\\/g,'\\');
+        var _sm = raw.match(/"stance"\s*:\s*"([^"]+)"/);
+        if (_sm) _rescuedStance = _sm[1];
+      } catch(e){}
+      if (_rescuedLine) {
+        var _c2 = { '极力支持':'var(--celadon-400)','支持':'var(--celadon-400)','倾向支持':'var(--celadon-400)','中立':'var(--ink-300)','倾向反对':'var(--vermillion-400)','反对':'var(--vermillion-400)','极力反对':'var(--vermillion-400)','折中':'var(--amber-400)','另提议':'var(--indigo-400)' }[_rescuedStance] || '';
+        _tyBubble.innerHTML = '\u3014' + (_rescuedStance||'\u4E2D\u7ACB') + '\u3015<span style="color:' + _c2 + ';">' + escHtml(_rescuedLine) + '</span>';
+        _cy_jishiAdd('tinyi', CY._ty2.topic, name, _rescuedLine, { round: roundNum, stance: _rescuedStance, rescued: true });
+        return { stance: _rescuedStance || '中立', line: _rescuedLine, confidence: 50, _rescued: true };
+      }
+      // 最后兜底·去 JSON 符号展示完整 raw (不 slice 200)
+      var _clean = raw.replace(/^\s*\{[\s\S]*?"line"\s*:\s*"?|"\s*,?\s*"(?:stance|confidence|reason)"[\s\S]*?\}\s*$/g, '').replace(/^[\s"{]+|[\s"}]+$/g,'').trim();
+      _tyBubble.textContent = _clean || raw;
+    }
   } catch(e){ if (_tyBubble) { _tyBubble.textContent = '\uFF08\u672A\u80FD\u9648\u8BCD\uFF09'; _tyBubble.style.color = 'var(--red)'; } }
   return null;
 }

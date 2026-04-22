@@ -1229,18 +1229,114 @@ function _renderIssueCard(issue) {
   }
 
   var h = '<div style="background:var(--bg-2);border:1px solid ' + borderColor + ';border-radius:8px;padding:0.9rem;position:relative;'
-    + (isPending ? '' : 'opacity:0.7;') + '">';
+    + (isPending ? '' : 'opacity:0.7;') + (issue.isOpening ? 'border-width:2px;box-shadow:0 0 12px rgba(201,168,76,0.15);' : '') + '">';
+  // 开局要务徽标
+  if (issue.isOpening) {
+    h += '<div style="position:absolute;top:-10px;right:-10px;background:linear-gradient(135deg,var(--vermillion-400),var(--vermillion-600,#8b2e25));color:#f4eadd;padding:3px 10px;border-radius:3px;font-size:0.68rem;letter-spacing:0.2em;box-shadow:0 2px 6px rgba(140,40,30,0.4);">开 局 要 务</div>';
+  }
   h += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.4rem;">';
   h += '<div style="font-weight:700;font-size:0.95rem;color:var(--txt-l);line-height:1.3;">' + escHtml(issue.title) + '</div>';
   h += statusBadge;
   h += '</div>';
   h += '<div style="font-size:0.72rem;color:var(--txt-d);margin-bottom:0.5rem;">' + escHtml(dateStr);
   if (issue.category) h += ' \u00B7 ' + escHtml(issue.category);
+  if (issue.affectedRegion) h += ' \u00B7 <span style="color:var(--vermillion-300);">' + escHtml(issue.affectedRegion) + '</span>';
   h += '</div>';
-  h += '<div style="font-size:0.82rem;color:var(--txt-s);line-height:1.6;">' + escHtml(issue.description) + '</div>';
+  h += '<div style="font-size:0.82rem;color:var(--txt-s);line-height:1.7;white-space:pre-wrap;">' + escHtml(issue.description) + '</div>';
+  // 选项按钮(若有 choices 且 pending)
+  if (isPending && Array.isArray(issue.choices) && issue.choices.length > 0) {
+    h += '<div style="margin-top:0.7rem;padding-top:0.6rem;border-top:1px dashed rgba(201,168,76,0.2);">';
+    h += '<div style="font-size:0.74rem;color:var(--gold);letter-spacing:0.2em;margin-bottom:0.4rem;">〔 陛 下 决 断 〕</div>';
+    issue.choices.forEach(function(ch, idx) {
+      var safeIid = (issue.id || '').replace(/'/g, "\\'");
+      h += '<button class="bt bsm" style="display:block;width:100%;text-align:left;margin-bottom:0.3rem;padding:0.5rem 0.7rem;background:rgba(201,168,76,0.04);border:1px solid var(--gold-d);color:var(--txt-l);cursor:pointer;line-height:1.5;white-space:normal;" onclick="if(typeof _chooseIssueOption===\'function\')_chooseIssueOption(\''+safeIid+'\','+idx+');">';
+      h += '<div style="font-weight:600;font-size:0.82rem;margin-bottom:0.2rem;">' + escHtml(ch.text||'选项'+(idx+1)) + '</div>';
+      if (ch.desc) h += '<div style="font-size:0.7rem;color:var(--txt-d);margin-bottom:0.15rem;">' + escHtml(ch.desc) + '</div>';
+      if (ch.effect && typeof ch.effect === 'object') {
+        var effs = Object.keys(ch.effect).map(function(k) {
+          var v = ch.effect[k];
+          var clr = v > 0 ? 'var(--celadon-400)' : v < 0 ? 'var(--vermillion-400)' : 'var(--txt-d)';
+          return '<span style="color:'+clr+';">' + escHtml(k) + (v>0?'+':'') + v + '</span>';
+        }).slice(0, 8).join(' · ');
+        if (effs) h += '<div style="font-size:0.66rem;">' + effs + '</div>';
+      }
+      h += '</button>';
+    });
+    h += '</div>';
+  }
+  // 长期后果(若有)·折叠提示
+  if (issue.longTermConsequences && typeof issue.longTermConsequences === 'object') {
+    h += '<details style="margin-top:0.5rem;"><summary style="font-size:0.72rem;color:var(--gold-d);cursor:pointer;">▸ 长期后果分支(点击展开)</summary>';
+    h += '<div style="font-size:0.7rem;color:var(--txt-d);line-height:1.7;padding:0.4rem 0.2rem;">';
+    Object.keys(issue.longTermConsequences).forEach(function(k) {
+      h += '· <b style="color:var(--gold-d);">' + escHtml(k) + '</b>：' + escHtml(issue.longTermConsequences[k]) + '<br>';
+    });
+    h += '</div></details>';
+  }
+  if (issue.historicalNote) {
+    h += '<div style="margin-top:0.4rem;font-size:0.68rem;color:var(--ink-400);font-style:italic;">史料：' + escHtml(issue.historicalNote.slice(0,100)) + '</div>';
+  }
   h += '</div>';
   return h;
 }
+
+// 玩家点击议题选项·应用 effect + 标记 resolved + 写编年
+function _chooseIssueOption(issueId, choiceIdx) {
+  if (!GM.currentIssues) return;
+  var issue = GM.currentIssues.find(function(i) { return i.id === issueId; });
+  if (!issue || !Array.isArray(issue.choices)) return;
+  var ch = issue.choices[choiceIdx];
+  if (!ch) return;
+  // 应用 effect
+  if (ch.effect && typeof ch.effect === 'object') {
+    Object.keys(ch.effect).forEach(function(k) {
+      var v = ch.effect[k];
+      if (typeof v !== 'number') return;
+      // 先匹配 GM.vars
+      if (GM.vars && GM.vars[k]) {
+        var vObj = GM.vars[k];
+        vObj.value = Math.max(vObj.min||0, Math.min(vObj.max||100, (vObj.value||0) + v));
+      } else if (typeof GM[k] === 'number') {
+        GM[k] += v;
+      } else {
+        // 作为特殊变量挂在 GM._issueEffects
+        if (!GM._issueEffects) GM._issueEffects = {};
+        GM._issueEffects[k] = (GM._issueEffects[k] || 0) + v;
+      }
+    });
+  }
+  // 标记解决
+  issue.status = 'resolved';
+  issue.resolvedTurn = GM.turn || 1;
+  issue.resolvedDate = GM._gameDate || '';
+  issue.chosenOption = choiceIdx;
+  issue.chosenText = ch.text;
+  // 写编年
+  if (!GM._chronicle) GM._chronicle = [];
+  GM._chronicle.push({
+    turn: GM.turn || 1, date: GM._gameDate || '',
+    type: '要务决断',
+    text: '【' + (issue.title||'') + '】陛下决：' + (ch.text||'') + (ch.desc?' ·'+ch.desc:''),
+    tags: ['要务','决断'].concat(issue.affectedRegion?[issue.affectedRegion]:[])
+  });
+  // 写 edictTracker 让 AI 推演读取
+  if (!GM._edictTracker) GM._edictTracker = [];
+  GM._edictTracker.push({
+    id: 'issue_choice_' + issueId,
+    content: '【' + (issue.title||'要务') + '】陛下决：' + (ch.text||'') + (ch.desc?' ·'+ch.desc:''),
+    category: issue.category || '要务决断',
+    turn: GM.turn || 1, status: 'pending', assignee: '', feedback: '', progressPercent: 0,
+    _fromIssue: true, _affectedRegion: issue.affectedRegion || ''
+  });
+  if (typeof toast === 'function') toast('已决·' + (ch.text||'').slice(0, 20));
+  // 关闭并重开面板刷新
+  try {
+    var _m = document.querySelector('.modal-bg');
+    if (_m) _m.remove();
+  } catch(e){}
+  setTimeout(function(){ if (typeof openQuarterlyAgenda === 'function') openQuarterlyAgenda(); }, 100);
+}
+if (typeof window !== 'undefined') window._chooseIssueOption = _chooseIssueOption;
 
 // ============================================================
 // 5.1: 贸易路线结算

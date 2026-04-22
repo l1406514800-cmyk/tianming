@@ -1727,7 +1727,7 @@
       }
     },
     '杨嗣昌': {
-      familyMembers: [ { name: '杨鹤', relation: '父·延绥巡抚' } ],
+      familyMembers: [ { name: '杨鹤', relation: '父·都察院右副都御史(候起)·崇祯二年将出任三边总督', note: '湖广武陵人·字修龄·万历三十二年进士·主抚·日后抚陕总督' } ],
       relations: {
         '东林党': { affinity: 40, trust: 30, respect: 55, fear: 5, hostility: 25, labels: ['不党而实务'] }
       }
@@ -6485,6 +6485,30 @@
     relations.forEach(function (r) { r.sid = SID; r.id = _uid('rel_'); global.P.relations.push(r); });
 
     // ═══════════════════════════════════════════════════════════════════
+    // § 7.5 开局信件·T1 玩家必读·杨鹤《陕北饥疏》
+    // ═══════════════════════════════════════════════════════════════════
+    scenario.openingLetters = [
+      {
+        from: '杨鹤',
+        to: '朱由检',
+        letterType: 'warning',  // 警报类
+        urgency: 'urgent',      // 加急
+        fromLocation: '湖广·武陵',
+        toLocation: '京师',
+        cipher: 'none',
+        subjectLine: '《请恤陕民疏》·都察院右副都御史臣杨鹤顿首',
+        content: '臣杨鹤诚惶诚恐·稽首谨奏：\n\n\u3000\u3000窃闻陕西秦中·自天启六年春始·连岁不雨·飞蝗继之·赤地千里·草木焦枯。延安府属州县·如肤施、清涧、安塞、延川、宜川、保安、府谷、米脂·民食树皮观音土·至于殍毙道途·白骨塞川。甚则父弃子、子食母、夫弃妇·鬻人肉而果腹·此何等景象也！\n\n\u3000\u3000乃陕西巡抚胡廷宴·既不能使仓廪先发·又不能使朝廷速知。奏报称"岁稍歉"·而民已死者十之三四·逃者十之二三！三边总督武之望亦暗奏于臣·云延绥榆林边兵·已鼓噪索饷七次·主将弗能制。王二者·澄城流民首也·方斩令于庠门；府谷王嘉胤、安塞高迎祥·亦聚众数千·啸于山谷。\n\n\u3000\u3000臣闻为政之要·莫先乎仁。今秦民非天乱也·朝廷逼之也。三饷加派·催科急如星火·而赈济缓若流波。若不亟发太仓·散赈饥民·改督抚以清议之臣·革加派以解百姓之倒悬——则十年之内·秦晋豫鲁必烽烟四起·祸成燎原·岂特秦一省之患哉？\n\n\u3000\u3000臣虽罢归·不敢自外。披肝沥血·伏惟陛下圣鉴。谨奏。\n\n\u3000\u3000——万历三十二年进士·都察院右副都御史·闲居武陵\u3000臣杨鹤顿首再拜',
+        // 抚剿之策 suggestion
+        suggestion: '臣鹤敢陈三策·请陛下亲裁：①速发太仓银米赈陕·免陕西三饷三年；②改陕西巡抚胡廷宴·起清慎之臣代之；③臣虽老惫·愿效犬马·请命抚陕。',
+        replyExpected: true,
+        isOpening: true,
+        triggerTurn: 1,
+        _historicalRef: '仿《杨鹤奏疏》·《明史·杨鹤传》·《怀陵流寇始终录·卷一》',
+        _background: '杨鹤天启四年因不附阉党被劾归·闲居武陵三年·新帝将立·主动上疏。历史上崇祯元年杨鹤被召入京·二年任三边总督抚陕'
+      }
+    ];
+
+    // ═══════════════════════════════════════════════════════════════════
     // § 8. 事件（18 条开局/早期触发）
     // ═══════════════════════════════════════════════════════════════════
     // 编辑器用·分类事件（scenario.events.{historical,random,conditional,story,chain}）
@@ -7356,6 +7380,54 @@
         resources: { privateWealth: { cash: 55000, grain: 1500, cloth: 450 }, fame: -30, virtueMerit: -20, health: 60 },
       },
       {
+        name: '杨鹤', zi: '修龄', haoName: '弱翁',
+        title: '都察院右副都御史·闲居候起', officialTitle: '都察院右副都御史', role: '清流疆臣·日后抚陕总督',
+        alive: true, age: 63, gender: '男', birthYear: 1564, birthplace: '湖广·武陵(今常德)',
+        ethnicity: '汉', faith: '儒·王学', culture: '楚·武陵·湘人风骨',
+        learning: '万历三十二年(1604)进士·殿试三甲',
+        appearance: '面方·目深·蓄花白长须·着青衣布袍·闲居家中仍披朝服读疏。',
+        diction: '言辞恳切·多援经义·引"民为邦本"·呼"抚之以恩"·不喜严语。',
+        personality: '持重·刚直·慈悲·主抚·反对剿杀饥民·清廉自守·然有过于理想之弊',
+        location: '湖广·武陵(候起·暂居)',
+        rankLevel: 3,
+        loyalty: 82, ambition: 42, intelligence: 78, administration: 75, military: 52, charisma: 70, diplomacy: 72, benevolence: 88, valor: 45, management: 70, integrity: 90,
+        honesty: 85, righteousness: 82, propriety: 80, benevolenceTrait: 90, wisdom: 75,  // 五常
+        traits: ['honest', 'compassionate', 'just', 'patient', 'humble', 'forgiving'],
+        stance: '改革·主抚·劝农安民·反对加派剿饷', faction: '明朝廷', party: '东林', partyRank: '外援',
+        family: '武陵杨氏', familyTier: 'gentry', familyRole: '武陵杨氏长房·累世读书',
+        clanPrestige: 65,
+        mentor: '邹元标(东林三君子·同邑前辈)', superior: '(候起·目前无上司)',
+        hobbies: '读经·修水利·抚疆吏',
+        innerThought: '秦中饥甚·连年无雨·树皮食尽而朝廷无一石赈粮下。吾闲居武陵·日读邸报·夜辗不眠。饥民非天然乱民·乃朝廷逼反。若不速抚·十年之内秦晋豫楚必遍地烽烟。新帝初立·愿闻忠谠之言·老臣虽贱·敢不一陈。',
+        personalGoal: '倡"主抚"之策·以仁恕之道安秦中饥民·救社稷于将倾。',
+        stressSources: ['秦中饥情日甚而朝廷无动于衷', '魏党尚盘踞·清言难达御前', '年事已高·惟恐身后无可托者', '子嗣昌尚在吏部观政·未历重任'],
+        isHistorical: true,
+        career: [
+          { year: 1604, title: '万历三十二年进士·授雒南知县', note: '陕西商州·初识秦地民情' },
+          { year: 1611, title: '四川道监察御史', note: '万历三十九年·以言事贬' },
+          { year: 1615, title: '廷推起·南京兵科给事中', note: '' },
+          { year: 1620, title: '大理寺少卿·迁都察院右佥都御史', note: '泰昌元年·东林复起' },
+          { year: 1622, title: '巡按贵州', note: '天启二年·奢安之乱初起·鹤主抚反对纯剿' },
+          { year: 1624, title: '罢归武陵', note: '天启四年·魏党大作·东林遭难·杨鹤以"不附阉党"被劾归' },
+          { year: 1627, title: '闲居武陵·候起', note: '天启七年·新帝将立·东林将复起·鹤日夜待诏' }
+        ],
+        familyMembers: [
+          { name: '杨嗣昌', relation: '长子', note: '字文弱·万历三十八年进士·时年 40·吏部观政·未来兵部尚书剿闯王' },
+          { name: '杨夫人', relation: '发妻', note: '武陵贤妇' }
+        ],
+        studentsIds: ['杨嗣昌'],
+        _memory: [
+          { event: '天启四年被劾归武陵·泪别京城', emotion: '忧', weight: 9, turn: -1200 },
+          { event: '闻熹宗崩·信王继·闭门斋戒·欲上谢恩疏', emotion: '敬', weight: 10, turn: -20 },
+          { event: '秦报饥情·树皮草根食尽·夜不能寐', emotion: '忧', weight: 10, turn: -5 }
+        ],
+        aliases: [], formerNames: [],
+        bio: '湖广武陵人·字修龄·号弱翁。万历三十二年(1604)进士·初任陕西雒南知县·熟知秦中民情。历南京兵科给事中·右佥都御史·巡按贵州·值奢安之乱·主抚反剿·卒因不附阉党被劾罢归。闲居武陵三载·日诵邸报·闻秦中饥荒·日夜忧之。崇祯元年将起复为副都御史·崇祯二年任兵部右侍郎总督陕西三边军务·主张"剿抚并用·以抚为主"·发十万两银抚秦饥。但因饷困·招降复叛·崇祯四年下狱袁州卒。子杨嗣昌后为兵部尚书·剿闯王主帅。',
+        resources: { privateWealth: { cash: 12000, grain: 800, cloth: 200 }, fame: 55, virtueMerit: 85, health: 62 },
+        importance: 85,  // 关键历史人物
+        _historicalArc: '本剧本开局在湖广·T1-T6 新帝召还·T6 起副都御史·T12 起复三边总督抚陕·T20+ 抚败下狱或成功·决定陕西走向'
+      },
+      {
         name: '林尧俞', zi: '咨伯', haoName: '萼亭',
         title: '国子监祭酒·前礼部尚书', officialTitle: '国子监祭酒', role: '国学之长·耆旧',
         alive: true, age: 70, gender: '男', birthYear: 1558, birthplace: '福建·兴化府·莆田县',
@@ -8077,7 +8149,7 @@
         stance: '实务派·好兵法', faction: '明朝廷', party: '', family: '杨氏·武陵',
         traits: ['diligent', 'patient', 'ambitious'],
         resources: { privateWealth: { cash: 22000, grain: 1000, cloth: 280 } },
-        familyMembers: [ { name: '杨鹤', relation: '父·延绥巡抚' } ],
+        familyMembers: [ { name: '杨鹤', relation: '父·都察院右副都御史(候起)·崇祯二年将出任三边总督', note: '湖广武陵人·字修龄·万历三十二年进士·主抚·日后抚陕总督' } ],
         bio: '湖广武陵人·字文弱。万历三十八年进士。父杨鹤任延绥巡抚。深通兵略·文采亦佳。'
       },
       {
@@ -8971,6 +9043,8 @@
         positions: [
           { name: '左都御史', rank: '正二品', perPersonSalary: '月俸 61 石 · 岁俸 732 石', salary: 61, holder: '李养正', establishedCount: 1, vacancyCount: 0, authority: 'supervision', duties: '掌天下风宪。李养正为阉党附庸，天启七年上《三朝要典》颂魏忠贤功。', publicTreasuryInit: { money: 40000, grain: 0, cloth: 0 }, bindingHint: 'ministry', powers: { impeach: true, supervise: true } },
           { name: '右都御史', rank: '正二品', perPersonSalary: '月俸 61 石 · 岁俸 732 石', salary: 61, holder: '', establishedCount: 1, vacancyCount: 1 },
+          { name: '左副都御史', rank: '正三品', perPersonSalary: '月俸 35 石 · 岁俸 420 石', salary: 35, holder: '', establishedCount: 1, vacancyCount: 1, duties: '佐左都御史掌风宪。阉党把持·东林旧人多被斥。', publicTreasuryInit: { money: 15000, grain: 0, cloth: 0 }, bindingHint: 'ministry', powers: { impeach: true } },
+          { name: '右副都御史', rank: '正三品', perPersonSalary: '月俸 35 石 · 岁俸 420 石', salary: 35, holder: '杨鹤', establishedCount: 1, vacancyCount: 0, duties: '佐右都御史·兼理陕西/湖广等地巡按事·明制加右副都御史衔常外放总督或巡抚。杨鹤天启四年被劾归武陵·本职暂悬·候起。', publicTreasuryInit: { money: 12000, grain: 0, cloth: 0 }, bindingHint: 'ministry', powers: { impeach: true }, privateIncome: { illicitRisk: 'low' } },
           { name: '十三道监察御史', rank: '正七品', perPersonSalary: '月俸 7.5 石 · 岁俸 90 石', salary: 7.5, holder: '', establishedCount: 110, vacancyCount: 20, authority: 'supervision', duties: '按道分察各省官员与吏治。', powers: { impeach: true } }
         ],
         subs: []

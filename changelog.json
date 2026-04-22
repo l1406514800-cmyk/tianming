@@ -3,6 +3,23 @@
   "entries": [
     {
       "date": "2026-04-22",
+      "module": "四修·廷议打断+势力响应玩家+杨鹤陕疏+要务 choices 可见",
+      "title": "修廷议末句截断·势力 NPC 响应玩家诏令·新增杨鹤人物+官职+开局《请恤陕民疏》·currentIssues UI 显示 choices 可点击",
+      "items": [
+        { "what": "修 bug·廷议最后一人发言被截断(tm-chaoyi-keju.js:8546+)·extractJSON 失败时 fallback 到 raw.slice(0,200)·截断明显。修·加三层 fallback：①regex 抓 line/stance 字段(不闭合也抓)·②清理 JSON 符号后完整展示 raw·③无文本时才显'未能陈词'。另记 _rescued 标记", "why": "JSON 末尾未闭合时最后一个 chunk 被丢·玩家看到截断" },
+        { "what": "修 bug·GM.currentIssues UI 不显示 choices(tm-endturn-helpers.js:_renderIssueCard)·扩展渲染每条 choice 为按钮·含 text+desc+effect 着色·开局要务加红金徽标+阴影·加 longTermConsequences 折叠+historicalNote·新增 _chooseIssueOption handler 应用 effect 到 GM.vars/GM[k]·写编年+edictTracker·自动刷新面板", "why": "陕西大饥荒事件 choices 无 UI 展示·玩家看不到 6 选项" },
+        { "what": "任务 3·新增杨鹤 character·字修龄·号弱翁·湖广武陵人·万历三十二年(1604)进士·63 岁·现居武陵候起·东林外援·主抚反剿·清廉·仁厚 88·属性全配(忠82 野42 智78 政75 军52 魅70 交72 仁88 管70 整90 honesty85)·含 familyMembers(子杨嗣昌/夫人)+studentsIds+_memory 3 条+bio 全+_historicalArc+importance 85+traits(honest/compassionate/just/patient/humble/forgiving)", "why": "杨鹤历史上明末最关键抚陕官员之一·剧本缺失" },
+        { "what": "任务 3·官制都察院加'右副都御史' 正三品·月俸 35 石岁俸 420 石·holder 杨鹤·publicTreasuryInit{money:12000}·加'左副都御史'空缺一位", "why": "杨鹤有合适品级官位+俸禄+公库" },
+        { "what": "任务 3·修杨嗣昌 familyMembers 中'父·延绥巡抚'史实错误·历史上杨鹤在天启七年尚未任延绥巡抚(崇祯二年才任三边总督)·改为'父·都察院右副都御史(候起)·崇祯二年将出任三边总督'", "why": "历史事实修正" },
+        { "what": "任务 3·新增 sc.openingLetters 数组·开局信件配置·含杨鹤《请恤陕民疏》·300 字古典奏疏·仿《杨鹤奏疏》《明史·杨鹤传》·三策建议(速发太仓/改陕抚/老臣愿抚陕)·含 subjectLine/content/suggestion/replyExpected/_historicalRef/_background", "why": "剧本化鸿雁传书开局必收·给玩家 T1 历史现场感" },
+        { "what": "引擎支持·tm-three-systems-ext.js 新增 _activateOpeningLetters·读 sc.openingLetters·T1 自动 push 到 GM.letters·status='delivered'·_npcInitiated=true·写编年+evtLog+toast·_openingLettersActivated 防重·注册到 enterGame/startGame:after", "why": "通用机制·任何剧本可配 openingLetters" },
+        { "what": "任务 2·势力响应玩家·scThreeSystemsAI ctx 加 recentPlayerEdicts(近 3 回合 10 条) + playerEfficacyBrief(上回合代理强度+阻力+民间)·prompt 要求 30%-40% factionActions 带 reactsToPlayerEdict + reactionType(opportunity/retaliate/align/exploit/probe) 5 种·举例 6 种玩家行为对应的势力反应·playerEfficacyBrief 弱则势力激进·反之收敛", "why": "原势力行动不充分响应玩家·现势力决策明确绑定玩家操作" },
+        { "what": "buildNpcDecisionsForSysP 输出加 reactMark·[响应玩家机会/报复/顺从/趁虚/试探]·让 AI 主推演清楚看到哪些 NPC 动作是响应玩家", "why": "可读性+推演连贯性" },
+        { "what": "缓存·scenarios/tianqi7-1627 v=47→48·tm-three-systems-ext v=d→e·tm-chaoyi-keju v=f→a·tm-endturn-helpers v=(新)→a", "why": "强制加载" }
+      ]
+    },
+    {
+      "date": "2026-04-22",
       "module": "陕西大饥荒开局事件·T1 必触·6 选择分支",
       "title": "tianqi7 剧本·陕西省 carryingRegime 升级 collapse·新增陕西大饥荒疾报事件 T1 触发·引擎新增开局事件激活器",
       "items": [

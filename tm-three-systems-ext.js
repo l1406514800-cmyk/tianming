@@ -588,6 +588,31 @@
         }).slice(-15).map(function(c){ return (c.type||'')+ ':' + (c.text||'').slice(0,60); });
       }
 
+      // 玩家近 3 回合诏令(供 NPC 势力响应)
+      var recentPlayerEdicts = [];
+      if (Array.isArray(GM._edictTracker)) {
+        recentPlayerEdicts = GM._edictTracker.filter(function(e) {
+          return e && (turn - (e.turn||0)) <= 3;
+        }).slice(-10).map(function(e) {
+          return {
+            id: e.id || '',
+            turn: e.turn || 0,
+            category: e.category || '',
+            content: (e.content || '').slice(0, 100),
+            status: e.status || '',
+            region: e._affectedRegion || ''
+          };
+        });
+      }
+      // 御批回听结果(若有·含朝野反响)
+      var efficacyBrief = '';
+      if (GM._edictEfficacyReport && !GM._edictEfficacyReport.skipped) {
+        var ef = GM._edictEfficacyReport;
+        efficacyBrief = '上回合玩家代理强度:' + (ef.overallEfficacy||0) + '%';
+        if (ef.oppositionSummary && ef.oppositionSummary.length) efficacyBrief += '·主要阻力:' + ef.oppositionSummary.slice(0, 3).join('·');
+        if (ef.popularReaction) efficacyBrief += '·民间:' + ef.popularReaction.slice(0, 30);
+      }
+
       var ctx = {
         turn: turn,
         date: GM._gameDate || '',
@@ -596,7 +621,9 @@
         hostileFactions: hostileFacs,
         parties: parties,
         riskArmies: riskArmies,
-        recentEvents: recentEvents
+        recentEvents: recentEvents,
+        recentPlayerEdicts: recentPlayerEdicts,  // 新增·供 NPC 势力响应
+        playerEfficacyBrief: efficacyBrief
       };
 
       var prompt = '你是推演 AI。基于以下三系统快照·为 NPC 势力/党派/将领分别规划未来 3 回合的自主行动。务必让势力 actions 丰富多元·不仅限军事·含日常治理/经济/外交/仪轨/季节性活动。\n\n' +
@@ -612,7 +639,9 @@
         '      "rationale":"理由(对应 hiddenAgenda·性别/季节/lifePhase)",\n' +
         '      "likelyTurn":"可能发生回合(数字)",\n' +
         '      "scale":"小/中/大 (规模)",\n' +
-        '      "precondition":"需要什么条件触发"\n' +
+        '      "precondition":"需要什么条件触发",\n' +
+        '      "reactsToPlayerEdict":"(可选)若该 action 是对玩家某诏令的反应·填该诏令 id 或简述",\n' +
+        '      "reactionType":"(可选)opportunity(机会窗口)/retaliate(报复)/align(顺从)/exploit(趁虚)/probe(试探)"\n' +
         '    }\n' +
         '  ],\n' +
         '  "partyActions": [{"party":"党派名","action":"弹劾/结社/上疏/结盟/罢黜/密谋/招揽/清议","target":"对象","rationale":"内幕动机","likelyTurn":"回合数"}],\n' +
@@ -641,16 +670,24 @@
         '· 冬：守御/屯粮/祭天·缺粮势力劫掠·大征伐常在此时\n' +
         '\n' +
         '【要求】\n' +
-        '1. factionActions 至少 4-8 条·按势力类型差异化+当前季节·不要千篇一律宣战\n' +
+        '1. factionActions 至少 5-10 条·按势力类型差异化+当前季节·不要千篇一律宣战\n' +
         '2. 每个 category 至少出现 1-2 次·不得全部军事\n' +
         '3. 游牧势力+秋冬必有劫掠 action·内容具体(劫某县某路·掳掠多少人畜)\n' +
         '4. 农耕势力冬季可有征伐·但春夏以内务/礼法为主\n' +
         '5. rationale 必须对应 hiddenAgenda/季节/lifePhase·不能模糊\n' +
         '6. precondition 具体化(如"等秋高马肥""借大丧之机")\n' +
-        '7. partyActions/generalActions 3-6 条·按 prev 规范\n' +
-        '8. 不臆造未在快照中的 NPC·不用游戏时间之后的史实\n' +
-        '9. 若 hostileFactions 为空则 factionActions=[]\n' +
-        '10. 只输出 JSON·无其他文字';
+        '7. ★【响应玩家】至少 30%-40% 的 factionActions 必须填 reactsToPlayerEdict + reactionType·指出该 action 是针对玩家某条诏令的响应·例:\n' +
+        '   · 玩家赈陕→后金趁明廷财困南下(opportunity·exploit)\n' +
+        '   · 玩家加派剿饷→流寇蜂起(retaliate)·蒙古瞅边防空虚劫掠(exploit)\n' +
+        '   · 玩家重用东林→阉党密谋反扑(retaliate)·浙党观望(probe)\n' +
+        '   · 玩家封册附庸→他势力来朝贡试探(probe·align)\n' +
+        '   · 玩家议和→敌方得寸进尺要求更大让步(exploit)·或感激停劫(align)\n' +
+        '   · 玩家怠政·recentPlayerEdicts 少→各势力普遍 exploit\n' +
+        '8. partyActions/generalActions 3-6 条·按 prev 规范·党派/将领也应响应玩家近期行为\n' +
+        '9. 不臆造未在快照中的 NPC·不用游戏时间之后的史实\n' +
+        '10. 若 hostileFactions 为空则 factionActions=[]\n' +
+        '11. playerEfficacyBrief 若显示玩家代理弱+阻力大·NPC 势力/党派应更激进(exploit/retaliate)·反之则更收敛(align/probe)\n' +
+        '12. 只输出 JSON·无其他文字';
 
       var result;
       try {
@@ -719,7 +756,12 @@
         out += '\n ['+(catMap[k]||'其他')+']';
         byCat[k].forEach(function(fa) {
           var sc = fa.scale ? ('·'+fa.scale) : '';
-          out += '\n  · ' + fa.faction + '·' + fa.action + (fa.target?('·'+fa.target):'') + sc + '·' + (fa.rationale||'').slice(0,70) + (fa.likelyTurn?('·T'+fa.likelyTurn):'') + (fa.precondition?('·前提:'+fa.precondition.slice(0,30)):'');
+          var reactMark = '';
+          if (fa.reactsToPlayerEdict) {
+            var rtMap = { opportunity:'机会', retaliate:'报复', align:'顺从', exploit:'趁虚', probe:'试探' };
+            reactMark = '·[响应玩家'+(rtMap[fa.reactionType]||'')+']';
+          }
+          out += '\n  · ' + fa.faction + '·' + fa.action + (fa.target?('·'+fa.target):'') + sc + reactMark + '·' + (fa.rationale||'').slice(0,70) + (fa.likelyTurn?('·T'+fa.likelyTurn):'') + (fa.precondition?('·前提:'+fa.precondition.slice(0,30)):'');
         });
       });
     }
@@ -942,6 +984,65 @@
   global.getFactionProvinces = getFactionProvinces;
   global.setProvinceOwner = setProvinceOwner;
 
+  // 开局信件·sc.openingLetters 在 T1 自动 push 到 GM.letters·作为 NPC 来信
+  function _activateOpeningLetters() {
+    if (!global.GM || !global.P) return;
+    if ((GM.turn || 1) !== 1) return;
+    // 已激活过则跳过
+    if (GM._openingLettersActivated) return;
+    // 从当前剧本查 openingLetters
+    var sc = null;
+    try {
+      if (typeof findScenarioById === 'function' && GM.sid) sc = findScenarioById(GM.sid);
+    } catch(e) {}
+    if (!sc || !Array.isArray(sc.openingLetters) || sc.openingLetters.length === 0) { GM._openingLettersActivated = true; return; }
+    if (!Array.isArray(GM.letters)) GM.letters = [];
+    var _days = (P.time && P.time.daysPerTurn) || 30;
+    sc.openingLetters.forEach(function(tpl) {
+      if (!tpl || !tpl.from) return;
+      // 若此信已存在(按 from+subjectLine 去重)则跳过
+      if (GM.letters.some(function(l){ return l._fromOpeningLetter && l.from === tpl.from && l.subjectLine === tpl.subjectLine; })) return;
+      var letter = {
+        id: 'op_ltr_' + (tpl.from || '') + '_' + Math.random().toString(36).slice(2, 6),
+        from: tpl.from,
+        to: tpl.to || '朱由检',
+        fromLocation: tpl.fromLocation || '',
+        toLocation: tpl.toLocation || '京师',
+        letterType: tpl.letterType || 'personal',
+        urgency: tpl.urgency || 'normal',
+        cipher: tpl.cipher || 'none',
+        subjectLine: tpl.subjectLine || '',
+        content: tpl.content || '',
+        suggestion: tpl.suggestion || '',
+        sentTurn: 1,
+        sentDate: GM._gameDate || '',
+        deliveryTurn: 1,  // 开局即送达·无需等驿
+        status: 'delivered',
+        replyExpected: tpl.replyExpected !== false,
+        _npcInitiated: true,
+        _fromOpeningLetter: true,
+        _historicalRef: tpl._historicalRef || '',
+        _background: tpl._background || '',
+        isOpening: true
+      };
+      GM.letters.push(letter);
+      // 提示 toast
+      if (typeof toast === 'function') toast((tpl.from || '远方') + ' 来信·' + (tpl.subjectLine || '').slice(0, 20));
+      // 写 evtLog 让玩家面板可见
+      if (typeof addEB === 'function') addEB('传书', (tpl.from||'') + ' 来信·' + (tpl.subjectLine || '').slice(0, 30));
+      // 写编年
+      if (!GM._chronicle) GM._chronicle = [];
+      GM._chronicle.push({
+        turn: 1, date: GM._gameDate || '',
+        type: '开局来信',
+        text: '【开局·鸿雁】' + tpl.from + ' 自 ' + (tpl.fromLocation||'远方') + ' 来书：' + (tpl.subjectLine || '').slice(0, 40),
+        tags: ['开局', '传书', tpl.from || '']
+      });
+      console.log('[开局信件激活] ' + tpl.from + ' → ' + (tpl.to || '朱由检'));
+    });
+    GM._openingLettersActivated = true;
+  }
+
   // 开局事件(isOpeningEvent/triggerTurn:1)自动 push 到 GM.currentIssues·让玩家首回合看到并选择
   function _activateOpeningEvents() {
     if (!global.GM || !global.P) return;
@@ -995,11 +1096,13 @@
       try { initThreeSystemsOnStart(); } catch(e) { console.warn('[三系统扩展] enterGame:after 异常', e); }
       try { _wireCrossSystemLinks(); } catch(e) { console.warn('[三系统联动] wire 异常', e); }
       try { _activateOpeningEvents(); } catch(e) { console.warn('[开局事件] enterGame:after 异常', e); }
+      try { _activateOpeningLetters(); } catch(e) { console.warn('[开局信件] enterGame:after 异常', e); }
     });
     global.GameHooks.on('startGame:after', function(){
       try { initThreeSystemsOnStart(); } catch(e) { console.warn('[三系统扩展] startGame:after 异常', e); }
       try { _wireCrossSystemLinks(); } catch(e) { console.warn('[三系统联动] wire 异常', e); }
       try { _activateOpeningEvents(); } catch(e) { console.warn('[开局事件] startGame:after 异常', e); }
+      try { _activateOpeningLetters(); } catch(e) { console.warn('[开局信件] startGame:after 异常', e); }
     });
   }
   // 脚本加载即尝试 wire(若事件总线已就绪)
