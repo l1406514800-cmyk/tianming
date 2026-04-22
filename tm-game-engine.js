@@ -2124,7 +2124,9 @@ var _dfSearch='', _dfSort='name', _dfCrisis=false;
 
 function _renderDifangPanel() {
   var grid = _$('difang-grid'); if (!grid) return;
-  var ah = P.adminHierarchy; if (!ah) { grid.innerHTML = '<div style="color:var(--txt-d);text-align:center;">未设置行政区划</div>'; return; }
+  // 优先读运行时 GM.adminHierarchy（与左侧栏一致·含推演更新的民心/腐败/人口）·回退剧本 P.adminHierarchy
+  var ah = (GM && GM.adminHierarchy && Object.keys(GM.adminHierarchy).length > 0) ? GM.adminHierarchy : P.adminHierarchy;
+  if (!ah) { grid.innerHTML = '<div style="color:var(--txt-d);text-align:center;">未设置行政区划</div>'; return; }
 
   // 启动时按需派生管辖类型（首次或势力变更后）
   if (typeof applyAutonomyToAllDivisions === 'function') applyAutonomyToAllDivisions();
@@ -5337,6 +5339,35 @@ function _settleLettersAndTravel() {
       }
       l.status = 'delivered';
       if (typeof addEB === 'function') addEB('传书', '致' + (l.to||l.from) + '的信已送达' + (l.toLocation||''));
+      // 收信者记忆（玩家→NPC 的信件，无论是否回信都记入记忆）
+      if (!l._npcInitiated && l.to) {
+        try {
+          if (typeof NpcMemorySystem !== 'undefined' && NpcMemorySystem.remember) {
+            var _rcvCh = (typeof findCharByName === 'function') ? findCharByName(l.to) : null;
+            if (_rcvCh && _rcvCh.alive !== false) {
+              var _typeLabel = (typeof LETTER_TYPES !== 'undefined' && LETTER_TYPES[l.letterType]) ? LETTER_TYPES[l.letterType].label : '来函';
+              var _urgLabel = l.urgency === 'extreme' ? '八百里加急' : l.urgency === 'urgent' ? '加急' : '驿递';
+              var _subj = l.subjectLine ? ('《' + String(l.subjectLine).slice(0,20) + '》') : '';
+              var _body = String(l.content || '').replace(/<[^>]+>/g, '').slice(0, 80);
+              var _memTxt = '收天子亲笔' + _typeLabel + '(' + _urgLabel + ')' + _subj + '：' + _body;
+              // 情绪依据信件类型与称谓
+              var _emoMap = {
+                edict: '敬', secret_edict: '惧', military_order: '惧', summons: '敬',
+                inquiry: '平', encouragement: '喜', reprimand: '惧',
+                personal: '喜', consolation: '哀', condolence: '哀',
+                appointment: '敬', promotion: '喜', dismissal: '怒'
+              };
+              var _emo = _emoMap[l.letterType] || '敬';
+              var _weight = l.urgency === 'extreme' ? 8 : l.urgency === 'urgent' ? 7 : 6;
+              NpcMemorySystem.remember(l.to, _memTxt, _emo, _weight, '天子', {
+                type: 'dialogue',
+                source: 'witnessed',
+                credibility: 100
+              });
+            }
+          }
+        } catch(_memE) {}
+      }
       if (!l._npcInitiated) _generateLetterReply(l);
     }
     if (l.status === 'replying' && GM.turn >= l.replyTurn) {
@@ -5557,10 +5588,7 @@ function _generateLetterReply(letter) {
   letter.status = 'replying';
   var ch = findCharByName(letter.to);
   if (!ch) { letter.reply = '臣已拜读圣函。'; letter.status = 'returned'; return; }
-
-  if (typeof NpcMemorySystem !== 'undefined') {
-    NpcMemorySystem.remember(letter.to, '收到天子亲笔来函：' + (letter.content||'').slice(0, 60), '敬', 6, '天子');
-  }
+  // 注：收信记忆已在 _settleLettersAndTravel 的 delivered 节点注入，此处不重复
 
   var typeLabel = (LETTER_TYPES[letter.letterType]||{}).label || '书信';
 
@@ -6535,6 +6563,13 @@ function _renderEdictSuggestions() {
     {id:'edict-oth', label:'\u5176\u4ED6', color:'var(--ink-300)'}
   ];
   var _unused = (GM._edictSuggestions || []).filter(function(s) { return !s.used; });
+  // 按回合倒序（本回合最上·以往回合依次下排·同回合按原入库顺序）
+  _unused.sort(function(a, b) {
+    var ta = a.turn || 0, tb = b.turn || 0;
+    if (tb !== ta) return tb - ta;
+    // 同回合：保持插入顺序·取原数组索引
+    return (GM._edictSuggestions || []).indexOf(a) - (GM._edictSuggestions || []).indexOf(b);
+  });
   // 按来源映射 src 类
   var _srcClsMap = {
     '\u671D\u8BAE': 'ed-src-chaoyi',
@@ -6542,16 +6577,33 @@ function _renderEdictSuggestions() {
     '\u9E3F\u96C1': 'ed-src-letter',
     '\u594F\u758F': 'ed-src-memorial',
     '\u5B98\u5236': 'ed-src-office',
-    '\u5730\u65B9': 'ed-src-local'
+    '\u5730\u65B9': 'ed-src-local',
+    '\u72EC\u53EC': 'ed-src-wendui',
+    '\u72EC\u53EC\u00B7\u5212\u9009': 'ed-src-wendui',
+    '\u72EC\u53EC\u00B7\u5EFA\u8A00\u8981\u70B9': 'ed-src-wendui'
   };
   var html = '';
   if (_unused.length === 0) {
     html += '<div style="font-size:11.5px;color:var(--color-foreground-muted);line-height:1.7;padding:12px 10px;text-align:center;font-family:var(--font-serif);font-style:italic;">\u8BF8\u4E8B\u6682\u5B81\u3002\u53EC\u5F00\u300C\u671D\u8BAE\u300D\u6216\u300C\u95EE\u5BF9\u300D\uFF0C\u5176\u8FDB\u8A00\u5C06\u6536\u5165\u6B64\u5904\u3002</div>';
   } else {
+    var _curTurn = (GM.turn || 1);
+    var _lastTurnHeader = null;
     _unused.forEach(function(s) {
       var _realIdx = (GM._edictSuggestions || []).indexOf(s);
       var _srcCls = _srcClsMap[s.source] || 'ed-src-default';
       var _srcLine = '\u3010' + escHtml(s.source || '?') + (s.from ? '\u00B7' + escHtml(s.from) : '') + '\u3011';
+      // 插入回合分组 header
+      var _sTurn = s.turn || 0;
+      if (_sTurn !== _lastTurnHeader) {
+        _lastTurnHeader = _sTurn;
+        var _turnLabel;
+        if (_sTurn === _curTurn) _turnLabel = '\u672C\u56DE\u5408';
+        else if (_sTurn === _curTurn - 1) _turnLabel = '\u4E0A\u56DE\u5408';
+        else if (_sTurn > 0) _turnLabel = '\u7B2C ' + _sTurn + ' \u56DE\u5408';
+        else _turnLabel = '\u5F80\u65E5';
+        var _dateStr = (typeof getTSText === 'function' && _sTurn > 0) ? getTSText(_sTurn) : '';
+        html += '<div style="font-size:10.5px;color:var(--gold,#c9a84c);letter-spacing:0.3em;padding:6px 8px 3px;border-bottom:1px dashed rgba(201,168,76,0.2);margin-top:4px;font-family:var(--font-serif);">\u00B7 ' + _turnLabel + (_dateStr ? ' \u00B7 ' + escHtml(_dateStr) : '') + ' \u00B7</div>';
+      }
       html += '<div class="ed-sug-item ' + _srcCls + '" onclick="_showEdictAdoptMenu(event,' + _realIdx + ')">';
       html += '<div class="src">' + _srcLine + '</div>';
       if (s.topic) html += '<div class="topic">\u3014' + escHtml(s.topic) + '\u3015</div>';
@@ -7849,6 +7901,19 @@ if (sc.culturalConfig && sc.culturalConfig.enabled && Array.isArray(sc.culturalC
   enterGame();
   generateMemorials();
   toast(typeof getTSText==='function'?getTSText(1):'游戏开始');
+
+  // 新游戏开局自动封存 slot 0，防止玩家试玩未保存即退出
+  try {
+    if (typeof SaveManager !== 'undefined' && SaveManager.saveToSlot) {
+      setTimeout(function(){
+        try {
+          var _scN = (typeof findScenarioById === 'function') ? findScenarioById(sid) : null;
+          var _scName = (_scN && _scN.name) || '新游戏';
+          SaveManager.saveToSlot(0, '开局封存·' + _scName + '·第1回合');
+        } catch(_e){ console.warn('[startGame] 开局自动封存失败', _e); }
+      }, 1200);
+    }
+  } catch(_e){}
 
   // === 即位改元事件（游戏开始时触发） ===
   // 如果剧本没有预设年号，弹出即位改元事件让玩家议定

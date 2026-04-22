@@ -2521,17 +2521,46 @@ function recordCharacterArc(charName, eventType, description) {
     year: getCurrentYear ? getCurrentYear() : GM.turn
   });
 
-  // 每角色最多保留 10 条弧线事件
+  // 每角色最多保留 N 条弧线事件（超限时压缩最老半数为归档条目，不永久丢失）
   var arcLimit = (P.conf && P.conf.characterArcKeep) || 10;
   if (GM.characterArcs[charName].length > arcLimit) {
-    GM.characterArcs[charName] = GM.characterArcs[charName].slice(-arcLimit);
+    var _arr = GM.characterArcs[charName];
+    var _keepN = Math.max(1, arcLimit - 1);
+    var _old = _arr.slice(0, _arr.length - _keepN);
+    var _keep = _arr.slice(-_keepN);
+    var _existArc = (_old[0] && _old[0].type === 'arc_archive') ? _old[0] : null;
+    var _archArc;
+    if (_existArc) {
+      _archArc = _existArc;
+      var _toM = _old.slice(1);
+      _archArc.desc = ('早年事迹·' + (_archArc.desc||'').replace(/^早年事迹·/, '') + '；' +
+        _toM.map(function(e){return 'T'+(e.turn||0)+'['+(e.type||'事件')+']'+(e.desc||'');}).join('；')).slice(0, 500);
+      _archArc.eventCount = (_archArc.eventCount||1) + _toM.length;
+      _archArc.turn = _archArc.firstTurn || _old[0].turn;
+      _archArc.lastTurn = Math.max(_archArc.lastTurn||0, (_toM[_toM.length-1]||{}).turn || 0);
+    } else {
+      _archArc = {
+        type: 'arc_archive',
+        desc: '早年事迹·' + _old.map(function(e){return 'T'+(e.turn||0)+'['+(e.type||'事件')+']'+(e.desc||'');}).join('；').slice(0, 460),
+        turn: _old[0].turn,
+        firstTurn: _old[0].turn,
+        lastTurn: _old[_old.length-1].turn,
+        year: _old[0].year,
+        eventCount: _old.length
+      };
+    }
+    GM.characterArcs[charName] = [_archArc].concat(_keep);
   }
 }
 
 /** 获取角色弧线摘要（供 AI prompt） */
 function getCharacterArcSummary(charName, maxEvents) {
   if (!GM.characterArcs || !GM.characterArcs[charName]) return '';
-  var events = GM.characterArcs[charName].slice(-(maxEvents || 5));
+  var _arr = GM.characterArcs[charName];
+  var _arch = (_arr[0] && _arr[0].type === 'arc_archive') ? _arr[0] : null;
+  var _recentCount = Math.max(1, (maxEvents || 5) - (_arch ? 1 : 0));
+  var _recent = _arr.slice(_arch ? 1 : 0).slice(-_recentCount);
+  var events = _arch ? [_arch].concat(_recent) : _recent;
   return events.map(function(e) { var _d=(typeof getTSText==='function')?getTSText(e.turn):''; return _d+'：'+e.desc; }).join('；');
 }
 
@@ -2566,15 +2595,45 @@ function recordPlayerDecision(category, description, consequences) {
     consequences: (consequences || '').substring(0, 100),
     turn: GM.turn
   });
-  // 保留最近 30 条
+  // 保留最近 N 条（超限时压缩最老半数为归档条目，不永久丢失）
   var decLimit = (P.conf && P.conf.playerDecisionKeep) || 30;
-  if (GM.playerDecisions.length > decLimit) GM.playerDecisions = GM.playerDecisions.slice(-decLimit);
+  if (GM.playerDecisions.length > decLimit) {
+    var _keepN = Math.max(1, decLimit - 1);
+    var _old = GM.playerDecisions.slice(0, GM.playerDecisions.length - _keepN);
+    var _keep = GM.playerDecisions.slice(-_keepN);
+    var _existDec = (_old[0] && _old[0].category === 'decision_archive') ? _old[0] : null;
+    var _archDec;
+    if (_existDec) {
+      _archDec = _existDec;
+      var _toM = _old.slice(1);
+      _archDec.desc = ('早期决策摘要·' + (_archDec.desc||'').replace(/^早期决策摘要·/, '') + '；' +
+        _toM.map(function(d){return 'T'+(d.turn||0)+'['+(d.category||'')+']'+(d.desc||'');}).join('；')).slice(0, 800);
+      _archDec.eventCount = (_archDec.eventCount||1) + _toM.length;
+      _archDec.turn = _archDec.firstTurn || _old[0].turn;
+      _archDec.lastTurn = Math.max(_archDec.lastTurn||0, (_toM[_toM.length-1]||{}).turn || 0);
+    } else {
+      _archDec = {
+        category: 'decision_archive',
+        desc: '早期决策摘要·' + _old.map(function(d){return 'T'+(d.turn||0)+'['+(d.category||'')+']'+(d.desc||'');}).join('；').slice(0, 720),
+        consequences: '',
+        turn: _old[0].turn,
+        firstTurn: _old[0].turn,
+        lastTurn: _old[_old.length-1].turn,
+        eventCount: _old.length
+      };
+    }
+    GM.playerDecisions = [_archDec].concat(_keep);
+  }
 }
 
 /** 获取玩家决策上下文（供 AI 理解玩家风格和意图） */
 function getPlayerDecisionContext(maxDecisions) {
   if (!GM.playerDecisions || GM.playerDecisions.length === 0) return '';
-  var recent = GM.playerDecisions.slice(-(maxDecisions || 8));
+  var _arr = GM.playerDecisions;
+  var _arch = (_arr[0] && _arr[0].category === 'decision_archive') ? _arr[0] : null;
+  var _recentCount = Math.max(1, (maxDecisions || 8) - (_arch ? 1 : 0));
+  var _recent = _arr.slice(_arch ? 1 : 0).slice(-_recentCount);
+  var recent = _arch ? [_arch].concat(_recent) : _recent;
   var result = '【玩家决策轨迹】\n';
   recent.forEach(function(d) {
     result += '  T' + d.turn + ' [' + d.category + '] ' + d.desc;
@@ -4980,8 +5039,10 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
     var memoryContext = getMemoryAnchorsForAI(8);
     if(memoryContext) tp += "\n" + memoryContext;
     if (GM.chronicleAfterwords && GM.chronicleAfterwords.length > 0) {
-      var lastAft = GM.chronicleAfterwords[GM.chronicleAfterwords.length - 1];
-      tp += "\u3010\u4E0A\u56DE\u56DE\u987E\u3011\n" + lastAft.summary + "\n";
+      var _chrArch = (GM.chronicleAfterwords[0] && GM.chronicleAfterwords[0]._isArchive) ? GM.chronicleAfterwords[0] : null;
+      var _lastAft = GM.chronicleAfterwords[GM.chronicleAfterwords.length - 1];
+      if (_chrArch && _chrArch !== _lastAft) tp += "\u3010\u65E9\u671F\u53D9\u4E8B\u5F52\u6863\u3011\n" + _chrArch.summary + "\n";
+      if (_lastAft) tp += "\u3010\u4E0A\u56DE\u56DE\u987E\u3011\n" + _lastAft.summary + "\n";
     }
 
     // —— 层4: 辅助信息（宰辅建言 + 官制 + 科举 + 地图 + 参考）——
@@ -9555,6 +9616,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
               if (_ri) {
                 _ri.status = 'resolved';
                 _ri.resolvedTurn = GM.turn;
+                _ri.resolvedDate = typeof getTSText === 'function' ? getTSText(GM.turn) : '';
                 addEB('\u65F6\u5C40', '\u8981\u52A1\u89E3\u51B3\uFF1A' + _ri.title);
                 _dbg('[Issues] resolve: ' + _ri.title);
               }
@@ -14803,7 +14865,33 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         var lastTwo = sentences.slice(-2).join('。') + '。';
         GM.chronicleAfterwords.push({ turn: GM.turn, summary: lastTwo.substring(0, 200) });
         var chrLimit = (P.conf && P.conf.chronicleKeep) || 10;
-        if (GM.chronicleAfterwords.length > chrLimit) GM.chronicleAfterwords = GM.chronicleAfterwords.slice(-chrLimit);
+        if (GM.chronicleAfterwords.length > chrLimit) {
+          // 超限时压缩最老半数为归档条目，不永久丢失
+          var _keepN = Math.max(1, chrLimit - 1);
+          var _old = GM.chronicleAfterwords.slice(0, GM.chronicleAfterwords.length - _keepN);
+          var _keep = GM.chronicleAfterwords.slice(-_keepN);
+          var _existChr = (_old[0] && _old[0]._isArchive) ? _old[0] : null;
+          var _archChr;
+          if (_existChr) {
+            _archChr = _existChr;
+            var _toM = _old.slice(1);
+            _archChr.summary = ('早期叙事摘要·' + (_archChr.summary||'').replace(/^早期叙事摘要·/, '') + '｜' +
+              _toM.map(function(c){return 'T'+(c.turn||0)+':'+((c.summary||'').slice(0, 40));}).join('｜')).slice(0, 800);
+            _archChr.eventCount = (_archChr.eventCount||1) + _toM.length;
+            _archChr.turn = _archChr.firstTurn || _old[0].turn;
+            _archChr.lastTurn = Math.max(_archChr.lastTurn||0, (_toM[_toM.length-1]||{}).turn || 0);
+          } else {
+            _archChr = {
+              _isArchive: true,
+              turn: _old[0].turn,
+              firstTurn: _old[0].turn,
+              lastTurn: _old[_old.length-1].turn,
+              eventCount: _old.length,
+              summary: '早期叙事摘要·' + _old.map(function(c){return 'T'+(c.turn||0)+':'+((c.summary||'').slice(0, 40));}).join('｜').slice(0, 720)
+            };
+          }
+          GM.chronicleAfterwords = [_archChr].concat(_keep);
+        }
       }
 
       // 防止对话历史无限增长：使用玩家配置的对话保留数

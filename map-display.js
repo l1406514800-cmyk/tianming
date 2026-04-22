@@ -326,6 +326,17 @@ function showMapInGame() {
     // 绑定事件
     document.getElementById('game-map-mode').onchange = updateMap;
     document.getElementById('game-map-labels').onchange = updateMap;
+
+    // 多重退出机制：ESC 键 + 点击遮罩背景
+    window._mapEscHandler = function(e){
+        if (e.key === 'Escape' || e.key === 'Esc') closeGameMap();
+    };
+    document.addEventListener('keydown', window._mapEscHandler);
+    // 点击遮罩黑色背景（不是内容区）关闭
+    overlay.addEventListener('click', function(e){
+        // 如果点在顶层 overlay（没点到子面板），就关闭
+        if (e.target && e.target.id === 'game-map-overlay') closeGameMap();
+    });
 }
 
 /**
@@ -334,7 +345,14 @@ function showMapInGame() {
 function closeGameMap() {
     const overlay = document.getElementById('game-map-overlay');
     if (overlay) {
-        document.body.removeChild(overlay);
+        // 使用 .remove() 不依赖 parentNode 必为 document.body（防御 DOM 被移动）
+        if (overlay.remove) overlay.remove();
+        else if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    }
+    // 解绑 ESC
+    if (window._mapEscHandler) {
+        document.removeEventListener('keydown', window._mapEscHandler);
+        window._mapEscHandler = null;
     }
 }
 

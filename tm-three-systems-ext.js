@@ -1026,6 +1026,17 @@
         isOpening: true
       };
       GM.letters.push(letter);
+      // 记忆：上书者记下此次陈奏
+      try {
+        if (typeof NpcMemorySystem !== 'undefined' && NpcMemorySystem.remember && tpl.from) {
+          var _opMem = '自' + (tpl.fromLocation||'远方') + '上书天子' + (tpl.subjectLine ? '《'+String(tpl.subjectLine).slice(0,20)+'》' : '') + '：' + String(tpl.content||'').slice(0, 60);
+          NpcMemorySystem.remember(tpl.from, _opMem, '忧', 7, '天子', {
+            type: 'dialogue',
+            source: 'witnessed',
+            credibility: 100
+          });
+        }
+      } catch(_opMe) {}
       // 提示 toast
       if (typeof toast === 'function') toast((tpl.from || '远方') + ' 来信·' + (tpl.subjectLine || '').slice(0, 20));
       // 写 evtLog 让玩家面板可见

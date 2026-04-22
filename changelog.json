@@ -3,6 +3,31 @@
   "entries": [
     {
       "date": "2026-04-22",
+      "module": "御案时政·独召密问全链条+诏书建议库时序分组+开局封存+三小修",
+      "title": "全屏卷轴式时政任务系统·不限人数独召密问流式 JSON+划入诏书+建言要点·议事清册回合分组·开局自动封存·地方数据改 GM 源·地图关闭修复·压缩式归档三补完",
+      "items": [
+        { "what": "新增【御案时政】系统·屏幕底部居中卷轴按钮 #gs-shizheng-btn·点击弹全屏名录(`width:min(92vw,1020px) max-height:78vh`)·按状态+时间倒序排列(待解决→已解决·组内新→旧)·点击卡片弹详情(`width:min(90vw,760px) max-height:82vh`)", "why": "玩家有直观入口查看所有议题·统一管理" },
+        { "what": "卡片详情扩充·核心描述+〔详情奏闻〕narrative+关涉群臣/牵动势力彩色标签+〔风势推演〕longTermConsequences+〔史馆旧案〕historicalNote+〔陛下已断〕+〔陛下决断〕choices 按钮", "why": "原详情过简·玩家需完整背景辅助决断" },
+        { "what": "按钮文案改代入感·时政任务→御案时政·召集大臣议政→御前召对群臣·密聊大臣→独召密问·日期用 getTSText 游戏实际时间而非回合号·AI 解决议题时现在也写 resolvedDate(tm-endturn.js:9619 补)", "why": "古典史官语感·日期玩家更好读" },
+        { "what": "独召密问·不限人数·依序发言(不再并行)·初始 2 轮*N 臣·玩家发问后+2 轮*N 臣·不发问自然终止·单调 slotIdx 计数器(修 `totalSlots-roundsRemaining` 导致首言显示'第21言'的bug)", "why": "用户要求一个一个发·不限人数·自然节奏" },
+        { "what": "独召密问走 callAIMessagesStream 流式·与问对完全一致·_useSecondaryTier 走次 API·_aiDialogueTok('wd',1) token 预算·_aiDialogueWordHint('wd') 字数提示(读 wdMin/wdMax)·JSON 格式 {reply,loyaltyDelta,emotionState,toneEffect,suggestions,memoryImpact}·流式拒绝时自动降级 callAI 非流式·fallback 链全路径传 tier", "why": "与问对/朝议统一·次 API 优先" },
+        { "what": "独召密问·聊天框固定高 420px 内部滚动·面板不随消息数伸缩·头栏/议题/输入栏 flex-shrink:0·流式到达前保'沉吟中'占位·onChunk 正则抽 reply 字段防玩家看到裸 JSON", "why": "用户反映气泡大小变动不舒服·空白卡壳·需固定尺寸可滚" },
+        { "what": "独召密问·同地大臣过滤·_getPlayerLocation+_isSameLocation 宽松匹配·排除下狱/流放/退休/丁忧/逃亡/失踪/赶路中·必须有 officialTitle 或 title", "why": "与问对同规则·只能邀请同地官员" },
+        { "what": "独召密问·划入诏书建议库·选中文本 mouseup 显示浮动【划入诏书】按钮·onmousedown preventDefault 防止按钮清除选区·`_mzSelCache` 缓存选中文字·GM._edictSuggestions.push{source:'独召·划选',from:发言者,topic:议题,content,turn,used}·即时调 _renderEdictSuggestions", "why": "首次实现时按钮点击清除了选区·静默失败·需双保险+错误提示" },
+        { "what": "独召密问·建言要点·顶栏按钮并发调 callAI 为每位大臣归纳 60-120 字主张·第三人称·展示在汇总面板·每条可'纳入诏书建议库'·source:'独召·建言要点'·from:大臣名", "why": "多人发言后快速提炼立场·一键纳入诏书" },
+        { "what": "独召密问退朝自动三写·NPC 记忆(per-char 奏对摘要 120 字·weight 7)+纪事档案(GM.jishiRecords per 臣 char/playerSaid/npcSaid/issueId/issueTitle/mode:'mizhao')+起居注(GM.qijuHistory 总召对 date+召见臣名单)", "why": "推演上下文自动读 qijuLookback·大臣奏对影响下回合 AI 推演" },
+        { "what": "议事清册按回合倒序·同回合保持入库顺序·插入淡金色分隔头:本回合/上回合/第N回合·显示 getTSText 日期·source 映射加'独召'/'独召·划选'/'独召·建言要点'→ed-src-wendui 蓝色", "why": "用户要求·最新回合在最上" },
+        { "what": "载入剧本新游戏后自动封存·startGame 末 setTimeout 1200ms 调 SaveManager.saveToSlot(0,'开局封存·{剧本名}·第1回合')·防玩家试玩未保存退出", "why": "用户明确要求·开局即存" },
+        { "what": "修 bug·中间标签页地方行政区划数据错·_renderDifangPanel 原读 P.adminHierarchy(剧本静态)·改为优先 GM.adminHierarchy(运行时)·回退 P·侧栏 gs-panel.p-admin 同步改", "why": "运行时 population/民心/腐败在 GM 而非 P·玩家看到静态数据不动" },
+        { "what": "修 bug·朝政地图总览退不出·map-display.js closeGameMap 用 .remove() 替代 removeChild(防 DOM 移动)·加 ESC 键退出·点击 overlay 背景退出·事件解绑防内存泄漏", "why": "用户反映卡死在里面" },
+        { "what": "三补完·characterArcs/playerDecisions/chronicleAfterwords 从纯截断升级为压缩式归档·超限时最老半数合成 1 条 archive 条目置数组头·arc_archive/decision_archive/_isArchive 标记·再溢时再合并(eventCount++·lastTurn 拉新)·读取侧始终包含 archive+最近 N-1 条", "why": "原简单截断永久丢失老事件·与 memoryAnchors/archive/conv 压缩行为不统一" },
+        { "what": "开局事件·崇祯元年剧本 6 大时政要务全取消 choices 数组(魏忠贤/辽东督师/太仓亏空/东林昭雪/毛文龙/陕西大饥荒)·玩家须自己召对/密问商议决断·保留 description/narrative/关涉群臣/longTermConsequences/historicalNote", "why": "用户要求不要直接抉择·应由玩家找大臣讨论" },
+        { "what": "剧本·authorityConfig.initial·崇祯开局皇权 75·subDims{central:72,provincial:70,military:68,imperial:85}·huangwei:70·minxin:55·powerMinister{name:'魏忠贤',controlLevel:0.55}·tyrant{level:0,risk:'moderate'}·_readInitialValue 已读", "why": "用户要求新帝即位决策贯彻力强·独断倾向埋种子" },
+        { "what": "缓存·tm-game-engine v=g→h·tm-shell-extras v=p→q·tm-endturn v=k→l·scenarios/tianqi7-1627 v=v50→v51·map-display 新增 v=a", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-22",
       "module": "三审·问对位置 gate+僵尸字段唤醒+鸿雁纳入推演与记忆",
       "title": "人物志问对加位置过滤·shijiLookback/summaryRule 唤醒·letter 内容注入推演+NPC 主动来信写记忆",
       "items": [
