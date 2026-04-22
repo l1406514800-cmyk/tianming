@@ -3,6 +3,18 @@
   "entries": [
     {
       "date": "2026-04-22",
+      "module": "紧要之臣·卡片重做+点击唤出快速详情面板",
+      "title": "侧栏人物卡片采用 preview-char-full.html 三·右侧栏样式·点击调 openCharDetail 唤 440px 快速详情面板",
+      "items": [
+        { "what": "index.html 新增 .gs-cd-* 样式块(54 行)·复刻 preview-char-full.html 三·右侧栏人物卡片样式·命名空间 .gs-cd 避免与现有 .cd 冲突·含 portrait/name-row/courtesy/gender-age/mood/loc-badge/spouse/face-badge/loy/amb/stress/subrow/tags/wuchang/resources/pills/goal/enyuan 20+ 子元素", "why": "参考文件设计已验证·精简信息密度+身份+情绪+资源+志向+恩怨一目了然" },
+        { "what": "tm-shell-extras.js 完全重写紧要之臣渲染(原 gs-char2-* 替换为 gs-cd-*)·含立绘/姓氏占位切换(portrait 字段决定)·配偶🌸+脸面徽章+在途 loc-badge·情绪5态(忧/喜/怒/敬/平)·五常一行+气质评级·公私资源双栏简缩(钱粮)·名贤健压 4 胶囊·志向+恩怨/师承一行", "why": "卡片信息从纯数值升级为多维叙事线索" },
+        { "what": "每张 .gs-cd 卡 onclick 调 openCharDetail(name)·唤出 440px 右滑快速详情面板(.char-detail-overlay + .qp-*)·底部'点开人物志查看完整'链接 openCharRenwuPage 进 1120px 完整页", "why": "参考文件二·快速详情面板已有实现(tm-game-engine.js:3406+)·紧要之臣接入形成完整 3 层视图：侧栏卡→快速详情→完整人物志" },
+        { "what": "_jsEsc 内联 helper·防含 ' 或 < 的角色名破坏 onclick", "why": "与 tm-three-systems-ui.js 中 jsEsc 保持一致" },
+        { "what": "缓存·tm-shell-extras v=a→b", "why": "强制加载" }
+      ]
+    },
+    {
+      "date": "2026-04-22",
       "module": "四 bug 修复·人名抓取/新 NPC 问对/人物志按钮/紧要之臣滚动",
       "title": "findCharByName 索引 fallback·_extractNames 语境锚点·人物志问对传书按钮·侧栏滚动条",
       "items": [

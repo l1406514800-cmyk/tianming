@@ -573,50 +573,145 @@
       + '<div class="gs-time-text"><div class="main">'+_shiName+' 时</div><div class="sub">日 昳 · 未 至 酉</div></div>';
     wrap.appendChild(tm);
 
-    // 3. 紧要之臣 (gs-char2 v2)·全部非玩家可显示角色·滚动展示
+    // 3. 紧要之臣·采用 preview-char-full.html 三·右侧栏人物卡片样式 (.gs-cd-*)·点击唤出快速详情面板 (openCharDetail)
     var chars = (GM.chars||[]).filter(function(c){ return c && c.alive !== false && !c.isPlayer; });
     chars.sort(function(a,b){ var ia=(a.importance||0)+(a.loyalty||0)*0.3; var ib=(b.importance||0)+(b.loyalty||0)*0.3; return ib-ia; });
-    // 不再 slice(0,6)·全部展示·列表容器滚动
+    // 全部展示·列表容器滚动
     var cp = document.createElement('div');
     cp.className = 'gs-panel p-quick';
     cp.setAttribute('data-panel-key','char');
     var _cHtml = '<div class="gs-panel-hdr"><div class="gs-panel-title">紧 要 之 臣</div><span class="gs-panel-cnt">'+chars.length+'</span></div>'
-      // 内部滚动容器·480px 高·外层 panel 不被撑开
-      + '<div class="gs-char2-scroll" style="max-height:480px;overflow-y:auto;overflow-x:hidden;padding-right:4px;scrollbar-width:thin;scrollbar-color:rgba(201,168,76,0.4) transparent;">';
+      + '<div class="gs-cd-scroll" style="max-height:520px;overflow-y:auto;overflow-x:hidden;padding-right:4px;scrollbar-width:thin;scrollbar-color:rgba(201,168,76,0.4) transparent;">';
+    // 辅助 escape for JS onclick
+    function _jsEsc(s) { return String(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/</g,'\\u003c'); }
     chars.forEach(function(c){
-      var fac = c.faction || '';
-      var fClass = 'f-dongin';
-      if (/武|军|将|兵|总兵/.test((c.officialTitle||c.title||'')+fac)) fClass='f-mili';
-      else if (/宦|阉|太监|内廷/.test((c.officialTitle||c.title||'')+fac)) fClass='f-eunuch';
-      else if (c.spouse||c.gender==='女') fClass='f-consort';
-      else if (/温|昆/.test(fac)) fClass='f-kun';
-      var loy = c.loyalty || 50;
+      var name = c.name || '';
+      var nameJs = _jsEsc(name);
+      var zi = c.zi || c.courtesy || '';
+      var age = c.age || '?';
+      var isFem = (c.gender === '女' || c.gender === 'female' || c.isFemale === true);
+      var loy = Math.round(c.loyalty || 50);
       var loyCls = loy>=70?'hi':loy>=40?'mid':'lo';
-      var amb = c.ambition || 40;
-      var ambCls = amb>=70?'hi':amb>=40?'mid':'lo';
-      var loyVerd = loy>=80?'忠贞可托':loy>=60?'堪用':loy>=40?'存观望心':'疑心';
-      var ambVerd = amb>=70?'有所图':amb>=45?'知进退':'恬淡';
-      var overall = (loy>=70&&amb<=65) ? {cls:'',t:'综合：良臣之选'} : (loy<40||amb>=80?{cls:'danger',t:'综合：恐成变数'}: {cls:'warn',t:'综合：须加察看'});
-      _cHtml += '<div class="gs-char2 '+fClass+'"><div class="gs-char2-row">'
-        + '<div class="gs-char2-port">'+esc(c.name.charAt(0))+'</div>'
-        + '<div class="gs-char2-body">'
-        + '<div class="gs-char2-name-row"><span class="gs-char2-name">'+esc(c.name)+'</span>'
-        + (c.zi||c.courtesy?'<span class="gs-char2-zi">'+esc(c.zi||c.courtesy)+'</span>':'')
-        + '<span class="gs-char2-gender '+(c.gender==='女'?'female':'male')+'">'+(c.gender==='女'?'女':'男')+'·'+(c.age||'?')+'</span>'
+      var amb = Math.round(c.ambition || 40);
+      var stress = Math.round((c.resources && c.resources.stress) || c.stress || 0);
+      var sCls = stress>=80?'crit':stress>=60?'warn':'';
+      var sBadge = (sCls) ? '<span class="gs-cd-stress '+sCls+'" title="压力'+stress+'">'+(stress>=80?'崩':stress>=60?'紧':'压')+'</span>' : '';
+      var officeT = c.officialTitle || c.title || '布衣';
+      var rankT = (typeof c.rankLevel === 'number') ? (c.rankLevel<=3?'正一品':c.rankLevel<=5?'正三品':c.rankLevel<=8?'正五品':'九品') : '';
+      var fac = c.faction || '';
+      // 情绪
+      var mood = c.mood || c.currentMood || '';
+      var moodCls = /忧|愁/.test(mood)?'worry':/喜|乐/.test(mood)?'happy':/怒|恨/.test(mood)?'angry':/敬/.test(mood)?'respect':/平/.test(mood)?'peace':'';
+      var moodIcon = mood ? '<span class="gs-cd-mood '+moodCls+'">〔'+esc(mood)+'〕</span>' : '';
+      // 在途
+      var travelBadge = c._enRouteToOffice ? '<span class="gs-cd-loc-badge">→'+esc((c._enRouteToOffice||'').slice(0,6))+'</span>' :
+        c._travelTo ? '<span class="gs-cd-loc-badge">→'+esc((c._travelTo||'').slice(0,6))+'</span>' :
+        c.location ? '<span class="gs-cd-loc-badge">'+esc((c.location||'').slice(0,6))+'</span>' : '';
+      // 配偶/脸面
+      var spouseBadge = c.spouse ? '<span class="gs-cd-spouse">🌸</span>' : '';
+      var faceBadge = (c._faceLost || c._humiliated) ? '<span class="gs-cd-face-badge">颜面尽失</span>' : '';
+      // 特质 tags (最多 3 个)
+      var tagsHtml = '';
+      if (Array.isArray(c.traits) && c.traits.length) {
+        c.traits.slice(0, 3).forEach(function(tr){
+          var tCls = /忠|仁|爱民|温/.test(tr)?'heart':/勇|武|权|狡/.test(tr)?'valor':/智|谋|深|慎/.test(tr)?'mind':/清|简|廉/.test(tr)?'gold':'gold';
+          tagsHtml += '<span class="gs-cd-tag '+tCls+'">'+esc(tr.slice(0,4))+'</span>';
+        });
+      }
+      if (c.party) tagsHtml += '<span class="gs-cd-tag party">'+esc(c.party.slice(0,4))+'</span>';
+      // 五常 (若有)
+      var wuchang = '';
+      var hasWc = typeof c.benevolence === 'number' || typeof c.righteousness === 'number';
+      if (hasWc) {
+        var ren = Math.round(c.benevolence||c.ren||50);
+        var yi = Math.round(c.righteousness||c.yi||50);
+        var li = Math.round(c.li||c.propriety||50);
+        var zhi = Math.round(c.intelligence||c.zhi||50);
+        var xin = Math.round(c.honesty||c.xin||50);
+        wuchang = '<div class="gs-cd-wuchang">仁'+ren+' 义'+yi+' 礼'+li+' 智'+zhi+' 信'+xin;
+        var avg = (ren+yi+li+zhi+xin)/5;
+        var qz = avg>=75?'士人':avg>=60?'雅儒':avg>=40?'寻常':'粗野';
+        wuchang += '<span class="gs-cd-wuchang-qz">· '+qz+'</span></div>';
+      }
+      // 资源 (公库/私产·简缩)
+      var pub = (c.resources && c.resources.publicPurse) || {};
+      var priv = (c.resources && c.resources.privateWealth) || {};
+      var fmt = function(v){ v = v||0; if (Math.abs(v)>=10000) return (v/10000).toFixed(1)+'万'; return String(Math.round(v)); };
+      var hasRes = (pub.money||priv.money);
+      var resHtml = '';
+      if (hasRes) {
+        resHtml = '<div class="gs-cd-resources">'
+          + '<div class="gs-cd-res-grp"><span class="gs-cd-res-grp-lb">公</span>'
+          + '<span class="gs-cd-res-it">钱 <span class="gs-cd-res-val'+(pub.money<0?' neg':'')+'">'+fmt(pub.money)+'</span></span>'
+          + (pub.grain?'<span class="gs-cd-res-it">粮 <span class="gs-cd-res-val">'+fmt(pub.grain)+'</span></span>':'')
+          + '</div>';
+        if (priv.money || priv.grain) {
+          resHtml += '<div class="gs-cd-res-sep"></div>'
+            + '<div class="gs-cd-res-grp"><span class="gs-cd-res-grp-lb">私</span>'
+            + '<span class="gs-cd-res-it">钱 <span class="gs-cd-res-val'+(priv.money<0?' neg':'')+'">'+fmt(priv.money)+'</span></span>'
+            + (priv.grain?'<span class="gs-cd-res-it">粮 <span class="gs-cd-res-val">'+fmt(priv.grain)+'</span></span>':'')
+            + '</div>';
+        }
+        resHtml += '</div>';
+      }
+      // 数值胶囊·名望/贤能/健康/压力
+      var fame = Math.round((c.resources && c.resources.fame) || 0);
+      var virt = Math.round((c.resources && c.resources.virtueMerit) || 0);
+      var health = Math.round((c.resources && c.resources.health) || c.health || 80);
+      var pillsHtml = '<div class="gs-cd-stats-pills">'
+        + '<span class="gs-cd-pill"><span class="gs-cd-pill-lb">名</span><span class="gs-cd-pill-val'+(fame<0?' neg':'')+'">'+(fame>=0?'+':'')+fame+'</span></span>'
+        + '<span class="gs-cd-pill"><span class="gs-cd-pill-lb">贤</span><span class="gs-cd-pill-val">'+virt+'</span></span>'
+        + '<span class="gs-cd-pill"><span class="gs-cd-pill-lb">健</span><span class="gs-cd-pill-val">'+health+'</span></span>'
+        + '<span class="gs-cd-pill'+(stress>=80?' warn':'')+'"><span class="gs-cd-pill-lb">压</span><span class="gs-cd-pill-val">'+stress+'</span></span>'
+        + '</div>';
+      // 志向
+      var goal = c.personalGoal || c.longGoal || '';
+      var goalHtml = goal ? '<div class="gs-cd-goal" title="'+esc(goal)+'">志：'+esc(goal.slice(0,22))+(goal.length>22?'…':'')+'</div>' : '';
+      // 恩怨
+      var enyuan = '';
+      if (Array.isArray(c.feuds) && c.feuds.length) enyuan = '积怨：'+c.feuds.slice(0,2).map(function(f){return typeof f==='string'?f:(f.with||f.target||'');}).filter(Boolean).join('·');
+      else if (c.mentor) enyuan = '师承：'+c.mentor;
+      var enyuanHtml = enyuan ? '<div class="gs-cd-enyuan">'+esc(enyuan.slice(0,40))+'</div>' : '';
+
+      // 立绘或姓氏首字
+      var portraitInner = '';
+      if (c.portrait) portraitInner = '<img src="'+esc(c.portrait)+'" onerror="this.style.display=\'none\';this.parentElement.textContent=\''+esc(name.charAt(0))+'\';" />';
+      else portraitInner = esc(name.charAt(0));
+      // 女性头像边框色
+      var portraitStyle = isFem ? 'color:#e84393;border-color:#e84393;' : '';
+
+      _cHtml += '<div class="gs-cd" onclick="if(typeof openCharDetail===\'function\')openCharDetail(\''+nameJs+'\')" title="点击查看详情">'
+        + '<div class="gs-cd-main">'
+          + '<div class="gs-cd-portrait"'+(portraitStyle?' style="'+portraitStyle+'"':'')+'>'+portraitInner+'</div>'
+          + '<div class="gs-cd-body">'
+            + '<div class="gs-cd-name-row">'
+              + '<div class="gs-cd-name-left">'
+                + moodIcon + esc(name)
+                + (zi?'<span class="gs-cd-courtesy">· '+esc(zi)+'</span>':'')
+                + '<span class="gs-cd-gender-age'+(isFem?' female':'')+'">'+(isFem?'♀':'♂')+age+'</span>'
+                + travelBadge + spouseBadge + faceBadge
+              + '</div>'
+              + '<div class="gs-cd-name-right">'
+                + '<span class="gs-cd-loy '+loyCls+'">忠'+loy+'</span>'
+                + '<span class="gs-cd-amb">野'+amb+'</span>'
+                + sBadge
+              + '</div>'
+            + '</div>'
+            + '<div class="gs-cd-subrow">'
+              + '<span class="gs-cd-office">'+esc(officeT)+(rankT?' · '+rankT:'')+'</span>'
+              + (fac?'<span class="gs-cd-faction">'+esc(fac)+'</span>':'')
+            + '</div>'
+            + (tagsHtml?'<div class="gs-cd-tags">'+tagsHtml+'</div>':'')
+            + wuchang
+            + resHtml
+            + pillsHtml
+            + goalHtml
+            + enyuanHtml
+          + '</div>'
         + '</div>'
-        + '<div class="gs-char2-title"><b>'+esc(c.officialTitle||c.title||'布衣')+'</b>'+(c.rank?' · '+esc(c.rank):'')+'</div>'
-        + '<div class="gs-char2-tags">'
-        + (c.location?'<span class="gs-char2-tag loc">'+esc(c.location)+'</span>':'')
-        + (fac?'<span class="gs-char2-tag fac">'+esc(fac)+'</span>':'')
-        + '</div>'
-        + '<div class="gs-char2-hearts">'
-        + '<div class="gs-char2-heart loyalty"><span class="lbl">忠诚</span><div class="bar"><div class="fill '+loyCls+'" style="width:'+Math.min(100,loy)+'%;"></div></div><span class="val">'+Math.round(loy)+'</span><span class="verd">'+loyVerd+'</span></div>'
-        + '<div class="gs-char2-heart ambition"><span class="lbl">野心</span><div class="bar"><div class="fill '+ambCls+'" style="width:'+Math.min(100,amb)+'%;"></div></div><span class="val">'+Math.round(amb)+'</span><span class="verd">'+ambVerd+'</span></div>'
-        + '</div>'
-        + '<div class="gs-char2-verdict '+overall.cls+'">'+overall.t+'</div>'
-        + '</div></div></div>';
+      + '</div>';
     });
-    _cHtml += '</div>';  // close .gs-char2-scroll
+    _cHtml += '</div>';  // close .gs-cd-scroll
     cp.innerHTML = _cHtml;
     wrap.appendChild(cp);
 

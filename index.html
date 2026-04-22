@@ -1034,6 +1034,68 @@ input,textarea,select{pointer-events:auto!important;position:relative;z-index:10
 .gs-char2-verdict{margin-top:5px;padding:3px 8px;background:rgba(106,154,127,0.06);border:1px solid rgba(106,154,127,0.22);border-radius:2px;font-family:"STKaiti","KaiTi","楷体",serif;font-size:14px;color:var(--celadon-400,#7eb8a7);letter-spacing:0.12em;text-align:center;}
 .gs-char2-verdict.warn{background:rgba(201,160,69,0.06);border-color:rgba(201,160,69,0.25);color:var(--amber-400,#c9a045);}
 .gs-char2-verdict.danger{background:rgba(192,64,48,0.06);border-color:rgba(192,64,48,0.25);color:var(--vermillion-300,#d15c47);}
+/* ═══ 紧要之臣 · 采用 preview-char-full.html 三·右侧栏人物卡片 样式（.gs-cd 命名空间·避免与 .cd 冲突） ═══ */
+.gs-cd{background:var(--bg-3,#2a2520);border:1px solid var(--bg-4,#3a3530);border-left:3px solid var(--gold-500);border-radius:5px;padding:0.5rem 0.6rem;margin-bottom:0.35rem;cursor:pointer;transition:all 0.22s ease;}
+.gs-cd:hover{border-left-color:var(--gold-300);background:linear-gradient(to right,rgba(184,154,83,0.08),var(--bg-3,#2a2520) 60%);transform:translateX(-1px);}
+.gs-cd-main{display:flex;align-items:center;gap:6px;}
+.gs-cd-portrait{width:34px;height:34px;border:1px solid var(--gold-500);border-radius:4px;flex-shrink:0;background:radial-gradient(circle,#2a2318,#1a1612);display:flex;align-items:center;justify-content:center;color:var(--gold-400);font-size:14px;overflow:hidden;position:relative;font-family:"STKaiti","KaiTi","楷体",serif;}
+.gs-cd-portrait img{width:100%;height:100%;object-fit:cover;object-position:center top;}
+.gs-cd-body{flex:1;min-width:0;}
+.gs-cd-name-row{display:flex;justify-content:space-between;align-items:center;gap:4px;}
+.gs-cd-name-left{display:flex;align-items:baseline;gap:4px;font-size:0.85rem;font-weight:600;min-width:0;flex-wrap:wrap;color:var(--ink-50);}
+.gs-cd-courtesy{font-size:0.58rem;color:var(--ink-400);font-style:italic;letter-spacing:0.05em;}
+.gs-cd-gender-age{font-size:0.55rem;color:var(--ink-400);}
+.gs-cd-gender-age.female{color:#e84393;}
+.gs-cd-mood{font-size:0.6rem;}
+.gs-cd-mood.worry{color:var(--amber-400,#c9a045);}
+.gs-cd-mood.happy{color:var(--celadon-400);}
+.gs-cd-mood.angry{color:var(--vermillion-400);}
+.gs-cd-mood.peace{color:var(--ink-300);}
+.gs-cd-mood.respect{color:var(--gold-400);}
+.gs-cd-loc-badge{font-size:0.55rem;padding:1px 5px;border-radius:2px;background:rgba(184,154,83,0.1);color:var(--gold-400);margin-left:2px;}
+.gs-cd-spouse{font-size:0.62rem;color:#e84393;}
+.gs-cd-face-badge{font-size:0.55rem;padding:0 4px;border-radius:2px;border:1px solid var(--vermillion-400);color:var(--vermillion-400);margin-left:3px;}
+.gs-cd-name-right{font-size:0.65rem;display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.gs-cd-loy{font-variant-numeric:tabular-nums;font-weight:600;}
+.gs-cd-loy.hi{color:var(--celadon-400);}
+.gs-cd-loy.mid{color:var(--gold-400);}
+.gs-cd-loy.lo{color:var(--vermillion-400);}
+.gs-cd-amb{font-size:0.58rem;color:var(--purple-400,#8e44ad);font-weight:600;}
+.gs-cd-stress{font-size:0.62rem;padding:1px 5px;border-radius:3px;}
+.gs-cd-stress.crit{background:rgba(192,64,48,0.2);color:var(--vermillion-400);}
+.gs-cd-stress.warn{background:rgba(230,126,34,0.15);color:var(--amber-400,#e0a040);}
+.gs-cd-subrow{display:flex;justify-content:space-between;align-items:center;margin-top:2px;gap:6px;}
+.gs-cd-office{font-size:0.7rem;color:var(--ink-300);}
+.gs-cd-faction{font-size:0.62rem;color:var(--ink-400);}
+.gs-cd-tags{margin-top:3px;display:flex;flex-wrap:wrap;gap:2px;}
+.gs-cd-tag{font-size:0.55rem;padding:0 3px;border-radius:2px;border:1px solid;}
+.gs-cd-tag.valor{border-color:var(--vermillion-400);color:var(--vermillion-300);}
+.gs-cd-tag.heart{border-color:var(--celadon-400);color:var(--celadon-300);}
+.gs-cd-tag.mind{border-color:var(--indigo-400,#6e84b8);color:var(--indigo-400,#6e84b8);}
+.gs-cd-tag.gold{border-color:var(--gold-400);color:var(--gold-300);}
+.gs-cd-tag.reform{border-color:var(--celadon-400);color:var(--celadon-300);}
+.gs-cd-tag.conserve{border-color:var(--indigo-400,#6e84b8);color:var(--indigo-400,#6e84b8);}
+.gs-cd-tag.party{background:var(--bg-4,#3a3530);border:none;color:var(--ink-300);padding:0 4px;}
+.gs-cd-wuchang{font-size:0.6rem;color:var(--celadon-400);margin-top:3px;letter-spacing:0.03em;}
+.gs-cd-wuchang-qz{color:var(--gold-400);margin-left:4px;}
+.gs-cd-resources{margin-top:4px;padding:4px 6px;background:rgba(0,0,0,0.22);border-radius:3px;border:1px solid rgba(184,154,83,0.1);font-size:0.6rem;display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.gs-cd-res-grp{display:inline-flex;align-items:center;gap:2px;}
+.gs-cd-res-grp-lb{font-size:0.52rem;color:var(--gold-500);letter-spacing:0.1em;margin-right:2px;}
+.gs-cd-res-it{display:inline-flex;align-items:center;gap:2px;}
+.gs-cd-res-val{color:var(--ink-50);font-variant-numeric:tabular-nums;}
+.gs-cd-res-val.neg{color:var(--vermillion-300,#d15c47);}
+.gs-cd-res-sep{width:1px;height:10px;background:rgba(184,154,83,0.2);margin:0 2px;}
+.gs-cd-stats-pills{margin-top:3px;display:flex;gap:3px;flex-wrap:wrap;}
+.gs-cd-pill{font-size:0.55rem;padding:1px 5px;border-radius:6px;background:rgba(184,154,83,0.05);border:1px solid rgba(184,154,83,0.2);display:inline-flex;align-items:center;gap:2px;}
+.gs-cd-pill.warn{border-color:rgba(192,64,48,0.4);background:rgba(192,64,48,0.08);}
+.gs-cd-pill-lb{color:var(--ink-400);}
+.gs-cd-pill-val{font-weight:500;font-variant-numeric:tabular-nums;}
+.gs-cd-pill-val.neg{color:var(--vermillion-300,#d15c47);}
+.gs-cd-goal{font-size:0.6rem;color:var(--ink-400);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.gs-cd-goal-pct.hi{color:var(--celadon-400);}
+.gs-cd-goal-pct.mid{color:var(--gold-400);}
+.gs-cd-goal-pct.lo{color:var(--vermillion-400);}
+.gs-cd-enyuan{font-size:0.55rem;color:var(--ink-400);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-style:italic;}
 
 /* 时辰盘 */
 .gs-time-dial{position:relative;width:120px;height:120px;margin:4px auto;flex-shrink:0;}
@@ -4885,7 +4947,7 @@ console.log('天命游戏脚本开始加载...');
 <script src="tm-char-autogen.js?v=20260422a"></script>
 <script src="tm-audio-theme.js?v=20260421a"></script>
 <script src="tm-topbar-vars.js?v=20260420a"></script>
-<script src="tm-shell-extras.js?v=20260422a"></script>
+<script src="tm-shell-extras.js?v=20260422b"></script>
 <script src="tm-corruption-engine.js"></script>
 <script src="tm-corruption-p2.js"></script>
 <script src="tm-corruption-p4.js"></script>
