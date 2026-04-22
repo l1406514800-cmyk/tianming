@@ -942,15 +942,64 @@
   global.getFactionProvinces = getFactionProvinces;
   global.setProvinceOwner = setProvinceOwner;
 
+  // 开局事件(isOpeningEvent/triggerTurn:1)自动 push 到 GM.currentIssues·让玩家首回合看到并选择
+  function _activateOpeningEvents() {
+    if (!global.GM || !global.P) return;
+    if (!Array.isArray(P.events)) return;
+    var turn = GM.turn || 1;
+    // 仅在 T1 处理·避免重复
+    if (turn !== 1) return;
+    if (!GM.currentIssues) GM.currentIssues = [];
+    P.events.forEach(function(e) {
+      if (!e || e._openingActivated) return;
+      var shouldOpen = (e.isOpeningEvent === true) || (e.triggerTurn === 1);
+      if (!shouldOpen) return;
+      // 避免重复 push
+      if (GM.currentIssues.some(function(i){ return i.sourceEventId === e.id || i.title === e.name; })) return;
+      var issue = {
+        id: 'issue_' + (e.id || Math.random().toString(36).slice(2, 8)),
+        sourceEventId: e.id || '',
+        title: e.name || '开局要务',
+        description: e.narrative || e.description || '',
+        category: e.importance === '关键' ? '关键决策' : (e.affectedRegion ? '地方·' + e.affectedRegion : '要事'),
+        severity: e.importance === '关键' ? 'urgent' : 'high',
+        status: 'pending',
+        raisedTurn: 1,
+        raisedDate: GM._gameDate || '',
+        choices: Array.isArray(e.choices) ? e.choices.slice() : [],
+        linkedChars: e.linkedChars || [],
+        linkedFactions: e.linkedFactions || [],
+        affectedRegion: e.affectedRegion || '',
+        longTermConsequences: e.longTermConsequences || null,
+        historicalNote: e.historicalNote || '',
+        isOpening: true
+      };
+      GM.currentIssues.push(issue);
+      e._openingActivated = true;
+      e.triggered = true;
+      // 同步写入编年
+      if (!GM._chronicle) GM._chronicle = [];
+      GM._chronicle.push({
+        turn: 1, date: GM._gameDate || '',
+        type: '开局要务',
+        text: '【' + (e.name || '') + '】' + (e.description || e.narrative || '').slice(0, 120),
+        tags: ['开局', e.importance || '重要'].concat(e.affectedRegion ? [e.affectedRegion] : [])
+      });
+      console.log('[开局事件激活] ' + e.name + ' → currentIssues');
+    });
+  }
+
   // 注册到 GameHooks 的 enterGame:after 和 startGame:after
   if (global.GameHooks && typeof global.GameHooks.on === 'function') {
     global.GameHooks.on('enterGame:after', function(){
       try { initThreeSystemsOnStart(); } catch(e) { console.warn('[三系统扩展] enterGame:after 异常', e); }
       try { _wireCrossSystemLinks(); } catch(e) { console.warn('[三系统联动] wire 异常', e); }
+      try { _activateOpeningEvents(); } catch(e) { console.warn('[开局事件] enterGame:after 异常', e); }
     });
     global.GameHooks.on('startGame:after', function(){
       try { initThreeSystemsOnStart(); } catch(e) { console.warn('[三系统扩展] startGame:after 异常', e); }
       try { _wireCrossSystemLinks(); } catch(e) { console.warn('[三系统联动] wire 异常', e); }
+      try { _activateOpeningEvents(); } catch(e) { console.warn('[开局事件] startGame:after 异常', e); }
     });
   }
   // 脚本加载即尝试 wire(若事件总线已就绪)

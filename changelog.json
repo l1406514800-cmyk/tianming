@@ -3,6 +3,20 @@
   "entries": [
     {
       "date": "2026-04-22",
+      "module": "陕西大饥荒开局事件·T1 必触·6 选择分支",
+      "title": "tianqi7 剧本·陕西省 carryingRegime 升级 collapse·新增陕西大饥荒疾报事件 T1 触发·引擎新增开局事件激活器",
+      "items": [
+        { "what": "陕西布政使司 division 增强·climate 0.62→0.45(严寒)·currentLoad 1.15→1.32(崩溃)·carryingRegime famine→collapse·minxinLocal 20→15·regionType 'disaster_zone'", "why": "历史天启六-七年连旱+蝗+瘟·陕西实际情况是崩溃级·原 famine 过轻" },
+        { "what": "新增 disaster 结构化字段·active/type(大饥荒)/subTypes(连旱/蝗/瘟/草木食尽)/since/severity:95/affectedSubDivisions(延安/庆阳/榆林/西安/凤翔/汉中/固原/延绥)/casualties(饿 18 万+逃 42 万+卖 3 万)/desc/historicalNote/willSpawnIfUnanswered(王嘉胤/王二/高迎祥/李自成/张献忠)/mitigations(赈/免派/漕粮/抚民)", "why": "AI 推演/UI/事件可读的结构化灾情数据·含历史典故+未来走向" },
+        { "what": "新增 conditional 事件·陕西大饥荒·告急疾报·triggerTurn:1·isOpeningEvent:true·importance:关键·affectedRegion:陕西·含 narrative 完整八百里加急叙事+choices 6 项", "why": "开局最重要决策·历史上明廷此刻处置决定十七年后流寇大乱" },
+        { "what": "6 choices·A 赈济(帑-80万·粮-200万石·民心+8·民变险-40·辽饷压+10)·B 免派(帑-30万·民心+12·起义险-55·辽东防线-12)·C 剿抚(帑-20万·民心-3·起义险-15)·D 严剿(帑+10万·民心-15·起义险+30)·E 观望(民心-10·起义险+50·勤政-5·历史实况)·F 罢胡起杨鹤(帑-10万·吏治+4·东林+5)", "why": "明暗六选·含历史路径(E 观望)+改写路径(A/B/F)·每选长期后果明确" },
+        { "what": "longTermConsequences 明确 T2/T5/T10/T20 王二/王嘉胤/高迎祥/李自成/张献忠登场条件·AI 推演必依此展开·aiHint 强调'此为明末最关键之开局决策·关乎十七年后国运'", "why": "让 AI 推演不遗忘此决策的长期影响链" },
+        { "what": "tm-three-systems-ext.js 新增 _activateOpeningEvents·GameHooks enterGame/startGame:after 扫 P.events·isOpeningEvent:true 或 triggerTurn:1 的 event 自动 push 到 GM.currentIssues·含 choices/linkedChars/longTermConsequences·并写编年'开局要务'·防重复 (_openingActivated 标记)", "why": "通用机制·任何剧本只需 isOpeningEvent:true 即可让事件首回合直击玩家" },
+        { "what": "缓存·scenarios/tianqi7-1627 v=46→47·tm-three-systems-ext v=c→d", "why": "强制加载" }
+      ]
+    },
+    {
+      "date": "2026-04-22",
       "module": "势力行动扩展+NPC 传书完善+卡片补齐细节",
       "title": "3 任务并行·势力日常/军事/季节化·NPC 主动/回信质感·卡片 SVG 图标+布匹+goal-pct+立场 tag",
       "items": [
