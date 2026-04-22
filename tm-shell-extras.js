@@ -634,6 +634,12 @@
         var tCls = /忠|仁|爱民|温|恕|慈/.test(nm)?'heart':/勇|武|权|狡|悍|烈|凶/.test(nm)?'valor':/智|谋|深|慎|敏/.test(nm)?'mind':/清|简|廉|直|正/.test(nm)?'gold':'gold';
         tagsHtml += '<span class="gs-cd-tag '+tCls+'">'+esc(nm.slice(0,4))+'</span>';
       });
+      // 立场 tag·reform/conserve·从 ch.stance 读
+      if (c.stance) {
+        var stText = String(c.stance).trim();
+        var stCls = /改革|变法|维新|革新|兴|除弊/.test(stText)?'reform':/保守|循规|遵法|祖制|稳|中庸/.test(stText)?'conserve':'';
+        if (stCls) tagsHtml += '<span class="gs-cd-tag '+stCls+'">'+esc(stText.slice(0,4))+'</span>';
+      }
       if (c.party) tagsHtml += '<span class="gs-cd-tag party">'+esc(c.party.slice(0,4))+'</span>';
       // 五常 (若有)
       var wuchang = '';
@@ -649,23 +655,29 @@
         var qz = avg>=75?'士人':avg>=60?'雅儒':avg>=40?'寻常':'粗野';
         wuchang += '<span class="gs-cd-wuchang-qz">· '+qz+'</span></div>';
       }
-      // 资源 (公库/私产·简缩)
+      // 资源 (公库/私产·含 SVG 图标·钱粮布 3 种)
       var pub = (c.resources && c.resources.publicPurse) || {};
       var priv = (c.resources && c.resources.privateWealth) || {};
       var fmt = function(v){ v = v||0; if (Math.abs(v)>=10000) return (v/10000).toFixed(1)+'万'; return String(Math.round(v)); };
-      var hasRes = (pub.money||priv.money);
+      // SVG 图标·钱粮布(与 preview 三·右侧栏一致)
+      var svgCoin = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:9px;height:9px;color:var(--gold-400);opacity:0.85;"><circle cx="12" cy="12" r="8"/><rect x="9.5" y="9.5" width="5" height="5" stroke-width="1.3"/></svg>';
+      var svgGrain = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="width:9px;height:9px;color:var(--gold-400);opacity:0.85;"><path d="M12 21V6"/><path d="M12 11C9 11 6.5 9.5 5.5 7.5"/><path d="M12 11C15 11 17.5 9.5 18.5 7.5"/></svg>';
+      var svgCloth = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" style="width:9px;height:9px;color:var(--gold-400);opacity:0.85;"><path d="M4 8Q12 5 20 8L20 10Q12 7 4 10Z"/><path d="M4 13Q12 10 20 13L20 15Q12 12 4 15Z"/></svg>';
+      var hasRes = (pub.money||priv.money||pub.grain||priv.grain||pub.cloth||priv.cloth);
       var resHtml = '';
       if (hasRes) {
         resHtml = '<div class="gs-cd-resources">'
           + '<div class="gs-cd-res-grp"><span class="gs-cd-res-grp-lb">公</span>'
-          + '<span class="gs-cd-res-it">钱 <span class="gs-cd-res-val'+(pub.money<0?' neg':'')+'">'+fmt(pub.money)+'</span></span>'
-          + (pub.grain?'<span class="gs-cd-res-it">粮 <span class="gs-cd-res-val">'+fmt(pub.grain)+'</span></span>':'')
+          + '<span class="gs-cd-res-it">'+svgCoin+'<span class="gs-cd-res-val'+(pub.money<0?' neg':'')+'">'+fmt(pub.money)+'</span></span>'
+          + (pub.grain?'<span class="gs-cd-res-it">'+svgGrain+'<span class="gs-cd-res-val">'+fmt(pub.grain)+'</span></span>':'')
+          + (pub.cloth?'<span class="gs-cd-res-it">'+svgCloth+'<span class="gs-cd-res-val">'+fmt(pub.cloth)+'</span></span>':'')
           + '</div>';
-        if (priv.money || priv.grain) {
+        if (priv.money || priv.grain || priv.cloth) {
           resHtml += '<div class="gs-cd-res-sep"></div>'
             + '<div class="gs-cd-res-grp"><span class="gs-cd-res-grp-lb">私</span>'
-            + '<span class="gs-cd-res-it">钱 <span class="gs-cd-res-val'+(priv.money<0?' neg':'')+'">'+fmt(priv.money)+'</span></span>'
-            + (priv.grain?'<span class="gs-cd-res-it">粮 <span class="gs-cd-res-val">'+fmt(priv.grain)+'</span></span>':'')
+            + '<span class="gs-cd-res-it">'+svgCoin+'<span class="gs-cd-res-val'+(priv.money<0?' neg':'')+'">'+fmt(priv.money)+'</span></span>'
+            + (priv.grain?'<span class="gs-cd-res-it">'+svgGrain+'<span class="gs-cd-res-val">'+fmt(priv.grain)+'</span></span>':'')
+            + (priv.cloth?'<span class="gs-cd-res-it">'+svgCloth+'<span class="gs-cd-res-val">'+fmt(priv.cloth)+'</span></span>':'')
             + '</div>';
         }
         resHtml += '</div>';
@@ -680,9 +692,18 @@
         + '<span class="gs-cd-pill"><span class="gs-cd-pill-lb">健</span><span class="gs-cd-pill-val">'+health+'</span></span>'
         + '<span class="gs-cd-pill'+(stress>=80?' warn':'')+'"><span class="gs-cd-pill-lb">压</span><span class="gs-cd-pill-val">'+stress+'</span></span>'
         + '</div>';
-      // 志向
+      // 志向·带满足度百分比(cd-goal-pct)
       var goal = c.personalGoal || c.longGoal || '';
-      var goalHtml = goal ? '<div class="gs-cd-goal" title="'+esc(goal)+'">志：'+esc(goal.slice(0,22))+(goal.length>22?'…':'')+'</div>' : '';
+      var goalHtml = '';
+      if (goal) {
+        var gsat = c._goalSatisfaction !== undefined ? Math.round(c._goalSatisfaction) : -1;
+        goalHtml = '<div class="gs-cd-goal" title="'+esc(goal)+'">志：'+esc(goal.slice(0,20))+(goal.length>20?'…':'');
+        if (gsat >= 0) {
+          var gpcCls = gsat>=60?'hi':gsat>=30?'mid':'lo';
+          goalHtml += ' <span class="gs-cd-goal-pct '+gpcCls+'">'+gsat+'%</span>';
+        }
+        goalHtml += '</div>';
+      }
       // 恩怨
       var enyuan = '';
       if (Array.isArray(c.feuds) && c.feuds.length) enyuan = '积怨：'+c.feuds.slice(0,2).map(function(f){return typeof f==='string'?f:(f.with||f.target||'');}).filter(Boolean).join('·');

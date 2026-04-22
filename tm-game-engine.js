@@ -5559,7 +5559,7 @@ function _generateLetterReply(letter) {
   if (!ch) { letter.reply = '臣已拜读圣函。'; letter.status = 'returned'; return; }
 
   if (typeof NpcMemorySystem !== 'undefined') {
-    NpcMemorySystem.remember(letter.to, '收到天子亲笔来函：' + letter.content, '敬', 6, '天子');
+    NpcMemorySystem.remember(letter.to, '收到天子亲笔来函：' + (letter.content||'').slice(0, 60), '敬', 6, '天子');
   }
 
   var typeLabel = (LETTER_TYPES[letter.letterType]||{}).label || '书信';
@@ -5567,19 +5567,86 @@ function _generateLetterReply(letter) {
   if (typeof callAI === 'function' && P.ai && P.ai.key) {
     var brief = (typeof getCharacterPersonalityBrief === 'function') ? getCharacterPersonalityBrief(ch) : ch.name;
     var memCtx = (typeof NpcMemorySystem !== 'undefined') ? NpcMemorySystem.getMemoryContext(ch.name) : '';
-    var prompt = '你是' + ch.name + '，' + (ch.title||'') + '，当前在' + (ch.location||'远方') + '。\n性格：' + brief;
+    // 对玩家好感/积怨·影响语气
+    var favor = 0;
+    try { if (ch._impressions && ch._impressions['玩家']) favor = ch._impressions['玩家'].favor || 0; } catch(_){}
+    var toneHint = '';
+    if (favor >= 20) toneHint = '\n语气：感激温厚·愿效死力';
+    else if (favor >= 5) toneHint = '\n语气：恭敬有分寸';
+    else if (favor <= -15) toneHint = '\n语气：表面恭顺但暗含怨怼或疏离·可有所保留';
+    else if (favor <= -5) toneHint = '\n语气：礼数不失但缺少热络';
+    else toneHint = '\n语气：标准臣礼·不卑不亢';
+
+    // 情节弧·若有
+    var arcCtx = '';
+    try {
+      var arc = (typeof GM !== 'undefined' && GM._charArcs && GM._charArcs[ch.name]) ? GM._charArcs[ch.name] : null;
+      if (arc) {
+        if (arc.arcStage) arcCtx += '\n当前境：'+arc.arcStage;
+        if (arc.motivation) arcCtx += '\n当前动机：'+arc.motivation;
+        if (arc.emotionalState) arcCtx += '\n情绪基调：'+arc.emotionalState;
+      }
+    } catch(_){}
+
+    // 近期涉该 NPC 的玩家诏令
+    var recentEdictCtx = '';
+    try {
+      var tracker = (GM._edictTracker || []).filter(function(e) {
+        if (!e || !e.content) return false;
+        return e.content.indexOf(ch.name) >= 0 && (GM.turn - (e.turn||0)) <= 3;
+      }).slice(-3);
+      if (tracker.length > 0) {
+        recentEdictCtx = '\n玩家近期涉君诏令(回信可顺带回应)：';
+        tracker.forEach(function(t) { recentEdictCtx += '\n  · ' + (t.content||'').slice(0, 80); });
+      }
+    } catch(_){}
+
+    // 本轮往来上下文·若此信不是第一次
+    var priorHistory = '';
+    try {
+      var earlier = (GM.letters || []).filter(function(l) {
+        return l && l !== letter && ((l.to === ch.name) || (l.from === ch.name));
+      }).slice(-3);
+      if (earlier.length > 0) {
+        priorHistory = '\n往来背景(近 3 封)：';
+        earlier.forEach(function(l) {
+          var dir = (l.from === ch.name) ? (ch.name+'→帝') : ('帝→'+ch.name);
+          priorHistory += '\n  · '+dir+'·'+((l.content||'').slice(0, 50))+((l.reply&&l.from!==ch.name)?'(已回:'+l.reply.slice(0,40)+')':'');
+        });
+      }
+    } catch(_){}
+
+    var cipherLabel = (LETTER_CIPHERS && LETTER_CIPHERS[letter.cipher] && LETTER_CIPHERS[letter.cipher].label) || '不加密';
+    var prompt = '你是' + ch.name + '·' + (ch.officialTitle||ch.title||'') + '·当前在' + (ch.location||'远方') + '。\n性格：' + brief;
+    if (ch.stance) prompt += '\n政治立场：' + ch.stance;
+    if (ch.party) prompt += '\n党派：' + ch.party + (ch.partyRank?'·'+ch.partyRank:'');
     if (memCtx) prompt += '\n近期心绪：' + memCtx;
+    if (arcCtx) prompt += arcCtx;
+    if (recentEdictCtx) prompt += recentEdictCtx;
+    if (priorHistory) prompt += priorHistory;
+    prompt += toneHint;
     if (typeof _buildTemporalConstraint === 'function') { try { prompt += _buildTemporalConstraint(ch); } catch(_){} }
-    prompt += '\n收到来自京城天子的' + typeLabel + '：\n「' + letter.content + '」\n\n请以该角色的口吻、身份、性格、当前心绪写一封回信（100-200字），用古典中文，称谓恰当（臣/末将等）。回信应反映你的真实情感和立场。直接输出回信内容。';
-    callAI(prompt, 500).then(function(reply) {
-      letter.reply = reply || '臣叩首拜读，容臣三思后详禀。';
+    prompt += '\n\n收到来自京城天子的' + typeLabel + '('+cipherLabel+')：\n「' + letter.content + '」';
+    prompt += '\n\n【回信要求】';
+    prompt += '\n1. 以该角色口吻/身份/性格·100-200 字古典中文';
+    prompt += '\n2. 称谓恰当(臣/末将/罪臣/妾身/草民等)';
+    prompt += '\n3. 必须针对来信具体内容回应·不得套话空泛';
+    prompt += '\n4. 若来信问及某事·直接给答复或说明缘由';
+    prompt += '\n5. 若来信有命令·明确接旨或婉拒(附理由)';
+    prompt += '\n6. 若近期有玩家涉君诏令·可在回信中顺带回应(感激/委屈/澄清/汇报)';
+    prompt += '\n7. 语气与当前境/情绪/好感一致·不割裂';
+    prompt += '\n8. 不要提及未在当前游戏时间之前发生的未来史实';
+    prompt += '\n\n直接输出回信正文·无前言无解释。';
+    callAI(prompt, 600).then(function(reply) {
+      letter.reply = (reply || '').trim() || '臣叩首拜读·容臣三思后详禀。';
       letter.status = 'returned';
     }).catch(function() {
-      letter.reply = '臣已拜读圣函，容臣三思。';
+      letter.reply = '臣已拜读圣函·容臣三思。';
       letter.status = 'returned';
     });
   } else {
-    letter.reply = '臣' + ch.name + '叩首，拜读圣函。容臣细思，当速具回奏。';
+    letter.reply = '臣' + ch.name + '叩首·拜读圣函。容臣细思·当速具回奏。';
+    letter.status = 'returned';
   }
 }
 

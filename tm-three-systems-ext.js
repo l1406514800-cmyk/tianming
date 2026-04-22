@@ -499,6 +499,33 @@
 
     try {
       var playerFac = (P.playerInfo && P.playerInfo.factionName) || '';
+      // 推断势力类型·农耕/游牧/海商/割据/部落/宗教/海盗
+      function _inferFacType(f) {
+        if (!f) return '农耕';
+        var hint = (f.type || f.category || f.culture || f.ideology || '') + (f.name || '') + (f.leader || '');
+        if (/游牧|鞑靼|蒙古|女真|建州|后金|瓦剌|蒙兀|察哈尔|喀尔喀|科尔沁|卫拉特|漠南|漠北|鞑/.test(hint)) return '游牧';
+        if (/海商|海寇|倭|倭寇|荷兰|葡萄牙|西班牙|郑|红夷/.test(hint)) return '海商';
+        if (/起义|流寇|流民|饥民|白莲|闻香|义军|叛|反贼/.test(hint)) return '流寇';
+        if (/藩|割据|土司|奢安/.test(hint)) return '割据';
+        if (/吐蕃|西藏|喇嘛|番|僧/.test(hint)) return '宗教';
+        return '农耕';
+      }
+      // 推断当前季节(便于建议劫掠/祭祀等季节性动作)
+      function _inferSeason() {
+        try {
+          var mon = 0;
+          if (typeof GM._gameMonth === 'number') mon = GM._gameMonth;
+          else if (GM._gameDate) {
+            var m = String(GM._gameDate).match(/(\d+)月/);
+            if (m) mon = parseInt(m[1], 10) || 0;
+          }
+          if (mon >= 3 && mon <= 5) return '春';
+          if (mon >= 6 && mon <= 8) return '夏';
+          if (mon >= 9 && mon <= 11) return '秋';
+          return '冬';
+        } catch(e) { return '春'; }
+      }
+      var season = _inferSeason();
       // 构建精简上下文
       var hostileFacs = (GM.facs||[]).filter(function(f){
         if (!f || f.name === playerFac) return false;
@@ -508,12 +535,17 @@
         return {
           name: f.name,
           leader: f.leader || '',
+          type: _inferFacType(f),
           strength: f.strength || 0,
           legitimacy: f.legitimacy || 0,
           lifePhase: f.lifePhase || 'stable',
           stance: f.diplomacyStance || 'neutral',
           hiddenAgenda: f.hiddenAgenda || '',
-          provinces: (f.provinceIds||[]).slice(0, 4).join('、')
+          morale: f.morale || 50,
+          stability: f.stability || 50,
+          provinces: (f.provinceIds||[]).slice(0, 4).join('、'),
+          suzerain: f.suzerainFaction || '',
+          vassals: (f.vassals||[]).slice(0, 3).join('、')
         };
       });
 
@@ -559,6 +591,7 @@
       var ctx = {
         turn: turn,
         date: GM._gameDate || '',
+        season: season,
         playerFaction: playerFac,
         hostileFactions: hostileFacs,
         parties: parties,
@@ -566,20 +599,58 @@
         recentEvents: recentEvents
       };
 
-      var prompt = '你是推演 AI。基于以下三系统快照·为 NPC 势力、党派、将领分别规划未来 3 回合的自主行动。\n\n' +
+      var prompt = '你是推演 AI。基于以下三系统快照·为 NPC 势力/党派/将领分别规划未来 3 回合的自主行动。务必让势力 actions 丰富多元·不仅限军事·含日常治理/经济/外交/仪轨/季节性活动。\n\n' +
         '【三系统快照·JSON】\n' + JSON.stringify(ctx, null, 2) +
         '\n\n【任务】输出 JSON 结构：\n' +
         '{\n' +
-        '  "factionActions": [{"faction":"势力名","action":"攻击/结盟/朝贡/分裂/内乱/和谈","target":"目标","rationale":"理由(本势力动机)","likelyTurn":"可能发生回合"}],\n' +
-        '  "partyActions": [{"party":"党派名","action":"弹劾/结社/上疏/结盟/罢黜","target":"对象","rationale":"内幕动机","likelyTurn":"回合数"}],\n' +
-        '  "generalActions": [{"general":"将领名","action":"请饷/告急/主战/主守/谢罪/请辞","target":"上奏对象","rationale":"边情","likelyTurn":"回合数"}]\n' +
+        '  "factionActions": [\n' +
+        '    {\n' +
+        '      "faction":"势力名",\n' +
+        '      "category":"military/daily/diplomatic/internal/religious/economic (6 类必分)",\n' +
+        '      "action":"具体动作·见下方动作库",\n' +
+        '      "target":"目标(势力/地点/角色/可选)",\n' +
+        '      "rationale":"理由(对应 hiddenAgenda·性别/季节/lifePhase)",\n' +
+        '      "likelyTurn":"可能发生回合(数字)",\n' +
+        '      "scale":"小/中/大 (规模)",\n' +
+        '      "precondition":"需要什么条件触发"\n' +
+        '    }\n' +
+        '  ],\n' +
+        '  "partyActions": [{"party":"党派名","action":"弹劾/结社/上疏/结盟/罢黜/密谋/招揽/清议","target":"对象","rationale":"内幕动机","likelyTurn":"回合数"}],\n' +
+        '  "generalActions": [{"general":"将领名","action":"请饷/告急/主战/主守/谢罪/请辞/密报/练兵/哗变/降敌","target":"上奏对象","rationale":"边情","likelyTurn":"回合数"}]\n' +
         '}\n\n' +
-        '要求：\n' +
-        '1. 每类 3-6 条·按可能性排序·不要滥造\n' +
-        '2. rationale 必须对应该 NPC 的 hiddenAgenda/currentAgenda/兵变险\n' +
-        '3. 不得臆造未在快照中的 NPC·不得用游戏当前时间之后的史实\n' +
-        '4. 若 hostileFactions 为空则 factionActions=[]·同理\n' +
-        '5. 只输出 JSON·无其他文字';
+        '【势力 action 动作库·按势力 type 选择】\n' +
+        '· 军事 military: 劫掠·征讨·围城·偷袭·调兵·筑寨·演武·设伏·叛变·投降·夜袭·攻坚·退兵·突围·布防\n' +
+        '· 日常 daily: 屯田·筑城·修渠·开互市·抚流民·建粮仓·营造·纳粮·清田·核户·置驿\n' +
+        '· 外交 diplomatic: 朝贡·结盟·和谈·遣使·联姻·递书·绝交·立盟·调解·宣战·纳款·请封\n' +
+        '· 内务 internal: 内乱·分裂·清洗·改制·立嗣·继位·迁都·改元·祭告·大丧·赐姓·恩赦\n' +
+        '· 礼法 religious: 祭天·告庙·封禅·大婚·封册·巡幸·赦囚·求雨·祷祈·降诏\n' +
+        '· 经济 economic: 加税·减赋·扩市·开关·封禁·发行·赐赉·赈济·铸币·盐铁\n' +
+        '\n' +
+        '【按势力类型差异化建议】\n' +
+        '· 游牧势力(后金/蒙古/女真)：秋冬必有劫掠(春夏防御·秋高马肥之际劫掠边郡)·夏季会盟/祭祀·冬季打草谷\n' +
+        '· 农耕势力：春耕秋收之时不宜大征战·春祭秋报·冬令征伐·夏季多内修\n' +
+        '· 海商/海寇(郑氏/荷兰/倭寇)：夏秋风季劫掠沿海·冬春隐伏·常与明朝互市\n' +
+        '· 流寇/起义(陕北饥民/白莲)：抢粮为生·春冬缺粮时活跃·秋季暂伏·夏季流动\n' +
+        '· 割据藩镇(奢安之乱/土司)：割据自保·常名义臣服实则自治·请封·请兵权\n' +
+        '· 宗教势力(吐蕃/喇嘛)：祭祀·朝贡·求赐·少主动军事\n' +
+        '\n' +
+        '【季节当前 = ' + season + '】\n' +
+        '· 春：耕作/开市/春祭/议和·游牧准备劫掠但未动\n' +
+        '· 夏：农忙/筑城/结盟/内修·农耕少征战·游牧休养\n' +
+        '· 秋：游牧劫掠高峰·秋收·大型军事行动常启动·海寇开始活跃\n' +
+        '· 冬：守御/屯粮/祭天·缺粮势力劫掠·大征伐常在此时\n' +
+        '\n' +
+        '【要求】\n' +
+        '1. factionActions 至少 4-8 条·按势力类型差异化+当前季节·不要千篇一律宣战\n' +
+        '2. 每个 category 至少出现 1-2 次·不得全部军事\n' +
+        '3. 游牧势力+秋冬必有劫掠 action·内容具体(劫某县某路·掳掠多少人畜)\n' +
+        '4. 农耕势力冬季可有征伐·但春夏以内务/礼法为主\n' +
+        '5. rationale 必须对应 hiddenAgenda/季节/lifePhase·不能模糊\n' +
+        '6. precondition 具体化(如"等秋高马肥""借大丧之机")\n' +
+        '7. partyActions/generalActions 3-6 条·按 prev 规范\n' +
+        '8. 不臆造未在快照中的 NPC·不用游戏时间之后的史实\n' +
+        '9. 若 hostileFactions 为空则 factionActions=[]\n' +
+        '10. 只输出 JSON·无其他文字';
 
       var result;
       try {
@@ -636,8 +707,20 @@
     var out = '';
     if ((d.factionActions||[]).length > 0) {
       out += '\n\n【NPC 势力预规划·AI 推演时优先从此展开·而非凭空】';
+      // 按 category 分组·便于 AI 读取
+      var catMap = { military:'军事', daily:'日常', diplomatic:'外交', internal:'内务', religious:'礼法', economic:'经济' };
+      var byCat = { military:[], daily:[], diplomatic:[], internal:[], religious:[], economic:[], other:[] };
       d.factionActions.forEach(function(fa) {
-        out += '\n  · ' + fa.faction + '·' + fa.action + (fa.target?('·目标:'+fa.target):'') + '·' + (fa.rationale||'').slice(0,80) + (fa.likelyTurn?('·预计 T'+fa.likelyTurn):'');
+        var c = fa.category || 'other';
+        if (byCat[c]) byCat[c].push(fa); else byCat.other.push(fa);
+      });
+      Object.keys(byCat).forEach(function(k) {
+        if (byCat[k].length === 0) return;
+        out += '\n ['+(catMap[k]||'其他')+']';
+        byCat[k].forEach(function(fa) {
+          var sc = fa.scale ? ('·'+fa.scale) : '';
+          out += '\n  · ' + fa.faction + '·' + fa.action + (fa.target?('·'+fa.target):'') + sc + '·' + (fa.rationale||'').slice(0,70) + (fa.likelyTurn?('·T'+fa.likelyTurn):'') + (fa.precondition?('·前提:'+fa.precondition.slice(0,30)):'');
+        });
       });
     }
     if ((d.partyActions||[]).length > 0) {

@@ -3,6 +3,19 @@
   "entries": [
     {
       "date": "2026-04-22",
+      "module": "势力行动扩展+NPC 传书完善+卡片补齐细节",
+      "title": "3 任务并行·势力日常/军事/季节化·NPC 主动/回信质感·卡片 SVG 图标+布匹+goal-pct+立场 tag",
+      "items": [
+        { "what": "任务 3·tm-shell-extras.js 紧要之臣卡片补齐·SVG 图标(钱圆章/粮五穗/布帛织纹)替代文字·加布匹 cloth 第 3 资源·goal 加 cd-goal-pct 百分比 hi/mid/lo 色·从 ch.stance 识别改革/保守加 reform/conserve 立场 tag", "why": "对照 preview 三·右侧栏人物卡片 4 项差异·细节贴近" },
+        { "what": "任务 2·NPC 主动来书扩充(tm-endturn.js:6674+)·type 从 5 种扩为 10 种(加 thanks/recommend/impeach/condolence/greeting)·加 refersToEdict/mood 字段·10 类触发情景(边情/陈情/密告/藩报/个人危机/谢恩/荐才/吊唁/节令/密奏)·5 性格取向提示·与近期诏书/来信关联·每回合 2-5 封数量控制", "why": "原仅 5 类情景·缺谢恩荐才吊唁节令等常见情境·回信不够丰富" },
+        { "what": "任务 2·_generateLetterReply 重写(tm-game-engine.js)·加对玩家好感 favor 五档语气提示(感激/恭敬/礼数/冷淡/怨怼)·注入情节弧(arcStage/motivation/emotionalState)·注入近 3 封往来历史·注入近 3 回合涉该 NPC 的玩家诏令·8 条回信要求(口吻/称谓/针对性/接旨或婉拒/响应诏令/语气一致/无未来史实)·tokens 500→600", "why": "原回信 prompt 只 5 行·回信质感普通·现含好感/情节/历史/诏令四维上下文·回信将显著贴合角色关系与局势" },
+        { "what": "任务 1·scThreeSystemsAI 扩展势力行动·_inferFacType(游牧/农耕/海商/流寇/割据/宗教/部落 7 类)·_inferSeason(春/夏/秋/冬)·action 从 6 种扩展为 60+ 种分 6 类(军事 15/日常 11/外交 12/内务 12/礼法 10/经济 10)·按势力类型差异化(游牧秋冬劫掠/农耕春耕少战/海商风季出海/流寇缺粮抢粮/割据请封)·按季节调整·每条 action 加 category/scale/precondition", "why": "原 factionActions 只 6 种 action·千篇一律宣战·现 60+ 种含劫掠/屯田/互市/祭天/封册等丰富内容·游牧秋冬必劫掠" },
+        { "what": "任务 1·buildNpcDecisionsForSysP 按 category 分组输出·军事/日常/外交/内务/礼法/经济 6 组分别列示·AI 推演时读取更清晰", "why": "便于 AI 读 60+ 种 actions·按类展开" },
+        { "what": "缓存·tm-endturn v=g→h·tm-game-engine v=d→e·tm-shell-extras v=c→d·tm-three-systems-ext v=b→c", "why": "强制加载" }
+      ]
+    },
+    {
+      "date": "2026-04-22",
       "module": "人物志完整页补齐 9 子模块+修书札发送键遮挡",
       "title": "对比 preview-char-full.html 一·人物志完整页·补全 9 缺失模块·并修 gs-turn-float 浮层遮挡 hy-send-btn",
       "items": [
