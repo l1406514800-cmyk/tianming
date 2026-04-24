@@ -3,6 +3,22 @@
   "entries": [
     {
       "date": "2026-04-24",
+      "module": "R105 类型化深化·补齐 TM.* 全栈签名",
+      "title": "types.d.ts 1759→1999·GM._convArchive + TM.env/errors/perf/state/diff/hooks/guard 全补 + tm-env-detect @ts-check",
+      "items": [
+        { "what": "GameState 接口补充·R103 新增的 _convArchive 字段(对话完整归档数组·元素含 role/content/_turn/_compressedAt/_truncatedAt)+_errorLog 字段(错误日志数组)·放在 rigidTriggers 之后·在 [key: string]: any 之前·这样 IDE 能精准提示而不被 any 掩盖", "why": "R103 写 GM._convArchive = [] 时 IDE 无类型提示·补上让后续代码写入对话归档时能自动补全字段名" },
+        { "what": "types.d.ts 补 TM.env 命名空间·字段 isElectron/isFile/isGitHub/isLocalhost/isWeb(readonly bool)+caps(TMEnvCaps 接口·7 项能力 bool)+describe()/print()/warnIfIncompatible() 三方法。结构与 tm-env-detect.js 运行时完全对齐", "why": "R103 tm-env-detect.js 写了 TM.env 但没类型声明·跑 TM.env.caps.indexedDB 时 IDE 当 any·补后能链式提示" },
+        { "what": "types.d.ts 补 TM.errors 命名空间·capture/captureSilent(e,module,extra)+getLog/getLogLoud/getLogSilent 三级日志+count/clear。额外声明老 ErrorMonitor(tm-utils.js)的接口(capture/getLog/exportText/clear/count)·承认兼容而不强制迁移", "why": "TM.errors 和 ErrorMonitor 双存共生·IDE 使用两者时都能提示·不制造迁移压力" },
+        { "what": "types.d.ts 补 TM_SaveDB 完整接口·save/load/list/delete/saveProject/loadProject/migrateFromLocalStorage/migrateFromOldDB/isAvailable + R104 新加的 requestPersistent/estimate(含 StorageEstimate 返回类型)·SaveDBRecord 接口完整描述条目结构", "why": "SaveManager 调用 TM_SaveDB 时每个方法有精确类型·estimate 的 usageMB/quotaMB/summary 字段都能补全" },
+        { "what": "types.d.ts 补 TM.invariants/perf/state/diff/hooks/guard/namespaces/version/onboard/diag/cheatsheet/checklist/test 共 13 个工具命名空间·覆盖 R36/R40/R60/R61/R63/R71/R73/R75/R76/R77/R80/R82/R83 建立的全部基础设施", "why": "之前 tm-tools.d.ts 有部分·这次在 types.d.ts 里统一补齐·单文件可查所有 TM.* API" },
+        { "what": "types.d.ts 补 applyAITurnChanges(data: AIScenarioResponse): AIApplierResult·AIApplierResult 接口含 applied/errors/warnings 三字段", "why": "R99/R100 抽出的 applier 函数·现在有精确签名·调用者知道返回结构" },
+        { "what": "tm-env-detect.js 顶部加 // @ts-check + /// <reference path='types.d.ts' /> 双行。这是 R83 types.d.ts 基础设施以来·R105 首个新增的 opt-in 文件·90 行无外部依赖·类型能全部推断·作为'如何给 vanilla JS 文件加类型检查'的示范", "why": "只挑能无痛通过的文件加·避免对 tm-endturn/tm-game-engine 这种 13000+ 行巨文件强加·造成上千个隐式 any 警告" },
+        { "what": "不做的 · 不给 tm-endturn.js/tm-game-engine.js 等大文件加 @ts-check(收益递减·见问题 11 分析)·不完全重写为 .ts(违反 vanilla JS 架构选择·问题 8/14)·不给 GM/P 每个字段都标 @type(动态数据契约难以静态表达·Record<string,any> 已够)", "why": "严格限制在'写新代码时 IDE 抓错'的有效范围·不追求 100% 覆盖·类型化是工具不是目的" },
+        { "what": "验证 · 控制台 TM.env.describe() 应返回 'Electron Desktop' 或 'GitHub Pages (...)·TM_SaveDB.estimate().then(console.log) 应有精确返回类型·VSCode 打开 tm-env-detect.js 无红线(@ts-check 通过)·打开任一其他文件写 GM._convArchive[0]. 应自动补全 role/content/_turn 等", "why": "三项独立可验·类型改动零运行时·最坏情况 IDE 提示失败也不影响游戏" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
       "module": "R103 三件深度事·全对话存档+类型化扩展+GitHub Pages 兼容",
       "title": "问题 11/16/17 完整实施·解锁 Web 部署·AI/EventBus 契约类型化",
       "items": [

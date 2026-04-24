@@ -541,6 +541,18 @@ interface GameState {
   // ---- 刚性触发器 ----
   rigidTriggers?: Record<string, any>;
 
+  // ---- R103·对话完整归档（被截断/压缩的老对话原文） ----
+  _convArchive?: Array<{
+    role: string;
+    content: string;
+    _turn?: number;
+    _compressedAt?: number;
+    _truncatedAt?: number;
+  }>;
+
+  // ---- 错误日志 ----
+  _errorLog?: Array<{ ts: number; turn: number; type: string; message: string; stack: string }>;
+
   // ---- 允许任意扩展字段 ----
   [key: string]: any;
 }
@@ -1757,3 +1769,231 @@ interface SaveManagerType {
   deleteSlot(slotId: number): void;
 }
 declare const SaveManager: SaveManagerType;
+
+// ==========================================================
+// R105 · 环境检测 TM.env
+// ==========================================================
+
+interface TMEnvCaps {
+  indexedDB: boolean;
+  compressionStream: boolean;
+  structuredClone: boolean;
+  backdropFilter: boolean;
+  hasSelector: boolean;
+  showSaveFilePicker: boolean;
+  offscreenCanvas: boolean;
+}
+
+declare namespace TM {
+  /** 运行环境检测（Electron/GitHub Pages/localhost/Web） */
+  const env: {
+    readonly isElectron: boolean;
+    readonly isFile: boolean;
+    readonly isGitHub: boolean;
+    readonly isLocalhost: boolean;
+    readonly isWeb: boolean;
+    readonly caps: TMEnvCaps;
+    /** 人读环境描述 */
+    describe(): string;
+    /** 打印到 console */
+    print(): string;
+    /** 检查能力·不足时 toast 警告·返回缺失列表 */
+    warnIfIncompatible(): string[];
+  };
+}
+
+// ==========================================================
+// R105 · 错误收集 TM.errors
+// 已在 tm-error-collector.js 实现
+// ==========================================================
+
+interface ErrorLogEntry {
+  ts: number;
+  module: string;
+  type: string;
+  error: Error;
+  context?: any;
+  silent?: boolean;
+}
+
+declare namespace TM {
+  const errors: {
+    /** 捕获错误（console 会 warn） */
+    capture(e: Error | unknown, moduleName: string, extra?: Record<string, any>): void;
+    /** 静默捕获（仅记录，不 warn） */
+    captureSilent(e: Error | unknown, moduleName: string, extra?: Record<string, any>): void;
+    /** 全部日志 */
+    getLog(): ErrorLogEntry[];
+    /** 非静默日志（console warn 过的） */
+    getLogLoud(): ErrorLogEntry[];
+    /** 静默日志 */
+    getLogSilent(): ErrorLogEntry[];
+    /** 计数 */
+    count(): number;
+    /** 清空 */
+    clear(): void;
+  };
+}
+
+// ==========================================================
+// R105 · 旧版 ErrorMonitor（tm-utils.js·被 TM.errors 包装）
+// ==========================================================
+
+declare const ErrorMonitor: {
+  capture(type: string, message: string, stack?: string): void;
+  getLog(): Array<{ ts: number; turn: number; type: string; message: string; stack: string }>;
+  exportText(): string;
+  clear(): void;
+  count(): number;
+};
+
+// ==========================================================
+// R105 · IndexedDB 存档管理 TM_SaveDB
+// ==========================================================
+
+interface SaveDBRecord {
+  id: string;
+  type: string;
+  name: string;
+  timestamp: number;
+  turn: number;
+  scenarioName: string;
+  eraName: string;
+  date?: string;
+  dynastyPhase?: string;
+  gameState: any;
+  _compressed?: boolean;
+}
+
+interface StorageEstimate {
+  supported: boolean;
+  usage?: number;
+  quota?: number;
+  usageMB?: string;
+  quotaMB?: string;
+  percent?: string;
+  summary?: string;
+  error?: string;
+}
+
+declare const TM_SaveDB: {
+  open(): Promise<IDBDatabase | null>;
+  save(id: string, gameState: any, meta?: Partial<SaveDBRecord>): Promise<boolean>;
+  load(id: string): Promise<SaveDBRecord | null>;
+  list(): Promise<Array<Omit<SaveDBRecord, 'gameState' | '_compressed'>>>;
+  delete(id: string): Promise<boolean>;
+  saveProject(data: any): Promise<boolean>;
+  loadProject(): Promise<any>;
+  migrateFromLocalStorage(): Promise<number>;
+  migrateFromOldDB(): Promise<number>;
+  isAvailable(): boolean;
+  /** R104·申请持久化存储 */
+  requestPersistent(): Promise<{ supported: boolean; granted: boolean; alreadyPersisted?: boolean; reason?: string; error?: string }>;
+  /** R104·查询配额用量 */
+  estimate(): Promise<StorageEstimate>;
+};
+
+// ==========================================================
+// R105 · AI 变更应用与校验辅助
+// ==========================================================
+
+/** AI 字段消费点 / 应用器 */
+interface AIApplierResult {
+  /** 成功应用的字段数 */
+  applied: number;
+  /** 失败的字段 */
+  errors: Array<{ field: string; message: string }>;
+  /** 警告 */
+  warnings: Array<{ field: string; message: string }>;
+}
+
+/** 把 AI 返回的完整 turn JSON 套用到 GM / P */
+declare function applyAITurnChanges(data: AIScenarioResponse): AIApplierResult;
+
+// ==========================================================
+// R105 · 补齐 TM.* 其他工具命名空间
+// ==========================================================
+
+declare namespace TM {
+  /** GameState 不变量校验 */
+  const invariants: {
+    check(): { ok: boolean; failures: string[] };
+    list(): string[];
+  };
+
+  /** 性能采样器（R36/R57/R61） */
+  const perf: {
+    start(name: string): void;
+    end(name: string): void;
+    print(): void;
+    printCompare(): void;
+    setThreshold(name: string, maxMs: number): void;
+    lockBaseline(): void;
+    getStats(): Record<string, { count: number; p50: number; p95: number; max: number }>;
+  };
+
+  /** GM 状态快照（R63） */
+  const state: {
+    snapshot(label?: string): any;
+    restore(snap: any): void;
+    list(): Array<{ label: string; ts: number }>;
+  };
+
+  /** 对象差异工具（R71） */
+  function diff(a: any, b: any, path?: string): Array<{ path: string; before: any; after: any }>;
+
+  /** GameHooks 查询（R73） */
+  const hooks: {
+    list(): string[];
+    who(hookName: string): string[];
+  };
+
+  /** 污染守卫（R60） */
+  const guard: {
+    snapshot(): void;
+    report(): { newGlobals: string[]; conflicts: string[] };
+  };
+
+  /** 命名空间入口（R59/R87） */
+  const namespaces: {
+    listAvailable(): string[];
+    listMissing(): string[];
+    verify(): void;
+  };
+
+  /** 版本查询（R82） */
+  const version: {
+    app: string;
+    schema: string;
+    save: number;
+    print(): string;
+  };
+
+  /** Onboarding 检查（R80） */
+  function onboard(): Promise<{ step: string; ok: boolean; message?: string }[]>;
+
+  /** 统一诊断仪表板（R75） */
+  const diag: {
+    open(): void;
+    dump(): any;
+  };
+
+  /** 速查卡浮层（R77） */
+  const cheatsheet: {
+    show(): void;
+    hide(): void;
+  };
+
+  /** 合并工作流（R76） */
+  const checklist: {
+    preMerge(name: string): any;
+    postMerge(name: string): any;
+    downloadReport(): void;
+  };
+
+  /** smoke test runner（R3/R14） */
+  const test: {
+    run(): Promise<{ total: number; passed: number; failed: number; failures: any[] }>;
+    list(): string[];
+  };
+}
