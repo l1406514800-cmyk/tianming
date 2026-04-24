@@ -1555,9 +1555,12 @@
       expect(typeof TM_SaveDB.load).toBe('function');
     });
     it('核心命名空间就位（R118 预置）', function(){
-      ['Economy','MapSystem','Lizhi','Guoku','Neitang','Storage','errors','state','diff'].forEach(function(ns){
+      ['Economy','MapSystem','Lizhi','Guoku','Neitang','Storage','errors','state','guard','perf'].forEach(function(ns){
         expect(typeof TM[ns]).toBe('object');
       });
+      // TM.diff 是 function（curry 接口），TM.register 是 function
+      expect(typeof TM.diff).toBe('function');
+      expect(typeof TM.register).toBe('function');
     });
   });
 

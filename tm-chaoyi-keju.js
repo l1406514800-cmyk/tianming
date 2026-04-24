@@ -6155,7 +6155,7 @@ if (typeof window !== 'undefined') {
   window.openKeyiSession = openKeyiSession;
   window.closeKeyi = closeKeyi;
   // R102 删·_keyiToggleAttendee 从未定义·暴露到 window 会 ReferenceError·无调用点
-  window._keyiStartDiscuss = _keyiStartDiscuss;
+  // R121 删·_keyiStartDiscuss 同样从未定义（headless smoke 发现）·无调用点
   window._keyiNextRound = _keyiNextRound;
   window._keyiProceedToVote = _keyiProceedToVote;
   window._keyiConfirmStart = _keyiConfirmStart;

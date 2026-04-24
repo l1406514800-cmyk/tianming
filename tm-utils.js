@@ -3676,8 +3676,13 @@ var ImageAPI = {
 };
 
 //  将散落的全局函数归入命名空间，保持旧全局名向后兼容
+//  R114 (2026-04-24): 改 "var TM = {...}" 为 "Object.assign(TM, {...})"
+//  原因：tm-error-collector.js 先于 tm-utils.js 加载后会设置 TM.errors，
+//  若此处整体覆盖 TM 会把 errors 字段抹掉。改为 merge 模式。
 // ============================================================
-var TM = {
+if (typeof window !== 'undefined') window.TM = window.TM || {};
+else if (typeof globalThis !== 'undefined') globalThis.TM = globalThis.TM || {};
+Object.assign(TM, {
   // --- 核心工具 ---
   utils: {
     clamp: typeof clamp === 'function' ? clamp : function(v,min,max){return Math.max(min,Math.min(max,v));},
@@ -3733,5 +3738,5 @@ var TM = {
   // --- 版本信息 ---
   version: '2.0.0-alpha',
   buildDate: '2026-04-15'
-};
+});
 
