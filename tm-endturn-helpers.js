@@ -762,7 +762,7 @@ if (typeof GameEventBus !== 'undefined') {
         _offVacateByCharName(data.name, data.reason || 'demote');
         if (typeof renderOfficeTree === 'function') { try { renderOfficeTree(); } catch(_){} }
       }
-    } catch(e) {}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-endturn-helpers');}catch(_){}}
   });
 
   // 2.6: 战争爆发→紧急警告
@@ -804,7 +804,7 @@ SettlementPipeline.register('eraProgress', '时代进度', function() {
       if (new Function('GM', 'return ' + rule.condition)(GM)) {
         collapseFactors.push(rule.label || rule.condition);
       }
-    } catch(e) {}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-endturn-helpers');}catch(_){}}
   });
   // 评估中兴条件
   (ep.restorationRules || []).forEach(function(rule) {
@@ -812,7 +812,7 @@ SettlementPipeline.register('eraProgress', '时代进度', function() {
       if (new Function('GM', 'return ' + rule.condition)(GM)) {
         restorationFactors.push(rule.label || rule.condition);
       }
-    } catch(e) {}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-endturn-helpers');}catch(_){}}
   });
 
   // 汇总为AI参考信息
@@ -1333,7 +1333,7 @@ function _chooseIssueOption(issueId, choiceIdx) {
   try {
     var _m = document.querySelector('.modal-bg');
     if (_m) _m.remove();
-  } catch(e){}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-endturn-helpers');}catch(_){}}
   setTimeout(function(){ if (typeof openQuarterlyAgenda === 'function') openQuarterlyAgenda(); }, 100);
 }
 if (typeof window !== 'undefined') window._chooseIssueOption = _chooseIssueOption;

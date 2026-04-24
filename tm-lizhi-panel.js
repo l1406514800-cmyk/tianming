@@ -35,6 +35,9 @@ function renderInkDots(value, maxSev) {
   return html;
 }
 
+// R87 阶段 2 迁移示范：getLizhiPhase / getTrendSymbol / getCorrVisibility
+// 用 function 声明定义主体·然后 TM.Lizhi.xxx = xxx 作引用（非包装）
+// 避免：tm-namespaces.js 后来 facade 替换 TM.Lizhi 时 getter 回指 window 导致循环
 function getLizhiPhase(value) {
   var v = value || 0;
   if (v < 25) return { name:'清明', cls:'clean' };
@@ -58,6 +61,12 @@ function getCorrVisibility() {
   if (sup >= 20) return 'vague';
   return 'blind';
 }
+
+// 同步挂到 TM.Lizhi·引用·非包装·后续 facade 读 window[name] 时拿到同一函数
+window.TM = window.TM || {}; window.TM.Lizhi = window.TM.Lizhi || {};
+TM.Lizhi.getLizhiPhase = getLizhiPhase;
+TM.Lizhi.getTrendSymbol = getTrendSymbol;
+TM.Lizhi.getCorrVisibility = getCorrVisibility;
 
 // ─── 开启面板 ───
 function openCorruptionPanel() {
@@ -845,7 +854,7 @@ function computeTaxThreeNumber(nominal) {
       })((GM.adminHierarchy[Object.keys(GM.adminHierarchy)[0]] || {}).divisions || []);
       if (_totalLeaf > 0) _taxLevelBonus = (_hvyCount / _totalLeaf) * 0.05; // 重税占比越高，加派越重
     }
-  } catch(e){}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-lizhi-panel');}catch(_){}}
   overCollectRate += _kejuanBase + _taxLevelBonus;
   // 如设有养廉银改革（salaryReform > 0）则浮收率打折
   var cm = c.countermeasures || {};

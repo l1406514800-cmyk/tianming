@@ -1,6 +1,17 @@
 /**
  * tm-var-drawers.js — 户口/民心/皇权/皇威 侧边抽屉（纯数据展示）
  *
+ * === 三代叠加关系（这不是"死代码并存"，是 add-on 分层增强） ===
+ * 本文件为 Phase 1（v1 基础层）：定义 open/close/render 函数
+ *   下一代：tm-var-drawers-ext.js   (Phase 2: Rich 替换，把 render* 替换为 Rich 版本)
+ *   再下代：tm-var-drawers-final.js (Phase 3: Extra wrap，在 render* 末尾追加 extra 内容)
+ *
+ * 加载顺序必须严格 1 → 2 → 3（见 index.html）。
+ * 任何想合并三个文件的人：注意 v2 的 _install 和 v3 的 _installFinal 原本用 setTimeout(200/400ms)
+ * 做延迟安装，2026-04-24 已取消延迟改为模块加载时立即执行（合并前提 = 顺序加载）。
+ * 若要真合并为单文件：拼接 v1→v2→v3，删三个 IIFE 保留一个，去重 _fmt/_esc/_sec，
+ * _install 与 _installFinal 末尾直接 inline 调用。不紧急，风险 > 收益。
+ *
  * 原则：
  *   1. 抽屉只展示信息，不含任何操作按钮/表单。
  *   2. 玩家操作去游戏原有的中间栏标签页（诏令/奏疏/问对/鸿雁/朝议/朝政/官制/科举/

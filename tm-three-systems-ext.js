@@ -132,7 +132,7 @@
       if (global.GameEventBus && typeof global.GameEventBus.emit === 'function') {
         global.GameEventBus.emit('province:ownerChange', { province: provinceName, from: oldOwner, to: newOwnerName, reason: reason || '' });
       }
-    } catch(e) {}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-three-systems-ext');}catch(_){}}
     return true;
   }
 
@@ -468,7 +468,7 @@
           if (global.GameEventBus && typeof global.GameEventBus.emit === 'function') {
             global.GameEventBus.emit('army:mutinyRisk', { army: a.name, risk: a.mutinyRisk, owner: a.owner });
           }
-        } catch(e) {}
+        } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-three-systems-ext');}catch(_){}}
       } else if (a.mutinyRisk < 50 && a._mutinyTriggered) {
         a._mutinyTriggered = false;
       }
@@ -948,7 +948,7 @@
           if (global.GameEventBus && global.GameEventBus.emit) {
             global.GameEventBus.emit('faction:collapse', { faction: f.name, leader: f.leader });
           }
-        } catch(e) {}
+        } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-three-systems-ext');}catch(_){}}
       } else if (!f._collapsing && f._collapseEventFired) {
         f._collapseEventFired = false;
       }
@@ -994,7 +994,7 @@
     var sc = null;
     try {
       if (typeof findScenarioById === 'function' && GM.sid) sc = findScenarioById(GM.sid);
-    } catch(e) {}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-three-systems-ext');}catch(_){}}
     if (!sc || !Array.isArray(sc.openingLetters) || sc.openingLetters.length === 0) { GM._openingLettersActivated = true; return; }
     if (!Array.isArray(GM.letters)) GM.letters = [];
     var _days = (P.time && P.time.daysPerTurn) || 30;
@@ -1117,6 +1117,6 @@
     });
   }
   // 脚本加载即尝试 wire(若事件总线已就绪)
-  try { _wireCrossSystemLinks(); } catch(e) {}
+  try { _wireCrossSystemLinks(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-three-systems-ext');}catch(_){}}
 
 })(typeof window !== 'undefined' ? window : this);

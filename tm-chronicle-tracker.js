@@ -182,7 +182,7 @@
       try { _collectFromSchemes(); } catch(e){ console.warn('[Chronicle] scheme:', e.message); }
       try { _collectFromProjects(); } catch(e){ console.warn('[Chronicle] project:', e.message); }
       try { _collectFromPendingMemorials(); } catch(e){ console.warn('[Chronicle] memorial:', e.message); }
-      try { _cleanupStale(); } catch(e){}
+      try { _cleanupStale(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chronicle-tracker');}catch(_){}}
     }
   };
 

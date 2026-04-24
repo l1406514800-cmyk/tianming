@@ -1,9 +1,87 @@
 // ============================================================
-//  补回1：设置完善 + 系统开关 + 开场白动画
+//  tm-patches.js — 跨领域补丁合集（2,186 行·"大杂烩"）
 // Requires: tm-data-model.js, tm-utils.js, tm-mechanics.js,
 //           tm-change-queue.js, tm-index-world.js, tm-npc-engine.js,
 //           tm-game-engine.js, tm-endturn.js, tm-dynamic-systems.js (all prior modules)
 // ============================================================
+//
+// ══════════════════════════════════════════════════════════════
+//  📍 段落总导航（2026-04-24 R58）
+// ══════════════════════════════════════════════════════════════
+//
+//  原始 2,186 行跨 6 大功能领域，已按 MODULE_REGISTRY §1.8 切分清单
+//  本文件当前状态：**双保险策略**·原代码保留·新文件在 index.html
+//  加载顺序之后覆盖同名函数（若新文件稳定后可删此段）。
+//
+//  ┌─ ⏳ §1 Settings UI（L1-512，~560 行·高风险·未迁） ──┐
+//  │  openSettings 完整重写(含 API 配置 400+ innerHTML)
+//  │  sSaveAPI / sTestConn / sDetectModels / sSaveSecondaryAPI /
+//  │  sClearSecondaryAPI / sToggleSecondaryEnabled /
+//  │  _sVerbUpdatePreview / _sMaxoutToggle / _sUpdateMaxoutInfo /
+//  │  _sShowCtxInfo / _sTestImgConn / _sDetectImgCap / _sSaveImgAPI
+//  │  → R22 已新建 tm-settings-ui.js 作**迁移靶文件**(含详细步骤)
+//  └─────────────────────────────────────────────────────────┘
+//
+//  ┌─ 🔶 §2 剧本管理 tab（L514-532，~20 行） ───────────┐
+//  │  renderScnTab(em, sc) - 系统开关 + 剧本信息编辑
+//  │  （未分类·可单独拆为 tm-scenario-tab.js）
+//  └─────────────────────────────────────────────────────────┘
+//
+//  ┌─ ⏳ §3 开局逻辑审查（L535-1040，~290 行·高风险） ──┐
+//  │  _logicAuditOnStart(sc) - AI 生成缺失字段
+//  │  doActualStart + 开场白动画
+//  │  startGame 覆盖
+//  │  → 未迁。风险：涉及 startGame，需要完整回归测试
+//  └─────────────────────────────────────────────────────────┘
+//
+//  ┌─ ⏳ §4 散碎补丁（L1040-1680，~640 行） ────────────┐
+//  │  杂项 UI 修正 / 事件钩子 / NPC 互动补丁
+//  │  → 未分类·需进一步切分
+//  └─────────────────────────────────────────────────────────┘
+//
+//  ┌─ ✓ §5 Editor Details（L1682-1860，~180 行） ───────┐
+//  │  editChr + saveChrEdit + renderItmTab/RulTab/EvtTab/
+//  │  FacTab/ClassTab/WldTab/TechTab + editClass2 + editTech2
+//  │  + aiGenItems/Rules/Events/Classes/World/Tech
+//  │  → 已迁至 tm-editor-details.js (R21 ✓)
+//  └─────────────────────────────────────────────────────────┘
+//
+//  ┌─ ✓ §6 Modal System（L1861-1892，~30 行） ──────────┐
+//  │  gv + openGenericModal + closeGenericModal +
+//  │  showModal + closeModal
+//  │  → 已迁至 tm-modal-system.js (R17 ✓)
+//  └─────────────────────────────────────────────────────────┘
+//
+//  ┌─ ✓ §7 World View（L1894-2090，~200 行） ───────────┐
+//  │  openWorldSituation / closeWorldSituation +
+//  │  openHistoricalEvents / openEraTrends（兼容别名）+
+//  │  drawEraTrendsChart（canvas 7 维趋势折线）
+//  │  → 已迁至 tm-world-view.js (R20 ✓)
+//  └─────────────────────────────────────────────────────────┘
+//
+//  ┌─ ✓ §8 Military UI（L2092-2174，~85 行） ───────────┐
+//  │  migrateMilUnits + addArmy + editArmy + renderMilTab +
+//  │  aiGenMil
+//  │  → 已迁至 tm-military-ui.js (R18 ✓)
+//  └─────────────────────────────────────────────────────────┘
+//
+//  ┌─ 🔶 §9 官制 tab（L2175-2186，~11 行） ──────────────┐
+//  │  renderOfficeTab 覆盖版
+//  │  （混在 Military 之后·未来迁到 tm-office-editor.js）
+//  └─────────────────────────────────────────────────────────┘
+//
+// ══════════════════════════════════════════════════════════════
+//  📊 迁移进度
+// ══════════════════════════════════════════════════════════════
+//
+//  已迁段：§5, §6, §7, §8         = ~495 行（23%）
+//  未迁段：§1, §2, §3, §4, §9     = ~1,691 行（77%）
+//  物理文件：仍 2,186 行（双保险不删）
+//
+//  详细路线图：PATCH_CLASSIFICATION.md · tm-patches.js 段
+//  工时估算：剩余未迁约 40-70h（Settings UI 最重）
+//
+// ══════════════════════════════════════════════════════════════
 
 // 覆盖openSettings为完整版
 openSettings=function(){
@@ -348,7 +426,7 @@ function sSaveSecondaryAPI(){
     toast("\u2705 \u5DF2\u6E05\u7A7A\u6B21 API\u00B7\u56DE\u9000\u4E3B API");
   }
   try{localStorage.setItem("tm_api",JSON.stringify(P.ai));}catch(e){}
-  if(window.tianming&&window.tianming.isDesktop){try{window.tianming.autoSave(P).catch(function(){});}catch(e){}}
+  if(window.tianming&&window.tianming.isDesktop){try{window.tianming.autoSave(P).catch(function(){});}catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-patches');}catch(_){}}}
   saveP();
   // 刷新面板以更新徽标和清除按钮可见性
   try{closeSettings();openSettings();}catch(_){}
@@ -487,7 +565,7 @@ async function _sTestImgConn() {
       if (st) st.innerHTML = '<span style="color:var(--green);">\u2705 \u8FDE\u63A5\u6210\u529F\uFF0C\u751F\u56FEAPI\u53EF\u7528</span>';
     } else {
       var errMsg = '';
-      try { var ej = await resp.json(); errMsg = (ej.error && ej.error.message) || ''; } catch(e) {}
+      try { var ej = await resp.json(); errMsg = (ej.error && ej.error.message) || ''; } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-patches');}catch(_){}}
       if (st) st.innerHTML = '<span style="color:var(--red);">\u274C HTTP ' + resp.status + (errMsg ? ': ' + errMsg.slice(0,60) : '') + '</span>';
     }
   } catch(e) {
@@ -1678,497 +1756,6 @@ function doActualStart(sid){
 
 // 奏议批复写入纪事本末
 // 注意：此包装层已废弃，功能已迁移到 EndTurnHooks 系统（钩子2）
-// ============================================================
-//  补回2：编辑器详细编辑 + AI生成面板
-// ============================================================
-
-// 角色详细编辑（覆盖简版） - 含五维滑块
-editChr=function(i){
-  var ch=P.characters[i];
-  var ss=Object.entries(ch.stats||{}).map(function(e){return e[0]+":"+e[1];}).join(",");
-  function sl(label,key,val){return '<div class="slider-group"><label>'+label+'</label><input type="range" min="0" max="100" value="'+val+'" id="chr-sl-'+key+'" oninput="this.nextElementSibling.textContent=this.value"><span class="slider-val">'+val+'</span></div>';}
-  var sliders=sl("忠诚","loyalty",ch.loyalty!=null?ch.loyalty:70)+
-    sl("士气","morale",ch.morale!=null?ch.morale:70)+
-    sl("野心","ambition",ch.ambition!=null?ch.ambition:50)+
-    sl("仁德","benevolence",ch.benevolence!=null?ch.benevolence:50)+
-    sl("智谋","intelligence",ch.intelligence!=null?ch.intelligence:50)+
-    sl("武勇","valor",ch.valor!=null?ch.valor:50)+
-    sl("军事","military",ch.military!=null?ch.military:50)+
-    sl("政务","administration",ch.administration!=null?ch.administration:50)+
-    sl("魅力","charisma",ch.charisma!=null?ch.charisma:50)+
-    sl("外交","diplomacy",ch.diplomacy!=null?ch.diplomacy:50);
-  _$("em").innerHTML="<div class=\"cd\"><h4>\u7F16\u8F91\u89D2\u8272: "+ch.name+"</h4>"+
-    "<div class=\"rw\"><div class=\"fd\"><label>\u540D\u79F0</label><input id=\"chr-ed-name\" value=\""+ch.name+"\"></div><div class=\"fd\"><label>\u5934\u8854</label><input id=\"chr-ed-title\" value=\""+ch.title+"\"></div><div class=\"fd\"><label>\u9635\u8425</label><input id=\"chr-ed-faction\" value=\""+(ch.faction||"")+"\"></div></div>"+
-    "<div class=\"rw\"><div class=\"fd\"><label>\u7ACB\u573A</label><input id=\"chr-ed-stance\" value=\""+(ch.stance||"")+"\"></div><div class=\"fd q\"><label>\u5E74\u9F84</label><input type=\"number\" id=\"chr-ed-age\" value=\""+(ch.age||30)+"\"></div><div class=\"fd q\"><label>\u6027\u522B</label><select id=\"chr-ed-gender\"><option "+(ch.gender==="\u7537"?"selected":"")+">\u7537</option><option "+(ch.gender==="\u5973"?"selected":"")+">\u5973</option></select></div><div class=\"fd q\"><label>\u7C7B\u578B</label><select id=\"chr-ed-hist\"><option value=\"false\" "+(ch.isHistorical?"":"selected")+">\u865A\u6784</option><option value=\"true\" "+(ch.isHistorical?"selected":"")+">\u5386\u53F2\u540D\u81E3</option></select></div></div>"+
-    "<div style=\"background:var(--bg-3);border:1px solid var(--bdr);border-radius:8px;padding:0.6rem;margin:0.5rem 0;\"><div style=\"font-size:0.85rem;font-weight:700;color:var(--gold);margin-bottom:0.3rem;\">五维属性</div>"+sliders+"</div>"+
-    "<div class=\"fd full\"><label>\u63CF\u8FF0</label><textarea rows=\"2\" id=\"chr-ed-desc\">"+ch.desc+"</textarea></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u6027\u683C</label><textarea rows=\"2\" id=\"chr-ed-personality\">"+(ch.personality||"")+"</textarea></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u5916\u8C8C</label><input id=\"chr-ed-appearance\" value=\""+(ch.appearance||"")+"\"></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u5C5E\u6027(k:v,k:v)</label><input id=\"chr-ed-stats\" value=\""+ss+"\"></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u6280\u80FD(\u9017\u53F7)</label><input id=\"chr-ed-skills\" value=\""+(ch.skills||[]).join(",")+"\"></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u53F0\u8BCD(\u6BCF\u884C)</label><textarea rows=\"2\" id=\"chr-ed-dialogues\">"+(ch.dialogues||[]).join("\n")+"</textarea></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u79D8\u5BC6\u76EE\u6807</label><input id=\"chr-ed-secret\" value=\""+(ch.secret||"")+"\"></div>"+
-    "<hr class=\"dv\"><div style=\"font-size:0.88rem;font-weight:700;color:var(--purple);margin-bottom:0.5rem;\">AI\u6DF1\u5EA6\u8BBE\u5B9A</div>"+
-    "<div class=\"fd full\"><label>AI\u4EBA\u8BBE\u6587\u672C</label><textarea rows=\"3\" id=\"chr-ed-aiPersona\" placeholder=\"\u8BE6\u7EC6\u63CF\u8FF0\u4F9BAI\u5224\u65AD\u89D2\u8272\u884C\u4E3A\">"+(ch.aiPersonaText||"")+"</textarea></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u884C\u4E3A\u6A21\u5F0F</label><textarea rows=\"2\" id=\"chr-ed-behavior\" placeholder=\"AI\u5982\u4F55\u51B3\u5B9A\u884C\u52A8\">"+(ch.behaviorMode||"")+"</textarea></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u4EF7\u503C\u89C2</label><textarea rows=\"2\" id=\"chr-ed-values\">"+(ch.valueSystem||"")+"</textarea></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u8BF4\u8BDD\u98CE\u683C</label><textarea rows=\"2\" id=\"chr-ed-speech\">"+(ch.speechStyle||"")+"</textarea></div>"+
-    "<button class=\"bt bp\" onclick=\"saveChrEdit("+i+")\" style=\"margin-top:0.5rem;\">\u5B8C\u6210</button></div>";
-};
-function saveChrEdit(i){
-  var ch=P.characters[i];
-  ch.name=gv("chr-ed-name");ch.title=gv("chr-ed-title");ch.faction=gv("chr-ed-faction");
-  ch.stance=gv("chr-ed-stance");ch.age=+(document.getElementById("chr-ed-age").value)||30;
-  ch.gender=document.getElementById("chr-ed-gender").value;
-  ch.isHistorical=document.getElementById("chr-ed-hist").value==="true";
-  ch.loyalty=+document.getElementById("chr-sl-loyalty").value;
-  ch.morale=+document.getElementById("chr-sl-morale").value;
-  ch.ambition=+document.getElementById("chr-sl-ambition").value;
-  ch.benevolence=+document.getElementById("chr-sl-benevolence").value;
-  ch.intelligence=+document.getElementById("chr-sl-intelligence").value;
-  ch.valor=+document.getElementById("chr-sl-valor").value;
-  ch.military=+document.getElementById("chr-sl-military").value;
-  ch.administration=+document.getElementById("chr-sl-administration").value;
-  ch.charisma=+document.getElementById("chr-sl-charisma").value;
-  ch.diplomacy=+document.getElementById("chr-sl-diplomacy").value;
-  ch.desc=gv("chr-ed-desc");ch.personality=gv("chr-ed-personality");
-  ch.appearance=gv("chr-ed-appearance");
-  var statsStr=gv("chr-ed-stats");var o={};statsStr.split(",").forEach(function(p){var kv=p.split(":");if(kv[0]&&kv[1])o[kv[0].trim()]=parseInt(kv[1])||0;});ch.stats=o;
-  ch.skills=gv("chr-ed-skills").split(",").map(function(s){return s.trim();}).filter(Boolean);
-  ch.dialogues=document.getElementById("chr-ed-dialogues").value.split("\n").filter(Boolean);
-  ch.secret=gv("chr-ed-secret");
-  ch.aiPersonaText=document.getElementById("chr-ed-aiPersona").value;
-  ch.behaviorMode=document.getElementById("chr-ed-behavior").value;
-  ch.valueSystem=document.getElementById("chr-ed-values").value;
-  ch.speechStyle=document.getElementById("chr-ed-speech").value;
-  renderEdTab("t-chr");toast("\u5DF2\u4FDD\u5B58");
-}
-
-// 物品详细编辑
-renderItmTab=function(em,sid){
-  var list=P.items.filter(function(t){return t.sid===sid;});
-  em.innerHTML="<h4 style=\"color:var(--gold);\">\u7269\u54C1/\u79D1\u6280/\u653F\u7B56 ("+list.length+")</h4>"+
-    "<div style=\"display:flex;gap:0.3rem;margin-bottom:0.8rem;\"><button class=\"bt bp bsm\" onclick=\"P.items.push({sid:editingScenarioId,name:'\u65B0',type:'item',desc:'',effect:{},prereq:'',acquired:false});renderEdTab('t-itm');\">\uFF0B\u7269\u54C1</button><button class=\"bt bp bsm\" onclick=\"P.items.push({sid:editingScenarioId,name:'\u65B0',type:'tech',desc:'',effect:{},prereq:'',acquired:false});renderEdTab('t-itm');\">\uFF0B\u79D1\u6280</button><button class=\"bt bp bsm\" onclick=\"P.items.push({sid:editingScenarioId,name:'\u65B0',type:'policy',desc:'',effect:{},prereq:'',acquired:false});renderEdTab('t-itm');\">\uFF0B\u653F\u7B56</button><button class=\"bai\" onclick=\"aiGenItems()\">\uD83E\uDD16</button></div>"+
-    list.map(function(t){var i=P.items.indexOf(t);var eff=Object.entries(t.effect||{}).map(function(e){return(e[1]>0?"+":"")+e[1]+" "+e[0];}).join(", ");
-      return "<div class=\"cd\"><div style=\"display:flex;justify-content:space-between;\"><div><span class=\"tg\">"+t.type+"</span> <strong>"+t.name+"</strong></div><div><button class=\"bs bsm\" onclick=\"editItm("+i+")\">\u7F16\u8F91</button> <button class=\"bd bsm\" onclick=\"P.items.splice("+i+",1);renderEdTab('t-itm');\">\u2715</button></div></div><div style=\"font-size:0.78rem;color:var(--txt-s);\">"+t.desc+"</div>"+(eff?"<div style=\"margin-top:0.2rem;\">"+eff+"</div>":"")+(t.prereq?"<div style=\"font-size:0.7rem;color:var(--txt-d);\">\u524D\u7F6E: "+t.prereq+"</div>":"")+"</div>";}).join("")||"<div style=\"color:var(--txt-d);\">\u6682\u65E0</div>";
-};
-function editItm(i){
-  var t=P.items[i];var effStr=Object.entries(t.effect||{}).map(function(e){return e[0]+":"+e[1];}).join(",");
-  _$("em").innerHTML="<div class=\"cd\"><h4>\u7F16\u8F91</h4>"+
-    "<div class=\"rw\"><div class=\"fd\"><label>\u540D\u79F0</label><input value=\""+t.name+"\" onchange=\"P.items["+i+"].name=this.value\"></div><div class=\"fd q\"><label>\u7C7B\u578B</label><select onchange=\"P.items["+i+"].type=this.value\"><option "+(t.type==="item"?"selected":"")+">\u7269\u54C1</option><option value=\"tech\" "+(t.type==="tech"?"selected":"")+">\u79D1\u6280</option><option value=\"policy\" "+(t.type==="policy"?"selected":"")+">\u653F\u7B56</option></select></div></div>"+
-    "<div class=\"fd full\"><label>\u63CF\u8FF0</label><textarea rows=\"3\" onchange=\"P.items["+i+"].desc=this.value\">"+t.desc+"</textarea></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u6548\u679C(\u53D8\u91CF:\u503C,\u9017\u53F7)</label><input value=\""+effStr+"\" onchange=\"var o={};this.value.split(',').forEach(function(p){var kv=p.split(':');if(kv[0]&&kv[1])o[kv[0].trim()]=parseInt(kv[1])||0;});P.items["+i+"].effect=o;\"></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u524D\u7F6E\u6761\u4EF6</label><input value=\""+(t.prereq||"")+"\" onchange=\"P.items["+i+"].prereq=this.value\" placeholder=\"\u5982: \u53D8\u6CD5\u652F\u6301>50\"></div>"+
-    "<button class=\"bt bp\" onclick=\"renderEdTab('t-itm');toast('\u5DF2\u4FDD\u5B58')\" style=\"margin-top:0.5rem;\">\u5B8C\u6210</button></div>";
-}
-async function aiGenItems(){showLoading("生成物品中...",20);try{var ctx=P.scenarios.find(function(s){return s.id===editingScenarioId;});var existItm=P.items.filter(function(x){return x.sid===editingScenarioId;}).map(function(x){return x.name;});var existNoteI=existItm.length?"已有道具（不得重复）："+existItm.join("、")+"\n":"";var c=await callAISmart(`为${ctx?ctx.name:""}生成3-5物品/科技。${existNoteI}JSON:[{"name":"","type":"item/tech/policy","desc":"","effect":{},"prerequisite":""}]`,1500,{minLength:200,validator:function(c){try{var jm=c.match(/\[[\s\S]*\]/);if(!jm)return false;var arr=JSON.parse(jm[0]);return Array.isArray(arr)&&arr.length>=3;}catch(e){return false;}}});var jm=c.match(/\[[\s\S]*\]/);if(jm){JSON.parse(jm[0]).forEach(function(t){P.items.push({sid:editingScenarioId,name:t.name||"",type:t.type||"item",desc:t.desc||"",effect:t.effect||{},prereq:t.prerequisite||"",acquired:false});});renderEdTab("t-itm");toast("✅");}}catch(e){toast("失败");}finally{hideLoading();}}
-// 规则详细编辑
-renderRulTab=function(em,sid){
-  var vn=P.variables.filter(function(v){return v.sid===sid;}).map(function(v){return v.name;});
-  var list=P.rules.filter(function(r){return r.sid===sid;});
-  em.innerHTML="<h4 style=\"color:var(--gold);\">\u89C4\u5219 ("+list.length+")</h4>"+
-    "<div style=\"display:flex;gap:0.3rem;margin-bottom:0.8rem;\"><button class=\"bt bp\" onclick=\"P.rules.push({sid:editingScenarioId,name:'\u65B0',enabled:true,trigger:{type:'threshold',variable:'',op:'<',value:20},effect:{narrative:'',varChg:{},event:null}});renderEdTab('t-rul');\">\uFF0B</button><button class=\"bai\" onclick=\"aiGenRules()\">\uD83E\uDD16</button></div>"+
-    list.map(function(r){var i=P.rules.indexOf(r);var t=r.trigger;
-      return "<div class=\"cd\" style=\"border-left:3px solid "+(r.enabled?"var(--green)":"var(--red)")+"\"><div style=\"display:flex;justify-content:space-between;margin-bottom:0.3rem;\"><div style=\"display:flex;gap:0.3rem;align-items:center;\"><input type=\"checkbox\" "+(r.enabled?"checked":"")+" onchange=\"P.rules["+i+"].enabled=this.checked;renderEdTab('t-rul');\"><input value=\""+r.name+"\" style=\"background:transparent;border:none;color:var(--txt);font-weight:700;\" onchange=\"P.rules["+i+"].name=this.value\"></div><button class=\"bd bsm\" onclick=\"P.rules.splice("+i+",1);renderEdTab('t-rul');\">\u2715</button></div>"+
-      "<div style=\"background:var(--bg-1);border-radius:4px;padding:0.4rem;font-size:0.8rem;\"><select onchange=\"P.rules["+i+"].trigger.type=this.value;renderEdTab('t-rul');\"><option value=\"threshold\" "+(t.type==="threshold"?"selected":"")+">\u9608\u503C</option><option value=\"keyword\" "+(t.type==="keyword"?"selected":"")+">\u5173\u952E\u8BCD</option><option value=\"turn\" "+(t.type==="turn"?"selected":"")+">\u56DE\u5408</option><option value=\"random\" "+(t.type==="random"?"selected":"")+">\u968F\u673A</option></select>"+
-      (t.type==="threshold"?" <select onchange=\"P.rules["+i+"].trigger.variable=this.value\">"+vn.map(function(n){return "<option "+(t.variable===n?"selected":"")+">"+n+"</option>";}).join("")+"</select><select onchange=\"P.rules["+i+"].trigger.op=this.value\"><option "+(t.op==="<"?"selected":"")+">&lt;</option><option "+(t.op===">"?"selected":"")+">&gt;</option></select><input type=\"number\" value=\""+(t.value||0)+"\" style=\"width:45px;\" onchange=\"P.rules["+i+"].trigger.value=+this.value\">":"")+
-      (t.type==="keyword"?"<input value=\""+(t.keywords||[]).join(",")+"\" placeholder=\"\u5173\u952E\u8BCD,\u9017\u53F7\" onchange=\"P.rules["+i+"].trigger.keywords=this.value.split(',').map(function(s){return s.trim();})\">":"")+
-      "</div><div style=\"background:var(--bg-1);border-radius:4px;padding:0.4rem;margin-top:0.3rem;\"><label style=\"font-size:0.72rem;color:var(--txt-d);\">\u89E6\u53D1\u6548\u679C</label><textarea rows=\"2\" style=\"width:100%;\" onchange=\"P.rules["+i+"].effect.narrative=this.value\">"+(r.effect.narrative||"")+"</textarea></div></div>";}).join("");
-};
-async function aiGenRules(){showLoading("生成规则中...",20);try{var existRul=(Array.isArray(P.rules)?P.rules:[]).filter(function(x){return !x.sid||x.sid===editingScenarioId;}).map(function(x){return x.name;});var existNoteR=existRul.length?"已有规则（不得重复）："+existRul.join("、")+"\n":"";var c=await callAISmart(`生成3规则。${existNoteR}JSON:[{"name":"","trigger":{"type":"threshold","variable":"","op":"<","value":20},"effect":{"narrative":""}}]`,1500,{minLength:150,validator:function(c){try{var jm=c.match(/\[[\s\S]*\]/);if(!jm)return false;var arr=JSON.parse(jm[0]);return Array.isArray(arr)&&arr.length>=3;}catch(e){return false;}}});var jm=c.match(/\[[\s\S]*\]/);if(jm){JSON.parse(jm[0]).forEach(function(r){P.rules.push({sid:editingScenarioId,name:r.name||"",enabled:true,trigger:r.trigger||{type:"threshold"},effect:r.effect||{}});});renderEdTab("t-rul");toast("✅");}}catch(e){toast("失败");}finally{hideLoading();}}
-// 事件详细编辑
-renderEvtTab=function(em,sid){
-  var list=P.events.filter(function(e){return e.sid===sid;});
-  em.innerHTML="<h4 style=\"color:var(--gold);\">\u4E8B\u4EF6 ("+list.length+")</h4>"+
-    "<div style=\"display:flex;gap:0.3rem;margin-bottom:0.8rem;\"><button class=\"bt bp\" onclick=\"P.events.push({sid:editingScenarioId,id:uid(),name:'\u65B0',type:'scripted',triggerTurn:0,oneTime:true,triggered:false,narrative:'',choices:[]});renderEdTab('t-evt');\">\uFF0B</button><button class=\"bai\" onclick=\"aiGenEvents()\">\uD83E\uDD16</button></div>"+
-    list.map(function(ev){var i=P.events.indexOf(ev);return "<div class=\"cd\"><div style=\"display:flex;justify-content:space-between;\"><strong>"+ev.name+"</strong><div><button class=\"bs bsm\" onclick=\"editEvt("+i+")\">\u7F16\u8F91</button> <button class=\"bd bsm\" onclick=\"P.events.splice("+i+",1);renderEdTab('t-evt');\">\u2715</button></div></div><div style=\"font-size:0.78rem;color:var(--txt-s);\">"+(ev.narrative||"").slice(0,60)+"\u2026</div>"+(ev.choices&&ev.choices.length?"<div style=\"font-size:0.7rem;color:var(--txt-d);\">"+ev.choices.length+" \u9009\u9879</div>":"")+"</div>";}).join("");
-};
-// editEvt 旧版已移除，使用后面 modal 版本（约22144行）
-async function aiGenEvents(){try{showLoading("\u751F\u6210\u4E8B\u4EF6\u4E2D...",20);var ctx=P.scenarios.find(function(s){return s.id===editingScenarioId;});var existEvt=(P.events||[]).filter(function(x){return x.sid===editingScenarioId;}).map(function(x){return x.name;});var existNoteE=existEvt.length?"已有事件（不得重复）："+existEvt.join("、")+"\n":"";var c=await callAISmart("\u4E3A\""+(ctx?ctx.name:"")+"\" \u751F\u62123\u4E8B\u4EF6\u3002"+existNoteE+"JSON:[{\"name\":\"\",\"narrative\":\"\u4E8B\u4EF6200\u5B57\",\"triggerTurn\":0,\"oneTime\":true,\"choices\":[{\"text\":\"\",\"effect\":{}}]}]",2000,{minLength:400,validator:function(c){try{var jm=c.match(/\[[\s\S]*\]/);if(!jm)return false;var arr=JSON.parse(jm[0]);return Array.isArray(arr)&&arr.length>=3;}catch(e){return false;}}});var jm=c.match(/\[[\s\S]*\]/);if(jm){JSON.parse(jm[0]).forEach(function(ev){P.events.push({sid:editingScenarioId,id:uid(),name:ev.name||"",type:"scripted",triggerTurn:ev.triggerTurn||0,oneTime:true,triggered:false,narrative:ev.narrative||"",choices:ev.choices||[]});});renderEdTab("t-evt");hideLoading();toast("\u2705");}}catch(e){hideLoading();toast("\u5931\u8D25");}}
-
-// 党派详细编辑
-renderFacTab=function(em,sid){
-  var list=P.factions.filter(function(f){return f.sid===sid;});
-  em.innerHTML="<h4 style=\"color:var(--gold);\">\u515A\u6D3E ("+list.length+")</h4>"+
-    "<div style=\"display:flex;gap:0.3rem;margin-bottom:0.8rem;\"><button class=\"bt bp\" onclick=\"P.factions.push({sid:editingScenarioId,name:'\u65B0',leader:'',desc:'',color:'#888',traits:[],strength:50,territory:'',ideology:'',courtInfluence:50,popularInfluence:30,members:'',partyRelations:''});renderEdTab('t-fac');\">\uFF0B</button><button class=\"bai\" onclick=\"aiGenFac()\">\uD83E\uDD16</button></div>"+
-    list.map(function(f){var i=P.factions.indexOf(f);return "<div class=\"cd\"><div style=\"display:flex;justify-content:space-between;\"><strong>"+f.name+"</strong><div><button class=\"bs bsm\" onclick=\"editFac("+i+")\">\u7F16\u8F91</button> <button class=\"bd bsm\" onclick=\"P.factions.splice("+i+",1);renderEdTab('t-fac');\">\u2715</button></div></div><div style=\"font-size:0.78rem;color:var(--txt-s);\">"+f.desc+"</div></div>";}).join("")||"<div style=\"color:var(--txt-d);\">\u6682\u65E0</div>";
-};
-// editFac 旧版已移除，使用后面 modal 版本（约22051行）
-
-// 阶层详细编辑
-renderClassTab=function(em,sid){
-  var list=P.classes.filter(function(c){return c.sid===sid;});
-  em.innerHTML="<h4 style=\"color:var(--gold);\">\u9636\u5C42 ("+list.length+")</h4>"+
-    "<div style=\"display:flex;gap:0.3rem;margin-bottom:0.8rem;\"><button class=\"bt bp\" onclick=\"P.classes.push({sid:editingScenarioId,name:'\u65B0',desc:'',privileges:'',restrictions:'',population:'',influence:50});renderEdTab('t-class');\">\uFF0B</button><button class=\"bai\" onclick=\"aiGenClasses()\">\uD83E\uDD16</button></div>"+
-    list.map(function(c){var i=P.classes.indexOf(c);return "<div class=\"cd\"><div style=\"display:flex;justify-content:space-between;\"><strong>"+c.name+"</strong><div><button class=\"bs bsm\" onclick=\"editClass2("+i+")\">\u7F16\u8F91</button> <button class=\"bd bsm\" onclick=\"P.classes.splice("+i+",1);renderEdTab('t-class');\">\u2715</button></div></div><div style=\"font-size:0.78rem;color:var(--txt-s);\">"+c.desc+" | \u5F71\u54CD:"+c.influence+"</div></div>";}).join("")||"<div style=\"color:var(--txt-d);\">\u6682\u65E0</div>";
-};
-function editClass2(i){
-  var c=P.classes[i];
-  _$("em").innerHTML="<div class=\"cd\"><h4>\u7F16\u8F91\u9636\u5C42</h4>"+
-    "<div class=\"rw\"><div class=\"fd\"><label>\u540D\u79F0</label><input value=\""+c.name+"\" onchange=\"P.classes["+i+"].name=this.value\"></div><div class=\"fd q\"><label>\u5F71\u54CD\u529B</label><input type=\"number\" value=\""+c.influence+"\" onchange=\"P.classes["+i+"].influence=+this.value\"></div></div>"+
-    "<div class=\"fd full\"><label>\u63CF\u8FF0</label><textarea rows=\"2\" onchange=\"P.classes["+i+"].desc=this.value\">"+c.desc+"</textarea></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u7279\u6743</label><textarea rows=\"2\" onchange=\"P.classes["+i+"].privileges=this.value\">"+(c.privileges||"")+"</textarea></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u9650\u5236</label><textarea rows=\"2\" onchange=\"P.classes["+i+"].restrictions=this.value\">"+(c.restrictions||"")+"</textarea></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u4EBA\u53E3\u6BD4\u4F8B</label><input value=\""+(c.population||"")+"\" onchange=\"P.classes["+i+"].population=this.value\"></div>"+
-    "<button class=\"bt bp\" onclick=\"renderEdTab('t-class');toast('\u5DF2\u4FDD\u5B58')\" style=\"margin-top:0.5rem;\">\u5B8C\u6210</button></div>";
-}
-async function aiGenClasses(){showLoading("生成阶层中...",20);try{var ctx=P.scenarios.find(function(s){return s.id===editingScenarioId;});var existCls=P.classes.filter(function(x){return x.sid===editingScenarioId;}).map(function(x){return x.name;});var existNoteCl=existCls.length?"已有阶层（不得重复）："+existCls.join("、")+"\n":"";var c=await callAISmart(`为${ctx?ctx.name:""}生成3-6阶层。${existNoteCl}JSON:[{"name":"","desc":"","privileges":"","restrictions":"","population":"","influence":50}]`,1500,{minLength:200,validator:function(c){try{var jm=c.match(/\[[\s\S]*\]/);if(!jm)return false;var arr=JSON.parse(jm[0]);return Array.isArray(arr)&&arr.length>=3;}catch(e){return false;}}});var jm=c.match(/\[[\s\S]*\]/);if(jm){JSON.parse(jm[0]).forEach(function(cl){P.classes.push({sid:editingScenarioId,name:cl.name||"",desc:cl.desc||"",privileges:cl.privileges||"",restrictions:cl.restrictions||"",population:cl.population||"",influence:cl.influence||50});});renderEdTab("t-class");toast("✅");}}catch(e){toast("失败");}finally{hideLoading();}}
-// 世界设定（软分类+运行逻辑）
-renderWldTab=function(em,sid){
-  if(!P.world.entries)P.world.entries=[];
-  // 旧格式转换
-  if(P.world.entries.length===0){
-    ["history","politics","economy","military","culture","glossary"].forEach(function(k){
-      if(P.world[k])P.world.entries.push({sid:sid,category:k,content:P.world[k],tags:[]});
-    });
-  }
-  var entries=P.world.entries.filter(function(e){return!e.sid||e.sid===sid;});
-  em.innerHTML="<h4 style=\"color:var(--gold);\">\u4E16\u754C\u8BBE\u5B9A</h4><div style=\"font-size:0.8rem;color:var(--txt-d);margin-bottom:0.8rem;\">\u81EA\u7531\u7F16\u8F91\uFF0C\u6BCF\u6761\u53EF\u81EA\u5B9A\u4E49\u5206\u7C7B\u3002AI\u63A8\u6F14\u65F6\u5168\u90E8\u8BFB\u53D6\u3002</div>"+
-    "<div style=\"display:flex;gap:0.3rem;margin-bottom:0.8rem;\"><button class=\"bt bp\" onclick=\"if(!P.world.entries)P.world.entries=[];P.world.entries.push({sid:editingScenarioId,category:'\u65B0',content:'',tags:[]});renderEdTab('t-wld');\">\uFF0B \u65B0\u589E</button><button class=\"bai\" onclick=\"aiGenWorld()\">\uD83E\uDD16 AI\u751F\u6210</button></div>"+
-    entries.map(function(entry){var i=P.world.entries.indexOf(entry);return "<div class=\"cd\"><div style=\"display:flex;justify-content:space-between;margin-bottom:0.3rem;\"><input value=\""+(entry.category||"")+"\" placeholder=\"\u5206\u7C7B\" style=\"width:120px;font-weight:700;\" onchange=\"P.world.entries["+i+"].category=this.value\"><button class=\"bd bsm\" onclick=\"P.world.entries.splice("+i+",1);renderEdTab('t-wld');\">\u2715</button></div><textarea rows=\"4\" style=\"width:100%;\" onchange=\"P.world.entries["+i+"].content=this.value\">"+entry.content+"</textarea></div>";}).join("")+
-    "<hr class=\"dv\"><div style=\"font-size:0.95rem;font-weight:700;color:var(--gold);margin-bottom:0.5rem;\">\u8FD0\u884C\u903B\u8F91</div>"+
-    "<div class=\"fd full\"><label>\u4E16\u754C\u89C4\u5219</label><textarea rows=\"5\" onchange=\"P.world.rules=this.value\" placeholder=\"\u5B9A\u4E49\u4E16\u754C\u8FD0\u4F5C\u89C4\u5219\">"+(P.world.rules||"")+"</textarea></div>";
-};
-async function aiGenWorld(){try{showLoading("\u751F\u6210\u4E16\u754C\u4E2D...",20);var ctx=P.scenarios.find(function(s){return s.id===editingScenarioId;});var existWld=(P.worldEvents||[]).filter(function(x){return x.sid===editingScenarioId;}).map(function(x){return x.name||x.title||"";});var existNoteW=existWld.length?"已有世界设定（不得重复）："+existWld.join("、")+"\n":"";var c=await callAISmart("\u4E3A\""+(ctx?ctx.name:"")+"\" \u751F\u6210\u4E16\u754C\u89C2\u3002"+existNoteW+"JSON:[{\"category\":\"\",\"content\":\"\u8BE6\u7EC6200-400\u5B57\"}]\n6\u4E2A\u5206\u7C7B",3000,{minLength:800,validator:function(c){try{var jm=c.match(/\[[\s\S]*\]/);if(!jm)return false;var arr=JSON.parse(jm[0]);return Array.isArray(arr)&&arr.length>=6;}catch(e){return false;}}});var jm=c.match(/\[[\s\S]*\]/);if(jm){if(!P.world.entries)P.world.entries=[];JSON.parse(jm[0]).forEach(function(e){P.world.entries.push({sid:editingScenarioId,category:e.category||"",content:e.content||"",tags:[]});});renderEdTab("t-wld");hideLoading();toast("\u2705");}}catch(e){hideLoading();toast("\u5931\u8D25");}}
-
-// 科技树/市政树详细编辑（消耗绑定）
-renderTechTab=function(em,sid){
-  var list=P.techTree.filter(function(t){return t.sid===sid;});
-  var vars=P.variables.filter(function(v){return v.sid===sid;});
-  em.innerHTML="<h4 style=\"color:var(--gold);\">\u79D1\u6280\u6811 ("+list.length+")</h4>"+
-    "<div style=\"display:flex;gap:0.3rem;margin-bottom:0.8rem;\"><button class=\"bt bp\" onclick=\"P.techTree.push({sid:editingScenarioId,name:'\u65B0',desc:'',prereqs:[],costs:[],effect:{},era:'\u521D\u7EA7',unlocked:false});renderEdTab('t-tech');\">\uFF0B</button><button class=\"bai\" onclick=\"aiGenTech()\">\uD83E\uDD16</button></div>"+
-    list.map(function(t){var i=P.techTree.indexOf(t);var costStr=(t.costs||[]).map(function(c){return c.variable+":"+c.amount;}).join(", ");
-      return "<div class=\"cd\"><div style=\"display:flex;justify-content:space-between;\"><strong>"+t.name+"</strong> <span class=\"tg\">"+t.era+"</span><div><button class=\"bs bsm\" onclick=\"editTech2("+i+")\">\u7F16\u8F91</button> <button class=\"bd bsm\" onclick=\"P.techTree.splice("+i+",1);renderEdTab('t-tech');\">\u2715</button></div></div><div style=\"font-size:0.78rem;color:var(--txt-s);\">"+t.desc+"</div>"+(costStr?"<div style=\"font-size:0.7rem;color:var(--txt-d);\">\u6D88\u8017: "+costStr+"</div>":"")+"</div>";}).join("")||"<div style=\"color:var(--txt-d);\">\u6682\u65E0</div>";
-};
-function editTech2(i){
-  var t=P.techTree[i];var sid=editingScenarioId;var vars=P.variables.filter(function(v){return v.sid===sid;});
-  if(!t.costs)t.costs=[];
-  var costsHtml=t.costs.map(function(c,ci){var opts=vars.map(function(v){return "<option "+(v.name===c.variable?"selected":"")+">"+v.name+"</option>";}).join("");return "<div style=\"display:flex;gap:0.3rem;margin-bottom:0.2rem;\"><select onchange=\"P.techTree["+i+"].costs["+ci+"].variable=this.value\" style=\"flex:1;\">"+opts+"</select><input type=\"number\" value=\""+c.amount+"\" style=\"width:60px;\" onchange=\"P.techTree["+i+"].costs["+ci+"].amount=+this.value\"><button class=\"bd bsm\" onclick=\"P.techTree["+i+"].costs.splice("+ci+",1);editTech2("+i+");\">\u2715</button></div>";}).join("");
-  _$("em").innerHTML="<div class=\"cd\"><h4>\u7F16\u8F91\u79D1\u6280</h4>"+
-    "<div class=\"rw\"><div class=\"fd\"><label>\u540D\u79F0</label><input value=\""+t.name+"\" onchange=\"P.techTree["+i+"].name=this.value\"></div><div class=\"fd q\"><label>\u65F6\u4EE3</label><select onchange=\"P.techTree["+i+"].era=this.value\"><option "+(t.era==="\u521D\u7EA7"?"selected":"")+">\u521D\u7EA7</option><option "+(t.era==="\u4E2D\u7EA7"?"selected":"")+">\u4E2D\u7EA7</option><option "+(t.era==="\u9AD8\u7EA7"?"selected":"")+">\u9AD8\u7EA7</option></select></div></div>"+
-    "<div class=\"fd full\"><label>\u63CF\u8FF0</label><textarea rows=\"2\" onchange=\"P.techTree["+i+"].desc=this.value\">"+t.desc+"</textarea></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u524D\u7F6E(\u9017\u53F7)</label><input value=\""+(t.prereqs||[]).join(",")+"\" onchange=\"P.techTree["+i+"].prereqs=this.value.split(',').map(function(s){return s.trim();}).filter(Boolean)\"></div>"+
-    "<div class=\"fd full\" style=\"margin-top:0.3rem;\"><label>\u6548\u679C(\u53D8\u91CF:\u503C)</label><input value=\""+Object.entries(t.effect||{}).map(function(e){return e[0]+":"+e[1];}).join(",")+"\" onchange=\"var o={};this.value.split(',').forEach(function(p){var kv=p.split(':');if(kv[0]&&kv[1])o[kv[0].trim()]=parseInt(kv[1])||0;});P.techTree["+i+"].effect=o;\"></div>"+
-    "<hr class=\"dv\"><div style=\"font-weight:700;color:var(--gold);margin-bottom:0.3rem;\">\u89E3\u9501\u6D88\u8017</div>"+costsHtml+
-    "<button class=\"bt bs bsm\" onclick=\"P.techTree["+i+"].costs.push({variable:'"+(vars[0]?vars[0].name:"")+"',amount:10});editTech2("+i+");\">\uFF0B \u6DFB\u52A0</button>"+
-    "<br><button class=\"bt bp\" onclick=\"renderEdTab('t-tech');toast('\u5DF2\u4FDD\u5B58')\" style=\"margin-top:0.5rem;\">\u5B8C\u6210</button></div>";
-}
-async function aiGenTech(){showLoading("生成科技中...",20);try{var ctx=P.scenarios.find(function(s){return s.id===editingScenarioId;});var existTech=[].concat(P.techTree&&P.techTree.military?P.techTree.military:[]).concat(P.techTree&&P.techTree.civil?P.techTree.civil:[]).filter(function(x){return !x.sid||x.sid===editingScenarioId;}).map(function(x){return x.name;});var existNoteT=existTech.length?"已有科技（不得重复）："+existTech.join("、")+"\n":"";var c=await callAISmart(`为${ctx?ctx.name:""}生成8科技。${existNoteT}JSON:[{"name":"","desc":"","prereqs":[],"costs":[{"variable":"经济实力","amount":20}],"effect":{},"era":"初级/中级/高级"}]`,2000,{minLength:400,validator:function(c){try{var jm=c.match(/\[[\s\S]*\]/);if(!jm)return false;var arr=JSON.parse(jm[0]);return Array.isArray(arr)&&arr.length>=8;}catch(e){return false;}}});var jm=c.match(/\[[\s\S]*\]/);if(jm){JSON.parse(jm[0]).forEach(function(t){P.techTree.push({sid:editingScenarioId,name:t.name||"",desc:t.desc||"",prereqs:t.prereqs||[],costs:t.costs||[],effect:t.effect||{},era:t.era||"初级",unlocked:false});});renderEdTab("t-tech");toast("✅");}}catch(e){toast("失败");}finally{hideLoading();}}
-
-
-
-
-// ============================================================
-//  Phase 1: 通用模态框系统 + gv 辅助
-// ============================================================
-function gv(id){var el=document.getElementById(id);return el?el.value.trim():"";}
-
-function openGenericModal(title,bodyHTML,onSave){
-  // 后朝进行中·排队延后（史记弹窗之后再依次弹出）
-  if (typeof _isPostTurnActive === 'function' && _isPostTurnActive()) {
-    _queuePostTurnModal(function(){ openGenericModal(title, bodyHTML, onSave); }, title);
-    return;
-  }
-  var ov=document.createElement("div");ov.className="generic-modal-overlay";ov.id="gm-overlay";
-  ov.innerHTML='<div class="generic-modal">'+
-    '<div class="generic-modal-header"><h3>'+title+'</h3><button class="bt bs bsm" onclick="closeGenericModal()">\u2715</button></div>'+
-    '<div class="generic-modal-body">'+bodyHTML+'</div>'+
-    '<div class="generic-modal-footer"><button class="bt bs" onclick="closeGenericModal()">\u53D6\u6D88</button><button class="bt bp" id="gm-save-btn">\u4FDD\u5B58</button></div></div>';
-  document.body.appendChild(ov);
-  document.getElementById("gm-save-btn").onclick=onSave;
-}
-function closeGenericModal(){var ov=document.getElementById("gm-overlay");if(ov)ov.remove();}
-
-/** showModal/closeModal 兼容层 — 多个子系统使用此API显示信息弹窗 */
-function showModal(title, bodyHTML, onClose) {
-  var ov=document.createElement("div");ov.className="generic-modal-overlay";ov.id="gm-overlay";
-  ov.innerHTML='<div class="generic-modal">'+
-    '<div class="generic-modal-header"><h3>'+escHtml(title)+'</h3><button class="bt bs bsm" onclick="closeModal()">\u2715</button></div>'+
-    '<div class="generic-modal-body">'+bodyHTML+'</div>'+
-    '<div class="generic-modal-footer"><button class="bt bp" onclick="closeModal()">\u786E\u5B9A</button></div></div>';
-  document.body.appendChild(ov);
-  if(onClose){document.querySelector('#gm-overlay .bt.bp').onclick=function(){closeModal();onClose();};}
-}
-function closeModal(){closeGenericModal();}
-
-// ============================================================
-//  历史事件面板
-// ============================================================
-// ============================================================
-// 天下大势（合并：时代趋势折线图 + 历史事件时间轴）
-// ============================================================
-function openWorldSituation(){
-  var ov=document.createElement("div");
-  ov.className="generic-modal-overlay";
-  ov.id="world-situation-overlay";
-
-  var modal=document.createElement("div");
-  modal.className="generic-modal";
-  modal.style.cssText="background:var(--bg-1);border-radius:12px;padding:1.5rem;width:90%;max-width:900px;max-height:85vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);";
-
-  var header=document.createElement("div");
-  header.style.cssText="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;";
-  header.innerHTML='<h3 style="margin:0;color:var(--txt-l);">\u5929\u4E0B\u5927\u52BF</h3><button class="bt bsm" onclick="closeWorldSituation()">\u2715</button>';
-  modal.appendChild(header);
-
-  // ── 上半部分：时代趋势折线图 ──
-  var dimensions=[
-    {key:'politicalUnity',label:'\u653F\u6CBB\u7EDF\u4E00',color:'#4a9eff'},
-    {key:'centralControl',label:'\u4E2D\u592E\u96C6\u6743',color:'#ff6b6b'},
-    {key:'socialStability',label:'\u793E\u4F1A\u7A33\u5B9A',color:'#51cf66'},
-    {key:'economicProsperity',label:'\u7ECF\u6D4E\u7E41\u8363',color:'#ffd43b'},
-    {key:'culturalVibrancy',label:'\u6587\u5316\u6D3B\u529B',color:'#a78bfa'},
-    {key:'bureaucracyStrength',label:'\u5B98\u50DA\u4F53\u7CFB',color:'#ff8787'},
-    {key:'militaryProfessionalism',label:'\u519B\u961F\u804C\u4E1A\u5316',color:'#74c0fc'}
-  ];
-
-  if(GM.eraStateHistory && GM.eraStateHistory.length>=2){
-    var chartBox=document.createElement("div");
-    chartBox.style.cssText="background:var(--bg-2);border-radius:8px;padding:1rem;margin-bottom:0.8rem;";
-    var canvas=document.createElement("canvas");
-    canvas.id="ws-trends-canvas";
-    canvas.width=840;canvas.height=320;
-    canvas.style.cssText="width:100%;height:auto;";
-    chartBox.appendChild(canvas);
-    modal.appendChild(chartBox);
-
-    // 图例
-    var legend=document.createElement("div");
-    legend.style.cssText="display:flex;flex-wrap:wrap;gap:0.6rem;justify-content:center;margin-bottom:1.2rem;";
-    dimensions.forEach(function(dim){
-      legend.innerHTML+='<div style="display:flex;align-items:center;gap:4px;font-size:0.78rem;"><div style="width:12px;height:12px;background:'+dim.color+';border-radius:2px;"></div><span>'+dim.label+'</span></div>';
-    });
-    modal.appendChild(legend);
-  }else{
-    var noChart=document.createElement("div");
-    noChart.style.cssText="text-align:center;padding:1.5rem;color:var(--txt-d);font-size:0.85rem;background:var(--bg-2);border-radius:8px;margin-bottom:1rem;";
-    noChart.textContent='\u8D8B\u52BF\u56FE\u9700\u81F3\u5C112\u56DE\u5408\u6570\u636E';
-    modal.appendChild(noChart);
-  }
-
-  // ── 下半部分：历史事件时间轴 ──
-  if(!GM.historicalEvents) GM.historicalEvents=[];
-  var events=GM.historicalEvents;
-
-  var evtSection=document.createElement("div");
-  if(events.length===0){
-    evtSection.innerHTML='<div style="text-align:center;padding:1.5rem;color:var(--txt-d);font-size:0.85rem;">\u6682\u65E0\u5386\u53F2\u5927\u4E8B\u4EF6</div>';
-  }else{
-    var evtHtml='<div style="font-size:0.9rem;font-weight:700;color:var(--txt-l);margin-bottom:0.6rem;">\u5386\u53F2\u5927\u4E8B\u4EF6 ('+events.length+')</div>';
-    var typeMap={
-      economic_crisis:{c:'var(--red)',i:'\uD83D\uDCB8'},civil_unrest:{c:'var(--red)',i:'\u26A0\uFE0F'},
-      political_fragmentation:{c:'var(--gold)',i:'\uD83D\uDDFA\uFE0F'},power_decentralization:{c:'var(--gold)',i:'\uD83D\uDCC9'},
-      golden_age:{c:'var(--gold)',i:'\u2728'},decline_begins:{c:'var(--gold)',i:'\uD83D\uDCC9'},
-      dynasty_collapse:{c:'var(--red)',i:'\uD83D\uDCA5'},revival:{c:'var(--green)',i:'\uD83C\uDF1F'},
-      total_crisis:{c:'var(--red)',i:'\uD83D\uDD25'}
-    };
-
-    var sorted=events.slice().sort(function(a,b){return b.turn-a.turn;});
-    sorted.forEach(function(evt){
-      var tm=typeMap[evt.type]||{c:'var(--txt-d)',i:'\uD83D\uDCCC'};
-      var parts=(evt.description||'').split('\uFF1A');
-      var title=parts[0]||'';
-      var desc=parts[1]||'';
-      evtHtml+='<div style="display:flex;gap:0.6rem;margin-bottom:0.6rem;padding:0.6rem;background:var(--bg-2);border-left:3px solid '+tm.c+';border-radius:4px;">';
-      evtHtml+='<div style="font-size:1.2rem;flex-shrink:0;">'+tm.i+'</div>';
-      evtHtml+='<div style="flex:1;min-width:0;">';
-      evtHtml+='<div style="display:flex;justify-content:space-between;align-items:center;">';
-      evtHtml+='<span style="font-weight:700;color:'+tm.c+';font-size:0.88rem;">'+escHtml(title)+'</span>';
-      evtHtml+='<span style="font-size:0.7rem;color:var(--txt-d);flex-shrink:0;">\u7B2C'+evt.turn+'\u56DE\u5408</span>';
-      evtHtml+='</div>';
-      if(desc) evtHtml+='<div style="font-size:0.8rem;color:var(--txt-s);margin-top:0.2rem;">'+escHtml(desc)+'</div>';
-      if(evt.date) evtHtml+='<div style="font-size:0.7rem;color:var(--txt-d);margin-top:0.2rem;">'+escHtml(evt.date)+'</div>';
-      if(evt.effects&&evt.effects.length>0){
-        evtHtml+='<div style="display:flex;flex-wrap:wrap;gap:0.3rem;margin-top:0.3rem;">';
-        evt.effects.forEach(function(ef){
-          var ec=ef.indexOf('-')>=0?'var(--red)':ef.indexOf('+')>=0?'var(--green)':'var(--txt-d)';
-          evtHtml+='<span style="font-size:0.68rem;background:var(--bg-3);color:'+ec+';padding:1px 5px;border-radius:3px;">'+ef+'</span>';
-        });
-        evtHtml+='</div>';
-      }
-      evtHtml+='</div></div>';
-    });
-    evtSection.innerHTML=evtHtml;
-  }
-  modal.appendChild(evtSection);
-
-  ov.appendChild(modal);
-  document.body.appendChild(ov);
-
-  // 绘制折线图（DOM插入后）
-  if(GM.eraStateHistory && GM.eraStateHistory.length>=2){
-    var c=document.getElementById("ws-trends-canvas");
-    if(c) drawEraTrendsChart(c,GM.eraStateHistory,dimensions);
-  }
-}
-
-function closeWorldSituation(){
-  var ov=document.getElementById("world-situation-overlay");
-  if(ov)ov.remove();
-}
-// 兼容旧调用
-function openHistoricalEvents(){ openWorldSituation(); }
-function openEraTrends(){ openWorldSituation(); }
-function closeHistoricalEvents(){ closeWorldSituation(); }
-function closeEraTrends(){ closeWorldSituation(); }
-
-// 绘制时代趋势图表
-function drawEraTrendsChart(canvas,history,dimensions){
-  if(!canvas) return;
-  var ctx=canvas.getContext('2d');
-  if(!ctx) return;
-  var w=canvas.width;
-  var h=canvas.height;
-
-  // 清空画布
-  ctx.fillStyle='#1a1a1a';
-  ctx.fillRect(0,0,w,h);
-
-  // 绘制网格
-  ctx.strokeStyle='#333';
-  ctx.lineWidth=1;
-  for(var i=0;i<=10;i++){
-    var y=h*0.1+i*(h*0.8/10);
-    ctx.beginPath();
-    ctx.moveTo(w*0.1,y);
-    ctx.lineTo(w*0.9,y);
-    ctx.stroke();
-  }
-
-  // 绘制Y轴标签
-  ctx.fillStyle='#888';
-  ctx.font='12px sans-serif';
-  ctx.textAlign='right';
-  for(var i=0;i<=10;i++){
-    var y=h*0.1+i*(h*0.8/10);
-    var value=(1.0-(i/10)).toFixed(1);
-    ctx.fillText(value,w*0.08,y+4);
-  }
-
-  // 绘制X轴标签（回合数）
-  ctx.textAlign='center';
-  var step=Math.max(1,Math.floor(history.length/10));
-  for(var i=0;i<history.length;i+=step){
-    var x=w*0.1+i*(w*0.8/(history.length-1));
-    ctx.fillText('T'+history[i].turn,x,h*0.95);
-  }
-
-  // 绘制趋势线
-  dimensions.forEach(function(dim){
-    ctx.strokeStyle=dim.color;
-    ctx.lineWidth=2;
-    ctx.beginPath();
-
-    for(var i=0;i<history.length;i++){
-      var x=w*0.1+i*(w*0.8/(history.length-1));
-      var value=history[i][dim.key]||0;
-      var y=h*0.1+(1-value)*(h*0.8);
-
-      if(i===0){
-        ctx.moveTo(x,y);
-      }else{
-        ctx.lineTo(x,y);
-      }
-    }
-
-    ctx.stroke();
-
-    // 绘制数据点
-    for(var i=0;i<history.length;i++){
-      var x=w*0.1+i*(w*0.8/(history.length-1));
-      var value=history[i][dim.key]||0;
-      var y=h*0.1+(1-value)*(h*0.8);
-
-      ctx.fillStyle=dim.color;
-      ctx.beginPath();
-      ctx.arc(x,y,3,0,Math.PI*2);
-      ctx.fill();
-    }
-  });
-}
-
-// ============================================================
-//  Phase 3: 军事系统  - 4子分类 + 部队 + openGenericModal CRUD
-// ============================================================
-// 向后兼容：旧存档的 units[] 迁移到 troops[]
-function migrateMilUnits(){
-  if(P.military.units&&P.military.units.length>0&&(!P.military.troops||P.military.troops.length===0)){
-    P.military.troops=P.military.units.map(function(u){return{sid:u.sid,name:u.name,type:u.type||"",description:(u.desc||"")+(u.atk?" A:"+u.atk+" D:"+u.def+" S:"+u.spd:"")};});
-  }
-  if(!P.military.troops)P.military.troops=[];
-  if(!P.military.facilities)P.military.facilities=[];
-  if(!P.military.organization)P.military.organization=[];
-  if(!P.military.campaigns)P.military.campaigns=[];
-}
-
-function addArmy(){
-  var body='<div class="form-group"><label>\u90E8\u961F\u540D</label><input type="text" id="gm_name"></div>'+
-    '<div class="form-group"><label>\u7EDF\u5E05</label><input type="text" id="gm_cmdr"></div>'+
-    '<div class="form-group"><label>\u9A7B\u5730</label><input type="text" id="gm_loc"></div>'+
-    '<div class="form-group"><label>\u58EB\u6C14</label><input type="number" id="gm_morale" value="70" min="0" max="100"></div>'+
-    '<div class="form-group"><label>\u8865\u7ED9</label><input type="number" id="gm_supply" value="80" min="0" max="100"></div>';
-  openGenericModal("\u6DFB\u52A0\u90E8\u961F",body,function(){
-    var n=gv("gm_name");if(!n){toast("\u8BF7\u8F93\u5165\u540D\u79F0");return;}
-    P.military.armies.push({sid:editingScenarioId,name:n,units:[],morale:+(document.getElementById("gm_morale").value)||70,supply:+(document.getElementById("gm_supply").value)||80,location:gv("gm_loc"),commander:gv("gm_cmdr")});
-    closeGenericModal();renderEdTab("t-mil");toast("\u5DF2\u6DFB\u52A0");
-  });
-}
-function editArmy(i){
-  var a=P.military.armies[i];
-  // 势力下拉·含所有 P.factions / P.facs
-  var _facList = (P.factions || P.facs || []).filter(function(f){return f && f.name;});
-  var _facOpts = '<option value="">（未指定）</option>' + _facList.map(function(f){
-    var sel = (a.faction === f.name) ? ' selected' : '';
-    return '<option value="' + f.name.replace(/"/g,'&quot;') + '"' + sel + '>' + f.name + (f.isPlayer?' ★本朝':'') + '</option>';
-  }).join('');
-  var body='<div class="form-group"><label>\u90E8\u961F\u540D</label><input type="text" id="gm_name" value="'+(a.name||"").replace(/"/g,'&quot;')+'"></div>'+
-    '<div class="form-group"><label>所属势力</label><select id="gm_faction">'+_facOpts+'</select>'+
-    '<div style="font-size:0.75rem;color:var(--ink-300);margin-top:2px;">★ 决定部队敌我·跨势力不能任命本朝官员为统帅</div></div>'+
-    '<div class="form-group"><label>\u7EDF\u5E05</label><input type="text" id="gm_cmdr" value="'+(a.commander||"").replace(/"/g,'&quot;')+'"></div>'+
-    '<div class="form-group"><label>兵种</label><input type="text" id="gm_type" value="'+(a.type||"").replace(/"/g,'&quot;')+'" placeholder="步兵/骑兵/水军/禁军..."></div>'+
-    '<div class="form-group"><label>兵力</label><input type="number" id="gm_size" value="'+(a.size||a.soldiers||a.strength||0)+'" min="0"></div>'+
-    '<div class="form-group"><label>\u9A7B\u5730</label><input type="text" id="gm_loc" value="'+(a.location||"").replace(/"/g,'&quot;')+'"></div>'+
-    '<div class="form-group"><label>\u58EB\u6C14</label><input type="number" id="gm_morale" value="'+(a.morale!=null?a.morale:70)+'" min="0" max="100"></div>'+
-    '<div class="form-group"><label>\u8865\u7ED9</label><input type="number" id="gm_supply" value="'+(a.supply!=null?a.supply:80)+'" min="0" max="100"></div>';
-  openGenericModal("\u7F16\u8F91\u90E8\u961F",body,function(){
-    a.name=gv("gm_name");a.commander=gv("gm_cmdr");a.location=gv("gm_loc");
-    a.faction=gv("gm_faction")||"";
-    a.type=gv("gm_type")||a.type||"";
-    var _sz = +(document.getElementById("gm_size").value)||0;
-    if (_sz > 0) { a.size = _sz; a.soldiers = _sz; }
-    a.morale=+(document.getElementById("gm_morale").value)||70;
-    a.supply=+(document.getElementById("gm_supply").value)||80;
-    closeGenericModal();renderEdTab("t-mil");toast("\u5DF2\u4FDD\u5B58");
-  });
-}
-renderMilTab=function(em,sid){
-  migrateMilUnits();
-  var h="<h4 style=\"color:var(--gold);\">\u519B\u4E8B</h4>"+
-    "<button class=\"bai\" onclick=\"aiGenMil()\" style=\"margin-bottom:0.8rem;\">\uD83E\uDD16 AI\u751F\u6210\u519B\u4E8B\u4F53\u7CFB</button>"+
-    "<div class=\"cd\"><h4>\u519B\u5236</h4><textarea rows=\"3\" onchange=\"P.military.systemDesc=this.value\">"+(P.military.systemDesc||"")+"</textarea></div>"+
-    "<div class=\"cd\"><h4>\u8865\u7ED9</h4><textarea rows=\"2\" onchange=\"P.military.supplyDesc=this.value\">"+(P.military.supplyDesc||"")+"</textarea></div>"+
-    "<div class=\"cd\"><h4>\u6218\u6597</h4><textarea rows=\"2\" onchange=\"P.military.battleDesc=this.value\">"+(P.military.battleDesc||"")+"</textarea></div>";
-  var mk=["troops","facilities","organization","campaigns"];
-  for(var x=0;x<mk.length;x++){
-    var k=mk[x];var items=P.military[k].filter(function(it){return it.sid===sid;});
-    h+="<div class=\"cd\"><h4>"+milSubLabels[k]+" ("+items.length+")</h4><button class=\"bt bp bsm\" onclick=\"addMilItem('"+k+"')\">\uFF0B</button>";
-    h+=items.map(function(it){var idx=P.military[k].indexOf(it);return "<div style=\"background:var(--bg-3);border-radius:4px;padding:0.4rem;margin-top:0.3rem;display:flex;justify-content:space-between;align-items:center;\">"+
-      "<div><strong>"+it.name+"</strong>"+(it.type?" <span class=\"tg\">"+it.type+"</span>":"")+"</div>"+
-      "<div style=\"display:flex;gap:0.3rem;\"><button class=\"bt bs bsm\" onclick=\"editMilItem('"+k+"',"+idx+")\">\u270E</button><button class=\"bd bsm\" onclick=\"deleteMilItem('"+k+"',"+idx+")\">\u2715</button></div></div>";}).join("")+"</div>";
-  }
-  var armies=P.military.armies.filter(function(a){return a.sid===sid;});
-  h+="<div class=\"cd\"><h4>\u90E8\u961F ("+armies.length+")</h4><button class=\"bt bp bsm\" onclick=\"addArmy()\">\uFF0B</button>";
-  h+=armies.map(function(a){var i=P.military.armies.indexOf(a);
-    var _facChip = a.faction ? '<span style="background:rgba(90,111,168,0.3);color:#c9c0e6;padding:1px 6px;border-radius:3px;font-size:0.72rem;margin-left:4px;">'+a.faction+'</span>' : '<span style="color:#9e8862;font-size:0.72rem;margin-left:4px;">无势力</span>';
-    var _szTxt = (a.size||a.soldiers||a.strength) ? ' 兵'+(a.size||a.soldiers||a.strength) : '';
-    return "<div style=\"background:var(--bg-3);border-radius:4px;padding:0.4rem;margin-top:0.3rem;display:flex;justify-content:space-between;align-items:center;\">"+
-    "<div><strong>"+a.name+"</strong>"+_facChip+" \u7EDF\u5E05:"+(a.commander||"\u65E0")+_szTxt+" \u58EB\u6C14:"+a.morale+"</div>"+
-    "<div style=\"display:flex;gap:0.3rem;\"><button class=\"bt bs bsm\" onclick=\"editArmy("+i+")\">\u270E</button><button class=\"bd bsm\" onclick=\"P.military.armies.splice("+i+",1);renderEdTab('t-mil');\">\u2715</button></div></div>";}).join("")+"</div>";
-  em.innerHTML=h;
-};
-
-// AI军事生成（适配新数据模型：troops替代units）
-async function aiGenMil(){try{showLoading("\u751F\u6210\u519B\u4E8B\u4E2D...",20);var ctx=P.scenarios.find(function(s){return s.id===editingScenarioId;});var _mil=P.military||{};var existMil=[].concat(_mil.troops||[]).concat(_mil.facilities||[]).concat(_mil.organization||[]).concat(_mil.campaigns||[]).filter(function(x){return !x.sid||x.sid===editingScenarioId;}).map(function(x){return x.name;});var existNoteM=existMil.length?"已有军事（不得重复）："+existMil.join("、")+"\n":"";var existArmies=(_mil.armies||[]).filter(function(a){return !a.sid||a.sid===editingScenarioId;}).map(function(a){return a.name;});var existArmiesNote=existArmies.length?"已有部队（不得重复）："+existArmies.join("、")+"\n":"";var c=await callAISmart("\u4E3A\""+( ctx?ctx.name:"")+"\"("+( ctx?ctx.era:"")+") \u751F\u6210\u519B\u4E8B\u4F53\u7CFB\u3002"+existNoteM+existArmiesNote+"\n\nJSON格式：{\"systemDesc\":\"\",\"supplyDesc\":\"\",\"battleDesc\":\"\",\"troops\":[{\"name\":\"\",\"type\":\"\",\"description\":\"\"}],\"facilities\":[{\"name\":\"\",\"type\":\"\",\"description\":\"\"}],\"organization\":[{\"name\":\"\",\"type\":\"\",\"description\":\"\"}],\"campaigns\":[{\"name\":\"\",\"type\":\"\",\"description\":\"\"}],\"armies\":[{\"name\":\"\",\"commander\":\"\",\"location\":\"\",\"morale\":70,\"supply\":80,\"size\":10000,\"type\":\"\",\"equipment\":[]}]}\n\n要求：\n1. troops/facilities/organization/campaigns各至少3项\n2. armies为实际部队（5-8支），每支部队必须包含：\n   - name: 部队名称（如\"禁军\"、\"羽林军\"等）\n   - type: 兵种（如\"步兵\"、\"骑兵\"、\"水军\"等）\n   - size: 部队人数（3000-50000之间的具体数字，禁军8000-15000，地方军3000-8000，主力军15000-50000）\n   - commander: 统帅姓名（真实历史人物）\n   - location: 驻地\n   - equipment: 装备数组，至少2-3项（如[\"铁甲\",\"长矛\",\"弓弩\"]）\n   - morale: 士气（60-90）\n   - supply: 补给（60-90）\n\n只输出JSON。",2500,{minLength:800,validator:function(c){try{var jm=c.match(/\{[\s\S]*\}/);if(!jm)return false;var d=JSON.parse(jm[0]);return d.armies&&Array.isArray(d.armies)&&d.armies.length>=5&&d.armies.every(function(a){return a.size&&a.size>0;});}catch(e){return false;}}});var jm=c.match(/\{[\s\S]*\}/);if(jm){var d=JSON.parse(jm[0]);if(d.systemDesc)P.military.systemDesc=d.systemDesc;if(d.supplyDesc)P.military.supplyDesc=d.supplyDesc;if(d.battleDesc)P.military.battleDesc=d.battleDesc;var sid=editingScenarioId;var mk=["troops","facilities","organization","campaigns"];mk.forEach(function(k){(d[k]||[]).forEach(function(it){P.military[k].push({sid:sid,name:it.name||"",type:it.type||"",description:it.description||""});});});var addedArmies=0;(d.armies||[]).forEach(function(a){if(a.size&&a.size>0){P.military.armies.push({sid:sid,name:a.name||"",units:[],morale:a.morale||70,supply:a.supply||80,size:a.size||5000,type:a.type||"步兵",equipment:a.equipment||[],location:a.location||"",commander:a.commander||""});addedArmies++;}});_dbg('[aiGenMil] 生成完成，新增部队',addedArmies,'支');renderEdTab("t-mil");hideLoading();toast("\u2705 生成"+addedArmies+"支部队");}}catch(e){console.error('[aiGenMil] 生成失败：',e);hideLoading();toast("\u5931\u8D25");}}
 
 // 官制资源消耗设置
 renderOfficeTab=function(em){

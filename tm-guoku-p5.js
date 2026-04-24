@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
 // 帑廪 P5 最终 A 级补完
 // 依赖：tm-guoku-engine.js + p2 + p4
+//
+// ⚠ 补丁分类（2026-04-24 R19 评估）：LAYERED（5 层叠加链第 4 层）
+//   · APPEND：LOAN_SOURCES/takeLoanBySource/calcCaoyunLossRate/aiFiscalAdvisor/isAIAvailable
+//   · OVERRIDE：GuokuEngine.tick（覆盖 p4 的 tick，让位给 p6 终版）
+//   覆盖链：engine.tick v1 → p2.tick v2 → p4.tick v3 → p5.tick v4 → p6.tick v5（最终）
+//
 // 实现：
 //   - 补充 J 漕运细化（损耗率/漕弊事件/漕帮党联动）
 //   - 补充 L 借贷 3 来源（盐商/钱商/外邦）

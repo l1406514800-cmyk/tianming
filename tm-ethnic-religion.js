@@ -585,22 +585,22 @@
   function tick(ctx) {
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
-    try { _checkQiaozhiEvents(ctx); } catch(e){}
-    try { _tickJimiHoldings(ctx, mr); } catch(e){}
-    try { _tickMilitaryFarms(ctx, mr); } catch(e){}
-    try { _tickCorveeProjects(ctx, mr); } catch(e){}
-    try { computeMilitarySupply(global.GM); } catch(e){}
-    try { _tickTroopMovements(ctx, mr); } catch(e){}
-    try { _tickReplenishment(ctx, mr); } catch(e){}
-    try { _tickMilitaryPowerAssessment(ctx); } catch(e){}
-    try { _tickAgeAndDing(ctx, mr); } catch(e){}
-    try { _tickMigrations(ctx, mr); } catch(e){}
-    try { _tickMagnateAnnexEnhanced(ctx, mr); } catch(e){}
-    try { _applyGCouplingsExtended(ctx, mr); } catch(e){}
+    try { _checkQiaozhiEvents(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
+    try { _tickJimiHoldings(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
+    try { _tickMilitaryFarms(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
+    try { _tickCorveeProjects(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
+    try { computeMilitarySupply(global.GM); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
+    try { _tickTroopMovements(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
+    try { _tickReplenishment(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
+    try { _tickMilitaryPowerAssessment(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
+    try { _tickAgeAndDing(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
+    try { _tickMigrations(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
+    try { _tickMagnateAnnexEnhanced(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
+    try { _applyGCouplingsExtended(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
     // 年度
     if ((global.GM.month || 1) === 1 && global.GM.turn > 0) {
-      try { linkBaojiaNPCs(global.GM); } catch(e){}
-      try { applyGentryEvolution(global.GM); } catch(e){}
+      try { linkBaojiaNPCs(global.GM); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
+      try { applyGentryEvolution(global.GM); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ethnic-religion');}catch(_){}}
     }
   }
 

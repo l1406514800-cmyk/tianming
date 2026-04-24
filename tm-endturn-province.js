@@ -1364,7 +1364,7 @@ function doQiaozhi(lostName, mode) {
   closeGenericModal();
   // 刷新省级经济面板（如果当前打开的话）
   var _peOverlay = document.querySelector('.generic-modal-overlay');
-  if (_peOverlay) { try { _peRefreshContent(); } catch(e) {} }
+  if (_peOverlay) { try { _peRefreshContent(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-endturn-province');}catch(_){}} }
   toast('\u4FA8\u7F6E\u64CD\u4F5C\u5B8C\u6210');
 }
 

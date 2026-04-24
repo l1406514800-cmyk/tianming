@@ -1,12 +1,85 @@
 // @ts-check
 /// <reference path="types.d.ts" />
 // ============================================================
-//  启动界面
+//  tm-game-engine.js — 游戏引擎（启动·UI·存档·编辑器入口·9,043 行）
 // Requires: tm-data-model.js (P, GM), tm-utils.js (all),
 //           tm-index-world.js (findScenarioById, buildIndices, findCharByName),
 //           tm-change-queue.js (makeEntitiesReactive),
 //           tm-dynamic-systems.js (initAICache)
 // ============================================================
+//
+// ══════════════════════════════════════════════════════════════
+//  📍 导航地图（2026-04-24 R53 实测更新）
+// ══════════════════════════════════════════════════════════════
+//
+//  ┌─ §A 精力 & 清理（行 10-40） ───────────────────────┐
+//  │  L11    _spendEnergy()            主角精力消耗判定
+//  │  L30    _cleanupOverlays()        清理遗留浮层（防 DOM 漏）
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §B 启动界面（行 40-440） ─────────────────────────┐
+//  │  L43    showScnSelect()           显示剧本选择
+//  │  L403   backToLaunch()            从游戏退回启动页
+//  │         ↓ saveP() + GameHooks.run('backToLaunch:after')
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §C 编辑器入口（行 440-1100） ─────────────────────┐
+//  │  L442   enterEditor(sid)          进入游戏内编辑器
+//  │  （具体 tab 渲染在 tm-editor-details.js / tm-audio-theme.js）
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §D 设置面板（行 1100-1300） ──────────────────────┐
+//  │  L1146  openSettings()            打开设置（会被 tm-patches.js 覆盖）
+//  │  L1291  closeSettings()           关闭设置
+//  │  （tm-patches.js 内完整重写 openSettings，涵盖 API 配置）
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §E 玩家操作工具（行 1300-5300） ──────────────────┐
+//  │  发诏令 / 问对 / 传书 / 起居注 / 纪事 / 史记 / 朝议等
+//  │  核心 UI 生成+玩家输入收集逻辑
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §F 结算管道注册（行 5300-7300） ──────────────────┐
+//  │  L5302  _settleLettersAndTravel()  信件传递+赶路
+//  │  L5884  renderGameState()         主状态渲染入口
+//  │  L6943  enterGame()               加载剧本后进入游戏
+//  │  L7366  startGame(sid)            新游戏启动入口
+//  │  L7891  SettlementPipeline.register(...)  结算顺序注册
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §G 存档/加载生命周期（行 7300-9000） ─────────────┐
+//  │  startGame → enterGame → SaveManager / autoSave
+//  │  GameHooks.run('xxx:after') 多处 hook 扩展点
+//  │  fullLoadGame 在 tm-audio-theme.js（历史原因）
+//  └─────────────────────────────────────────────────────┘
+//
+// ══════════════════════════════════════════════════════════════
+//  🛠️ 调试入口
+// ══════════════════════════════════════════════════════════════
+//
+//  DA.turn.isRunning()                当前是否游戏中
+//  DA.scenario.name()                 当前剧本名
+//  TM.invariants.check()              所有不变量扫一遍
+//  _cleanupOverlays()                 手工清理顶层浮层
+//  backToLaunch()                     紧急退回启动页
+//
+// ══════════════════════════════════════════════════════════════
+//  ⚠️ 常见陷阱
+// ══════════════════════════════════════════════════════════════
+//
+//  1. openSettings 在 tm-patches.js:8 被完整重写。本文件的 L1146 版本
+//     只在 tm-patches.js 未加载时生效。如果要改设置 UI 请改
+//     tm-patches.js（或 R22 的 tm-settings-ui.js 迁移靶文件）
+//
+//  2. renderTechTab/renderRulTab/renderEvtTab 定义在本文件但被
+//     tm-audio-theme.js 和 tm-editor-details.js 覆盖（加编辑按钮）
+//
+//  3. GameHooks.run() 的 hook 名字散落在各文件，grep 'GameHooks.run'
+//     可见所有扩展点
+//
+//  4. 本文件不包含 fullLoadGame，在 tm-audio-theme.js 内（历史债务）
+//
+// ══════════════════════════════════════════════════════════════
 // N4: 主角精力消耗——各操作消耗不同精力
 function _spendEnergy(cost, actionName) {
   if (GM._energy === undefined) return true; // 系统未初始化则不限制
@@ -3198,20 +3271,20 @@ function renderBarResources() {
 // 人物志面板 → 官制入口(关闭人物志+切官制 tab·高亮目标官职)
 function _rwpOpenOffice(name) {
   if (!name) return;
-  try { document.getElementById('_renwuPageOv') && document.getElementById('_renwuPageOv').classList.remove('open'); } catch(e){}
+  try { document.getElementById('_renwuPageOv') && document.getElementById('_renwuPageOv').classList.remove('open'); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-game-engine');}catch(_){}}
   if (typeof switchGTab === 'function') switchGTab(null, 'gt-office');
-  if (typeof renderOfficeTree === 'function') setTimeout(function(){ try { renderOfficeTree(); } catch(e){} }, 50);
+  if (typeof renderOfficeTree === 'function') setTimeout(function(){ try { renderOfficeTree(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-game-engine');}catch(_){}} }, 50);
   if (typeof toast === 'function') toast('已切至官制·查看 '+name+' 职位');
 }
 // 人物志面板 → 问对入口(关闭人物志+打开问对弹窗)
 function _rwpOpenWendui(name) {
   if (!name) return;
-  try { document.getElementById('_renwuPageOv') && document.getElementById('_renwuPageOv').classList.remove('open'); } catch(e){}
+  try { document.getElementById('_renwuPageOv') && document.getElementById('_renwuPageOv').classList.remove('open'); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-game-engine');}catch(_){}}
   if (typeof openWenduiModal === 'function') {
     openWenduiModal(name, 'private');
   } else {
     // 降级：切到问对 tab + 设置 target
-    try { GM.wenduiTarget = name; } catch(e){}
+    try { GM.wenduiTarget = name; } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-game-engine');}catch(_){}}
     if (typeof switchGTab === 'function') switchGTab(null, 'gt-wendui');
     if (typeof toast === 'function') toast('已切至问对·' + name);
   }
@@ -3219,14 +3292,14 @@ function _rwpOpenWendui(name) {
 // 人物志面板 → 传书入口(关闭人物志+切传书 tab·预填收信人)
 function _rwpOpenLetter(name) {
   if (!name) return;
-  try { document.getElementById('_renwuPageOv') && document.getElementById('_renwuPageOv').classList.remove('open'); } catch(e){}
+  try { document.getElementById('_renwuPageOv') && document.getElementById('_renwuPageOv').classList.remove('open'); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-game-engine');}catch(_){}}
   if (typeof switchGTab === 'function') switchGTab(null, 'gt-letter');
   // 预填目标
   setTimeout(function(){
     try {
       var toInp = document.getElementById('letter-to') || document.querySelector('[data-role="letter-to"]');
       if (toInp) { toInp.value = name; if (typeof toInp.dispatchEvent === 'function') toInp.dispatchEvent(new Event('input', { bubbles: true })); }
-    } catch(e){}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-game-engine');}catch(_){}}
     if (typeof renderLetterPanel === 'function') renderLetterPanel();
   }, 50);
   if (typeof toast === 'function') toast('可传书予·' + name);
@@ -3417,9 +3490,9 @@ function openCharDetail(charName) {
   var ch = typeof findCharByName === 'function' ? findCharByName(charName) : null;
   if (!ch) { toast('未找到角色'); return; }
   if (typeof CharFullSchema !== 'undefined' && typeof CharFullSchema.ensureFullFields === 'function') {
-    try { CharFullSchema.ensureFullFields(ch); } catch(e) {}
+    try { CharFullSchema.ensureFullFields(ch); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-game-engine');}catch(_){}}
   } else if (typeof CharEconEngine !== 'undefined' && typeof CharEconEngine.ensureCharResources === 'function') {
-    try { CharEconEngine.ensureCharResources(ch); } catch(e) {}
+    try { CharEconEngine.ensureCharResources(ch); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-game-engine');}catch(_){}}
   }
 
   var ov = document.getElementById('_charDetailOv');
@@ -3628,7 +3701,7 @@ function openCharRenwuPage(charName) {
   var ch = typeof findCharByName === 'function' ? findCharByName(charName) : null;
   if (!ch) { toast('未找到角色'); return; }
   if (typeof CharFullSchema !== 'undefined' && typeof CharFullSchema.ensureFullFields === 'function') {
-    try { CharFullSchema.ensureFullFields(ch); } catch(e) {}
+    try { CharFullSchema.ensureFullFields(ch); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-game-engine');}catch(_){}}
   }
 
   var ov = document.getElementById('_renwuPageOv');

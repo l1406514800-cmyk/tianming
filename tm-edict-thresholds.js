@@ -462,8 +462,8 @@
   function tick(ctx) {
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
-    try { _tickCorruptionCartel(ctx, mr); } catch(e){}
-    try { _checkPopulationDecline(ctx); } catch(e){}
+    try { _tickCorruptionCartel(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-edict-thresholds');}catch(_){}}
+    try { _checkPopulationDecline(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-edict-thresholds');}catch(_){}}
   }
 
   function init() {

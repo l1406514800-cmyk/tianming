@@ -321,7 +321,7 @@
       try {
         var unit = (global.CurrencyUnit && global.CurrencyUnit.getUnit && global.CurrencyUnit.getUnit()) || { money: '两', grain: '石', cloth: '匹' };
         global.addEB('支出', '本回合固定支出 ' + Math.round(turnExpense.totalMoney) + unit.money + '（俸 ' + Math.round(salary.total.money) + ' · 饷 ' + Math.round(army.total.money) + ' · 廷 ' + Math.round(imp.total.money) + '）');
-      } catch (e) {}
+      } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-fiscal-fixed-expense');}catch(_){}}
     }
 
     return {

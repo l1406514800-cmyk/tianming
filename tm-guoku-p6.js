@@ -1,6 +1,12 @@
 // ═══════════════════════════════════════════════════════════════
 // 帑廪/内帑 最终补完 P6
 // 依赖：engine + p2 + p4 + p5 + neitang-p2
+//
+// ⚠ 补丁分类（2026-04-24 R19 评估）：LAYERED（5 层叠加链终端 · GuokuEngine.tick 最终版）
+//   · APPEND：calcCustomTaxes
+//   · OVERRIDE：GuokuEngine.tick（终版·覆盖 p5）
+//   合并策略：若要真合并 guoku 全链 → 以 p6.tick 为 engine.tick 基础·追加 p4/p5 的 APPEND 方法·保留 p2 的 computeTaxFlow
+//
 // 实现：
 //   - 自定义税种支持（GM.fiscalConfig.customTaxes）
 //   - transferLimits（maxPerTransfer / maxPerYear）

@@ -1,8 +1,61 @@
 // @ts-check
 /// <reference path="types.d.ts" />
 // ============================================================
-// Post 岗位系统 - 增量式增强层
+// tm-dynamic-systems.js — 动态系统（2,976 行）
+// Post 岗位系统 + SaveManager + SaveMigrations + 动态规则引擎
 // ============================================================
+//
+// ══════════════════════════════════════════════════════════════
+//  📍 导航地图（2026-04-24 R78）
+// ══════════════════════════════════════════════════════════════
+//
+//  ┌─ §A Post 岗位系统（L1-1000） ─────────────────────┐
+//  │  岗位 CRUD·holder 绑定·territory 关联
+//  │  被 GM.officeTree 和行政区划同时使用
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §B SaveManager（L1006-1200） ────────────────────┐
+//  │  L1006 SaveManager = { maxSlots: 10, autoSaveInterval: 5 }
+//  │  L1031 saveToSlot(slotId, saveName)
+//  │  L1068 loadFromSlot(slotId)
+//  │  L1107 deleteSlot(slotId)
+//  │  L1117 autoSave()                  每 N 回合
+//  │  （存档走 IndexedDB·压缩 gzip·含 P._saveVersion 戳）
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §C SaveMigrations（L2720-2873） ─────────────────┐
+//  │  L2720 var SAVE_VERSION = 5       当前存档版本
+//  │  L2726 SaveMigrations.migrations  v1→v5 迁移链
+//  │  L2855 SaveMigrations.run(data)   自动升级旧存档
+//  │  L2870 SaveMigrations.stamp(data) 写入版本号
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §D 动态规则引擎（其他） ─────────────────────────┐
+//  │  runRules / evaluateCondition / applyEffect
+//  └─────────────────────────────────────────────────────┘
+//
+// ══════════════════════════════════════════════════════════════
+//  🛠️ 调试入口
+// ══════════════════════════════════════════════════════════════
+//
+//  SaveManager.getAllSaves()          列 10 槽
+//  SaveManager.saveToSlot(1, '测试')
+//  SaveManager.loadFromSlot(1)
+//  SAVE_VERSION                       当前版本（5）
+//  SaveMigrations.run(data)           手动跑迁移链
+//
+// ══════════════════════════════════════════════════════════════
+//  ⚠️ 架构注意事项
+// ══════════════════════════════════════════════════════════════
+//
+//  1. 改数据结构必须 bump SAVE_VERSION + 写 v(n-1)→v(n) 迁移函数
+//     否则老存档无法加载
+//
+//  2. saveToSlot 的 stamp 调用在 R2 修复过（之前漏调）
+//
+//  3. IndexedDB + localStorage 双路径·压缩格式 gzip
+//
+// ══════════════════════════════════════════════════════════════
 
 // Post 数据结构：
 // {
@@ -996,7 +1049,7 @@ function _updateSaveIndex(slotId, meta) {
       delete idx['slot_' + slotId];
     }
     localStorage.setItem('tm_save_index', JSON.stringify(idx));
-  } catch(e) {}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-dynamic-systems');}catch(_){}}
 }
 function _getSaveIndex() {
   try { return JSON.parse(localStorage.getItem('tm_save_index') || '{}'); } catch(e) { return {}; }
@@ -1039,6 +1092,10 @@ var SaveManager = {
 
     var _sc = typeof findScenarioById === 'function' ? findScenarioById(GM.sid) : null;
     var gameState = { GM: deepClone(GM), P: deepClone(P) };
+    // 打上存档版本号，避免旧存档被误判为 v1 触发全链迁移
+    if (typeof SaveMigrations !== 'undefined' && typeof SaveMigrations.stamp === 'function') {
+      SaveMigrations.stamp(gameState);
+    }
     var meta = {
       name: saveName || ('存档 ' + (slotId + 1)),
       type: slotId === 0 ? 'auto' : 'manual',

@@ -274,7 +274,7 @@
 
     // § 10 类徭役详表
     var CV = [];
-    try { if (typeof global.HujiEngine !== 'undefined' && global.HujiEngine.CORVEE_TYPES) CV = Object.keys(global.HujiEngine.CORVEE_TYPES).map(function(k){var t=global.HujiEngine.CORVEE_TYPES[k];t.key=k;return t;}); } catch(e){}
+    try { if (typeof global.HujiEngine !== 'undefined' && global.HujiEngine.CORVEE_TYPES) CV = Object.keys(global.HujiEngine.CORVEE_TYPES).map(function(k){var t=global.HujiEngine.CORVEE_TYPES[k];t.key=k;return t;}); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-var-drawers-final');}catch(_){}}
     if (CV.length === 0) {
       // 尝试从 GM 读
       if (P.corvee && P.corvee.byType) CV = Object.keys(P.corvee.byType).map(function(k){return Object.assign({key:k},P.corvee.byType[k]);});
@@ -296,7 +296,7 @@
           ? global.HistoricalPresets.getGreatCorveeProjects()
           : (global.HistoricalPresets.GREAT_CORVEE_PROJECTS || []);
       }
-    } catch(e){}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-var-drawers-final');}catch(_){}}
     if (GC.length > 0) {
       var gch = '<details><summary style="cursor:pointer;font-size:0.72rem;color:var(--gold);">展 ' + GC.length + ' 大徭役历代预设</summary><div style="max-height:150px;overflow-y:auto;background:var(--bg-2);padding:4px;font-size:0.68rem;margin-top:4px;">';
       GC.forEach(function(p) {
@@ -352,7 +352,7 @@
 
     // § 阶层流动 7 路径
     var CMP = [];
-    try { if (typeof global.HujiDeepFill !== 'undefined' && global.HujiDeepFill.CLASS_MOBILITY_PATHS) CMP = global.HujiDeepFill.CLASS_MOBILITY_PATHS; } catch(e){}
+    try { if (typeof global.HujiDeepFill !== 'undefined' && global.HujiDeepFill.CLASS_MOBILITY_PATHS) CMP = global.HujiDeepFill.CLASS_MOBILITY_PATHS; } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-var-drawers-final');}catch(_){}}
     if (CMP.length > 0) {
       var ph = '';
       CMP.forEach(function(p) {
@@ -673,13 +673,8 @@
     _wrap('renderHuangweiPanel', _extraForHuangwei);
   }
 
-  if (typeof document !== 'undefined') {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', _installFinal);
-    } else {
-      setTimeout(_installFinal, 400);  // 晚于 ext 200ms 执行
-    }
-  }
+  // 立即安装（旧版 setTimeout 400ms 已移除 — 2026-04-24 · ext 已同步完成 Rich 替换）
+  _installFinal();
 
   global.VarDrawersFinal = { install: _installFinal, VERSION: 1 };
 

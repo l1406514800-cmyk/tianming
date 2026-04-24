@@ -993,7 +993,7 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
           scenarioName: _sc3 ? _sc3.name : '',
           eraName: GM.eraName || ''
         }));
-      } catch(e) {}
+      } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-endturn-render');}catch(_){}}
     }).catch(function(e) { console.warn('[AutoSave] slot_0写入失败:', e); });
   }
 

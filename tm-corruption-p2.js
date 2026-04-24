@@ -1,6 +1,14 @@
 // ═══════════════════════════════════════════════════════════════
 // 腐败系统 P2 扩展
 // 依赖：tm-corruption-engine.js
+//
+// ⚠ 补丁分类（2026-04-24 R12 评估）：MIXED
+//   · APPEND 部分：EXPOSURE_CASES/generateExposureCase/applyCaseHandling
+//                  /pushLumpSumIncident/markAsRecentAppointment/snapshotHistory
+//   · OVERRIDE 部分：CorruptionEngine.tick（覆盖 engine 原 tick）
+//   覆盖链：engine v1 → p2 v2 → p4 v3（最终版）
+//   合并指引见 PATCH_CLASSIFICATION.md · Corruption 段
+//
 // 实现：
 //   - §6.1 揭发事件库（25 条历史案件 + handlingOptions）
 //   - §2.9 接口 pushLumpSumIncident（供诏令系统推入巨额支出）

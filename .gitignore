@@ -24,3 +24,15 @@ localStorage-backup/
 .env.local
 *.key
 secrets.json
+
+# 开发备份（每轮 R 重构产生·本地保留）
+.bak-r*/
+*.backup-r*
+*.bak-r*
+
+# 本地调试脚本（非生产）
+analyze_globals.py
+detect_globals.js
+scan.sh
+final_scan.sh
+scan_globals.js

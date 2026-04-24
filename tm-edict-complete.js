@@ -421,7 +421,7 @@
 
   function tick(ctx) {
     ctx = ctx || {};
-    try { _patchTryExecute(); } catch(e) {}
+    try { _patchTryExecute(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-edict-complete');}catch(_){}}
     try { _checkMemorialTriggers(ctx); } catch(e) { console.error('[edictC] triggers:', e); }
   }
 

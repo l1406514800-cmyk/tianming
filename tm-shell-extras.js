@@ -957,7 +957,7 @@
       + '.gs-season-disc[data-season="秋"]::after{content:"秋";color:var(--amber-400,#c9a045);}'
       + '.gs-season-disc[data-season="冬"]::after{content:"冬";color:var(--indigo-400,#5a6fa8);}';
     document.head.appendChild(_style);
-  } catch(e){}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-shell-extras');}catch(_){}}
 
   // ═══════════════════════════════════════════════════════════════════
   //  界面主题 · 字号 · 字体 实装（暴露为 window 全局·给 onclick 调用）
@@ -1769,6 +1769,10 @@ function _mzSpeakMinister(ch, blockId, roundNum) {
     var res = _extractReply(rawTxt);
     var finalTxt = res.reply || ('臣' + ch.name + '叩首·请容臣三思。');
     var parsed = res.parsed;
+    // 对话模式 validator 接入（非阻断）——检查 reply 必填+字段漂移
+    if (parsed && window.TM && TM.validateAIOutput) {
+      try { TM.validateAIOutput(parsed, 'mz-dialogue-' + (ch.name||'?'), 'dialogue'); } catch(_vme){}
+    }
     if (target) target.textContent = finalTxt;
     d.history.push({ role: ch.name, content: finalTxt });
     if (!d.perMinisterReplies[ch.name]) d.perMinisterReplies[ch.name] = [];

@@ -826,25 +826,25 @@
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
     try { _tickClassMobility(mr); } catch(e) { console.error('[deep] mobility:', e); }
-    try { _tickLandlordAnnexation(mr); } catch(e) {}
-    try { _tickMerchantCycle(mr); } catch(e) {}
-    try { _tickGentryCycle(mr); } catch(e) {}
-    try { _tickClergyCycle(mr); } catch(e) {}
-    try { _checkQiaozhiTrigger(ctx); } catch(e) {}
-    try { _tickJimiTusi(mr); } catch(e) {}
-    try { _tickMilitaryFarms(mr); } catch(e) {}
-    try { _tickMilitarySupply(mr); } catch(e) {}
-    try { _tickTroopOrders(ctx); } catch(e) {}
-    try { _tickHorsePolicy(mr); } catch(e) {}
-    try { _assessMilitaryAllegiance(); } catch(e) {}
-    try { _tickAgeLayers(mr); } catch(e) {}
-    try { _tickGenderRatio(mr); } catch(e) {}
-    try { _checkCorveeRevolt(ctx); } catch(e) {}
-    try { _tickClimateCoupling(mr); } catch(e) {}
-    try { _checkCropRevolution(ctx); } catch(e) {}
+    try { _tickLandlordAnnexation(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _tickMerchantCycle(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _tickGentryCycle(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _tickClergyCycle(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _checkQiaozhiTrigger(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _tickJimiTusi(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _tickMilitaryFarms(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _tickMilitarySupply(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _tickTroopOrders(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _tickHorsePolicy(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _assessMilitaryAllegiance(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _tickAgeLayers(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _tickGenderRatio(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _checkCorveeRevolt(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _tickClimateCoupling(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+    try { _checkCropRevolution(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
     if ((ctx.turn || 0) % 12 === 0) {
-      try { _tickPlague(ctx, mr); } catch(e) {}
-      try { _aiGenerateMemorials(ctx); } catch(e) {}
+      try { _tickPlague(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
+      try { _aiGenerateMemorials(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
     }
   }
 

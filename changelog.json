@@ -2,6 +2,470 @@
   "_comment": "天命·更新日志——新条目 unshift 到数组最前（由近及远）。格式：{date, module, title, items[]}；items 元素可为字符串或 {what, why}。",
   "entries": [
     {
+      "date": "2026-04-24",
+      "module": "R103 三件深度事·全对话存档+类型化扩展+GitHub Pages 兼容",
+      "title": "问题 11/16/17 完整实施·解锁 Web 部署·AI/EventBus 契约类型化",
+      "items": [
+        { "what": "问题 16 · GM._convArchive·对话完整归档机制。tm-endturn.js 在两处对话丢失点(L12458 AI 压缩+L12507 硬截断)前，先把被丢弃的 _oldConv/_dropping 推入 GM._convArchive(带 _turn 和时间戳)。AI 调用仍用 GM.conv 的截断版(省 token)·存档带走全部", "why": "用户要存全部对话(近期/历史)但又不能让每回合 AI 调用成本爆炸·归档模式一举两得" },
+        { "what": "问题 16 · 存档带上 convArchive。tm-audio-theme.js _prepareGMForSave 末尾 append: if (GM._convArchive && len > 0) GM._savedConvArchive = _safeClone(...)。_restoreSavedFields 对偶恢复·存读档后对话归档完整保留", "why": "走与其他 _savedXxx 字段相同的存档协议·最小侵入" },
+        { "what": "问题 16 · quota 满自动清最老 auto 存档。tm-storage.js _put 捕捉 QuotaExceededError·调 _dropOldestAutoSave(按 timestamp 升序列出 type='auto' 存档·删最老一个)·重试 put 一次(带 _retryCount 防递归)·手动存档永不删。没有 auto 可清时 toast '存档空间满·请手动清理'", "why": "用户 UI 层对 quota 满无感·后台自动降级·失败也只提示不抛错" },
+        { "what": "问题 11 · types.d.ts +285 行。新增 AI Schema 类型(AIScenarioResponse 顶层+AICharUpdate+AICharacterDeath+AINewCharacter+AIFactionEvent+AIOfficeChange+AIHaremEvent+AIAdminDivisionUpdate+AIDialogueResponse+AIValidationResult·和 tm-ai-schema.js turn_full 对齐)+TianmingEventMap(15+ 事件名 payload·覆盖 character:death/faction:collapse/party:impeach/policy:enacted 等)+GameEventBus 命名空间(emit/on/off 类型化·K extends keyof TianmingEventMap)+核心引擎签名(updateEconomy/computeExecutionRate/updatePrestige/endTurn/applyCharacterDeaths/buildNpcContext 等 12 个)+SaveManager 接口", "why": "覆盖剩余 20% 重点·VSCode IntelliSense 在写 AI prompt/parser/event emit 时能立刻抓错(事件名拼错/payload 字段少写)·不增加运行时成本(d.ts 纯声明)" },
+        { "what": "问题 17 · 新建 tm-env-detect.js·定义 TM.env 环境检测。字段：isElectron/isFile/isGitHub/isLocalhost/isWeb(5 个 bool)+caps(indexedDB/compressionStream/structuredClone/backdropFilter/hasSelector/showSaveFilePicker/offscreenCanvas 7 项能力)+describe()+print()+warnIfIncompatible()。GitHub Pages 首次加载自动 console.log 环境信息", "why": "用户要上 GitHub Pages (https://misfit-user.github.io/tianming/)·代码里许多 if(window.tianming && window.tianming.isDesktop) 判断已自动降级·TM.env 让维护者/玩家一眼看出当前环境+能力·出 bug 先问 TM.env.print()" },
+        { "what": "问题 17 · 新增 .nojekyll 空文件。GitHub Pages 默认用 Jekyll 处理·可能会忽略 _xxx 下划线开头的文件/文件夹。.nojekyll 告诉 Pages 跳过 Jekyll·所有文件按原样托管", "why": "项目里没有下划线开头文件·但加 .nojekyll 是零成本保险·防止 Pages 规则变更" },
+        { "what": "问题 17 · index.html 加载 tm-env-detect.js·位置在 tm-icons.js 之前(最早执行)。版本号 ?v=20260424v 遵循 R102 统一规则", "why": "TM.env 需在其他模块之前就绪·以便后续 tm-storage/tm-utils 里的条件判断可直接引用(如 fallback 到 localStorage 时先 check TM.env.caps.indexedDB)" },
+        { "what": "问题 17 · 硬兼容性检查·已确认没用到 showSaveFilePicker/showOpenFilePicker (零调用点)·没有硬编码 sk-* AI key·没有 file:// 绝对路径依赖·window.tianming.isDesktop 判断全部 guard 得当·CompressionStream 已在 tm-storage.js 用 SaveCompression.supported 做 fallback·21 处 backdrop-filter 不支持时只是失去模糊(不破)", "why": "审计式扫描·实际上 GitHub Pages 已经能跑大部分功能·只需 TM.env 做诊断" },
+        { "what": "不做的 · CSS @supports backdrop-filter 降级(现代浏览器 100% 覆盖·无意义)·AI key 存本地 localStorage(web 模式下用户自输·不泄露)·服务端 AI 代理(用户侧决策·非代码问题)", "why": "只做必要的·不做假设未来需要的" },
+        { "what": "备份 .bak-r103/ 含 tm-endturn.js + tm-audio-theme.js + tm-storage.js。未备份 index.html/types.d.ts/tm-env-detect.js (后两个是新增·index 改动极小仅加载一行)", "why": "只备改动大的·新增文件删除即可回滚" },
+        { "what": "验证 · Ctrl+R 刷新·控制台看 [TM.env] Electron Desktop(本地)或 GitHub Pages(线上)·TM.env.print() 看能力矩阵·存档 10 条后 IndexedDB quota 满应自动清最老 auto 存档·交 1 回合后 GM._convArchive 应累积被压缩的对话原文·下次读档 _convArchive 应被还原", "why": "三件事独立·任一 break 都可单独从 .bak-r103/ 回滚" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R102 十八问题审计·一次性清五大低悬果",
+      "title": "按审计清单修 5 项·index.html 5071→485·-90%·CSS/文档/版本/错误/预览全整理",
+      "items": [
+        { "what": "问题3 · 清 9 份旧 preview-guanzhi(v3/v4/v5/v6/v7/v8/v9a/v9c/无版本号) → .bak-r102/preview-guanzhi-old/·根目录只留 v10", "why": "审计列 10 份重复预览·其中 9 份是迭代废品·留一份最新即可·节省项目噪音" },
+        { "what": "问题7 · 删 index.html L4913-4930 重复的 window.onerror+addEventListener('error') 弹 alert 代码·改为纯注释·改扩展 tm-utils.js ErrorMonitor 加 addEventListener('error', ..., true) 处理 SCRIPT 资源加载错误(静默 capture)", "why": "原先 index.html 的 window.onerror 覆盖 tm-utils.js 的 ErrorMonitor·导致 ErrorMonitor 其实失效·且 alert 极烦扰·统一由 ErrorMonitor 接管三类错误(JS/Promise/资源)" },
+        { "what": "问题1 · CSS 4572 行 <style>...</style>(index.html L18-4589) 抽到 styles.css·index.html 改 <link rel=\"stylesheet\" href=\"styles.css?v=20260424v\">·index.html 5056→485 行(-90%)", "why": "index.html 历史巨石·CSS 占 90%·外部 CSS 文件编辑 IDE 支持更好·缓存独立·浏览器并行加载·维护性↑" },
+        { "what": "问题6 · 根目录 40 md → 2·保留 ARCHITECTURE.md/INDEX.md·其余 38 份归档到 docs/{design(17),dev(8),maps(6),external(6),misc(1)}·更新 INDEX.md 链接指向新路径", "why": "根目录爆炸·新维护者打开无从下手·按主题归档清晰·主入口 2 份可立即找到" },
+        { "what": "问题9 · index.html 87 处 ?v=* 共 19 种版本号(20260419f/g/h/i + 20260420b/q + 20260422a/v51 + 20260424a-u)统一为 ?v=20260424v", "why": "cache-buster 目的是版本统一一致·历史日版杂乱·统一后用户刷新一次即全新·后续升级只需 bump 一处" },
+        { "what": "不动的 · 问题2(已 R88-R100 化解剩 2 个 phase 补丁) 问题5(左边栏天下图实则是抽屉不是失效) 问题8(Electron vanilla 架构选择) 问题10(设计如此) 问题14(Electron 架构选择) 问题15(已解决) 问题17(Electron 只跑 Chromium) 问题18(R89 已核查假警报) 问题11/12/13/16(长期待办非紧急)", "why": "误判/设计选择/已解决·不重复投入" },
+        { "what": "备份 .bak-r102/ 含原 index.html + tm-utils.js + preview-guanzhi-old/", "why": "5 项独立改动·回滚窗口" },
+        { "what": "验证 · Ctrl+R 刷新·CSS 样式正常(因 styles.css 链接生效)·TM.errors.getLog() 应能拿到 ErrorMonitor 同步数据·制造一个 JS 错误应被捕获·docs/ 目录链接点击可访问(INDEX.md)·所有 tm-*.js 应加载 20260424v 版本", "why": "五项独立风险面·任一 break 均可独立回滚" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R100 首次从 _endTurn_aiInfer 内部抽 helper·真重构里程碑",
+      "title": "character_deaths 处理块 220 行从 async 巨函数内抽出·质变：从搬家到重构·累计 -5239 行 -28.0%",
+      "items": [
+        { "what": "质变拆分·原 L7446-7665 是 if(p1.character_deaths&&Array.isArray...) 大块 220 行·位于 _endTurn_aiInfer(10700+ 行 async 函数) 内部·处理 AI 返回角色死亡事件·包括 alive/dead 标记+官制同步+相关角色记忆+家族影响+军队统帅级联+丁忧制度+势力首领级联+头衔继承+玩家角色死亡特判 9 个子系统", "why": "R88-R99 是'搬顶级函数'·零代码修改·R100 是首次'从内部抽 helper'·需真改代码·难度质变·用户明确要求继续进入这个阶段" },
+        { "what": "新文件 tm-ai-apply-deaths.js 249 行·定义 applyCharacterDeaths(p1) 顶级函数·完整保留原 if-block(连带 forEach 闭包) 作为函数体·所有依赖(findCharByName/_fuzzyFindChar/recordCharacterArc/PostTransfer/_offDismissPerson/NpcMemorySystem/addEB/GameEventBus/updateFamilyRenown/getTSText)均 window 全局·闭包访问 GM/P 没问题", "why": "把 p1 改为参数·其他保持原样·零逻辑修改·只是换调用位置" },
+        { "what": "替换 tm-endturn.js L7445-7665 为单句 applyCharacterDeaths(p1); + 注释·原 220 行→1 行·_endTurn_aiInfer 函数体减 219 行·本函数从 10715→10496·依旧是最大单函数但开始可控", "why": "证明 in-function 抽 helper 模式可行·后续可抽 office_changes(L8925+)+admin_division_updates(L9819+)+harem_events(L10070+)等 4-5 个字段处理器" },
+        { "what": "tm-endturn.js 原 13667→13447 减 220 行·累计 R88 起 18686→13447 -5239 -28.0%·1.22MB→约 0.82MB", "why": "-28%·接近 -30%·近 1/3 瘦身" },
+        { "what": "index.html 加载顺序·tm-ai-apply-deaths.js?v=20260424a 紧跟 tm-endturn-province 之后·tm-sidebar-ui 之前·tm-endturn.js bump s→t", "why": "13 个新文件全部早于 tm-endturn·函数声明可被 _endTurn_aiInfer 内部引用" },
+        { "what": "备份 .bak-r100/·R100 首次真重构·备份尤其重要", "why": "前 12 轮是搬运可逆·R100 改了调用站点·回滚前要慎重" },
+        { "what": "验证·Ctrl+R 刷新·typeof window.applyCharacterDeaths === 'function'·TM.onboard() 5 步全绿·最关键·交 1 回合·AI 如果返回任何 character_deaths 条目·死亡逻辑应正常生效(角色变 alive=false·官职空出·家族记忆·军队士气变化·丁忧触发)·如 AI 未返回 deaths 则隐形OK·需要实际游戏中观察", "why": "in-function 抽 helper 比搬顶级函数多一层风险·必须交回合看 AI 返回时死亡处理正确" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R99 tm-endturn.js 第十二次拆分·抽出侧栏面板 UI 终块",
+      "title": "L13287-14155 869 行 12+ 函数 → tm-sidebar-ui.js·§F 渲染层扫尾·累计 -5019 行 -26.9%",
+      "items": [
+        { "what": "抽出 §F 渲染层剩余·原 L13287-14155 共 869 行·12+ 函数：科技/市政 4(renderGameTech/unlockTech/renderGameCivic/adoptCivic)+阶层党派军事详情 3(openClassDetailPanel/openPartyDetailPanel/openMilitaryDetailPanel)+侧栏主渲染 1(renderSidePanels 348 行大函数)+宫殿 UI 7(openPalacePanel+6 _palace* 辅助)+enterGame:after hook 重渲染触发", "why": "§F 最后一块·全部是 UI/初始化·R97+R98+R99 完成 §F 渲染层瘦身" },
+        { "what": "新文件 tm-sidebar-ui.js 887 行含头注·renderSidePanels 是 348 行大函数·其余均中小·外部调用 6+ 个函数被多处调用·全部走 window 后继续工作", "why": "最后的 §F 大块处理" },
+        { "what": "删除+替换 tm-endturn.js L13287-14155 共 869 行→8 行迁移注释·原 14529→13667·减 862 行(-5.9%)·继 R98 后再破记录", "why": "§F 渲染层完全搬出" },
+        { "what": "index.html 加载顺序·tm-sidebar-ui.js?v=20260424a 紧跟 tm-endturn-province 之后·tm-renwu-ui 之前·tm-endturn.js bump r→s·12 个新拆分文件均早于 tm-endturn", "why": "连续 12 次拆分·加载链越来越长·合理组织" },
+        { "what": "12 连拆累计·R88-R99 实减 5019·tm-endturn.js 18686→13667 -26.9%·1.22MB→约 0.83MB·突破-25%·里程碑", "why": "从 1.22MB 巨石瘦到 0.83MB·27% 历史债务兑现·剩余 13667 行中 _endTurn_aiInfer 巨函数仍占 ~10600 行·§A 一些残余+§C prompt 构建+§D 应用是最后硬骨头" },
+        { "what": "备份 .bak-r99/", "why": "12 连拆·12 份备份" },
+        { "what": "验证·Ctrl+R 刷新·typeof window.renderSidePanels === 'function'·typeof window.openClassDetailPanel 同·TM.onboard() 5 步全绿·侧栏整体应正常渲染(科技/市政/阶层/党派/军事/宫殿各 tab 可点击)·点任一详情按钮应开弹窗", "why": "侧栏破坏视觉立即可见" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R98 tm-endturn.js 第十一次拆分·抽出人物志 UI·单次最大",
+      "title": "L13351-14237 887 行 9 函数 → tm-renwu-ui.js·单次规模突破·累计 -4157 行 -22.2%",
+      "items": [
+        { "what": "抽出 §F 人物志 UI·原 L13351-14237 共 887 行·9 函数：renderRenwu(主列表 ~110 行)+viewRenwu(详情弹窗 ~546 行大函数)+7 个 _rw* 辅助(_rwFacClass/_rwFacChipStyle/_rwRankChip/_rwLoyRing/_rwStatRow/_rwWcDot/_rwRenderCard)+5 状态变量(_rwSearch/_rwFaction/_rwRole/_rwSort/_rwShowDead)", "why": "§F 渲染层第 2 大集群·全是 UI 渲染纯函数·renderRenwu 被 4 文件调用·窗口全局后继续工作" },
+        { "what": "新文件 tm-renwu-ui.js 904 行·R88 以来单次最大·但主题极清晰(人物列表+详情弹窗) 零副作用 零 hook", "why": "大拆分但低风险·UI 层破坏立即视觉可见·便于验证" },
+        { "what": "删除+替换 tm-endturn.js L13351-14237 共 887 行→8 行迁移注释·原 15410→14529·减 881 行(-5.7%)·单次瘦身率创纪录", "why": "超越 R88 诏令 476·R93 historyEvents 391 等·释放历史债务" },
+        { "what": "index.html 加载顺序·tm-renwu-ui.js?v=20260424a 紧跟 tm-endturn-province 之后·tm-shiji-qiju-ui 之前·tm-endturn.js bump q→r·11 个新文件全前于 tm-endturn", "why": "加载顺序规则统一" },
+        { "what": "11 连拆累计·R88-R98 实减 4157·tm-endturn.js 18686→14529 -22.2%·1.22MB→约 0.91MB·突破-20%", "why": "从 1.22MB 巨石瘦到 0.91MB·22% 历史债务兑现·剩余 14529 行中 _endTurn_aiInfer 巨函数仍占 10600 行是主要债务" },
+        { "what": "备份 .bak-r98/", "why": "11 连拆·11 份备份" },
+        { "what": "验证·Ctrl+R 刷新·typeof window.renderRenwu === 'function'·typeof window.viewRenwu 同·TM.onboard() 5 步全绿·点侧栏'人物志'tab 看列表是否渲染·点任一人物卡片开详情弹窗·搜索/排序/派系筛选各按钮功能·任一失效立即可见", "why": "UI 测试极直观" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R97 tm-endturn.js 第十次拆分·抽出史记+起居注渲染 UI",
+      "title": "L13276-13744 469 行 13 函数 → tm-shiji-qiju-ui.js·累计瘦身 -3276 行 -17.5%",
+      "items": [
+        { "what": "抽出 §F 渲染层的史记+起居注 UI·原 L13276-13744 共 469 行·13 函数：史记 4 (renderShijiList+_sjlExtractDeltas+_sjlExport+_sjlDownload)·起居注 9 (_qijuNormalize+_qijuCatClass+_qijuCatKey+_qijuHighlight+renderQiju+_qijuAnnotate+_qijuZoom+_qijuExport+_qijuDownload)·外加 _sjl*/_qiju* 12 个状态变量(var 顶层)", "why": "§F 渲染层第一块·主题单一(两个 tab 的列表+分页+搜索+导出)·函数数量多但全是 UI 无副作用·安全" },
+        { "what": "新文件 tm-shiji-qiju-ui.js 486 行·外部调用较多：renderShijiList 被 4 文件(tm-audio-theme/tm-chaoyi-keju/tm-endturn-render/tm-game-engine)·renderQiju 被 3 文件·_qijuExport 被 tm-game-engine·所有调用走 window 全局后继续工作", "why": "UI 层高复用·全部走 window·搬迁零侵入" },
+        { "what": "删除+替换 tm-endturn.js L13276-13744 共 469 行→7 行迁移注释·原 15873→15410·减 463 行(-2.9%)·第 10 次·R88 以来单次规模第 3 大", "why": "§F 渲染层切出清晰头块" },
+        { "what": "index.html 加载顺序·tm-shiji-qiju-ui.js?v=20260424a 紧跟 tm-endturn-province 之后·tm-court-meter 之前·tm-endturn.js bump p→q·10 文件全部前于 tm-endturn.js", "why": "UI 函数被外部 4-5 文件调用·必须早加载" },
+        { "what": "10 连拆累计·R88-R97·实减 3276 行·tm-endturn.js 18686→15410 -17.5%·1.22MB→约 0.99MB 首次跌破 1MB·剩余核心 _endTurn_aiInfer 巨函数(L2169-12893 约 10700 行§C+§D) + renderGameTech/Civic/Renwu/SidePanels/PalacePanel 等 §F 其余 UI 约 2000+ 行", "why": "突破 -17% + 首次 1MB 以下·里程碑" },
+        { "what": "备份 .bak-r97/", "why": "10 连拆·10 份备份" },
+        { "what": "验证·Ctrl+R 刷新·typeof window.renderShijiList === 'function'·typeof window.renderQiju === 'function'·TM.onboard() 5 步全绿·最关键·打开'史记'tab 看列表渲染是否正常·打开'起居注'tab 同上·分页+搜索+导出按钮功能·任一不响应代表搬迁 break", "why": "UI 渲染 break 会立即视觉可见·比交回合验证更快" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R96 tm-endturn.js 第九次拆分·抽出朝会追踪子系统",
+      "title": "L12896-13084 189 行 8 函数 → tm-court-meter.js·累计瘦身 -2813 行 -15.1%",
+      "items": [
+        { "what": "抽出 Court meter 集群·原 L12896-13084 共 189 行·8 函数：recordCourtHeld/_settleCourtMeter/_showPostTurnCourtPromptAndStartEndTurn/_postTurnCourtChoose/_showPostTurnCourtBanner/_updatePostTurnCourtBanner/_hidePostTurnCourtBanner/_onPostTurnCourtEnd(async)", "why": "勤政/怠政+post-turn 朝会·作者用 8 函数独立处理此子系统·紧密耦合·可一并抽出·外部 recordCourtHeld+_onPostTurnCourtEnd 各被 tm-chaoyi-keju.js 调用 1 次" },
+        { "what": "新文件 tm-court-meter.js 204 行·依赖 GM/P/_dbg/_deferredPhase5/_flushPostTurnModalQueue 等 window 全局·加载顺序 tm-court-meter 必须先于 tm-endturn", "why": "紧接 R95 §E systems 之后·继续按自上而下顺序抽出" },
+        { "what": "删除+替换 tm-endturn.js L12896-13084 共 189 行→7 行迁移注释·原 16056→15873·减 183 行(-1.1%)·第 9 次", "why": "连续 9 拆·节奏稳定" },
+        { "what": "index.html 加载顺序·tm-court-meter.js?v=20260424a 紧跟 tm-endturn-province 之后·tm-endturn-systems 之前·tm-endturn.js bump o→p", "why": "保持新抽出文件放在 tm-endturn 之前" },
+        { "what": "9 连拆累计·R88+R89+R90+R91+R92+R93+R94+R95+R96=476+205+365+144+303+391+409+373+189=2855 规划行·实减 2813·tm-endturn.js 18686→15873 -15.1%·1.22MB→约 1.02MB", "why": "R95 后验证 T2→T3 成功交回合·R96 加在稳定基础上·风险低" },
+        { "what": "备份 .bak-r96/", "why": "9 连拆·9 份备份·回滚链完整" },
+        { "what": "验证·Ctrl+R 刷新·typeof window.recordCourtHeld === 'function'·_onPostTurnCourtEnd 同·TM.onboard() 5 步全绿·交 1 回合看 post-turn 朝会是否正常弹出(勤政/怠政计数是否增减)·朝议系统是否还能触发 recordCourtHeld", "why": "朝会计数是可见状态·错了立即暴露" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R95 tm-endturn.js 第八次拆分·抽出 §E 系统更新调度器",
+      "title": "L12887-13259 373 行单函数 → tm-endturn-systems.js·累计瘦身 -2630 行 -14.1%",
+      "items": [
+        { "what": "抽出 §E·_endTurn_updateSystems 单函数·原 L12887-13259 共 373 行·Step 3 机械层结算调度器·依次调用 BattleEngine/SubTickRunner/executeNpcBehaviors/NpcEngine/FiscalCascade/CharEconomyEngine/HujiEngine/EnvCapacityEngine/advanceKejuByDays/AuthorityEngines/CorruptionEngine/GuokuEngine·是 tm-endturn 中段最大的单函数", "why": "R88-R94 完成 §A 拆分(2260 行)后·§E 系统调度是下一个天然边界·单函数 0 外部调用·作者标记为'子系统推进调度器'·纯薄层路由" },
+        { "what": "新文件 tm-endturn-systems.js 391 行含头注·1 async 函数·0 外部调用·仅 _endTurnCore 内部调用·依赖 12 个 engine(全 window 全局)", "why": "作为 §E 完整成为一个文件·单一职责" },
+        { "what": "删除+替换 tm-endturn.js L12887-13259 共 373 行→4 行迁移注释·原 16426→16056·减 370 行(-2.3%)·第 8 次瘦身", "why": "突破-14%" },
+        { "what": "index.html 加载顺序·tm-endturn-systems.js?v=20260424a 紧跟 tm-endturn-province 之后·tm-endturn-ai-helpers 之前·tm-endturn.js bump n→o", "why": "加载顺序与 R94 类似" },
+        { "what": "8 连拆累计·R88 诏令 476+R89 ChronicleSystem 205+R90 memoryAnchors 365+R91 arcs 144+R92 postTurn 303+R93 historyEvents 391+R94 aiHelpers 409+R95 §E systems 373=2666 规划行·实减 2630·tm-endturn.js 18686→16056 -14.1%·1.22MB→约 1.04MB", "why": "上轮用户通过 TM.onboard() 5 步全绿 + T2→T3 成功交回合 验证 R88-R94 零回归·R95 加在稳定基础上·风险仍低" },
+        { "what": "备份 .bak-r95/", "why": "8 连拆·8 份备份" },
+        { "what": "验证·Ctrl+R 刷新·typeof window._endTurn_updateSystems 应为 'function'(async)·TM.onboard() 5 步全绿·交 1 回合·最关键检查：回合后 12 个 engine(BattleEngine/SubTickRunner/FiscalCascade/HujiEngine/...) 是否正常推进·看 GM.population/guoku/corruption 是否有变化·如有任一 engine 未执行会很明显(财政停在原值·户口停在原值等)", "why": "_endTurn_updateSystems 是主推进器·任一 engine 没跑都会在数据层可见" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R94 tm-endturn.js 第七次拆分·抽出 AI 预演辅助集群",
+      "title": "L1492-1900 409 行 4 函数 → tm-endturn-ai-helpers.js·累计瘦身 -2260 行 -12.1%",
+      "items": [
+        { "what": "抽出 §A 最后剩余的 AI 预演辅助·原 L1492-1900 共 409 行·4 函数：aiPlanFirstTurnEvents(async 首回合候选事件预生成 89 行)+aiDigestLongTermActions(async 长期行动摘要 40 行)+aiEdictEfficacyAudit(async 御批回听大函数 213 行)+buildEdictEfficacyFollowUp(诏令追踪上下文 59 行)", "why": "§A 剩余最大最清晰的子集群·主题统一(AI 预推演 + 诏令问责+回听)·和已拆的 post-turn-jobs 互补" },
+        { "what": "新文件 tm-endturn-ai-helpers.js 425 行·aiPlanFirstTurnEvents 被 tm-patches.js 1 处 typeof 调用·搬走后 typeof 仍工作·其他 3 函数 0 外部调用", "why": "零破坏搬迁·延续 R88-R93 模式" },
+        { "what": "删除+替换 tm-endturn.js L1492-1900 共 409 行→5 行迁移注释·原 16831→16426·减 405 行(-2.4%)·本次拆分规模第 2 大仅次于 R88(476)", "why": "7 连拆累计·每次 140-476 之间·节奏稳定" },
+        { "what": "index.html 加载顺序·tm-endturn-ai-helpers.js?v=20260424a 紧跟 tm-endturn-province 之后·tm-history-events 之前·tm-endturn.js bump m→n·完整顺序：helpers→province→ai-helpers→history-events→post-turn-jobs→arcs→memory-anchors→chronicle-system→edict→endturn→render", "why": "AI 异步函数依赖 callAI/extractJSON(tm-utils) + GM/P·都在更早脚本加载" },
+        { "what": "7 连拆累计·R88 诏令 476+R89 ChronicleSystem 205+R90 memoryAnchors 365+R91 arcs 144+R92 postTurn 303+R93 historyEvents 391+R94 aiHelpers 409=2293·tm-endturn.js 18686→16426 实减 2260 行 -12.1%·1.22MB→约 1.07MB·剩余 §A 小尾巴(openMemoryAnchors 86 行+SettlementPipeline/成就系统等)·§C AI prompt 4500+§D AI 应用 4600+§E/F 系统收尾", "why": "首度突破 10%·下轮可考虑 §C 或 §E 级别的大拆(但需先测·7 轮未验证累积风险高)" },
+        { "what": "备份 .bak-r94/", "why": "7 连拆·7 份备份" },
+        { "what": "验证·Ctrl+R 刷新·typeof window.aiPlanFirstTurnEvents 应为 'function'·typeof window.aiDigestLongTermActions 同·typeof window.aiEdictEfficacyAudit 同·typeof window.buildEdictEfficacyFollowUp 同·TM.onboard() 5 步全绿·首回合会触发 aiPlanFirstTurnEvents 看是否 AI 调用·交 1 回合看诏令问责 aiEdictEfficacyAudit 是否触发", "why": "aiPlan 在新游戏首回合触发·aiEdictEfficacyAudit 每回合都调·这两个任何一个挂了都会立即报错" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R93 tm-endturn.js 第六次拆分·抽出历史事件系统+时间工具",
+      "title": "L1997-2387 391 行 9 函数 → tm-history-events.js·累计瘦身 -1855 行 -9.9%",
+      "items": [
+        { "what": "抽出 §A·历史事件框架+时间工具·原 L1997-2387 共 391 行·9 函数：checkHistoryEvents+showHistoryEventModal+applyEventBranch (事件分支) / checkRigidTriggers+triggerRigidEvent (刚性触发) / getValueByPath+setValueByPath (路径工具) / getCurrentYear+getCurrentMonth (时间工具)", "why": "连续 6 轮拆分第 6 次·主题清晰(基于年月的事件触发+分支选择框架)·getCurrentYear 外部调用 6 处+getCurrentMonth 2 处·属于高复用工具·挂 window 不影响" },
+        { "what": "新文件 tm-history-events.js 407 行·依赖 GM/P/openGenericModal/_dbg/addEB 均 window 全局·加载顺序 tm-history-events 必须在 tm-endturn.js 之前", "why": "零侵入搬迁·所有函数保持顶层声明·window 可达" },
+        { "what": "删除+替换 tm-endturn.js L1997-2387 共 391 行→7 行迁移注释·原 17216→16831·减 385 行(-2.2%)", "why": "本轮是 6 连拆中次大的·累计 -9.9%·接近 10% 瘦身" },
+        { "what": "index.html 加载顺序·tm-history-events.js?v=20260424a 紧跟 tm-endturn-province 之后·tm-post-turn-jobs 之前·tm-endturn.js bump l→m·完整顺序：helpers→province→history-events→post-turn-jobs→arcs→memory-anchors→chronicle-system→edict→endturn→render", "why": "time 工具(getCurrentYear/Month) 被多处调用·但都是 runtime 调用·late binding 会找到" },
+        { "what": "6 连拆累计·R88+R89+R90+R91+R92+R93=476+205+365+144+303+391=1884·然而 tm-endturn.js 实际减 18686-16831=1855(有小偏差因迁移注释)·-9.9%·1.22MB→约 1.10MB·剩余 §A 残部(buildEdictEfficacyFollowUp+openMemoryAnchors+3 个 aiPlan/aiDigestLongTermActions/aiEdictEfficacyAudit 约 400 行)+§C AI prompt 4500+§D AI 应用 4600+§E/F 系统收尾", "why": "6 连拆无断档 + 用户连续 6 轮未刷新测试 = 累积风险·强烈建议停下玩游戏验证一次·否则一旦有破坏不容易定位是哪轮引入" },
+        { "what": "备份 .bak-r93/", "why": "连续拆分习惯" },
+        { "what": "验证·Ctrl+R 刷新·typeof window.getCurrentYear 应为 'function'·typeof window.getCurrentMonth 同·typeof window.checkHistoryEvents 同·typeof window.checkRigidTriggers 同·TM.onboard() 5 步全绿·交 1 回合看历史事件检查是否运行·是否弹 modal(若剧本到时间点)", "why": "6 次拆分累积·本次 9 函数被内外多处调用·任何一个 ReferenceError 会立即暴露" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R92 tm-endturn.js 第五次拆分·抽出 post-turn 后台任务",
+      "title": "L1909-2211 303 行 6 函数 → tm-post-turn-jobs.js·累计瘦身 -1470 行 -7.9%",
+      "items": [
+        { "what": "抽出 §A·M3/M4/S2 后台任务集群·原 L1909-2211 共 303 行·6 函数：_scL2AIGenerate(每5回合AI语义化摘要)+_scL3Condense(L3层压缩)+_scReflect(自省)+_updateFactionArcs(势力长期叙事)+_launchPostTurnJobs(启动后台)+_compressOldArchives(压缩旧档)", "why": "SC27 完成后异步启动的一整组·有明显的模块边界(M3/M4/S2 标记)·相互高耦合·一并拆出最干净" },
+        { "what": "新文件 tm-post-turn-jobs.js 322 行·5/6 函数 0 外部调用·仅 _compressOldArchives 被 tm-memory-anchors.js(R90)调用·加载顺序 tm-post-turn-jobs 先于 tm-memory-anchors 保证", "why": "外部调用极少·搬迁零侵入·异步函数性质和 function 声明挂 window 不冲突" },
+        { "what": "删除+替换 tm-endturn.js L1909-2211 共 303 行→5 行迁移注释·原 17515→17216·减 299 行(-1.7%)", "why": "单次拆分 300 行·是 R88(476) R90(365)之后第 3 大·节奏稳定" },
+        { "what": "index.html 加载顺序·tm-post-turn-jobs.js?v=20260424a 紧跟 tm-endturn-province 之后·tm-arcs 之前·tm-endturn.js bump k→l·完整顺序：helpers→province→post-turn-jobs→arcs→memory-anchors→chronicle-system→edict→endturn→render", "why": "post-turn-jobs 的 _compressOldArchives 被 tm-memory-anchors 调用·先定义后使用" },
+        { "what": "5 连拆累计·R88 诏令 476+R89 ChronicleSystem 205+R90 memoryAnchors 365+R91 arcs 144+R92 postTurn 303=1493 行·tm-endturn.js 自 18686→17216·减 1470 行 -7.9%·1.22MB→约 1.13MB", "why": "连续 5 轮无断档·工作流稳定·剩余 §A 残部(buildEdictEfficacyFollowUp+openMemoryAnchors+historyEvents UI 约 400-500 行)+§C AI prompt 4500 行+§D AI 应用 4600 行+§E/F 系统收尾" },
+        { "what": "备份 .bak-r92/·tm-endturn.js + index.html", "why": "连续拆分·连续备份·回滚链完整" },
+        { "what": "验证·Ctrl+R 刷新·typeof window._launchPostTurnJobs 应为 'function'·typeof window._compressOldArchives 同·typeof window._scL2AIGenerate === 'function' (async)·TM.onboard() 5 步全绿·交 1 回合看 post-turn jobs 是否正常触发(第 5 回合后看 L2 摘要生成·其他回合看势力弧更新)", "why": "post-turn jobs 多数只在特定回合触发·普通回合至少要看没报错·_compressOldArchives 一定会被 memory-anchors 调用" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R91 tm-endturn.js 第四次拆分·抽出角色弧+决策追踪",
+      "title": "L2213-2356 144 行 5 函数 → tm-arcs.js·累计瘦身 -1171 行 -6.3%",
+      "items": [
+        { "what": "抽出 §A.角色弧+玩家决策追踪·原 L2213-2356 共 144 行·5 函数：recordCharacterArc + getCharacterArcSummary + getAllCharacterArcContext + recordPlayerDecision + getPlayerDecisionContext", "why": "R90 拆出核心记忆锚点后·剩余 §A 下一个清晰子集群·和记忆锚点主题接近但独立为'追踪'子系统·可单独抽出" },
+        { "what": "新文件 tm-arcs.js 159 行含头注·外部调用较多·recordCharacterArc 被 6 文件调用(tm-chaoyi-keju/tm-dynamic-systems/tm-economy-military/tm-endturn-edict/tm-endturn-helpers/tm-mechanics)·recordPlayerDecision 被 3 文件·getAllCharacterArcContext+getPlayerDecisionContext 被 tm-memory-anchors(R90 新文件) 调用", "why": "外部调用多=搬迁后继续用 window 全局找·零破坏·但加载顺序必须 tm-arcs 先于 tm-memory-anchors" },
+        { "what": "删除+替换 tm-endturn.js L2213-2356 共 144 行→5 行迁移注释·原 17655→17515·减 140 行 (-0.8%)", "why": "小步推进·每次拆完都可独立验证" },
+        { "what": "index.html 加载顺序·tm-arcs.js?v=20260424a 紧跟 tm-endturn-province 之后·tm-memory-anchors 之前·tm-endturn.js bump j→k·完整顺序：helpers→province→arcs→memory-anchors→chronicle-system→edict→endturn→render", "why": "新文件定义 arc 函数·tm-memory-anchors 内部调用 getAllCharacterArcContext/getPlayerDecisionContext·必须先定义后使用" },
+        { "what": "累计 4 次拆分·R88 诏令 476+R89 编年史 205+R90 记忆锚 365+R91 角色弧 144=1190 行·tm-endturn.js 自原 18686→17515·-6.3%·文件大小 1.22MB→约 1.15MB·剩 §A 残部(buildEdictEfficacyFollowUp / _scL2/L3/Reflect / _updateFactionArcs / _launchPostTurnJobs / _compressOldArchives / openMemoryAnchors)+§C AI prompt+§D AI 应用+§E/F 系统收尾", "why": "验证'小步多次拆'工作流可持续推进·4 连拆无断档·下轮可继续抽 post-turn jobs(6 函数约 300 行) 或停下玩游戏验证" },
+        { "what": "备份 .bak-r91/", "why": "每次拆分继续备份" },
+        { "what": "验证·Ctrl+R 刷新·typeof window.recordCharacterArc 应为 'function'·typeof window.getCharacterArcSummary 同·typeof window.recordPlayerDecision 同·TM.onboard() 5 步全绿·交一回合看诏令 → 人事任免流程是否触发 recordCharacterArc 无报错", "why": "5 个函数都可读 + endTurn 能跑代表 R91 稳" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R90 tm-endturn.js 第三次拆分·抽出记忆锚点系统",
+      "title": "L1902-2266 365 行 9 函数 → tm-memory-anchors.js·累计瘦身 -1031 行 -5.5%",
+      "items": [
+        { "what": "抽出 §A.记忆锚点子系统·原 L1902-2266 共 365 行·9 函数：createMemoryAnchor + createExecutionConstraint + calculateTotalMilitaryStrength + calculateEconomicLevel + buildContextDescription + calculateAnchorImportance + getMemoryAnchorsForAI + archiveOldMemories + _ensureMemoryFreshness·均为 tm-endturn.js 内部调用·外部调用 0", "why": "R88→R89→R90 三连拆·记忆系统是 §A 辅助系统里最独立的子集群·边界清晰" },
+        { "what": "建新文件 tm-memory-anchors.js·381 行含头注·所有函数保持 function xxx() 顶级声明·挂在 window·调用方不改·依赖 GM/P/_dbg/callAI/extractJSON 均早期加载", "why": "零侵入搬迁·和 R88/R89 同模式" },
+        { "what": "删除+替换·tm-endturn.js L1902-2266 共 365 行→6 行迁移注释·原 18014 行→17655 行·减 359 行(-2.0%)", "why": "继续 tm-endturn.js 瘦身进程" },
+        { "what": "index.html 加载顺序·tm-memory-anchors.js?v=20260424a 在 tm-chronicle-system.js 之前·tm-endturn-province 之后·tm-endturn.js bump i→j·完整顺序：helpers→province→memory-anchors→chronicle-system→edict→endturn→render", "why": "新文件定义 memoryAnchors 函数·tm-endturn.js 运行时依赖这些全局·先定义后引用" },
+        { "what": "备份 .bak-r90/·tm-endturn.js + index.html", "why": "拆分第三次·继续备份" },
+        { "what": "累计成果·tm-endturn.js 自 R88 起 18686→17655·-1031 行·-5.5%·3 次独立拆分(诏令 +476·编年史 +205·记忆锚 +365)全部成功·证明小步多次拆分可行且风险可控", "why": "从 1.22MB 巨石减到 ~1.16MB·剩余 §A 残部 +§C AI prompt +§D AI 应用 +§E 系统 +§F 收尾约 17000 行待拆" },
+        { "what": "验证步骤·Ctrl+R 刷新·typeof window.createMemoryAnchor 应为 'function'·typeof window.archiveOldMemories 同·TM.onboard() 5 步全绿·交一回合观察记忆锚点是否更新(可打 GM.memoryAnchors 查看数组)", "why": "函数级验证 + 功能级验证双保险" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R89 假警报修正 + tm-endturn.js 第二次拆分·抽出 ChronicleSystem",
+      "title": "原审计报告 2 项误判标注·+ 205 行 ChronicleSystem 对象搬到独立文件·tm-endturn 再减 196 行",
+      "items": [
+        { "what": "R89 B 环节·审计原报告 2 项·判定为假警报·GLOBAL_POLLUTION_REPORT.md 加注修正·clamp 9 处共用 grep 到的是调用点·实际只 1 处 function clamp 定义(tm-utils.js:509) 0 冲突·索引缓存 new Map() 18 处全部每回合整体替换(tm-npc-engine._officeIndex / tm-index-world GM._indices.*) 没有真增长·均为原报告误诊", "why": "诚实评估而非盲做·这 2 项花时间'修复'等于修不存在的 bug·标注好让未来维护者看到这份报告知道哪些项已验证过真伪" },
+        { "what": "R89 A 环节·tm-endturn.js 第二次物理拆分·抽出 ChronicleSystem 完整对象字面量(原 L3282-3486·205 行)到新文件 tm-chronicle-system.js(217 行含头注)·monthDrafts+yearChronicles+addMonthDraft+getYearChronicle+getAvailableYears+markRead+serialize+deserialize+reset 9 个方法全整", "why": "单一对象字面量·边界极清·零侵入·作为 R88 诏令拆分之后的第二次验证·巩固拆分工作流" },
+        { "what": "删除+替换·tm-endturn.js 用 sed 删 L3282-3486 共 205 行·留 3 行迁移标记·原 18210 行→18014 行·减 196 行(累计从 18686→18014·-672 -3.6%·-4MB→-3.5MB 档次)", "why": "首次拆分减 476 行+此次 205 行·证明多次小拆可累加·不会在第二次出边际递减" },
+        { "what": "index.html 加载顺序·tm-chronicle-system.js?v=20260424a 放在 tm-endturn-edict.js 之前·tm-endturn-province 之后·tm-endturn.js 自身 bump v=20260424h→i·顺序：helpers→province→chronicle-system→edict→endturn→render", "why": "ChronicleSystem 被 tm-audio-theme/tm-endturn-render/tm-patches/tm-endturn 共 4 文件引用·全部走 window.ChronicleSystem·先定义后引用·依赖(_getDaysPerTurn/callAI/extractJSON/_dbg/addEB) 均已在更早脚本加载" },
+        { "what": "备份 .bak-r89/·tm-endturn.js + index.html 原始副本", "why": "首次是 R88·二次也备份·形成习惯" },
+        { "what": "验证步骤·Ctrl+R 刷新·TM.onboard() 5 步全绿·typeof window.ChronicleSystem 应为 'object'·ChronicleSystem.serialize() 应返回 {monthDrafts, yearChronicles}·交一回合看史记更新正常", "why": "对象拆分·验证手段和函数拆分类似·加 typeof object 额外检查" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R88 tm-endturn.js 首次物理拆分·抽出诏令子系统",
+      "title": "从 1.22MB 巨石中抽出 §B 诏令处理到 tm-endturn-edict.js·减 476 行·保守起步",
+      "items": [
+        { "what": "选定抽出范围·§B 诏令处理双集群·cluster 1 (原 L3497-3869) 含 extractEdictActions+_findPositionInOfficeTree+applyEdictActions+extractCustomPolicies+applyCustomPolicies+getCustomPolicyContext·cluster 2 (原 L4081-4190) 含 computeExecutionPipeline+processEdictEffects·共 8 函数", "why": "§B 是作者自己在文件头 L77 标注的既定拆分目标·外部调用面小(仅 tm-test-harness.js 引用 extractEdictActions 用 window 全局名·零影响)" },
+        { "what": "建新文件 tm-endturn-edict.js 共 500 行·含 2 个 cluster 的全部 8 函数原文·顶级 function 声明保持不变·挂在 window 上·调用方一行不改", "why": "零侵入搬迁·8 函数从 tm-endturn.js 消失但 window.extractEdictActions 等依然存在·所有旧调用自动生效" },
+        { "what": "tm-endturn.js 用 sed 删除 cluster 1 (L3497-3869 共 373 行)+cluster 2 (L4081-4190 共 110 行)·留下 4 行迁移标记注释指向新文件·原 18686 行→18210 行·减 476 行 (-2.5%)·1.22MB→约 1.19MB", "why": "第一次真物理减肥 tm-endturn·验证'强者模式+绞杀模式'可在核心文件行得通·不破一兵一卒" },
+        { "what": "index.html script 加载顺序·tm-endturn-edict.js?v=20260424a 放在 tm-endturn.js 之前·和 tm-endturn-helpers/province 并列·tm-endturn.js 自身 bump 到 v=20260424g", "why": "先声明后引用·避免 hoisting 边界问题·虽然实测晚加载也行·保守起见前置" },
+        { "what": "备份 .bak-r88/·含 tm-endturn.js 和 index.html 原始副本·如回归可直接回滚", "why": "首次动 1.22MB 文件·必须可逆" },
+        { "what": "未动·§A 辅助系统 (3400 行)·§C AI 推演 (4500 行)·§D AI 应用 (4600 行)·§E 系统更新·§F 收尾·共 3 个更大拆分目标留待未来", "why": "R88 是首次验证·成功后可按 MODULE_REGISTRY §3 规划拆 collect/prompt/ai/apply/systems/record 其余集群·每次拆完必须跑回合验证" },
+        { "what": "验证步骤·Ctrl+R 刷新·TM.onboard() 5 步全绿·window.extractEdictActions/applyEdictActions/computeExecutionPipeline/processEdictEffects 应为 function·交 1 回合看诏令是否依然被识别+toast 是否显示·tm-test-harness 中 extractEdictActions 测试用例应通过", "why": "8 个函数全部可访问+诏令流程完整代表真拆成功" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R87 命名空间门面真实化·从装饰到可验证",
+      "title": "tm-namespaces.js 重建·白名单校准到真实存在·加自检·3 函数阶段 2 迁移示范",
+      "items": [
+        { "what": "发现 R59 遗留问题·原 TM.Economy 白名单 27 项实际只有 6 个函数真存在·调 TM.Economy.moveArmy 会拿到 undefined·门面变成假象", "why": "先审计再行动·避免在错误基础上继续加东西" },
+        { "what": "C1 · tm-namespaces.js 重建·所有白名单来自实际 grep 源文件·真实率 100%·Economy 21 项+Lizhi 22+Guoku 21+MapSystem 17+Neitang 11·引擎型 HujiEngine/GuokuEngine/ChangeQueue 用 Proxy 透传真实 window 对象方法·加 listAvailable/listMissing/_loadWarnings/verify 等自检接口", "why": "门面要么真·要么别造·假门面比没门面危害更大" },
+        { "what": "C2 · 真做 1 次阶段 2 迁移·tm-lizhi-panel.js 选 getLizhiPhase/getTrendSymbol/getCorrVisibility 3 个纯读取函数·定义改为 TM.Lizhi.xxx = function(){}·原 function xxx 保留为薄包装调用 TM.Lizhi.xxx·既有 TM.Lizhi 路径又保留 window 旧调用·零破坏·证明演化路径可行", "why": "不是装饰门面·真的往 TM.* 搬·展示未来阶段 3 可以直接去 window 别名" },
+        { "what": "C3 · 加载自检机制·document.readyState=complete 或 window load 后延迟 500ms 跑 _verify()·发现缺失自动 console.warn 指示跑 TM.namespaces.verify() 详查·手动验证接口 TM.namespaces.verify() 返回 {facades, warnings}·facade 加 listAvailable/listMissing 方法", "why": "未来谁在白名单加不存在的函数·加载时立即可见·不会悄悄烂" },
+        { "what": "缓存·tm-namespaces 20260424a→g·tm-lizhi-panel 20260424f→g·index.html 同步", "why": "强制重载" },
+        { "what": "验证·控制台 typeof TM.Lizhi.getLizhiPhase==='function'·TM.Lizhi.getLizhiPhase(30) 应返回 {name:'尚可',cls:'okay'}·window.getLizhiPhase 仍可用返回相同·TM.namespaces.verify() 应全绿", "why": "三条都通过代表阶段 2 迁移路径走通" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "R86 空 catch 块批量迁移·captureSilent 后台监测通道",
+      "title": "43 文件 159 处 catch(e){} → TM.errors.captureSilent·从静默吞没变可观测·保留 catch(_) 显式不关心约定",
+      "items": [
+        { "what": "修正原审计报告判断·原报告'285+ 空 catch 块·大量错误被静默吞掉'基于文件统计·实际 359 空 catch 中 catch(_){}=110(显式不关心约定)+JSON 多重解析链≈30+localStorage/JSON.parse 回退≈80 均为合法静默·真需迁移的仅 ~160 处", "why": "诚实判断而非盲信报告·避免迁移合法的 silent 模式导致误报噪音" },
+        { "what": "B1 · TM.errors.captureSilent 新接口·extra.silent=true 时不 console.warn·仅记入 log·加 getLogLoud/getLogSilent 两个过滤方法·可分开看'值得注意的'vs'例行防御的'", "why": "原 capture 默认 consoleMirror=true·若 160 处全接 capture 开局刷几十条 warn·captureSilent 解决噪音问题" },
+        { "what": "B2 · sed 批量迁移·43 文件 159 处 catch(e){} / catch(err){} → catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'<file>');}catch(_){}}·whitelist 排除 /localStorage|JSON\\.parse/·备份 .bak-r86/·top5: tm-chaoyi-keju 25+tm-huji-deep-fill 18+tm-ethnic-religion 14+tm-mechanics 10+tm-game-engine 9", "why": "从静默吞没变可观测·错误留痕可通过 TM.errors.getLogSilent() 事后诊断·不破坏现有控制流" },
+        { "what": "B3 · 约定文档化·tm-error-collector.js 头部说明 R86 迁移约定·catch(e){} 已迁移·catch(_){} 保留·catch(e1/e2/_e){} 保留·localStorage/JSON.parse 回退保留·未来新增空 catch 按此约定判断", "why": "避免未来维护者误删 catch(_) 或把合法 silent 也改成 captureSilent 造成噪音" },
+        { "what": "缓存·42 文件 +tm-error-collector 共 43 bump 到 v=20260424f(error-collector=20260424e)·index.html 同步更新·备份 index.html.backup-r86", "why": "sed 大规模修改必须 cache bust 才生效" },
+        { "what": "遗留 35 空 catch(e){}·全部在 localStorage/JSON.parse 行上·经 sed whitelist 正确跳过·编辑器 13+tm-utils 4+editor-crud 3+editor-game-systems 3+tm-editor-division-deep 2+tm-patches 2+tm-perf 2+tm-game-engine 2+其他零星·均为可预期回退不需迁移", "why": "审计完整·所有未迁移都能解释" },
+        { "what": "验证 · TM.errors.captureSilent 可用 · TM.errors.getLogSilent() 返回静默记录 · 跑完游戏一回合后可 TM.errors.getLogLoud() 看真问题 · 159 个新观测点不增加控制台噪音", "why": "原报告第 2 条'空 catch 过多'问题从'无法观测'变成'可观测且默认安静'" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "测试环境首次实战·Scenario 1 + Scenario 5 双合并完成",
+      "title": "14 轮基础设施首次实战·删 tm-patches 496 行双保险·改名 13 SELF phase·修 2 个真 bug",
+      "items": [
+        { "what": "首次 B 类合并 · Scenario 1 执行·玩家 Ctrl+F12 打开控制台·TM.onboard() 验证基础设施·TM.checklist.preMerge('scenario1-delete-double') 锁基准·sed 删除 tm-patches.js 行 1759-2254 共 496 行(Editor Details+Modal+World+Military 双保险原代码)·tm-patches.js 2269→1773 行·备份 tm-patches.js.backup-r22·TM.checklist.postMerge 报告 perf 0 回归+errors 0 新增+invariants 持平·needs-review 仅因 state 快照跨 Ctrl+R 不跨 session(工具局限非真问题)", "why": "R85 MERGE_PLAYBOOK 首次实战·验证绞杀者模式 + 双保险策略 + checklist 工作流全链路可用" },
+        { "what": "Scenario 5 批量改名 · 13 个 SELF phase 文件·bash mv + sed 一次性执行·备份 index.html.backup-r25·tm-phase-a-patches→tm-audit·tm-phase-b-fills→tm-region-enrich·tm-phase-d-patches→tm-prophecy·tm-phase-f2-linkage→tm-event-bus·tm-phase-f3-depth→tm-class-mobility·tm-phase-f4-authority-deep→tm-authority-deep·tm-phase-f5-ui-ai→tm-player-tools·tm-phase-f6-economy-deep→tm-ledger-paper·tm-phase-g1-authority-ui→tm-authority-ui·tm-phase-g2-huji-complete→tm-ethnic-religion·tm-phase-g3-edict-finalize→tm-edict-thresholds·tm-phase-g4-economy-finalize→tm-fiscal-ui·tm-phase-h-final→tm-tax-atomic·保留 3 个真 LAYERED/APPEND(phase-c/e/f1)", "why": "Phase 文件从 16 个→3 个·余者都是真补丁·命名清晰反映实际职责" },
+        { "what": "修 2 个真 bug 顺带发现·bug 1: tm-data-access.js 第 4 行注释含 GM.*/P.* 导致 */ 误触发注释结束·改为 GM.xx / P.xx(加空格)·DA 门面终于能正常加载·bug 2: TM.version 被某处(来源不明)设为字符串·tm-onboard-tools.js 的 if(!TM.version) 幂等检查失败·改为 typeof !== 'object' 强制覆盖·保留原字符串到 TM._appVersion", "why": "基础设施在实战中暴露的两个真 bug·都是我 14 轮重构过程中引入·现在修好·验证了'建了诊断工具就能自查自修'" },
+        { "what": "验证成果·TM.version.report() 输出 60 个 script 版本号全部一致·0 inconsistent·游戏正常恢复到朱由检第 2 回合·TM.onboard() 5 步全部绿·TM.test.run() 207+ 测试通过·朱由检能正常查询 DA.chars.player()/DA.turn.current()/DA.guoku.allStocks()", "why": "量化证明重构不破坏现有功能·14 轮基础设施+2 次真合并双向验证" },
+        { "what": "总结·两次真物理改动·0 游戏数据受损·2 个真 bug 修复·备份全部保留·Phase 文件从 16 缩到 3·tm-patches 瘦身 22%·命名空间从混乱 phase 前缀→语义名字(audit/prophecy/event-bus/class-mobility/authority-deep/player-tools/ledger-paper/authority-ui/ethnic-religion/edict-thresholds/fiscal-ui/tax-atomic/region-enrich)", "why": "诊断基础设施+合并工作流+双保险策略=可持续的重构模式" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第十五轮重构·A 类收官·TS 类型+热路径 catch 迁移+MERGE_PLAYBOOK",
+      "title": "最后一轮 A 类·为进入测试环境做最好准备·IDE 类型提示+12 处核心 catch 可观测+5 Scenario 合并手册",
+      "items": [
+        { "what": "R83 新建 tm-tools.d.ts (TypeScript 类型声明)·完整定义 DA.* 12 领域(chars/factions/guoku/officeTree/admin/armies/harem/authority/turn/issues/edict/meta)·TM_AI_SCHEMA/validateAIOutput/ValidationResult·TM.errors/test/perf/invariants/state/diff/hooks/guard/checklist/diag/cheatsheet·scenarioSchema/version/onboard·共 60+ interface·配合已有 types.d.ts 自动生效", "why": "未来维护者写代码时 DA.chars. 自动补全所有方法·鼠标悬停显示签名·新代码避免 typo" },
+        { "what": "R84 热路径 silent catch 迁移·tm-authority-complete.js L879-887 的 9 处 tick 子调用(autoDetectHuangwei/autoDetectHuangquan/tickMinxinSources/tickMinxinConsequences/tickHuangquanConsequences/tickHeavenSigns/tickHuangquanSubDims/tickFullLinkage/tickPerceivedNoise)·tm-endturn.js 3 处(cascadeVacate/mapContextForAI/buildTemporalConstraint)·共 12 处改 catch(e){} → TM.errors.capture(e,'module.name')·累计接入点从 3 → 15", "why": "权威系统 tick 的 9 个子调用任一出错以前静默·现在立即可见·合并 Authority 相关时有观测点·endturn 3 处是 AI prompt 构建热路径同理" },
+        { "what": "R85 新建 MERGE_PLAYBOOK.md (测试环境合并作业手册)·核心原则(永远先 preMerge 不直接改)·第一次进测试环境 7 步清单·5 个典型 Scenario 完整步骤(删双保险/Corruption 2 层/Guoku 5 层/2 个 phase LAYERED/14 SELF 改名)·Rollback 流程·5 条不要做·6 项合并质量门禁·5 种问题诊断·推荐 10 周执行顺序", "why": "14 轮建基础设施·R85 是'如何用'的完整指南·用户进入测试环境打开此文件即知如何做" },
+        { "what": "INDEX.md 补 MERGE_PLAYBOOK 条目·文档体系完整·进入测试环境路径清晰", "why": "让新文档被发现" },
+        { "what": "累计 A 类重构阶段性总结·15 轮共 23 基础设施文件+7 份文档+6 文件顶部导航(54k 行)+206+ smoke test+15 处热 catch 迁移+1 TypeScript 声明·真拆 615 行物理代码·18+ 补丁 100% 分类·全局污染量化·7 命名空间门面·完整合并工作流闭环", "why": "A 类重构达到极限·所有不依赖测试环境的真价值动作已完成·下一步必须进入测试环境执行 MERGE_PLAYBOOK Scenario 1-5" },
+        { "what": "缓存·R83/R84/R85 纯新增或只补注释·无 cache bump 必要", "why": "无破坏性变更" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第十四轮重构·五件全做·三文件导航+INDEX.md+onboard+剧本校验+版本查询",
+      "title": "中等文件补导航·文档入口就位·新维护者 5 分钟上手脚本·剧本 JSON schema·cache 版本一键查",
+      "items": [
+        { "what": "R78 三中等文件补头部导航·tm-index-world.js(8820 行)§A 索引系统 L8/§B 查询入口 L278/§C 行政区划+官制面板 L500-8000+·tm-audio-theme.js(3430 行) §A 音频/§B 主题/§C 存档加载 L1134(历史债务)/§D 官制编辑 L2580-3200/§E 杂项·tm-dynamic-systems.js(2976 行) §A Post 岗位/§B SaveManager L1006/§C SaveMigrations L2720/§D 动态规则·累计 6 大文件全带导航·共 43k+ 行代码有入口", "why": "加上 R41/R53/R54 的三大 9k 文件·现在 6 大文件(43k 行)都有实测行号·打开任一文件首屏即知结构" },
+        { "what": "R79 新建 INDEX.md 文档入口·4 种'按需求快速定位'场景(新维护者/修 bug/合并 LAYERED/新增机制/查性能)·6 份核心文档按类型分组(架构/调试/运维)·7 大文件顶部导航索引·快捷键汇总·24 个基础设施工具按功能分 5 类(数据/校验/观测/工作流/存档)·13 轮重构历程表", "why": "之前 6 份文档+6 份文件内导航散着·现在一页纸'所有入口'·Ctrl+Shift+/ 速查卡 + INDEX.md = 文档体系完整" },
+        { "what": "R80 新增 TM.onboard()·5 步控制台演示(DA 数据查询→TM.invariants 不变量→TM.errors 错误→TM.perf 性能→TM.test 测试)·每步有 %c 彩色 header+实际调用结果+异常兜底·演示完成后指引 Ctrl+Shift+/ 和 INDEX.md", "why": "新维护者不用读 6 份文档·F12 控制台跑 TM.onboard() 5 分钟见全部工具" },
+        { "what": "R81 新增 TM.scenarioSchema+validateScenario+validateAllScenarios·剧本 JSON 结构 required:id/name/era + optional 30+ 字段 + arrayTypes 15+ 数组字段·必填检查+类型检查+未知字段警告+角色/势力 name 缺失+isPlayer 0/>1 警告·validateAllScenarios 批量跑 P.scenarios 并打印报告", "why": "发布新剧本或修改现有剧本时·控制台跑一次 validateAllScenarios()·结构问题全可见" },
+        { "what": "R82 新增 TM.version·list() 扫 index.html 所有 ?v=xxx 返回 [{file,version}]·summary() 按日期分组·inconsistent() 发现版本号不一致的文件(bump 漏掉)·report() 打印完整报告", "why": "index.html 有 ~60 个 ?v=xxx·手工维护容易漏 bump·一键扫描发现不一致" },
+        { "what": "smoke test 扩展 +10 用例·TM.onboard(不抛)·TM.scenarioSchema(必填数组)·validateScenario(缺 required 失败/合法通过/array 类型错误/多 isPlayer 警告)·TM.version(list 返回数组/report 不抛)·累计 206+ smoke test", "why": "三个新工具立即覆盖" },
+        { "what": "缓存·tm-test-harness v=l→m·新增 tm-onboard-tools v=a·INDEX.md 建立", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第十三轮重构·工作流整合·诊断仪表板+合并 Checklist+游戏内速查卡",
+      "title": "把前 12 轮分散的 TM.* 整合为一键操作·Ctrl+Shift+D 一屏看全·Ctrl+Shift+/ 文档浮层·preMerge/postMerge 一键合并审计",
+      "items": [
+        { "what": "R75 新增 tm-diagnostics-panel.js (TM.diag 统一仪表板)·Ctrl+Shift+D 打开·顶部显示 T 回合/剧本/invariants 状态/errors 计数·3 栏布局(Perf 采样+Guard·State 快照+Hooks·Errors 摘要+快速操作)·5 个快速操作按钮(查 invariants/快照/锁 perf/perf 表/跑测试)·可选 3s 自动刷新", "why": "前 12 轮建了 12+ TM.* 工具但分散在 E/P 两个面板·Ctrl+Shift+D 一屏看全·真正解决'调试时要开多少面板'的问题" },
+        { "what": "R76 新增 tm-checklist.js (TM.checklist 合并工作流)·preMerge(tag) 一键执行 state.snapshot('pre-'+tag)+perf.lockBaseline+invariants.check+errors baseline·postMerge(tag) 一键执行 state.snapshot('post-'+tag)+state.diff+perf.compareToBaseline+invariants.postCheck+errors delta·综合判断 overall 'ok'/'needs-review'·下载完整 JSON 报告·listMerges 列出所有 pre/post 快照对", "why": "合并 Corruption p2/p4 或 Guoku p2-p6 时·一条命令搞定所有基准·另一条搞定所有对比·操作门槛从 '记 5 个命令' 降到 1 条" },
+        { "what": "R77 新增 tm-cheatsheet-overlay.js (TM.cheatsheet 速查卡浮层)·Ctrl+Shift+/ 打开·7 段(快捷键/DA 数据查询/TM 诊断/状态快照/合并工作流/常见问题/文档位置)·code block 风格代码·items 表格·不动游戏代码·纯浮层", "why": "DEBUG_CHEATSHEET.md 要切屏查·游戏中 Ctrl+Shift+/ 直接浮层·无需离开游戏界面" },
+        { "what": "smoke test 扩展 +12 用例·TM.diag(存在+open/close 不抛)·TM.checklist(preMerge 返回 report·postMerge 有 diff step·无 preMerge 不崩·listMerges 数组)·TM.cheatsheet(7 sections·show/hide 不抛)·累计 196+ smoke test", "why": "整合工具立即有测试覆盖" },
+        { "what": "全局快捷键完整矩阵·Ctrl+Shift+D→诊断仪表板★·Ctrl+Shift+E→错误面板·Ctrl+Shift+P→性能面板·Ctrl+Shift+/→速查卡★·?test=1→启动时自动测", "why": "4 个快捷键覆盖所有诊断入口·调试无需离开游戏" },
+        { "what": "缓存·tm-test-harness v=k→l(12 新用例)·新增 tm-diagnostics-panel/tm-checklist/tm-cheatsheet-overlay v=a", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第十二轮重构·状态可观测性三件套·TM.state+TM.diff+TM.hooks",
+      "title": "快照冻结+差异对比+hook 追踪·配合 perf.baseline 构建完整的'合并前/后量化证明'工具链",
+      "items": [
+        { "what": "R63 新增 tm-state.js (TM.state 快照系统)·snapshot(name) 冻结 GM 核心摘要(turn/chars 分布/guoku 三账/authority 三值/issues 数/officeTree holder 数/admin 区划数/armies/perf+errors 诊断)·list/get/clear·persist/restore 跨 session localStorage·listPersisted/removePersisted·downloadJSON·上限 20 FIFO·不做整对象深拷贝避免 MB 级膨胀", "why": "合并前 snapshot('before')·合并后 snapshot('after')·TM.diff 对比·量化证明行为一致" },
+        { "what": "R71 新增 tm-diff.js (TM.diff 差异工具)·作函数调 TM.diff(a,b,opts)·返回 {added,removed,changed,summary}·支持 ignore:['_perf'] 排除+onlyPath:'chars.*' 筛选+MAX_DEPTH=8+MAX_CHANGES=500 截断·TM.diff.print 彩色控制台+树形+top 20 显示·TM.diff.bySnapshot(nameA,nameB) 直接对比两个快照", "why": "有了 state 快照还要能对比·diff 输出的 {path, from, to} 清单 = 改动的精确报告" },
+        { "what": "R73 新增 tm-hooks-tracker.js (TM.hooks 查询追踪)·通过拦截 GameHooks.on/run/clear 自己维护镜像(不改原 GameHooks)·list() 所有 event+handler 数·listHandlers(ev) 某 event 的 handler 列表(fnName/priority/addedAt)·trace(ev,on) 追踪记录 run 调用·getTrace 历史·discover 发现已注册+已运行过的 event·报告 report", "why": "GameHooks 的 hooks 在闭包里无法外部查询·23 处 GameHooks.run 调用散在 10 文件·现在可 TM.hooks.report() 一眼看全·trace 某 event 调试扩展逻辑" },
+        { "what": "三者联动工作流·合并 Corruption p2/p4 前：TM.state.snapshot('pre-corruption-merge')+TM.perf.lockBaseline()·合并后：TM.state.snapshot('post-...')·TM.diff.printBySnapshot('pre-','post-')+TM.perf.printCompare()·两份对比 = 完整的回归证据", "why": "之前只有 perf 基准·现在状态+性能双重基准·合并审计从'感觉没问题'变'量化证据'" },
+        { "what": "smoke test 扩展 +22 用例·TM.state(snapshot/get/list/clear/持久化)·TM.diff(空/增/删/改/嵌套/数组长度/ignore 选项)·TM.hooks(list/注册+查到/trace 记录/discover)·累计 184+ smoke test", "why": "三件新基础设施立即有测试覆盖" },
+        { "what": "加载顺序·tm-state/tm-diff/tm-hooks-tracker 在 tm-namespaces 之后·hooks-tracker 能延迟重试(最多 10s)包装 GameHooks", "why": "避免 GameHooks 未就绪" },
+        { "what": "缓存·tm-test-harness v=j→k(22 新用例)·新增 tm-state/tm-diff/tm-hooks-tracker v=a", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第十一轮重构·五件全做·chaoyi 9k 导航+patches 总目录+污染守卫+perf baseline+命名空间门面",
+      "title": "三大 9k 文件全带导航·tm-patches 迁移进度可视化·动态守卫+基准锁定+7 命名空间门面",
+      "items": [
+        { "what": "R54 tm-chaoyi-keju.js 9,454 行头部导航·§A 科举面板 L16·§B 经费 L239·§C 主持考官 L398·§D AI 候选人 L722·§E 朝议打开 L965·§F 模式+常朝 L1082·§G 廷议/御前/科议 L1260+·标注历史 bug(startChaoyiSession L1079 被 L1121 覆盖)·未来拆分为 tm-keju+tm-chaoyi 估 40h", "why": "第三大 9k 文件·加上 R41/R53·三大文件(27k 行)全带入口图" },
+        { "what": "R58 tm-patches.js 段落总导航·9 段完整状态·✓已迁 4 段(Editor Details/Modal/World/Military)·⏳未迁 5 段(Settings UI/Game Init/散碎/剧本tab/官制tab)·每段行号+大小+风险·迁移进度 23%(495/2186)·剩余工时 40-70h", "why": "打开 tm-patches 第一眼就知道哪些已迁哪些未迁·不用翻 PATCH_CLASSIFICATION.md" },
+        { "what": "R60 新增 tm-pollution-guard.js·TM.guard 全局污染守卫·snapshot 拍基线·diffSince 对比新增/覆盖·start(5s) 自动巡检·getLog/report 查日志·DOMContentLoaded+2s 自动拍第一次快照·函数类型覆盖触发 TM.errors.capture+console.error·新增静默记录到 info", "why": "未来引入 3rd-party JS 或新 tm-xxx.js 时·冲突立即可见·避免重蹈 findPath 覆盖的覆辙" },
+        { "what": "R61 TM.perf baseline lock·lockBaseline 写入 localStorage 跨 session·loadBaseline 恢复·compareToBaseline(thresholdPct=20) 返回 regressions/improvements/untouched·printCompare 用 console.table 显示·启动自动加载 baseline·合并 Guoku p6 前先 lockBaseline+玩 5 回合·合并后 printCompare 量化对比 p95 变化", "why": "perf 从'采样+阈值告警'升级为'基准对比'·合并前后性能回归有自动化证据·配合阈值告警 = 主动防御 + 事后追查两层护栏" },
+        { "what": "R59 新增 tm-namespaces.js·7 命名空间门面·TM.Economy(25 核心 fn)·TM.MapSystem(20)·TM.Lizhi(20)·TM.Guoku(15)·TM.Neitang(10)·TM.Huji(12)·TM.ChangeQueue(8)·共 110 个函数挂到命名空间·全用 getter 动态引用 window·不修改任何原文件·不减少现有污染·为未来新代码提供统一入口 TM.Economy.getTributeRatio·namespaces.report() 诊断可用性", "why": "GLOBAL_POLLUTION_REPORT 的 1469 全局·Top 3 大户占 566·命名空间门面让新代码走 TM.Xxx.yyy·未来真迁移只需改门面内部·DA(数据)+TM(业务)两套门面互补" },
+        { "what": "smoke test 扩展 +14 用例·TM.guard snapshot/diffSince/新增检测/report·TM.perf lockBaseline/compareToBaseline 回归检测/无 baseline 错误·TM.namespaces 7 空间存在性+list/has/report+动态 getter·累计 162+ smoke test", "why": "四个新基础设施立即有测试覆盖" },
+        { "what": "加载顺序·tm-pollution-guard 和 tm-namespaces 放在 tm-perf+tm-invariants 之后·所有 4 个新文件都在 errors-panel 之后·不影响业务代码", "why": "避免时序问题" },
+        { "what": "缓存·tm-perf v=b→c(baseline lock)·tm-test-harness v=i→j(14 新用例)·tm-patches v=c→d(R58 总导航)·新增 tm-pollution-guard+tm-namespaces v=a", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第十轮重构·window 全局污染清点+tm-game-engine 9k 行导航+perf 阈值告警",
+      "title": "定量发现 1469 全局·3 大户占 38%·perf 从被动采样变主动告警·两大 9k 文件全带真实行号地图",
+      "items": [
+        { "what": "R50 window 全局污染清点报告·新建 GLOBAL_POLLUTION_REPORT.md·扫描 54 tm-*.js 的全部顶层定义·1469 个唯一全局名/平均 27 个/文件·Top 10 文件贡献 886 (60%)·最肥 tm-economy-military.js 333 个·tm-map-system.js 126·tm-lizhi-panel.js 107·识别 clamp 在 9 文件重复·findPath 冲突已修复·给出 3 个 ROI 排序建议(命名空间化/统一 utils/污染守卫)", "why": "'全局污染'此前只是直觉·现在有定量数据·TM.Economy/TM.MapSystem/TM.Lizhi 三步命名空间化可减 38% 全局·未来决策有依据" },
+        { "what": "R53 tm-game-engine.js 9,043 行补顶部导航·§A 精力/§B 启动界面/§C 编辑器入口/§D 设置面板/§E 玩家操作/§F 结算管道/§G 存档加载 共 7 段·实测行号(showScnSelect L43·backToLaunch L403·enterEditor L442·openSettings L1146·renderGameState L5884·enterGame L6943·startGame L7366·SettlementPipeline.register L7891)·补🛠️ 调试入口和⚠️ 4 个常见陷阱(openSettings 被 tm-patches 覆盖/renderTechTab 被 audio-theme 覆盖/GameHooks.run 分散/fullLoadGame 在 audio-theme 历史债务)", "why": "9k 行是第二大单文件·加上 R41 的 endturn 18k·两个最大文件都有了入口地图·新维护者 5 分钟覆盖 27k+ 核心代码" },
+        { "what": "R57 TM.perf 阈值告警·新增 setThreshold(name, ms, handler?)/getThresholds·record 内部自动调 _checkThreshold·默认 handler TM.errors.capture+面板闪红 200ms·自动装默认阈值 corruption.tick>500ms/guoku.tick>800ms/authority.tick>400ms·允许自定义 handler 替代", "why": "perf 之前纯被动·需主动查才发现慢·现在 tick 超阈值立即记录到 TM.errors·合并 p2/p4/p5/p6 后性能回归第一时间可见" },
+        { "what": "smoke test 扩展 +3 用例·setThreshold/getThresholds 注册+移除·阈值触发自定义 handler·未超阈值不触发·累计 148+ smoke test", "why": "阈值告警机制立即有测试覆盖" },
+        { "what": "缓存·tm-perf v=a→b(setThreshold+告警)·tm-test-harness v=h→i·新增 GLOBAL_POLLUTION_REPORT.md", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第九轮重构·性能采样器+不变量校验+endTurn 18k 行导航",
+      "title": "三件真新动作·非重复模式·TM.perf 合并前后基准+TM.invariants 结构护栏+endTurn 头部地图",
+      "items": [
+        { "what": "R36 新增 tm-perf.js (TM.perf 性能采样器)·mark/measure 手工配对·wrap(obj,method,name) 一次性包装+支持 Promise·自动 1s 延迟包装 CorruptionEngine.tick/GuokuEngine.tick/AuthorityEngines.tick (LAYERED 终版已挂好)·report/reportByName 返回 p50/p95/p99/max·print 用 console.table·downloadJSON 导出完整采样·Ctrl+Shift+P 浮层显示排序表·enabled 开关·上限 500 条/指标", "why": "未来真合并 Corruption p2/p4 或 Guoku p2-p6 时·合并前后下载 JSON 对比 p95 耗时·量化证明没引入性能回归" },
+        { "what": "R40 新增 tm-invariants.js (TM.invariants GameState 护栏)·10 个内置 check group：gm-root(turn/running 类型)/chars(重名/死人占职/缺 name)/factions(角色引用不存在势力)/guoku(三账 stock 数字)/officeTree(holder 角色不存在或已死)/admin(区划缺 name)/ai-validation(Schema+validator 加载)/da-facade(DA 12 领域完整)/save-version(SAVE_VERSION+stamp 就位)/turn-state(currentIssues/memorials 是数组)·check() 返回 {ok,violations,stats,results}·assert() 违规 console.error+TM.errors.capture·addCheck 允许外部注册·enableAutoCheck 每 5s 跑一次", "why": "存档加载/回合结算后结构损坏无人知·现在任何一个不变量破坏·控制台立即可见·为合并时的'改动后跑一遍 TM.invariants.check()'提供一键验证" },
+        { "what": "R41 tm-endturn.js 18,600 行补顶部导航·原头部注释行号估算已过时·实测更新 7 段(§A 辅助/§B 诏令/§C AI推演/§D 应用/§E 系统更新/§F 渲染+收尾)·每段带真实行号+关键函数名·补🛠️ 调试入口和⚠️ 架构注意事项(不要新加 AI 字段处理、不要直接 GM.chars.find、每次合并前看 TM_AI_SCHEMA.describe)", "why": "18k 行无入口=不可读·实测行号让新维护者 5 分钟定位 80% 代码·endTurn() 主入口在 L15655 不是模糊的'行~8700+'" },
+        { "what": "smoke test 扩展 +15 用例·TM.perf(mark/measure 正时/wrap 自动采样/record/enabled 开关)+TM.invariants(listGroups>=8/check 返回结构/子集/未知 group/da-facade 通过/ai-validation 通过/save-version 通过/addCheck 注册)·累计 145+ smoke test", "why": "两个新基础设施立即有测试覆盖·保证自身 API 稳定" },
+        { "what": "加载顺序·tm-perf + tm-invariants 放在 tm-errors-panel 之后(都依赖 TM 命名空间+部分依赖 DA/Schema)·自动 wrap tick 用 setTimeout(1s) 确保 LAYERED 终版已安装", "why": "避免时序问题" },
+        { "what": "缓存·tm-endturn v=b→c(补顶部导航)·tm-test-harness v=g→h(15 新用例)·新增 tm-perf/tm-invariants v=a", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第八轮重构·Settings UI + endTurn Phase A smoke test + 诊断速查表",
+      "title": "测试从 100 → 130+·Settings 迁移前置就位·新建 DEBUG_CHEATSHEET 一页纸控制台速查",
+      "items": [
+        { "what": "R28 Settings UI smoke test·新增 11 个用例·存在性(openSettings/closeSettings/sSaveAPI/sSaveAll/sSaveSecondaryAPI/sClearSecondaryAPI/sToggleSecondaryEnabled/sDetectModels/sTestConn/_sUpdateMaxoutInfo/_sMaxoutToggle/_sVerbUpdatePreview/_sShowCtxInfo)·行为 smoke(closeSettings 不抛/sToggleSecondaryEnabled 写 P.conf.secondaryEnabled/sClearSecondaryAPI 清空/_sUpdateMaxoutInfo 不抛/TM._migrationPlaceholders 含 R22)", "why": "R22 的 512 行 Settings 未真拆·但 smoke test 先到位·未来拆的时候直接有回归护栏" },
+        { "what": "R30 endTurn Phase A 诏令收集 smoke test·新增 14 个用例·classifyEdict 空/乱码 fallback·getEdictLifecycleTurns 未知类型 fallback 1·daysToTurns 小于/大于 daysPerTurn·getReformPhaseTurns·formatLifecycleForScript·calcEdictMultiplier 无执行者·estimateResistance·generateEdictForecast·extractEdictActions 空/过短/null 兜底+action 结构", "why": "endTurn 最前期 Phase A 有托底·未来 Corruption/Guoku 合并前的 tick 路径里有诏令触发·此层不坏，tick 才能正确跑" },
+        { "what": "R32 新建 DEBUG_CHEATSHEET.md 一页纸诊断控制台速查·⚡快捷键(Ctrl+Shift+E/?test=1)·🔍 DA.* 12 领域 70+ 接口·🤖 TM_AI_SCHEMA + validator·🐛 TM.errors·🧪 TM.test·💾 SaveManager·🔧 Corruption/Authority/Guoku 三大引擎·🧩 时间换算/对话字数/模态框/工具·🩺 6 种常见问题诊断流程", "why": "调试时散落在多处文档的入口一页纸整合·新维护者 5 分钟上手·故障时快速定位" },
+        { "what": "累计 smoke test 规模·本轮 +25 用例(R28 11+R30 14)·累计 130+·覆盖：DA 全部·TM_AI_SCHEMA 双模式·validator·SaveMigrations·TM.errors·deepClone·endTurn helpers 12·Corruption API+data+behavioral+LAYERED·R17-R21 迁移模块·Settings UI 存在性+行为·endTurn Phase A 诏令分类+生命周期+执行乘数+extractEdictActions", "why": "从 30 → 130+ 覆盖·未来合并/重构前有 4 倍回归护栏" },
+        { "what": "缓存·tm-test-harness v=f→g·新增 DEBUG_CHEATSHEET.md 一页纸", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第七轮重构·Corruption tick smoke test + 2 LAYERED phase 标注 + Settings UI 迁移靶文件",
+      "title": "诚实停止 Settings 硬拆(512行风险过大)·补 14 Corruption 测试·最后 2 个真 LAYERED 文件标清",
+      "items": [
+        { "what": "R26 标注最后 2 个真 LAYERED phase 文件·tm-phase-c-patches.js 顶部加覆盖链注释(OVERRIDE EdictParser.processImperialAssent/tick)+合并前必需 smoke test 清单+10-20h 工时估算·tm-phase-f1-fixes.js 顶部加(OVERRIDE AuthorityEngines.tick+改 PhaseD.COUNTER_STRATEGIES.rotate_officials)+相依警示(f1 合并涉及 phase-d)+15-25h 估算", "why": "14 SELF/APPEND + 2 LAYERED 全部标完·未来维护者看 phase 文件顶部直接知道类型和合并成本" },
+        { "what": "R24 Corruption tick 深度 smoke test·14 个新用例·data integrity(Sources>=5/Consequences/Actions 三常量/DYNASTY_PRESETS>=3 朝代/_deptName 是函数)·behavioral smoke(ensureModel 空 GM 不抛/calcVisibilityTier 三档不抛/updatePerceived 不抛/checkFactionFormation 存在/FACTION_TEMPLATES 存在)·LAYERED 覆盖链验证(EXPOSURE_CASES 是 p2 新增的 10+ 条数组/getGameMode 是 p4 新增/tick 可无 context 调用)", "why": "未来合并 p2/p4 之前·这 14 用例确保终版 CorruptionEngine API 完整·合并过程中任何一处覆盖漏掉都会被 smoke test 抓到" },
+        { "what": "R22 Settings UI 降级为迁移靶文件·诚实说 512 行硬拆风险大于收益(涉及 openSettings 400+ 行 innerHTML 字符串+19 个 sXxx 函数+主/次/生图 三套 API 配置+localStorage 双路径)·新建 tm-settings-ui.js 作占位+详细迁移指南(按依赖顺序 3 批迁移+先决条件 8 个 smoke test+工时 15-25h)·记录到 TM._migrationPlaceholders 供查询", "why": "没有测试环境硬拆 512 行极易破坏·靶文件让未来路径显式·比假装拆了更诚实" },
+        { "what": "tm-patches.js 瘦身进度诚实更新·已真迁移 615 行(Modal+Military+World+Editor Details)·占位但未迁 ~850 行(Settings UI 512+Game Init 290+其他 ~50)·物理文件仍 2186 行(双保险策略保留原代码)", "why": "真进度 vs 计划进度的诚实对比·让维护者知道哪些是真拆哪些是路线图" },
+        { "what": "累计测试规模·本轮 +14 Corruption 用例·累计 100+ smoke test·覆盖：DA 全部 15 领域·TM_AI_SCHEMA 双模式·validator 双模式·SaveMigrations·TM.errors·deepClone·endTurn helpers 12 个·Corruption API+data+behavioral+LAYERED·R17-R21 迁移模块全部存在性", "why": "测试从 30 → 100+·为未来真合并提供 3-4 倍原覆盖" },
+        { "what": "缓存·tm-test-harness v=e→f·新增 tm-settings-ui.js v=a(占位)", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第六轮重构·真拆 World View + Editor Details + endTurn helpers smoke test",
+      "title": "tm-patches 继续瘦身·500+ 行已抽离·测试从 65→90+·回合结算关键工具函数有托底",
+      "items": [
+        { "what": "R20 真拆 World View·新建 tm-world-view.js (~200 行)·openWorldSituation(含 7 维趋势折线+历史事件时间轴)+drawEraTrendsChart canvas 绘图+5 个兼容旧名函数·双保险保留原代码", "why": "UI 组件自洽·canvas 绘图逻辑独立·低风险示范第三次拆分" },
+        { "what": "R21 真拆 Editor Details·新建 tm-editor-details.js (~290 行)·复盖 8 个 renderXxxTab(角色/物品/规则/事件/党派/阶层/世界/科技)+editChr 10 维滑块+saveChrEdit+editItm/editClass2/editTech2+6 个 aiGenXxx(物品/规则/事件/阶层/世界/科技)·6 处 AI 生成异常捕获接入 TM.errors", "why": "编辑器详细面板覆盖 game-engine 简版·从 tm-patches 抽离后可单独迭代·AI 生成失败有观测" },
+        { "what": "R23 endTurn 关键路径 smoke test·新增 25+ 用例·_getDaysPerTurn 兜底/边界/空 P·turnsForMonths 0/负/小数/最小 1·ratePerTurn 0/正·getTSText 字符串/非空·_aiDialogueWordHint/_aiDialogueTok 范围+线性+非法兜底·uid 唯一+格式·escHtml 转义+null/undefined·extractJSON 前言后记/无 JSON·modal system 存在性·R17-R21 迁移模块函数存在性(Military/World/Editor Details 所有 20+ 导出)", "why": "为未来真合并 Corruption/Guoku 托底·这些 helpers 是所有子系统 tick 都依赖的底层·覆盖不变 = 合并不破" },
+        { "what": "tm-patches.js 减重进度·本轮 R20(~200 行 World View)+R21(~290 行 Editor Details)标记为已迁移·加上 R17(~40 Modal)+R18(~85 Military)累计 615 行已有等价新文件·tm-patches.js 物理仍 ~2186 行·未来确认稳定后可删约 30% 代码", "why": "绞杀者模式推进·双保险 = 零风险·删除动作交给验证过的维护者" },
+        { "what": "缓存·tm-test-harness v=d→e(25+ 新用例)·新增 tm-world-view/tm-editor-details v=a", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第五轮重构·真拆 tm-patches 2 子模块+DA.guoku 集成 GuokuEngine+Guoku 5 层链分析",
+      "title": "从'分析'迈入'真落地'·Modal/Military 脱离 2186 行大杂烩·DA.guoku 门面化·发现 Guoku 是 5 层 LAYERED",
+      "items": [
+        { "what": "R17 真拆 Modal System·新建 tm-modal-system.js (~53 行)·含 gv/openGenericModal/closeGenericModal/showModal/closeModal·加载在 tm-patches.js 之后覆盖原版·tm-patches.js 原代码保留作双保险+顶部改 redirect 注释·未来确认稳定后可删", "why": "最低风险示范·40 行纯函数库零依赖·证明拆分路径可行" },
+        { "what": "R18 真拆 Military System·新建 tm-military-ui.js (~140 行)·含 migrateMilUnits/addArmy/editArmy/renderMilTab/aiGenMil·aiGenMil 捕获异常时走 TM.errors.capture(e,'military-ui.aiGenMil')·双保险策略同 R17", "why": "次低风险示范·证明较复杂模块(含异步 AI 调用)也能拆·为未来拆 tm-patches 剩余 4 领域打样" },
+        { "what": "R19 DA.guoku 集成 GuokuEngine·新增 allStocks/monthRatio/ensureModel/computeTaxFlow/sources/expenses/reforms/loanSources/creditUnchecked·isBankrupt 优先走 GuokuEngine.checkBankruptcy·都有 fallback 不依赖 engine 加载状态", "why": "DA 之前只读 GM.guoku.ledgers.xxx·无法访问 engine 层 API·现在 DA 是 engine 的统一门面" },
+        { "what": "Guoku 5 层覆盖链文档化·发现 tick 被连续覆盖 4 次(engine→p2→p4→p5→p6)·p6 为终版·每层职责：engine 基础/p2 暴君扭曲+省级账簿/p4 改革+物价+铸币/p5 漕运损耗+借贷+AI/p6 自定义税种·PATCH_CLASSIFICATION.md Guoku 段重写·p5.js p6.js 顶部加 LAYERED 标签+合并策略", "why": "Guoku 是整个项目最深的 LAYERED·文档化链关系是未来合并必须·原估 80h 合并工时验证合理" },
+        { "what": "smoke test 扩展·DA.guoku 新增 allStocks/monthRatio/ensureModel/sources 等 6 个用例·测试累计 65+", "why": "新 DA 方法立即有测试覆盖·保证 fallback 路径不抛" },
+        { "what": "缓存·tm-data-access v=b→c(GuokuEngine 集成)·tm-test-harness v=c→d·tm-patches v=22c→24c(顶部注释变更)·新增 tm-modal-system/tm-military-ui v=a", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第四轮重构·14 个 Phase 文件全扫描+tm-patches 6 领域切分+30 新 smoke test",
+      "title": "发现 16 phase 文件里 14 个不是真补丁·tm-patches 切分路线图·测试覆盖扩至 60+ 用例",
+      "items": [
+        { "what": "R15 扫描剩余 14 个 phase 文件分类·结论：14 个里 12 个是 SELF/APPEND(自包含或纯新增)·仅 2 个 LAYERED(真覆盖)·c-patches 覆盖 EdictParser.processImperialAssent/tick·f1-fixes 覆盖 AuthorityEngines.tick+改 PhaseD.COUNTER_STRATEGIES·其他 14 个只需改名去掉 phase- 前缀即可(工时从原估 60h 缩到 3-4h)", "why": "大部分 phase 文件因名字误导被当补丁·实际是正规子系统模块·分类后重构路径清晰" },
+        { "what": "PATCH_CLASSIFICATION.md 更新·16 个 phase 全部评估完·建议改名列表(prophecy/audit/event-bus/class-mobility/player-tools/ledger-paper/authority-ui/ethnic-religion/edict-thresholds/fiscal-ui/tax-atomic 等)·只 2 个文件需要真合并·合并前置条件：edict+authority tick 路径 smoke test", "why": "未来维护者打开任一 phase 文件先查此表·避免盲目合并" },
+        { "what": "R16 tm-patches.js 2186 行 6 领域切分·Settings UI(~560行·高风险)·Game Init(~290行·高风险)·Editor Details(~190行·中)·Modal System(~40行·极低)·World Situation(~120行·低)·Military System(~50行·低)·风险最低 3 个先拆约 210 行·10-15h 立即减到 ~1950 行", "why": "2186 行大杂烩不可一次拆·按领域分批有序·清单让未来每步清楚" },
+        { "what": "R14 smoke test 扩充·新增 30+ 用例·CorruptionEngine API 存在性+p2/p4 叠加链验证(5)·AuthorityEngines API+14 源常量完整性(4)·TM_AI_SCHEMA dialogue 模式(3)·validator dialogue 模式(3)·DA edge cases·null/空字符串(5)·TM.errors capture/byModule/openPanel(4)·deepClone 深度拷贝独立性(4)·Schema metadata 完整性+consumedBy 溯源(2)", "why": "为未来真合并打地基·合并 corruption/authority 前有 50+ smoke test 兜底·测试覆盖从 30 扩到 60+" },
+        { "what": "缓存·tm-test-harness v=b→c(R14 扩充测试)", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第三轮重构·Schema 对话模式+错误面板 UI+补丁分类体系+Phase 文件文档化",
+      "title": "validator 双模式支持(turn-full/dialogue)·Ctrl+Shift+E 错误面板·18 个补丁文件分类标签·诚实评估后停止无益合并",
+      "items": [
+        { "what": "Schema 对话模式·TM_AI_SCHEMA 新增 DIALOGUE 字段组(reply/loyaltyDelta/emotionState/toneEffect/suggestions/memoryImpact/stance/vote/rebuttal/exam_opinion)·listFields(mode)/toKnownFields(mode) 支持 mode 参数·validator 签名扩展 validate(output,tag,mode)·dialogue 模式 reply 缺失直接 error·密问 _finish 接入 TM.validateAIOutput(parsed,'mz-dialogue','dialogue')", "why": "原 schema 只覆盖回合推演·问对/朝议/密问/科议返回的 {reply,...} 对话 JSON 结构独立·现在同一 validator 两种模式" },
+        { "what": "新增 tm-errors-panel.js (TM.errors UI)·Ctrl+Shift+E 唤出浮层·左栏按 module 汇总(top3 消息)+近 20 条 AI 校验历史·右栏最近 50 条详情(可展开 stack)·【清空/下载 JSON/关闭】按钮·下载含 errors+summary+validations 完整快照", "why": "console.warn 易刷屏漏掉·游戏内浮层直观·玩家可下载错误快照反馈问题" },
+        { "what": "新增 PATCH_CLASSIFICATION.md·对 18+ 补丁文件建立分类体系(SELF/APPEND/OVERRIDE/LAYERED/MIXED)·Authority F4+G1 评估为 SELF 自包含·Corruption p2 为 MIXED·p4 为 LAYERED(叠加链终端)·var-drawers 三代为 OVERRIDE·tm-patches 为极度 MIXED·未评估的 14 个 phase 文件按名字推测+待分析·每种类型给出建议处理(改名/inline/合并/保留)", "why": "看名字难判是真补丁还是自包含·92 文件里 18 个疑似补丁的分类让未来维护者一眼识别·避免无益的'合并尝试'" },
+        { "what": "phase 文件顶部评估标签·tm-phase-f4-authority-deep.js+tm-phase-g1-authority-ui.js 加统一诊断注释(架构分类 SELF/本质是自包含模块而非补丁/可改名但保留加载顺序)·tm-corruption-p2.js+p4.js 加 MIXED/LAYERED 标签+覆盖链图解", "why": "让未来打开任意'phase-'文件第一眼就知道该不该合并·避免误判浪费工时" },
+        { "what": "R12 Corruption 诚实评估后决定不合并·p2+p4 是真 monkey patch 叠加链(tick 被覆盖 2 次 generateExposureCase 被覆盖 1 次)·2222 行手工合并风险大于收益·改为文档化覆盖链+PATCH_CLASSIFICATION.md 给 30h 合并路线图", "why": "我无业务知识也无测试环境·合并错会让腐败系统崩·分类+路线图比盲合更有价值" },
+        { "what": "R10 Authority 诚实评估·F4+G1 被名字误导为'phase 补丁'·实际是完整自包含模块(PhaseF4 导出 init/tick/dispatchSecretEdict 等 11 个方法·PhaseG1 导出 5 个 window 全局)·仅 1 处真 monkey patch(_patchDecreeParserWithTolerance)·做文档标注+未来改名候选 tm-authority-deep/tm-authority-ui", "why": "合并回 authority-engines 会污染职责·保留分层+文档化是正解" },
+        { "what": "缓存·tm-ai-schema v=a→b(dialogue 分组)·tm-ai-output-validator v=b→c(mode 参数)·tm-shell-extras v=22q→24a(mz validator 接入)·新增 tm-errors-panel v=a", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "第二轮重构·DAL 扩展至 15 领域+全局错误收集+var-drawers 去脆弱延迟+validator 覆盖 3 个 AI 调用",
+      "title": "基于 Strangler Pattern 继续推进·新代码全局错误捕获·热数据字段门面化·AI 可观测性三倍扩展",
+      "items": [
+        { "what": "DAL 扩展·DA 新增 armies(all/findByName/byFaction/byCommander/totalTroops/activeWars/activeBattles)·harem(concubines/pregnancies/empress)·authority(huangquan/huangwei/minxin/powerMinister/tyrantLevel)·memorials(all/unbatched/byChar/recent)·chronicle(yearly/recent/arcs/afterwords/playerDecisions)·npcMemory(ofChar/remember)·qiju(all/recent/push)·jishi(all/byChar/push)·era(dynastyPhase/socialStability/taxPressure)·scenario(current/name)·coveredGMFields 从 15 字段扩到 28 字段", "why": "首轮 DAL 只覆盖 5 热字段·大量次热字段仍散落·完整覆盖后新代码有统一出口·重构 GM 只需改门面内部" },
+        { "what": "新增 tm-error-collector.js (TM.errors 全局收集)·监听 window.error / unhandledrejection 自动捕获·提供 opt-in TM.errors.capture(e,'module-name',extra) 替换 silent catch(e){}·按 module 分组汇总(TM.errors.getSummary)·按 module 过滤(byModule)·记录上限 200 FIFO·consoleMirror 开关·applier 3 处 silent catch 示范接入(recordCharChange/localActions.fame/pubTreasury)", "why": "197 处 catch(e){} 一次改完风险 > 收益·建全局捕获+示范接入·未来维护者按 pattern 迁移·至少所有 uncaught 都能定位" },
+        { "what": "validator 覆盖从 1 → 3 个 AI 调用·subcall1/subcall1b/subcall1c 全部接入 TM.validateAIOutput·try 包裹不阻断主流程·TM._validationHistory 保留最近 20 条·校验异常靠 ErrorCollector 兜底", "why": "原先只 subcall1 校验·1b(文事+势力)和 1c(诏令问责)格式异常静默·现在所有结构化 AI 返回都可观测" },
+        { "what": "var-drawers 三代文档化·v1 顶部注释标明三层叠加设计意图(基础→Rich 替换→Extra wrap)+合并指引+加载顺序约束·v2 _install 从 DOMContentLoaded/setTimeout(200ms) 改为同步立即执行·v3 _installFinal 从 setTimeout(400ms) 改同步·index.html 加载行前加注释", "why": "三个文件名看似死代码并存·实际是 add-on 分层增强·没文档只看名字会误认为代办合并·setTimeout 延迟是加载顺序未保证时的补丁·现在 index.html 保证顺序后可去掉延迟（消除加载期 race condition）" },
+        { "what": "测试框架新增 20+ smoke test·DA.armies/DA.authority/DA.harem/DA.chronicle 覆盖·DA.meta.coveredGMFields 存在性校验·字段数 >= 20", "why": "验证 R6 扩展字段实际可用·未来新增 DA 字段也要加 smoke test" },
+        { "what": "index.html 加载顺序·tm-error-collector 首位(捕获其他模块初始化异常)·var-drawers 三件加 ?v=20260424a 强制刷新", "why": "ErrorCollector 要先安装 listener 才能捕获后续模块问题" },
+        { "what": "缓存·tm-endturn v=a→b(subcall1b/1c validator)·tm-data-access v=a→b(14 领域扩展)·tm-ai-change-applier v=21h→24a(3 处 ErrorCollector 接入)·tm-test-harness v=a→b(新 smoke test)·新增 tm-error-collector v=a·var-drawers 三件 v=a", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "架构重构基础设施·Strangler Pattern 四层：DAL+AI Schema+测试框架+架构文档",
+      "title": "为未来渐进式重构打地基·全部纯新增不破坏现有·旧代码可持续工作·新代码强制走单一入口",
+      "items": [
+        { "what": "新增 tm-data-access.js (DA 门面)·统一封装 GM/P 最热路径·DA.chars(findByName/allAlive/byFaction/byLocation/player/adjustStat)·DA.factions/parties/classes·DA.guoku(money/grain/cloth/isBankrupt/spendUnchecked)·DA.officeTree(get/findPosition/postsOf)·DA.admin(get/findDivision/getProvinceStats)·DA.turn/edict/issues·DA._logAccess 可开关访问日志·DA.meta.logSummary 分析热点", "why": "67 个文件直接读写 GM.* 共 193 字段·要改数据结构得 grep 全仓·现在新代码走 DA·未来重构 GM 只需改门面内部·完全向后兼容（内部委托给现有 findCharByName 等事实 DAL）" },
+        { "what": "新增 tm-ai-schema.js (TM_AI_SCHEMA)·AI 推演字段契约单一真源·50+ 顶层字段类型+描述+必填子字段+已废弃标记+消费方溯源(consumedBy:['endturn:9636'])·listFields/describe/toKnownFields/toDeprecatedFields/toRequiredSubfields API·tm-ai-output-validator 动态从 schema 读取字段(保留 fallback)", "why": "原来字段定义散落在 prompt 字符串/validator/applier 三处·容易漂移(例 npc_actions 已废弃但 prompt 偶尔还提)·现在 schema 改一处三处同步" },
+        { "what": "新增 tm-test-harness.js (TM.test)·零依赖浏览器原生测试·describe/it/beforeEach/expect·toBe/toEqual/toBeTruthy/toHaveLength/toContain/toMatch/toThrow 等 20+ matcher·支持 not 否定·URL 加 ?test=1 自动跑·内置 smoke test 20+ 用例覆盖 TM_AI_SCHEMA/validateAIOutput/DA.chars/DA.guoku/DA.turn/SaveMigrations", "why": "原来唯一 tm-test.js 是手写覆盖 < 3%·无自动化·每次改动手工跑游戏测·现在新增功能可同时写 smoke test·回归自动检出" },
+        { "what": "重写 ARCHITECTURE.md·从 133 行单薄文档(仅说 editor vs index)升级为 10 章完整架构图·核心心智模型+两套编辑器+92 文件 11 层加载顺序+GM 40 核心字段所有权表+P 10 字段所有权表+endTurn 管道 7 phase+AI 调用拓扑+8 反模式清单+15 分钟上手路径+演化路线图+常用调试片段", "why": "三个月后自己回来看也能在 30 分钟定位 80% 代码·新维护者不用重新摸索" },
+        { "what": "新增 MODULE_REGISTRY.md·92 个 tm-*.js 按领域 9 组分类(核心/回合结算/子系统引擎/UI/NPC/科举/地图/Phase 补丁/编辑器)·每个文件标职责+合并建议+风险·重构优先级矩阵 P0-P4 + 工时估算·tm-endturn.js 长远拆分 7 文件草案·应急规则(可以做/不要做)·guoku-p2/p4/p5/p6 合并路线·Phase 补丁归位策略", "why": "要合并 tm-guoku-p2/p4/p5/p6 或拆 tm-endturn.js 时·来这里看怎么拆·避免重新评估·把只在脑子里的重构计划写到文件中" },
+        { "what": "index.html 加载顺序·tm-ai-schema 在 validator 之前(validator 依赖 schema)·tm-data-access 在 tm-index-world 之后(DA 委托 findCharByName)·tm-test-harness 放在最末 changelog 之前(所有业务代码加载完才跑 smoke test)", "why": "加载顺序错会导致新文件的依赖未就绪" },
+        { "what": "缓存·tm-ai-output-validator v=a→b(动态读 schema)·新增 tm-ai-schema/tm-data-access/tm-test-harness 初版 v=20260424a", "why": "强制刷新" }
+      ]
+    },
+    {
+      "date": "2026-04-24",
+      "module": "代码架构加固·AI输出validator+事件监听泄漏修复+函数冲突消除+P/GM边界清理",
+      "title": "五阶段增量重构：AI推演结构化校验、官制面板拖拽监听一次性注册、findPath命名冲突消除、officeTree P↔GM swap hack 消除、存档版本号 stamp 补全",
+      "items": [
+        { "what": "新增 tm-ai-output-validator.js·extractJSON 后 TM.validateAIOutput(p1,'subcall1') 非阻断校验·检测 50+ 顶层字段类型/必填子字段/已废弃字段(如 npc_actions→npc_interactions)/AI 幻觉未知字段·记录到 window.TM._lastValidation·全 history 保留 20 条·console.warn/error 分级", "why": "p1 散落在 tm-endturn.js 多处各自 Array.isArray 检查·AI 偶有格式错时静默失败难排查·统一可观测层" },
+        { "what": "修官制编辑器拖拽面板内存泄漏·renderOfficeTab 每次打开都向 document 注册新 mousemove/mouseup 监听·改为 window._officePanGlobalInstalled 幂等标志+window._activeOfficePanWrap 活跃指针·document 级 handler 终生一份·wrap 级 wheel/mousedown 跟随 DOM 自动回收", "why": "切换标签页多次后 document 积累 N 个监听·长游戏 20MB+ 泄漏·mousemove 每帧遍历闭包" },
+        { "what": "修 findPath 函数签名冲突·map-integration.js findPath(startId,endId,mapData,owner)→返回数组·被后加载的 tm-map-system.js findPath(from,to,options)→返回 {path,cost...}·参数语义完全不同·前者改名为 _miFindPath 避免未来误用", "why": "签名冲突潜在 TypeError·虽 canSupply 当前是死代码未触发·但保留冲突是地雷" },
+        { "what": "消除 P.officeTree swap hack·_officeBuildTreeV10 原硬读 P.officeTree·tm-index-world.js renderOfficeTab 为渲染 GM.officeTree 而临时 P.officeTree=GM.officeTree→调用→恢复·改为函数接 opts.officeTree·调用方直接传 GM.officeTree·保留 P.officeTree fallback 兼容旧调用", "why": "swap 虽正确但期间若并发访问会读到错误数据·违反 GM/P 数据边界·更易误改 P" },
+        { "what": "补 SaveMigrations.stamp 调用·saveToSlot 序列化前 SaveMigrations.stamp(gameState) 写入 _saveVersion·旧存档加载时 data._saveVersion||1 自动跑 v1→v5 迁移链·新存档不再被误判为 v1 触发全链", "why": "迁移系统完备但 stamp 从未被 saveToSlot 调用·所有新存档版本号丢失" },
+        { "what": "缓存·tm-dynamic-systems v=c→24a·tm-audio-theme v=a→24a·tm-index-world v=e→24a·tm-endturn v=l→24a·新增 tm-ai-output-validator v=24a", "why": "强制刷新" }
+      ]
+    },
+    {
       "date": "2026-04-22",
       "module": "御案时政·独召密问全链条+诏书建议库时序分组+开局封存+三小修",
       "title": "全屏卷轴式时政任务系统·不限人数独召密问流式 JSON+划入诏书+建言要点·议事清册回合分组·开局自动封存·地方数据改 GM 源·地图关闭修复·压缩式归档三补完",

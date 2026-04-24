@@ -106,7 +106,7 @@
 
     // 3. 资源结构——若 CharEconEngine 存在则使用其初始化
     if (typeof global.CharEconEngine !== 'undefined' && typeof global.CharEconEngine.ensureCharResources === 'function') {
-      try { global.CharEconEngine.ensureCharResources(ch); } catch(e) {}
+      try { global.CharEconEngine.ensureCharResources(ch); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-char-full-schema');}catch(_){}}
     } else {
       if (!ch.resources) ch.resources = {};
       var r = ch.resources;

@@ -1,6 +1,13 @@
 /**
  * tm-phase-g1-authority-ui.js — G 阶段 ①：权威运行时 UI + 朝代预设 + 历史案例库
  *
+ * ⚠ 架构分类（2026-04-24 R10 评估）：
+ *   文件名以 "phase-" 开头，但**本质是自包含 UI 模块**而非 monkey patch。
+ *   导出 PhaseG1 + window.openTianweiInspection/openQianGangInspection/openMinxinInspection
+ *        /openLizhiInspection/openMinxinHeatmap/applyDynastyPreset，不覆盖现有函数。
+ *   未来可改名为 tm-authority-ui.js，当前命名保留以维持加载顺序与 git 历史。
+ *   **不需要"归位"到 authority-engines.js**（这是 UI 层，属性上不同）。
+ *
  * 补完：
  *  - 天威之察 / 乾纲之察 / 民心之察 / 吏治之察 4 个运行时面板
  *  - 12 朝代 × 4 阶段 权力预设矩阵（开国/盛/衰/亡）

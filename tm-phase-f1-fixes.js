@@ -1,6 +1,21 @@
 /**
  * tm-phase-f1-fixes.js — F 阶段 ①：快速修正
  *
+ * ⚠ 补丁分类（2026-04-24 R26 评估）：LAYERED（真 monkey patch）
+ *   · APPEND：PhaseF1.init/tick
+ *   · OVERRIDE：
+ *       · AuthorityEngines.tick（替换 tm-authority-engines.js 的简化版 updatePerceived）
+ *       · PhaseD.COUNTER_STRATEGIES.rotate_officials（改权臣反击策略的衰减算法）
+ *   · 覆盖链（认识清楚）：
+ *       authority-engines.tick v1 → f1-fixes.tick v2（五段粉饰+党羽轮换+三段皇权）
+ *   · 合并前必需：
+ *       - AuthorityEngines.tick 路径的 smoke test（10 个用例 · 五段粉饰 × 两段党羽）
+ *       - PhaseD.COUNTER_STRATEGIES 的行为快照（给原策略和新策略都写 fixture 对比）
+ *   · 合并工时估算：15-25h
+ *   · 合并策略：
+ *       - F1 的 _updatePerceivedHuangwei_full 整段替换 authority-engines 内对应函数
+ *       - PhaseD.COUNTER_STRATEGIES.rotate_officials 直接修改 phase-d 源（phase-d 也不是 SELF，此改动相依）
+ *
  * 补完：
  *  - D 粉饰度五段位完整修正（暴君/威严/常望/衰微/失威 分别感知调整）
  *  - 党羽"轮换削弱"具体衰减算法

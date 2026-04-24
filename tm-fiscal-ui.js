@@ -529,20 +529,20 @@
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
     var G = global.GM;
-    try { _applyPostalCollapseEffect(ctx, mr); } catch(e){}
-    try { _tickLoans(ctx, mr); } catch(e){}
-    try { _tickForeignSilverFlow(ctx); } catch(e){}
-    try { updateAcceptanceWithPurity(G, mr); } catch(e){}
-    try { _tickAuditBudgetConstraint(ctx, mr); } catch(e){}
+    try { _applyPostalCollapseEffect(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-fiscal-ui');}catch(_){}}
+    try { _tickLoans(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-fiscal-ui');}catch(_){}}
+    try { _tickForeignSilverFlow(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-fiscal-ui');}catch(_){}}
+    try { updateAcceptanceWithPurity(G, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-fiscal-ui');}catch(_){}}
+    try { _tickAuditBudgetConstraint(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-fiscal-ui');}catch(_){}}
     // 年度决算通知
     if ((G.month||1) === 1 && G.turn > 0) {
-      try { autoEnablePaperByDynasty(G); } catch(e){}
+      try { autoEnablePaperByDynasty(G); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-fiscal-ui');}catch(_){}}
       // 合并家族共财
       try {
         (G.families || []).forEach(function(f) {
           if (f.mode === 'communal') consolidateFamilyWealth(f.id);
         });
-      } catch(e){}
+      } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-fiscal-ui');}catch(_){}}
     }
   }
 

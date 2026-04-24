@@ -697,7 +697,7 @@
     try { tickLoans(ctx, mr); } catch(e) { console.error('[gapfill] loans:', e); }
     // 年度重置
     var isNewYear = (global.GM.month === 1) || (global.GM.turn && global.GM.turn % 12 === 0);
-    if (isNewYear) { try { _resetForceLevyCounts(); } catch(e) {} }
+    if (isNewYear) { try { _resetForceLevyCounts(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-economy-gap-fill');}catch(_){}} }
   }
 
   function _fmtNum(v) {

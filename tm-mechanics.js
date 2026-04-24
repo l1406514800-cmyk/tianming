@@ -1240,7 +1240,7 @@ var LegitimacySystem = {
           if (new Function('char','GM','return ' + rule.condition)(ch, GM)) {
             factors.push(rule.label || rule.condition);
           }
-        } catch(e) {}
+        } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-mechanics');}catch(_){}}
       });
       // 君主/领袖的正统性状况注入AI参考
       if ((ch.isPlayer || ch.isRuler) && (ch.legitimacy < 30 || factors.length > 0)) {
@@ -1838,31 +1838,31 @@ var NpcMemorySystem = {
     }
     // 角色所知天下大势——货币/央地财政/户口/环境/诏令（精要）
     if (typeof CurrencyEngine !== 'undefined' && typeof CurrencyEngine.getAIContext === 'function') {
-      try { var cc = CurrencyEngine.getAIContext(); if (cc) parts.push(cc); } catch(e) {}
+      try { var cc = CurrencyEngine.getAIContext(); if (cc) parts.push(cc); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-mechanics');}catch(_){}}
     }
     if (typeof CentralLocalEngine !== 'undefined' && typeof CentralLocalEngine.getAIContext === 'function') {
-      try { var cl = CentralLocalEngine.getAIContext(); if (cl) parts.push(cl); } catch(e) {}
+      try { var cl = CentralLocalEngine.getAIContext(); if (cl) parts.push(cl); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-mechanics');}catch(_){}}
     }
     if (typeof HujiEngine !== 'undefined' && typeof HujiEngine.getAIContext === 'function') {
-      try { var hj = HujiEngine.getAIContext(); if (hj) parts.push(hj); } catch(e) {}
+      try { var hj = HujiEngine.getAIContext(); if (hj) parts.push(hj); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-mechanics');}catch(_){}}
     }
     if (typeof HujiDeepFill !== 'undefined' && typeof HujiDeepFill.getExtendedAIContext === 'function') {
-      try { var hjd = HujiDeepFill.getExtendedAIContext(); if (hjd) parts.push(hjd); } catch(e) {}
+      try { var hjd = HujiDeepFill.getExtendedAIContext(); if (hjd) parts.push(hjd); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-mechanics');}catch(_){}}
     }
     if (typeof EnvCapacityEngine !== 'undefined' && typeof EnvCapacityEngine.getAIContext === 'function') {
-      try { var env = EnvCapacityEngine.getAIContext(); if (env) parts.push(env); } catch(e) {}
+      try { var env = EnvCapacityEngine.getAIContext(); if (env) parts.push(env); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-mechanics');}catch(_){}}
     }
     if (typeof EdictParser !== 'undefined' && typeof EdictParser.getAIContext === 'function') {
-      try { var ep = EdictParser.getAIContext(); if (ep) parts.push(ep); } catch(e) {}
+      try { var ep = EdictParser.getAIContext(); if (ep) parts.push(ep); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-mechanics');}catch(_){}}
     }
     if (typeof AuthorityEngines !== 'undefined' && typeof AuthorityEngines.getAuthorityAIContext === 'function') {
-      try { var auth = AuthorityEngines.getAuthorityAIContext(); if (auth) parts.push(auth); } catch(e) {}
+      try { var auth = AuthorityEngines.getAuthorityAIContext(); if (auth) parts.push(auth); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-mechanics');}catch(_){}}
     }
     if (typeof AuthorityComplete !== 'undefined' && typeof AuthorityComplete.getExtendedAIContext === 'function') {
-      try { var authc = AuthorityComplete.getExtendedAIContext(); if (authc) parts.push(authc); } catch(e) {}
+      try { var authc = AuthorityComplete.getExtendedAIContext(); if (authc) parts.push(authc); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-mechanics');}catch(_){}}
     }
     if (typeof HistoricalPresets !== 'undefined' && typeof HistoricalPresets.getAIContext === 'function') {
-      try { var hp = HistoricalPresets.getAIContext(); if (hp) parts.push(hp); } catch(e) {}
+      try { var hp = HistoricalPresets.getAIContext(); if (hp) parts.push(hp); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-mechanics');}catch(_){}}
     }
 
     // 人生阶段感（基于年龄和经历量）

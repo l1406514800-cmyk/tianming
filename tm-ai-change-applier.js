@@ -387,7 +387,7 @@
       }
       // 若是人物更新·同步登记到 turnChanges.characters（供史记数值变化说明显示）
       if (reportType === 'char_update' && entityName && !/^\+/.test(key)) {
-        try { _recordCharChange('chars.' + entityName + '.' + key, oldVal, entity[key], ''); } catch(_rcE){}
+        try { _recordCharChange('chars.' + entityName + '.' + key, oldVal, entity[key], ''); } catch(_rcE){ if(window.TM&&TM.errors) TM.errors.capture(_rcE,'applier.recordCharChange'); }
       }
     });
     return count;
@@ -890,14 +890,14 @@
             actionType: la.type,
             turn: G.turn||0
           });
-        } catch(e){}
+        } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ai-change-applier');}catch(_){}}
       }
       if (global.NpcMemorySystem && _laGov && _laGov !== '地方官') {
         var _emo = _isIllicit ? '愧' : (la.type === 'disaster_relief' || la.type === 'charity_local' ? '喜' : '平');
         var _wt = _isIllicit ? 6 : 3;
         try {
           global.NpcMemorySystem.remember(_laGov, '我在 ' + (div.name||la.region) + ' 行 ' + _laTypeLbl + '（' + (la.amount||0) + '）——' + (la.reason||'').slice(0,30), _emo, _wt);
-        } catch(e){}
+        } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-ai-change-applier');}catch(_){}}
       }
       // 地方官名望/贤能涨跌
       try {
@@ -916,7 +916,7 @@
           if (_fameDelta) global.CharEconEngine.adjustFame(_govCh, _fameDelta, _laTypeLbl);
           if (_virDelta) global.CharEconEngine.adjustVirtueMerit(_govCh, _virDelta, _laTypeLbl);
         }
-      } catch(_lafve){}
+      } catch(_lafve){ if(window.TM&&TM.errors) TM.errors.capture(_lafve,'applier.localActions.fame'); }
     });
 
     // 5. 事件（风闻）
@@ -1924,7 +1924,7 @@
               deficit: ent.publicTreasury.money && ent.publicTreasury.money.deficit
             };
           }
-        } catch (_e) {}
+        } catch (_e) { if(window.TM&&TM.errors) TM.errors.capture(_e,'applier.pubTreasury'); }
       }
       return {
         name: c.name, title: c.officialTitle, rank: c.rank, faction: c.faction,

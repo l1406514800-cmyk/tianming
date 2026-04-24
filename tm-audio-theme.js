@@ -1,10 +1,68 @@
 // @ts-check
 /// <reference path="types.d.ts" />
 // ============================================================
-// Audio & Theme System - 音频与主题系统
+// Audio & Theme System + fullLoadGame + officeTree 编辑（3,430 行）
 // Requires: tm-utils.js (GameHooks, _$, toast, saveP),
 //           tm-game-engine.js (doExport, backToLaunch)
 // ============================================================
+//
+// ══════════════════════════════════════════════════════════════
+//  📍 导航地图（2026-04-24 R78）
+//  ⚠ 命名"audio-theme"误导——此文件内容远超音频和主题
+// ══════════════════════════════════════════════════════════════
+//
+//  ┌─ §A 音频系统（L8-400） ─────────────────────────┐
+//  │  AudioSystem 对象：bgm / sfxVolume / bgmEnabled
+//  │  播放/停止/音量控制
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §B 主题系统（L400-900） ────────────────────────┐
+//  │  主题切换 / CSS 变量管理
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §C 存档加载生命周期（L1134） ⚠ 历史债务 ──────────┐
+//  │  L1134 fullLoadGame(data)         完整加载游戏状态
+//  │        （本应在 tm-game-engine.js 或 tm-dynamic-systems.js）
+//  │        含 P→GM 兜底恢复（adminHierarchy/officeTree）
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §D 官制编辑 tab（L2580-3200） ─────────────────────┐
+//  │  L2580 _officeBuildTreeV10(opts)  布局计算
+//  │  L2745 renderOfficeTab(em)         官制 tab 主渲染
+//  │  L2980 _renderOfficeDept(...)      部门节点渲染
+//  │  （含 SVG 连线+拖拽+缩放）
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §E 其他杂项（L3200+） ────────────────────────────┐
+//  │  各种历史遗留辅助函数
+//  └─────────────────────────────────────────────────────┘
+//
+// ══════════════════════════════════════════════════════════════
+//  🛠️ 调试入口
+// ══════════════════════════════════════════════════════════════
+//
+//  AudioSystem.play('click')
+//  AudioSystem.bgmEnabled = false
+//  fullLoadGame(data)                 手动加载存档
+//
+// ══════════════════════════════════════════════════════════════
+//  ⚠️ 架构注意事项
+// ══════════════════════════════════════════════════════════════
+//
+//  1. fullLoadGame 在此文件是历史遗留（本应在 game-engine）
+//     改加载逻辑要来这里·不是去 tm-game-engine.js
+//
+//  2. _officeBuildTreeV10 接受 opts.officeTree（R5 修复过 P↔GM swap hack）
+//     新代码传 opts.officeTree = GM.officeTree
+//
+//  3. renderOfficeTab 内有拖拽面板·2026-04-24 R3 修过
+//     document 级监听器幂等·不再累积
+//
+//  4. 文件名"audio-theme"严重误导·未来应拆为
+//     tm-audio.js + tm-theme.js + tm-office-editor.js + 把 fullLoadGame
+//     迁到 tm-storage.js
+//
+// ══════════════════════════════════════════════════════════════
 var AudioSystem = {
   bgm: null,
   sfxVolume: 0.5,
@@ -706,6 +764,8 @@ function _prepareGMForSave() {
   if (GM._varFormulas && GM._varFormulas.length > 0) GM._savedVarFormulas = _safeClone(GM._varFormulas);
   if (GM._foreshadows) GM._savedForeshadows = _safeClone(GM._foreshadows);
   if (GM._aiMemory) GM._savedAiMemory = _safeClone(GM._aiMemory);
+  // R103·对话完整归档（被截断/压缩的老对话原文）
+  if (GM._convArchive && GM._convArchive.length > 0) GM._savedConvArchive = _safeClone(GM._convArchive);
   // 矛盾演化系统
   if (GM._contradictions && GM._contradictions.length > 0) GM._savedContradictions = _safeClone(GM._contradictions);
   // 鸿雁传书+京城
@@ -967,6 +1027,8 @@ function _restoreSavedFields() {
   if (GM._savedVarFormulas) { GM._varFormulas = GM._savedVarFormulas; delete GM._savedVarFormulas; }
   if (GM._savedForeshadows) { GM._foreshadows = GM._savedForeshadows; delete GM._savedForeshadows; }
   if (GM._savedAiMemory) { GM._aiMemory = GM._savedAiMemory; delete GM._savedAiMemory; }
+  // R103·对话完整归档恢复
+  if (GM._savedConvArchive) { GM._convArchive = GM._savedConvArchive; delete GM._savedConvArchive; }
   if (GM._savedTrend) { GM._currentTrend = GM._savedTrend; delete GM._savedTrend; }
   // 新增的_saved*字段恢复
   if (GM._savedCharacterArcs) { GM.characterArcs = GM._savedCharacterArcs; delete GM._savedCharacterArcs; }
@@ -1408,7 +1470,7 @@ if(window.tianming&&window.tianming.isDesktop){
 
 // 6b. 浏览器端定期保存P + 页面关闭时保存
 if(!window.tianming||!window.tianming.isDesktop){
-  setInterval(function(){ try{saveP();}catch(e){} },120000);
+  setInterval(function(){ try{saveP();}catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-audio-theme');}catch(_){}} },120000);
 }
 // 页面关闭/刷新时紧急保存P
 window.addEventListener('beforeunload',function(){
@@ -1708,7 +1770,7 @@ function openEditorHtml(scnId){
         }).catch(function(e) { hideLoading(); toast('恢复失败: ' + (e && e.message || e)); });
       }
     }, 500);
-  } catch(e) {}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-audio-theme');}catch(_){}}
 })();
 
 function _showOfficeStartModal(){
@@ -2595,7 +2657,9 @@ function _officeBuildTreeV10(opts) {
   var V_GAP = opts.V_GAP || 46;
   var V_GAP_GROUP = opts.V_GAP_GROUP || 32;
 
-  var depts = P.officeTree || [];
+  // 优先用 opts.officeTree（GM.officeTree），fallback 到 P.officeTree 以兼容旧调用
+  var depts = opts.officeTree || P.officeTree || [];
+  var _collapseMap = opts.collapsedSrc || collapsed || {};
   // 分类（不在 tm-audio-theme.js 中硬编 map·依赖 window._officeClassifyDept）
   var classify = (typeof _officeClassifyDept === 'function') ? _officeClassifyDept : function(){ return { court:'central', group:'sijian' }; };
 
@@ -2909,46 +2973,61 @@ function renderOfficeTab(em) {
     + '</div>'
     + '</div>';
 
-  // Zoom + pan
+  // Zoom + pan —— document 级监听只安装一次，避免 renderOfficeTab 重复调用时泄漏
   (function() {
     var wrap = document.getElementById(wrapperId);
     var canvas = document.getElementById(canvasId);
     if (!wrap || !canvas) return;
-    var scale = 1, ox = 20, oy = 20;
+    // 把拖拽状态挂在 wrap 上，便于全局 handler 查找当前活跃的 wrap
+    wrap._officePan = { scale: 1, ox: 20, oy: 20, drag: null, canvas: canvas };
     function applyTransform() {
-      canvas.style.transform = 'translate('+ox+'px,'+oy+'px) scale('+scale+')';
+      var s = wrap._officePan;
+      canvas.style.transform = 'translate('+s.ox+'px,'+s.oy+'px) scale('+s.scale+')';
     }
     applyTransform();
     wrap.addEventListener('wheel', function(e) {
       e.preventDefault();
+      var s = wrap._officePan;
       var rect = wrap.getBoundingClientRect();
       var mx = e.clientX - rect.left;
       var my = e.clientY - rect.top;
       var delta = e.deltaY > 0 ? 0.85 : 1.18;
-      var newScale = Math.max(0.2, Math.min(3, scale * delta));
-      ox = mx - (mx - ox) * (newScale / scale);
-      oy = my - (my - oy) * (newScale / scale);
-      scale = newScale;
+      var newScale = Math.max(0.2, Math.min(3, s.scale * delta));
+      s.ox = mx - (mx - s.ox) * (newScale / s.scale);
+      s.oy = my - (my - s.oy) * (newScale / s.scale);
+      s.scale = newScale;
       applyTransform();
     }, {passive: false});
-    var drag = null;
     wrap.addEventListener('mousedown', function(e) {
       var t = e.target;
       if (t.tagName === 'BUTTON' || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') return;
       e.preventDefault();
-      drag = {sx: e.clientX - ox, sy: e.clientY - oy};
+      var s = wrap._officePan;
+      s.drag = {sx: e.clientX - s.ox, sy: e.clientY - s.oy};
       wrap.style.cursor = 'grabbing';
+      window._activeOfficePanWrap = wrap;
     });
-    document.addEventListener('mousemove', function(e) {
-      if (!drag) return;
-      ox = e.clientX - drag.sx;
-      oy = e.clientY - drag.sy;
-      applyTransform();
-    });
-    document.addEventListener('mouseup', function() {
-      drag = null;
-      if (wrap) wrap.style.cursor = 'grab';
-    });
+
+    // document 级 handler 只注册一次（幂等）
+    if (!window._officePanGlobalInstalled) {
+      window._officePanGlobalInstalled = true;
+      document.addEventListener('mousemove', function(e) {
+        var w = window._activeOfficePanWrap;
+        if (!w || !w._officePan || !w._officePan.drag) return;
+        var s = w._officePan;
+        s.ox = e.clientX - s.drag.sx;
+        s.oy = e.clientY - s.drag.sy;
+        if (s.canvas) s.canvas.style.transform = 'translate('+s.ox+'px,'+s.oy+'px) scale('+s.scale+')';
+      });
+      document.addEventListener('mouseup', function() {
+        var w = window._activeOfficePanWrap;
+        if (w && w._officePan) {
+          w._officePan.drag = null;
+          w.style.cursor = 'grab';
+        }
+        window._activeOfficePanWrap = null;
+      });
+    }
   })();
 }
 function _officeToggle(path) {

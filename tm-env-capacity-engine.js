@@ -548,7 +548,7 @@
     try { _tickScarAccumulation(ctx, mr); } catch(e) { console.error('[env] scars:', e); }
     try { _tickOverloadFeedback(ctx, mr); } catch(e) { console.error('[env] overload:', e); }
     try { _tickCrisisEvents(ctx, mr); } catch(e) { console.error('[env] crises:', e); }
-    try { _cleanExpiredPolicies(ctx); } catch(e) {}
+    try { _cleanExpiredPolicies(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-env-capacity-engine');}catch(_){}}
     try { _applyMinxinCoupling(mr); } catch(e) { console.error('[env] minxin:', e); }
   }
 

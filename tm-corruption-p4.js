@@ -1,6 +1,17 @@
 // ═══════════════════════════════════════════════════════════════
 // 腐败系统 · P4 完善模块
 // 依赖：tm-corruption-engine.js + tm-corruption-p2.js
+//
+// ⚠ 补丁分类（2026-04-24 R12 评估）：LAYERED（叠加链终端）
+//   · APPEND 部分：getGameMode/getModeMultipliers/openJuanna/closeJuanna
+//                  /enrichCaseWithAI/toggleMapCorruptionOverlay/getCorruptionColor
+//                  /renderEditorPanel/aiPurgeAdvisor
+//   · OVERRIDE 部分（覆盖 p2 的）：
+//       · CorruptionEngine.tick （最终版·覆盖 p2 的 tick）
+//       · CorruptionEngine.generateExposureCase （覆盖 p2）
+//       · CorruptionEngine.updatePerceived （覆盖 engine 或 p2）
+//   合并指引见 PATCH_CLASSIFICATION.md · Corruption 段（预计工时 30h）
+//
 // 实现：
 //   - §9.6 游戏模式调节（严格史实/轻度史实/演义）
 //   - §13 官员轮换过频副作用量化

@@ -13,7 +13,7 @@ var ErrorMonitor = (function() {
   var _log = []; // [{ts, type, message, stack, context}]
   var _MAX = 30;
 
-  // 全局错误捕获
+  // 全局错误捕获（R102 统一·接管 index.html 原重复注册）
   if (typeof window !== 'undefined') {
     window.onerror = function(msg, src, line, col, err) {
       _capture('error', msg, err ? err.stack : (src + ':' + line + ':' + col));
@@ -24,6 +24,12 @@ var ErrorMonitor = (function() {
       _capture('promise', reason ? (reason.message || String(reason)) : 'Unknown promise rejection',
         reason && reason.stack ? reason.stack : '');
     });
+    // 资源加载错误（R102 合入·原 index.html 的 alert 改为静默记录）
+    window.addEventListener('error', function(e) {
+      if (e.target && e.target.tagName === 'SCRIPT') {
+        _capture('resource', 'Script load failed: ' + (e.target.src || 'unknown'), '');
+      }
+    }, true);
   }
 
   function _capture(type, message, stack) {
@@ -525,7 +531,7 @@ function _aiDialogueTok(category, speakerCount) {
   var totalChars = perMax * n;
   // 汉字 → token：约 × 2 + JSON wrapper/思考 buffer
   var tok = Math.max(500, Math.round(totalChars * 2.5));
-  try { if (window._dbgDialogueWC) console.log('[对话字数]', category, '×' + n + '人', 'range=', r, '→ tok=', tok); } catch(e){}
+  try { if (window._dbgDialogueWC) console.log('[对话字数]', category, '×' + n + '人', 'range=', r, '→ tok=', tok); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-utils');}catch(_){}}
   return tok;
 }
 
@@ -2098,7 +2104,7 @@ function robustParseJSON(raw) {
       if (m && m[1]) { result[fp.key] = m[1].trim(); found = true; }
     });
     if (found) return result;
-  } catch(e) {}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-utils');}catch(_){}}
 
   // Layer 4: 纯文本回退
   if (cleaned.length > 20) {

@@ -40,7 +40,7 @@
 
   function _readInitialValue(key, defaultVal) {
     var sc = null;
-    try { sc = (typeof global.findScenarioById === 'function') ? global.findScenarioById(global.GM.sid) : null; } catch(e) {}
+    try { sc = (typeof global.findScenarioById === 'function') ? global.findScenarioById(global.GM.sid) : null; } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-authority-engines');}catch(_){}}
     var initial = sc && sc.authorityConfig && sc.authorityConfig.initial;
     if (initial && typeof initial[key] === 'number') return initial[key];
     return defaultVal;
@@ -48,7 +48,7 @@
 
   function _readInitialObject(key) {
     var sc = null;
-    try { sc = (typeof global.findScenarioById === 'function') ? global.findScenarioById(global.GM.sid) : null; } catch(e) {}
+    try { sc = (typeof global.findScenarioById === 'function') ? global.findScenarioById(global.GM.sid) : null; } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-authority-engines');}catch(_){}}
     var initial = sc && sc.authorityConfig && sc.authorityConfig.initial;
     return (initial && typeof initial[key] === 'object') ? initial[key] : null;
   }

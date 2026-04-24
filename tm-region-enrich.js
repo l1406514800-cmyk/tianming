@@ -543,7 +543,7 @@
     // 若 population.byRegion 也要扩
     if (G.population && G.population.byRegion) {
       Object.keys(G.population.byRegion).forEach(function(rid) {
-        try { _enrichRegion(G.population.byRegion[rid]); } catch(e) {}
+        try { _enrichRegion(G.population.byRegion[rid]); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-region-enrich');}catch(_){}}
       });
     }
     initMaZheng(G);
@@ -557,7 +557,7 @@
     // Phase B1: 老化
     if (G.population && G.population.byRegion) {
       Object.values(G.population.byRegion).forEach(function(r) {
-        try { tickAgePyramid(r, mr); } catch(e) {}
+        try { tickAgePyramid(r, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-region-enrich');}catch(_){}}
       });
     }
     // Phase B3: 马政

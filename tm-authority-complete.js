@@ -876,15 +876,15 @@
     try { _tickRevoltUpgrade(ctx, mr); } catch(e) { console.error('[auth-c] revolt:', e); }
     try { _tickTyrantSyndrome(ctx, mr); } catch(e) { console.error('[auth-c] tyrant:', e); }
     try { _tickLostAuthorityCrisis(ctx, mr); } catch(e) { console.error('[auth-c] lost:', e); }
-    try { _autoDetectHuangweiEvents(ctx, mr); } catch(e) {}
-    try { _autoDetectHuangquanEvents(ctx, mr); } catch(e) {}
-    try { _tickMinxinAdditionalSources(ctx, mr); } catch(e) {}
-    try { _tickMinxinConsequences(ctx, mr); } catch(e) {}
-    try { _tickHuangquanConsequences(ctx, mr); } catch(e) {}
-    try { _tickHeavenSigns(ctx, mr); } catch(e) {}
-    try { _tickHuangquanSubDims(mr); } catch(e) {}
-    try { _tickFullLinkage(ctx, mr); } catch(e) {}
-    try { _tickPerceivedNoise(mr); } catch(e) {}
+    try { _autoDetectHuangweiEvents(ctx, mr); } catch(e) { if(window.TM&&TM.errors) TM.errors.capture(e,'authority.autoDetectHuangwei'); }
+    try { _autoDetectHuangquanEvents(ctx, mr); } catch(e) { if(window.TM&&TM.errors) TM.errors.capture(e,'authority.autoDetectHuangquan'); }
+    try { _tickMinxinAdditionalSources(ctx, mr); } catch(e) { if(window.TM&&TM.errors) TM.errors.capture(e,'authority.tickMinxinSources'); }
+    try { _tickMinxinConsequences(ctx, mr); } catch(e) { if(window.TM&&TM.errors) TM.errors.capture(e,'authority.tickMinxinConsequences'); }
+    try { _tickHuangquanConsequences(ctx, mr); } catch(e) { if(window.TM&&TM.errors) TM.errors.capture(e,'authority.tickHuangquanConsequences'); }
+    try { _tickHeavenSigns(ctx, mr); } catch(e) { if(window.TM&&TM.errors) TM.errors.capture(e,'authority.tickHeavenSigns'); }
+    try { _tickHuangquanSubDims(mr); } catch(e) { if(window.TM&&TM.errors) TM.errors.capture(e,'authority.tickHuangquanSubDims'); }
+    try { _tickFullLinkage(ctx, mr); } catch(e) { if(window.TM&&TM.errors) TM.errors.capture(e,'authority.tickFullLinkage'); }
+    try { _tickPerceivedNoise(mr); } catch(e) { if(window.TM&&TM.errors) TM.errors.capture(e,'authority.tickPerceivedNoise'); }
   }
 
   function init() {

@@ -302,14 +302,14 @@ function canSupply(fromRegion, toRegion, mapData) {
     if (fromRegion.owner !== toRegion.owner) return false;
 
     // 必须连通（通过 A* 或 BFS 检查）
-    const path = findPath(fromRegion.id, toRegion.id, mapData, fromRegion.owner);
+    const path = _miFindPath(fromRegion.id, toRegion.id, mapData, fromRegion.owner);
     return path.length > 0;
 }
 
 /**
- * 简单路径查找（只经过己方领土）
+ * 简单路径查找（只经过己方领土）—— 与 tm-map-system.js findPath 冲突，已改名为内部函数
  */
-function findPath(startId, endId, mapData, owner) {
+function _miFindPath(startId, endId, mapData, owner) {
     const visited = new Set();
     const queue = [[startId]];
 

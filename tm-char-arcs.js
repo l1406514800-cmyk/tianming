@@ -179,7 +179,7 @@
 
   function abortCharArcs() {
     if (_abortController) {
-      try { _abortController.abort(); } catch(e) {}
+      try { _abortController.abort(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-char-arcs');}catch(_){}}
       _abortController = null;
     }
     _inProgress = false;

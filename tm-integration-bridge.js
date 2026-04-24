@@ -683,7 +683,7 @@
   function init() {
     try { initializeFromLegacy(); } catch(e) { console.error('[bridge] init:', e); }
     // 首次聚合
-    try { aggregateRegionsToVariables(); } catch(e) {}
+    try { aggregateRegionsToVariables(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-integration-bridge');}catch(_){}}
   }
 
   global.IntegrationBridge = {

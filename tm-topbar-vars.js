@@ -1194,11 +1194,11 @@ document.addEventListener('keydown', function(e) {
       // 移出到 host 以外才关
       var related = e.relatedTarget;
       if (related && host.contains(related)) return;
-      try { _hideBarVarTip(); } catch(err) {}
+      try { _hideBarVarTip(); } catch(err){try{window.TM&&TM.errors&&TM.errors.captureSilent(err,'tm-topbar-vars');}catch(_){}}
     });
     host.addEventListener('mousemove', function(e) {
       if (!_barVarTipEl || !_barVarTipEl.classList.contains('visible')) return;
-      try { _moveBarVarTip(e); } catch(err) {}
+      try { _moveBarVarTip(e); } catch(err){try{window.TM&&TM.errors&&TM.errors.captureSilent(err,'tm-topbar-vars');}catch(_){}}
     });
   }
 })();

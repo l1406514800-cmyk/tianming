@@ -1,6 +1,12 @@
 /**
  * tm-phase-f4-authority-deep.js — F 阶段 ④：权威民心腐败深化
  *
+ * ⚠ 架构分类（2026-04-24 R10 评估）：
+ *   文件名以 "phase-" 开头，但**本质是自包含子系统模块**而非 monkey patch。
+ *   导出 PhaseF4 = { init, tick, dispatchSecretEdict, ... }，不覆盖现有函数。
+ *   未来可改名为 tm-authority-deep.js，当前命名保留以维持加载顺序与 git 历史。
+ *   **不需要"归位"到 authority-engines.js**（合并后反而混淆职责）。
+ *
  * 补完：
  *  - 14 源余下 hook：brokenPromise/deposeFailure/familyScandal/cabinetization
  *  - 密诏完整流程（派送 → 泄露风险 → 成功/失败分支）
@@ -8,7 +14,7 @@
  *  - 民心 byClass 9 旧分类映射
  *  - 民变干预权重数值化
  *  - 同期多地起义 +5%/地 激励系数
- *  - 改革容忍度接入 decreeParser
+ *  - 改革容忍度接入 decreeParser（唯一 monkey patch 点：_patchDecreeParserWithTolerance）
  *  - 腐败三模式枚举（演义/史实/严格）
  *  - 虚报暴露具体算法
  *  - 诏书巨额支出 AI 预警奏疏

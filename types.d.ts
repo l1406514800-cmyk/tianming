@@ -1472,3 +1472,288 @@ declare function hideLoading(): void;
 
 /** 保存剧本数据到 localStorage/IndexedDB */
 declare function saveP(): void;
+
+// ==========================================================
+// R103 · AI Schema 类型（turn-full 模式）
+// 与 tm-ai-schema.js 的 turn_full schema 对齐
+// ==========================================================
+
+/** 角色属性增量 (char_updates 元素) */
+interface AICharUpdate {
+  /** 角色名（必填·精确匹配优先） */
+  name: string;
+  /** 忠诚增量 */
+  loyalty_delta?: number;
+  /** 野心增量 */
+  ambition_delta?: number;
+  /** 贤能增量 */
+  talent_delta?: number;
+  /** 名望增量 */
+  renown_delta?: number;
+  /** 所在地变更 */
+  location?: string;
+  /** 任免相关 */
+  office_title?: string;
+  /** 其他增量（动态字段） */
+  [k: string]: any;
+}
+
+/** 角色死亡 (character_deaths 元素) */
+interface AICharacterDeath {
+  name: string;
+  reason?: string;
+  cause?: string;
+  epitaph?: string;
+  /** 是否玩家角色 */
+  isPlayer?: boolean;
+}
+
+/** 新角色创建 (new_characters 元素) */
+interface AINewCharacter {
+  name: string;
+  title?: string;
+  age?: number;
+  gender?: string;
+  faction?: string;
+  /** 其他字段同 Character */
+  [k: string]: any;
+}
+
+/** 势力事件 (faction_events 元素) */
+interface AIFactionEvent {
+  type: 'war' | 'alliance' | 'coup' | 'march' | 'siege' | string;
+  actor?: string;
+  target?: string;
+  description?: string;
+  [k: string]: any;
+}
+
+/** 官制变动 (office_changes 元素) */
+interface AIOfficeChange {
+  action: 'appoint' | 'dismiss' | 'promote' | 'demote' | 'transfer' | 'evaluate' | 'reform';
+  office?: string;
+  person?: string;
+  reason?: string;
+  [k: string]: any;
+}
+
+/** 后宫事件 (harem_events 元素) */
+interface AIHaremEvent {
+  type: 'pregnancy' | 'birth' | 'death' | 'rank_change' | 'favor_change' | 'scandal';
+  consort?: string;
+  description?: string;
+  [k: string]: any;
+}
+
+/** 行政区划树变更 (admin_division_updates 元素) */
+interface AIAdminDivisionUpdate {
+  action: 'add' | 'remove' | 'rename' | 'merge' | 'split' | 'reform' | 'territory_gain' | 'territory_loss';
+  target?: string;
+  newName?: string;
+  [k: string]: any;
+}
+
+/** AI turn-full 响应顶层结构 */
+interface AIScenarioResponse {
+  /** 回合叙事（半文言 300-800 字） */
+  narrative?: string;
+  /** 实录风格叙事 */
+  shilu_text?: string;
+  /** 时政记风格叙事 */
+  shizhengji?: string;
+  /** 主要事件 */
+  event?: { desc: string; [k: string]: any };
+
+  // 时代/全局
+  era_state_delta?: { social?: number; economy?: number; centralization?: number; military?: number; [k: string]: any };
+  global_state_delta?: { tax_pressure?: number; [k: string]: any };
+
+  // 角色
+  character_deaths?: AICharacterDeath[];
+  new_characters?: AINewCharacter[];
+  char_updates?: AICharUpdate[];
+  relations?: any[];
+
+  // 势力
+  faction_changes?: any[];
+  faction_updates?: any[];
+  faction_events?: AIFactionEvent[];
+  faction_relation_changes?: any[];
+  faction_create?: any[];
+  faction_succession?: any[];
+  faction_dissolve?: any[];
+
+  // 党派/阶层
+  party_changes?: any[];
+  party_updates?: any[];
+  party_create?: any[];
+  party_splinter?: any[];
+  party_merge?: any[];
+  party_dissolve?: any[];
+  class_changes?: any[];
+  class_updates?: any[];
+  class_emerge?: any[];
+  class_revolt?: any[];
+  class_dissolve?: any[];
+
+  // 军事/物品
+  army_changes?: any[];
+  item_changes?: any[];
+  title_changes?: any[];
+  building_changes?: any[];
+  vassal_changes?: any[];
+
+  // 官制/行政
+  office_changes?: AIOfficeChange[];
+  office_assignments?: any[];
+  office_spawn?: any[];
+  personnel_changes?: any[];
+  admin_changes?: any[];
+  admin_division_updates?: AIAdminDivisionUpdate[];
+
+  // 后宫/文化
+  harem_events?: AIHaremEvent[];
+  tech_civic_unlocks?: any[];
+  policy_changes?: any[];
+  scheme_actions?: any[];
+
+  /** 允许 AI 附加任意扩展字段 */
+  [k: string]: any;
+}
+
+/** AI dialogue 响应（对话模式） */
+interface AIDialogueResponse {
+  /** 发言文本（必填） */
+  reply: string;
+  /** 划入诏书的建言要点 */
+  suggestions?: string[];
+  /** 立场标签 */
+  stance?: string;
+  /** 表决倾向 */
+  vote?: '支持' | '反对' | '中立' | string;
+  /** 反驳他人发言 */
+  rebuttal?: string;
+  /** 科举议题建议 */
+  exam_opinion?: string;
+  [k: string]: any;
+}
+
+/** AI 校验器返回 */
+interface AIValidationResult {
+  ok: boolean;
+  errors: Array<{ field: string; message: string; severity?: 'error' | 'warn' }>;
+  warnings: Array<{ field: string; message: string }>;
+}
+
+declare namespace TM {
+  /** 校验 AI 返回数据 */
+  function validateAIOutput(data: any, mode: 'turn-full' | 'dialogue'): AIValidationResult;
+}
+
+// ==========================================================
+// R103 · GameEventBus 事件类型映射
+// 事件名 → payload 类型
+// ==========================================================
+
+interface TianmingEventMap {
+  /** 角色死亡 */
+  'character:death': { name: string; reason?: string; turn: number };
+  /** 势力覆灭 */
+  'faction:collapse': { faction: string; turn: number; reason?: string };
+  /** 势力宣战 */
+  'faction:declareWar': { attacker: string; defender: string; casus_belli?: string };
+  /** 势力战败 */
+  'faction:defeated': { faction: string; winner?: string };
+  /** 党派弹劾 */
+  'party:impeach': { party: string; target: string };
+  /** 党派清洗 */
+  'party:purge': { party: string; victims: string[] };
+  /** 国策废除 */
+  'policy:abolished': { policy: string; turn: number };
+  /** 国策颁布 */
+  'policy:enacted': { policy: string; turn: number };
+  /** 省份易主 */
+  'province:ownerChange': { province: string; oldOwner: string; newOwner: string };
+  /** 阴谋阶段变更 */
+  'scheme:phaseChange': { schemeId: string; oldPhase: string; newPhase: string };
+  /** 皇位继承 */
+  'succession': { oldEmperor: string; newEmperor: string; reason?: string };
+  /** 战争开始 */
+  'war:start': { attacker: string; defender: string };
+  /** 军队兵变风险 */
+  'army:mutinyRisk': { army: string; risk: number };
+  /** 成就解锁 */
+  'achievement:unlock': { id: string; name: string };
+  /** 自检 */
+  '_selftest': any;
+  /** 允许其他字符串事件名（未来扩展） */
+  [k: string]: any;
+}
+
+declare namespace GameEventBus {
+  /** 发射事件（类型化） */
+  function emit<K extends keyof TianmingEventMap>(event: K, payload: TianmingEventMap[K]): void;
+  /** 订阅事件 */
+  function on<K extends keyof TianmingEventMap>(event: K, handler: (payload: TianmingEventMap[K]) => void): void;
+  /** 取消订阅 */
+  function off<K extends keyof TianmingEventMap>(event: K, handler: (payload: TianmingEventMap[K]) => void): void;
+  /** 序列化（存档用） */
+  function serialize(): any;
+  /** 反序列化（读档用） */
+  function deserialize(data: any): void;
+}
+
+// ==========================================================
+// R103 · 核心引擎函数签名
+// 把高频函数的 JSDoc 补全，提升 IDE IntelliSense
+// ==========================================================
+
+/** 更新经济（每回合调用） · timeRatio=当回合占一年的比例(0-1) */
+declare function updateEconomy(timeRatio?: number): void;
+
+/** 计算执行力（全局或指定派系） */
+declare function computeExecutionRate(faction?: string): number;
+
+/** 更新威望（每回合） */
+declare function updatePrestige(): void;
+
+/** 更新党争值 */
+declare function updatePartyStrife(): void;
+
+/** 更新民变度 */
+declare function updateUnrest(): void;
+
+/** 阈值触发评估（民变/改革/起义等）*/
+declare function evaluateThresholdTriggers(): void;
+
+/** 更新时代状态 */
+declare function updateEraState(): void;
+
+/** 更新角色关系 */
+declare function updateRelations(): void;
+
+/** 应用 AI 返回的人物死亡事件（R100 抽出） */
+declare function applyCharacterDeaths(p1: AIScenarioResponse): void;
+
+/** 构建 NPC 上下文快照（用于 AI 推演） */
+declare function buildNpcContext(): any;
+
+/** 构建 NPC 行为推演上下文（较简单版本） */
+declare function buildNpcBehaviorContext?(): any;
+
+/** 执行 NPC 行为 */
+declare function executeNpcBehaviors(): Promise<void>;
+
+/** 回合结束总调度 */
+declare function endTurn(): Promise<void>;
+
+/** 保存当前回合到存档（异步） */
+interface SaveManagerType {
+  maxSlots: number;
+  autoSaveInterval: number;
+  getAllSaves(): Array<{ slotId: number; name: string; turn: number; timestamp: number; scenarioName: string; eraName: string }>;
+  saveToSlot(slotId: number, saveName?: string): boolean;
+  loadFromSlot(slotId: number): void;
+  deleteSlot(slotId: number): void;
+}
+declare const SaveManager: SaveManagerType;

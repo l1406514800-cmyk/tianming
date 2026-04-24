@@ -5,6 +5,60 @@
 // ============================================================
 
 /** 构建所有 Map 索引（角色/势力/党派/阶层等按名字快查） */
+// ============================================================
+//  tm-index-world.js — 索引与查询系统（8,820 行）
+// ============================================================
+//
+// ══════════════════════════════════════════════════════════════
+//  📍 导航地图（2026-04-24 R78 实测）
+// ══════════════════════════════════════════════════════════════
+//
+//  ┌─ §A 索引系统（L8-258） ─────────────────────────┐
+//  │  L8   buildIndices()              建立所有 O(1) 索引 Map
+//  │        charByName / facByName / partyByName / classByName /
+//  │        techByName / armyByName / postById / postByTerritory /
+//  │        unitById / supplyDepotById / buildingById /
+//  │        officeByName / officeByHolder / divisionByName
+//  │  L258 addScenarioToIndex()        新增剧本到 P._indices
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §B 查询入口（L278-352）事实上的 DAL 内核 ──────┐
+//  │  L278 findCharByName()            含 O(1) + 线性兜底 +
+//  │                                   字/号/乳名/别名/曾用名 匹配
+//  │  L316 findFacByName()
+//  │  L323 findPartyByName()
+//  │  L330 findClassByName()
+//  │  L352 findScenarioById()
+//  │  （findDivisionByName 也在此文件）
+//  │  → DA.chars/factions/parties 委托给这些函数
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §C 行政区划 & 官制面板（L500-8000+） ────────────┐
+//  │  庞大的 tab 渲染逻辑·大部分位于此文件
+//  │  包含：地方 tab / 官制 tab 中间栏 / 国事汇总
+//  └─────────────────────────────────────────────────────┘
+//
+// ══════════════════════════════════════════════════════════════
+//  🛠️ 调试入口
+// ══════════════════════════════════════════════════════════════
+//
+//  GM._indices                        所有索引 Map（Chrome devtools 展开）
+//  buildIndices()                     手动重建（新加角色后必要）
+//  findCharByName('袁崇焕')            等价 DA.chars.findByName
+//
+// ══════════════════════════════════════════════════════════════
+//  ⚠️ 架构注意事项
+// ══════════════════════════════════════════════════════════════
+//
+//  1. 新增角色时必须调 buildIndices() 或在 GM._indices.charByName
+//     手动 set(name, char)，否则 findCharByName 走线性扫描（变慢）
+//  2. 新代码优先用 DA.chars.findByName，不要直接 findCharByName
+//     （DA 未来改内部时调用方不用动）
+//  3. officeTree 相关索引（officeByName/officeByHolder）在官制变动时
+//     需要 rebuild：detectOfficeChange → buildIndices
+//
+// ══════════════════════════════════════════════════════════════
+
 function buildIndices() {
   // 初始化索引对象
   if (!GM._indices) {
@@ -291,20 +345,20 @@ function findCharByName(name) {
       var c = GM.chars[i];
       if (!c) continue;
       if (c.name === name) {
-        try { GM._indices.charByName.set(name, c); } catch(e) {}
+        try { GM._indices.charByName.set(name, c); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-index-world');}catch(_){}}
         return c;
       }
       // 别名/字/号/乳名/曾用名兜底匹配
       if (c.zi === name || c.haoName === name || c.milkName === name) {
-        try { GM._indices.charByName.set(name, c); } catch(e) {}
+        try { GM._indices.charByName.set(name, c); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-index-world');}catch(_){}}
         return c;
       }
       if (Array.isArray(c.aliases) && c.aliases.indexOf(name) >= 0) {
-        try { GM._indices.charByName.set(name, c); } catch(e) {}
+        try { GM._indices.charByName.set(name, c); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-index-world');}catch(_){}}
         return c;
       }
       if (Array.isArray(c.formerNames) && c.formerNames.indexOf(name) >= 0) {
-        try { GM._indices.charByName.set(name, c); } catch(e) {}
+        try { GM._indices.charByName.set(name, c); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-index-world');}catch(_){}}
         return c;
       }
     }
@@ -3138,13 +3192,13 @@ function _commitMemorialDecisions() {
     if (m.from && typeof NpcMemorySystem !== 'undefined' && NpcMemorySystem.remember) {
       var memText = '\u6240\u4E0A\u594F\u758F\u300C' + (m.content || '').slice(0, 30) + '\u300D' + memoryLbl;
       if (status !== 'annotated' && m.reply) memText += '\uFF0C\u6731\u6279\uFF1A' + m.reply;
-      try { NpcMemorySystem.remember(m.from, memText, '\u5E73', 5); } catch(e){}
+      try { NpcMemorySystem.remember(m.from, memText, '\u5E73', 5); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-index-world');}catch(_){}}
       // referred 也给被转交者留一条记忆
       if (status === 'referred' && m._referredTo) {
-        try { NpcMemorySystem.remember(m._referredTo, '\u7687\u5E1D\u5C06' + (m.from||'某人') + '\u7684\u594F\u758F\u6279\u8F6C\u7ED9\u81EA\u5DF1\u8BAE\u5904', '\u5E73', 4); } catch(e){}
+        try { NpcMemorySystem.remember(m._referredTo, '\u7687\u5E1D\u5C06' + (m.from||'某人') + '\u7684\u594F\u758F\u6279\u8F6C\u7ED9\u81EA\u5DF1\u8BAE\u5904', '\u5E73', 4); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-index-world');}catch(_){}}
       }
     }
-    try { if (typeof _memorialSendReply === 'function') _memorialSendReply(m, actionLbl); } catch(e){}
+    try { if (typeof _memorialSendReply === 'function') _memorialSendReply(m, actionLbl); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-index-world');}catch(_){}}
     m._commitApplied = true;
   });
 }
@@ -6267,19 +6321,15 @@ function _renderOfficeTreeSVG(container) {
   var courtKey = GM._officeCourt || 'central';
   var subTab = (GM._officeSubTab && GM._officeSubTab[courtKey]) || 'all';
 
-  var _origPTree = P.officeTree;
-  P.officeTree = GM.officeTree;
-  var _origCollapsed = P._officeCollapsed;
-  P._officeCollapsed = GM._officeCollapsed;
+  // 直接传入 GM.officeTree，不再做 P↔GM swap hack
   var layout = _officeBuildTreeV10({
+    officeTree: GM.officeTree,
     courtKey: courtKey, subTab: subTab, collapsed: GM._officeCollapsed,
     EMP_W: 240, EMP_H: 96, GROUP_H: 60,
     DEPT_W: 240, DEPT_H: 120,
     POS_W: 260, POS_H: 210,
     H_GAP: 22, DEPT_GAP: 18, V_GAP: 46, V_GAP_GROUP: 30
   });
-  P.officeTree = _origPTree;
-  P._officeCollapsed = _origCollapsed;
 
   var flat = layout.flat;
   var cw = Math.max(layout.width + 80, 700);

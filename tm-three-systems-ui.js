@@ -315,7 +315,7 @@
       if (global.GameEventBus && global.GameEventBus.emit) {
         global.GameEventBus.emit('party:impeach', { target: target, party: partyName, charge: charge });
       }
-    } catch(e) {}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-three-systems-ui');}catch(_){}}
     _toast('已下弹劾');
   }
   function _tsSummonParty(partyName) {
@@ -338,7 +338,7 @@
       if (global.GameEventBus && global.GameEventBus.emit) {
         global.GameEventBus.emit('party:purge', { party: partyName, extent: extent });
       }
-    } catch(e) {}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-three-systems-ui');}catch(_){}}
     _toast('党祸已起·慎之');
   }
   function _tsBalanceParty(partyName) {

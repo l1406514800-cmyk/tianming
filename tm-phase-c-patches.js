@@ -1,6 +1,16 @@
 /**
  * tm-phase-c-patches.js — C 阶段补丁（制度+环境）
  *
+ * ⚠ 补丁分类（2026-04-24 R26 评估）：LAYERED（真 monkey patch）
+ *   · APPEND：PhaseC.init/tick + EdictComplete.openClarificationPanel + QUERY_QUICK_OPTIONS
+ *   · OVERRIDE：EdictParser.processImperialAssent（覆盖 edict-complete 原版）
+ *               EdictParser.tick（追加 C3 动态机构 + C4 环保 keywords 处理）
+ *   · 合并前必需：
+ *       - 先写 edict-parser.tick/processImperialAssent 路径 smoke test（5-8 个用例）
+ *       - 标注 override 版本相对原版的差异点
+ *   · 合并工时估算：10-20h
+ *   · 合并后文件名候选：tm-edict-clarification.js（侍臣问疑）+ inline 其余 override
+ *
  * 补完：
  *  C1 侍臣问疑 UI（7 快捷选项 + 自填 + 让有司揣摩 + 不予作答）
  *  C2 朱批扩展 7 选项（准/改/圈选/试点/驳/再议/查）+ AI 上下文草稿

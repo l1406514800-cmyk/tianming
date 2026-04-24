@@ -1,0 +1,407 @@
+// ============================================================
+// tm-history-events.js — 历史事件系统 + 时间工具
+//
+// R93 从 tm-endturn.js §A 抽出·原 L1997-2387 (391 行)
+// 9 函数：
+//   历史事件框架：checkHistoryEvents / showHistoryEventModal / applyEventBranch
+//   刚性触发器：   checkRigidTriggers / triggerRigidEvent
+//   路径工具：     getValueByPath / setValueByPath
+//   时间工具：     getCurrentYear (外部 6 处调用) / getCurrentMonth (2 处)
+//
+// 外部调用：getCurrentYear 6 处·getCurrentMonth 2 处·其他 0
+// 依赖外部：GM / P / openGenericModal / _dbg / addEB（均 window 全局）
+//
+// 加载顺序：必须在 tm-endturn.js 之前（而 getCurrentYear 调用方也必须在此之后）
+// ============================================================
+
+// ============================================================
+//  历史事件系统 - 通用时间触发+分支选择框架
+// ============================================================
+
+/**
+ * 检查并触发历史事件
+ * 框架特性：
+ * - 基于年月的时间触发
+ * - 多分支选择系统
+ * - 影响自动应用
+ * - 事件去重（已触发不再触发）
+ */
+function checkHistoryEvents() {
+  if (!P.rigidHistoryEvents || P.rigidHistoryEvents.length === 0) return;
+  if (!GM.triggeredHistoryEvents) GM.triggeredHistoryEvents = {};
+
+  var currentYear = getCurrentYear();
+  var currentMonth = getCurrentMonth();
+
+  P.rigidHistoryEvents.forEach(function(event) {
+    // 跳过已触发事件
+    if (GM.triggeredHistoryEvents[event.id]) return;
+
+    // 检查触发条件
+    var trigger = event.trigger || {};
+    var yearMatch = trigger.year === undefined || trigger.year === currentYear;
+    var monthMatch = trigger.month === undefined || trigger.month === currentMonth;
+
+    // 自定义条件检查（可选）
+    var customMatch = true;
+    if (typeof trigger.condition === 'function') {
+      try {
+        customMatch = trigger.condition(GM, P);
+      } catch (e) {
+        customMatch = false;
+      }
+    }
+
+    if (yearMatch && monthMatch && customMatch) {
+      // 标记为已触发
+      GM.triggeredHistoryEvents[event.id] = {
+        turn: GM.turn,
+        year: currentYear,
+        month: currentMonth
+      };
+
+      // 显示事件选择界面
+      showHistoryEventModal(event);
+    }
+  });
+}
+
+/**
+ * 显示历史事件选择模态框
+ */
+function showHistoryEventModal(event) {
+  var html = '<div style="padding: 1rem;">';
+  html += '<div style="margin-bottom: 1rem; color: var(--gold); font-size: 1.1rem; font-weight: 700;">' + (event.name || '历史事件') + '</div>';
+
+  if (event.description) {
+    html += '<div style="margin-bottom: 1.5rem; color: var(--txt-s); line-height: 1.6;">' + event.description + '</div>';
+  }
+
+  html += '<div style="margin-bottom: 1rem; color: var(--txt-d); font-size: 0.9rem;">请选择应对方式：</div>';
+
+  // 渲染分支选项
+  if (event.branches && event.branches.length > 0) {
+    event.branches.forEach(function(branch, idx) {
+      html += '<div style="margin-bottom: 0.8rem; padding: 0.8rem; background: var(--bg-2); border-radius: 6px; cursor: pointer; border: 2px solid transparent; transition: all 0.2s;" ';
+      html += 'onmouseover="this.style.borderColor=\'var(--gold)\'" ';
+      html += 'onmouseout="this.style.borderColor=\'transparent\'" ';
+      html += 'onclick="applyEventBranch(\'' + event.id + '\', ' + idx + ')">';
+      html += '<div style="font-weight: 700; color: var(--gold-l); margin-bottom: 0.3rem;">' + (branch.name || '选项' + (idx + 1)) + '</div>';
+
+      if (branch.description) {
+        html += '<div style="font-size: 0.85rem; color: var(--txt-d); margin-bottom: 0.5rem;">' + branch.description + '</div>';
+      }
+
+      // 显示影响预览
+      if (branch.impact) {
+        html += '<div style="font-size: 0.8rem; color: var(--txt-s);">影响：';
+        var impacts = [];
+        Object.keys(branch.impact).forEach(function(key) {
+          var val = branch.impact[key];
+          var sign = val > 0 ? '+' : '';
+          impacts.push(key + ' ' + sign + val);
+        });
+        html += impacts.join(', ');
+        html += '</div>';
+      }
+
+      html += '</div>';
+    });
+  } else {
+    html += '<div style="text-align: center; color: var(--txt-d); padding: 1rem;">此事件无可选分支</div>';
+    html += '<button class="bt bp" onclick="closeModal()" style="width: 100%; margin-top: 1rem;">确认</button>';
+  }
+
+  html += '</div>';
+
+  openGenericModal('历史事件', html, null);
+}
+
+/**
+ * 应用事件分支效果
+ */
+function applyEventBranch(eventId, branchIdx) {
+  var event = P.rigidHistoryEvents.find(function(e) { return e.id === eventId; });
+  if (!event || !event.branches || !event.branches[branchIdx]) {
+    closeModal();
+    return;
+  }
+
+  var branch = event.branches[branchIdx];
+
+  // 应用影响
+  if (branch.impact) {
+    Object.keys(branch.impact).forEach(function(key) {
+      var val = branch.impact[key];
+
+      // 尝试应用到变量
+      if (GM.vars[key]) {
+        GM.vars[key].value = Math.max(0, Math.min(100, (GM.vars[key].value || 0) + val));
+      }
+
+      // 尝试应用到 GM 直接属性
+      if (GM[key] !== undefined && typeof GM[key] === 'number') {
+        GM[key] = Math.max(0, Math.min(100, GM[key] + val));
+      }
+    });
+  }
+
+  // 执行自定义效果
+  if (typeof branch.effect === 'function') {
+    try {
+      branch.effect(GM, P);
+    } catch (e) {
+      console.error('Event branch effect error:', e);
+    }
+  }
+
+  // 记录到编年
+  if (GM.biannianItems) {
+    GM.biannianItems.push({
+      turn: GM.turn,
+      year: getCurrentYear(),
+      month: getCurrentMonth(),
+      title: event.name + '：' + branch.name,
+      content: branch.description || '',
+      type: 'history_event'
+    });
+  }
+
+  // 创建记忆锚点
+  createMemoryAnchor('event', event.name, branch.name + '：' + (branch.description || ''), {
+    eventId: eventId,
+    branchId: branch.id || branchIdx
+  });
+
+  if (typeof recordPlayerDecision === 'function') recordPlayerDecision('event', event.name + ':' + branch.name, branch.description || '');
+  if (typeof recordCharacterArc === 'function' && event.actors) {
+    event.actors.forEach(function(actor) { recordCharacterArc(actor, 'event', event.name + '：' + branch.name); });
+  }
+
+  toast('✅ ' + branch.name);
+  closeModal();
+}
+
+// ============================================================
+//  刚性触发系统 - 通用阈值触发框架
+// ============================================================
+
+/**
+ * 检查刚性触发器
+ * 框架特性：
+ * - 基于阈值的自动触发
+ * - 支持多级触发（如：罢工三级）
+ * - 硬性下限（防止过度优化）
+ * - 可配置触发条件
+ */
+function checkRigidTriggers() {
+  if (!GM.rigidTriggers || Object.keys(GM.rigidTriggers).length === 0) return;
+
+  var triggers = GM.rigidTriggers;
+
+  // 检查单一阈值触发器
+  Object.keys(triggers).forEach(function(key) {
+    if (key === 'hardFloors' || key === 'levels') return; // 跳过特殊配置
+
+    var config = triggers[key];
+    if (typeof config !== 'object' || !config.threshold) return;
+
+    var currentValue = getValueByPath(config.valuePath || key);
+    if (currentValue === undefined) return;
+
+    // 检查是否超过阈值
+    if (currentValue >= config.threshold) {
+      // 检查是否已触发（避免重复）
+      var triggerKey = key + '_' + GM.turn;
+      if (GM._triggeredThisTurn && GM._triggeredThisTurn[triggerKey]) return;
+
+      if (!GM._triggeredThisTurn) GM._triggeredThisTurn = {};
+      GM._triggeredThisTurn[triggerKey] = true;
+
+      // 触发事件
+      triggerRigidEvent(key, config, currentValue);
+    }
+  });
+
+  // 检查多级触发器（如罢工等级）
+  if (triggers.levels && Array.isArray(triggers.levels)) {
+    triggers.levels.forEach(function(level) {
+      if (!level.valuePath || !level.threshold) return;
+
+      var currentValue = getValueByPath(level.valuePath);
+      if (currentValue === undefined) return;
+
+      if (currentValue >= level.threshold) {
+        var triggerKey = 'level_' + level.id + '_' + GM.turn;
+        if (GM._triggeredThisTurn && GM._triggeredThisTurn[triggerKey]) return;
+
+        if (!GM._triggeredThisTurn) GM._triggeredThisTurn = {};
+        GM._triggeredThisTurn[triggerKey] = true;
+
+        triggerRigidEvent(level.id, level, currentValue);
+      }
+    });
+  }
+
+  // 应用硬性下限
+  if (triggers.hardFloors) {
+    Object.keys(triggers.hardFloors).forEach(function(key) {
+      var floor = triggers.hardFloors[key];
+      var currentValue = getValueByPath(key);
+
+      if (currentValue !== undefined && currentValue < floor) {
+        setValueByPath(key, floor);
+      }
+    });
+  }
+
+  // 清空本回合触发记录（下回合重新检查）
+  if (GM._triggeredThisTurn) {
+    delete GM._triggeredThisTurn;
+  }
+}
+
+/**
+ * 触发刚性事件
+ */
+function triggerRigidEvent(id, config, currentValue) {
+  var html = '<div style="padding: 1rem;">';
+  html += '<div style="margin-bottom: 1rem; color: var(--red); font-size: 1.1rem; font-weight: 700;">';
+  html += '⚠️ ' + (config.name || '触发事件');
+  html += '</div>';
+
+  html += '<div style="margin-bottom: 1rem; color: var(--txt-s); line-height: 1.6;">';
+  html += config.description || ('当前值 ' + currentValue + ' 已达到阈值 ' + config.threshold);
+  html += '</div>';
+
+  // 显示影响
+  if (config.impact) {
+    html += '<div style="margin-top: 1rem; padding: 0.8rem; background: var(--bg-2); border-radius: 6px;">';
+    html += '<div style="font-weight: 700; color: var(--gold); margin-bottom: 0.5rem;">影响：</div>';
+    Object.keys(config.impact).forEach(function(key) {
+      var val = config.impact[key];
+      var sign = val > 0 ? '+' : '';
+      html += '<div style="font-size: 0.9rem; color: var(--txt-d);">' + key + ': ' + sign + val + '</div>';
+    });
+    html += '</div>';
+  }
+
+  html += '<button class="bt bp" onclick="closeModal()" style="width: 100%; margin-top: 1rem;">确认</button>';
+  html += '</div>';
+
+  // 应用影响
+  if (config.impact) {
+    Object.keys(config.impact).forEach(function(key) {
+      var val = config.impact[key];
+
+      if (GM.vars[key]) {
+        GM.vars[key].value = Math.max(0, Math.min(100, (GM.vars[key].value || 0) + val));
+      }
+
+      if (GM[key] !== undefined && typeof GM[key] === 'number') {
+        GM[key] = Math.max(0, Math.min(100, GM[key] + val));
+      }
+    });
+  }
+
+  // 执行自定义效果
+  if (typeof config.effect === 'function') {
+    try {
+      config.effect(GM, P);
+    } catch (e) {
+      console.error('Rigid trigger effect error:', e);
+    }
+  }
+
+  // 记录到编年
+  if (GM.biannianItems) {
+    GM.biannianItems.push({
+      turn: GM.turn,
+      year: getCurrentYear(),
+      month: getCurrentMonth(),
+      title: config.name || '触发事件',
+      content: config.description || '',
+      type: 'rigid_trigger'
+    });
+  }
+
+  openGenericModal('系统事件', html, null);
+}
+
+/**
+ * 辅助函数：通过路径获取值
+ */
+function getValueByPath(path) {
+  if (!path) return undefined;
+
+  // 支持 "GM.xxx" 或 "vars.xxx" 格式
+  var parts = path.split('.');
+  var obj = parts[0] === 'GM' ? GM : (parts[0] === 'vars' ? GM.vars : GM);
+
+  for (var i = (parts[0] === 'GM' || parts[0] === 'vars' ? 1 : 0); i < parts.length; i++) {
+    if (obj === undefined) return undefined;
+    obj = obj[parts[i]];
+  }
+
+  // 如果是变量对象，返回 value
+  if (obj && typeof obj === 'object' && obj.value !== undefined) {
+    return obj.value;
+  }
+
+  return obj;
+}
+
+/**
+ * 辅助函数：通过路径设置值
+ */
+function setValueByPath(path, value) {
+  if (!path) return;
+
+  var parts = path.split('.');
+  var obj = parts[0] === 'GM' ? GM : (parts[0] === 'vars' ? GM.vars : GM);
+
+  for (var i = (parts[0] === 'GM' || parts[0] === 'vars' ? 1 : 0); i < parts.length - 1; i++) {
+    if (obj === undefined) return;
+    obj = obj[parts[i]];
+  }
+
+  var lastKey = parts[parts.length - 1];
+
+  // 如果是变量对象，设置 value
+  if (obj[lastKey] && typeof obj[lastKey] === 'object' && obj[lastKey].value !== undefined) {
+    obj[lastKey].value = value;
+  } else {
+    obj[lastKey] = value;
+  }
+}
+
+/**
+ * 辅助函数：获取当前年份
+ */
+function getCurrentYear() {
+  if (!P.time) return 0;
+  var tpy = 4; // turns per year
+  if (P.time.perTurn === "1y") tpy = 1;
+  else if (P.time.perTurn === "1m") tpy = 12;
+  else if (P.time.perTurn === "1s") tpy = 4;
+
+  var yearOffset = Math.floor((GM.turn - 1) / tpy);
+  return (P.time.year || 0) + yearOffset;
+}
+
+/**
+ * 辅助函数：获取当前月份
+ */
+function getCurrentMonth() {
+  if (!P.time) return 1;
+  if (P.time.perTurn === "1y") return 1;
+  if (P.time.perTurn === "1s") {
+    var season = ((GM.turn - 1) % 4);
+    return season * 3 + 1; // 春1月，夏4月，秋7月，冬10月
+  }
+  if (P.time.perTurn === "1m") {
+    var monthOffset = (GM.turn - 1) % 12;
+    return ((P.time.startMonth || 1) - 1 + monthOffset) % 12 + 1;
+  }
+  return 1;
+}

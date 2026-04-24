@@ -628,13 +628,13 @@
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
     var G = global.GM;
-    try { _updatePaperState(G, mr); } catch(e){}
-    try { _updateGrainPrice(G, mr); } catch(e){}
-    try { _tickTransferOrders(ctx, mr); } catch(e){}
-    try { _tickFeudalHoldings(ctx, mr); } catch(e){}
-    try { _checkProjectCompletion(ctx); } catch(e){}
-    try { _checkHuangceCycle(ctx); } catch(e){}
-    try { _checkGaituEscalation(ctx); } catch(e){}
+    try { _updatePaperState(G, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-tax-atomic');}catch(_){}}
+    try { _updateGrainPrice(G, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-tax-atomic');}catch(_){}}
+    try { _tickTransferOrders(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-tax-atomic');}catch(_){}}
+    try { _tickFeudalHoldings(ctx, mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-tax-atomic');}catch(_){}}
+    try { _checkProjectCompletion(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-tax-atomic');}catch(_){}}
+    try { _checkHuangceCycle(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-tax-atomic');}catch(_){}}
+    try { _checkGaituEscalation(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-tax-atomic');}catch(_){}}
   }
 
   function init(sc) {

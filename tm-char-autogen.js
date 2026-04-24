@@ -920,7 +920,7 @@
         nameSet[cand2] = true;
         names.push(cand2);
       }
-    } catch(e) {}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-char-autogen');}catch(_){}}
 
     // 2b·"X遣使/X起兵/X降明" → 前置 2-5 字军政主体
     try {
@@ -936,7 +936,7 @@
         nameSet[cand3] = true;
         names.push(cand3);
       }
-    } catch(e) {}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-char-autogen');}catch(_){}}
 
     // 2c·"授/拜/擢/升X为" → 人名在中间
     try {
@@ -950,7 +950,7 @@
         nameSet[cand4] = true;
         names.push(cand4);
       }
-    } catch(e) {}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-char-autogen');}catch(_){}}
 
     // 2d·"X曰:" "X云:" "X言:" 中文冒号/引号前的短实体(常为对话者)
     try {
@@ -964,7 +964,7 @@
         nameSet[cand5] = true;
         names.push(cand5);
       }
-    } catch(e) {}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-char-autogen');}catch(_){}}
 
     return names;
   }

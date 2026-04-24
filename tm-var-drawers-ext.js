@@ -684,7 +684,7 @@
 
     // § 阶层流动路径
     var MOB = [];
-    try { if (typeof global.HujiDeepFill !== 'undefined' && global.HujiDeepFill.CLASS_MOBILITY_PATHS) MOB = global.HujiDeepFill.CLASS_MOBILITY_PATHS; } catch(e){}
+    try { if (typeof global.HujiDeepFill !== 'undefined' && global.HujiDeepFill.CLASS_MOBILITY_PATHS) MOB = global.HujiDeepFill.CLASS_MOBILITY_PATHS; } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-var-drawers-ext');}catch(_){}}
     if (MOB.length > 0) {
       var mh2 = '';
       MOB.slice(0, 7).forEach(function(p) {
@@ -724,15 +724,8 @@
     global.renderHuangweiPanel = renderHuangweiPanelRich;
   }
 
-  if (typeof document !== 'undefined') {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', _install);
-    } else {
-      setTimeout(_install, 200);
-    }
-  } else {
-    _install();
-  }
+  // 立即安装（旧版 setTimeout 200ms 已移除 — 2026-04-24 · 加载顺序保证 v1 已定义基础 render）
+  _install();
 
   global.VarDrawersExt = {
     install: _install,

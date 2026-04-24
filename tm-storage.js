@@ -100,8 +100,20 @@ var TM_SaveDB = (function() {
     return _openPromise;
   }
 
-  // ── 通用写入 ──
-  function _put(storeName, record) {
+  // ── R103·quota 满时自动清最老 auto 存档（type='auto'），手动存档永不删 ──
+  function _dropOldestAutoSave() {
+    return _listAll(SAVE_STORE).then(function(records) {
+      var autos = (records || []).filter(function(r){ return r.type === 'auto'; })
+                                 .sort(function(a,b){ return (a.timestamp||0) - (b.timestamp||0); });
+      if (autos.length === 0) return false; // 没 auto 可清
+      var victim = autos[0];
+      console.warn('[SaveDB] quota 满·清最老自动存档:', victim.id, 'ts=' + new Date(victim.timestamp||0).toLocaleString());
+      return _del(SAVE_STORE, victim.id).then(function(){ return true; });
+    });
+  }
+
+  // ── 通用写入（R103·加 QuotaExceededError 自动回收） ──
+  function _put(storeName, record, _retryCount) {
     if (!_available || !_db) {
       // localStorage 回退
       try {
@@ -117,7 +129,28 @@ var TM_SaveDB = (function() {
         var tx = _db.transaction(storeName, 'readwrite');
         tx.objectStore(storeName).put(record);
         tx.oncomplete = function() { resolve(true); };
-        tx.onerror = function(e) { console.error('[SaveDB] 写入失败:', e); resolve(false); };
+        tx.onerror = function(e) {
+          var err = e.target && e.target.error;
+          var isQuota = err && (err.name === 'QuotaExceededError' || err.name === 'QuotaExceededError');
+          if (isQuota && storeName === SAVE_STORE && !_retryCount) {
+            console.warn('[SaveDB] 配额已满·尝试清最老自动存档后重试');
+            _dropOldestAutoSave().then(function(dropped) {
+              if (dropped) {
+                // 重试（带 flag 防止无限递归）
+                _put(storeName, record, 1).then(resolve);
+              } else {
+                // 没 auto 可清·通知用户手动清理
+                if (typeof window.toast === 'function') {
+                  window.toast('❌ 存档空间满·请手动删除旧存档后重试');
+                }
+                resolve(false);
+              }
+            });
+          } else {
+            console.error('[SaveDB] 写入失败:', err ? err.name + ':' + err.message : e);
+            resolve(false);
+          }
+        };
       } catch(e) { console.error('[SaveDB] 事务失败:', e); resolve(false); }
     });
   }
@@ -169,7 +202,7 @@ var TM_SaveDB = (function() {
             if (raw) results.push(JSON.parse(raw));
           }
         }
-      } catch(e) {}
+      } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-storage');}catch(_){}}
       return Promise.resolve(results);
     }
     return new Promise(function(resolve) {
@@ -297,11 +330,11 @@ var TM_SaveDB = (function() {
               }).then(function(ok) {
                 if (ok) { migrated++; localStorage.removeItem(k); }
               }));
-            } catch(e) {}
+            } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-storage');}catch(_){}}
           })(key, raw);
         }
       }
-    } catch(e) {}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-storage');}catch(_){}}
     return Promise.all(promises).then(function() {
       if (migrated > 0) console.log('[SaveDB] 迁移了' + migrated + '个旧存档');
       return migrated;
@@ -343,6 +376,50 @@ var TM_SaveDB = (function() {
     });
   }
 
+  // ============================================================
+  //  R104·容量管理（persistent storage + 配额查询）
+  // ============================================================
+
+  /** 申请持久化存储（浏览器不会在空间紧张时自动清理） */
+  function requestPersistent() {
+    if (!(navigator.storage && navigator.storage.persist)) {
+      return Promise.resolve({ supported: false, granted: false, reason: 'API 不支持' });
+    }
+    // 先查是否已持久化
+    return navigator.storage.persisted().then(function(alreadyPersisted) {
+      if (alreadyPersisted) return { supported: true, granted: true, alreadyPersisted: true };
+      // 申请
+      return navigator.storage.persist().then(function(granted) {
+        return { supported: true, granted: !!granted, alreadyPersisted: false };
+      });
+    }).catch(function(e) {
+      return { supported: true, granted: false, error: e.message || String(e) };
+    });
+  }
+
+  /** 查询存储配额和当前用量 */
+  function estimate() {
+    if (!(navigator.storage && navigator.storage.estimate)) {
+      return Promise.resolve({ supported: false });
+    }
+    return navigator.storage.estimate().then(function(est) {
+      var usageMB = est.usage ? (est.usage / 1048576).toFixed(2) : '?';
+      var quotaMB = est.quota ? (est.quota / 1048576).toFixed(2) : '?';
+      var percent = (est.usage && est.quota) ? (est.usage * 100 / est.quota).toFixed(1) : '?';
+      return {
+        supported: true,
+        usage: est.usage,
+        quota: est.quota,
+        usageMB: usageMB,
+        quotaMB: quotaMB,
+        percent: percent,
+        summary: usageMB + ' MB / ' + quotaMB + ' MB (' + percent + '%)'
+      };
+    }).catch(function(e) {
+      return { supported: true, error: e.message || String(e) };
+    });
+  }
+
   return {
     open: open,
     save: save,
@@ -353,7 +430,10 @@ var TM_SaveDB = (function() {
     loadProject: loadProject,
     migrateFromLocalStorage: migrateFromLocalStorage,
     migrateFromOldDB: migrateFromOldDB,
-    isAvailable: function() { return _available; }
+    isAvailable: function() { return _available; },
+    // R104 新增
+    requestPersistent: requestPersistent,
+    estimate: estimate
   };
 })();
 
@@ -362,5 +442,17 @@ TM_SaveDB.open().then(function() {
   if (TM_SaveDB.isAvailable()) {
     TM_SaveDB.migrateFromLocalStorage();
     TM_SaveDB.migrateFromOldDB(); // 从旧数据库名(tianming_saves)迁移
+    // R104·自动申请持久化存储，扩大实际可用配额（从"best-effort"到"persistent"）
+    TM_SaveDB.requestPersistent().then(function(r) {
+      if (r.granted) {
+        console.log('[SaveDB] 持久化存储已' + (r.alreadyPersisted ? '预先启用' : '获批'));
+      } else if (r.supported) {
+        console.log('[SaveDB] 持久化存储未获批·仍可正常使用(best-effort 模式)');
+      }
+    });
+    // 启动时打印一次配额
+    TM_SaveDB.estimate().then(function(e) {
+      if (e.supported && !e.error) console.log('[SaveDB] 存储: ' + e.summary);
+    });
   }
 });

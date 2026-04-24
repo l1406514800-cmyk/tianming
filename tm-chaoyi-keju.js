@@ -1,8 +1,97 @@
 // ============================================================
-//  补回3：朝议 + 官员表任命 + 继续游戏
+//  tm-chaoyi-keju.js — 朝议 + 科举（9,454 行·第三大单文件）
 // Requires: tm-utils.js (GameHooks, _$, callAI, escHtml),
 //           tm-index-world.js (findScenarioById, findCharByName)
 // ============================================================
+//
+// ══════════════════════════════════════════════════════════════
+//  📍 导航地图（2026-04-24 R54 实测更新）
+// ══════════════════════════════════════════════════════════════
+//
+//  此文件混合了两大系统：**科举**（L16-960）+ **朝议**（L965-end）
+//  未来拆分候选：tm-keju.js + tm-chaoyi.js（MODULE_REGISTRY §2 P2）
+//
+//  ┌─ §A 科举面板 & 启动（L16-214） ─────────────────────┐
+//  │  L16    openKejuPanel()            打开科举主面板
+//  │  L115   proposeKejuPreparation()   朝议触发科举预备
+//  │  L137   _kejuQueryLibuStance()     咨询吏部立场
+//  │  L155   startKejuByMethod(m,opts)  启动科举·按方法
+//  │  L212   resolveKejuCouncilResult() 朝议结果→强推/通过
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §B 科举经费结算（L239-815） ─────────────────────────┐
+//  │  L314   payKejuLocalCost()         地方经费
+//  │  L343   _kejuSettleLocalCosts()    地方结算
+//  │  L378   _kejuSettleProvincialCosts()  省级结算
+//  │  L812   _kejuSettleCentralCost()   中央结算
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §C 科举主持 & 考官（L398-720） ─────────────────────┐
+//  │  L398   _kejuGenChiefExaminerMemorial()  主考官出题奏疏
+//  │  L445   kejuConsultCourtier()      咨询其他大臣
+//  │  L464   kejuConsultGuanGe()        咨询馆阁
+//  │  L509   openDianshiDelegatePicker()  殿试主持人选任
+//  │  L599   _kejuAutoPickExaminer()    自动挑选主考
+//  │  L615   _kejuNotifyUrgentStage()   紧急阶段通知
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §D 科举 AI 候选人 & 答卷（L722-898） ──────────────┐
+//  │  L722   pickHistoricalCandidates(exam)  20 历史人物候选
+//  │  L851   requestEnableKeju()        玩家请求启用科举
+//  │  L898   startKejuReform()          科举改制 AI 建议
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §E 朝议打开/关闭（L965-1080） ──────────────────────┐
+//  │  L965   openChaoyi()               朝议主入口
+//  │  L990   closeChaoyi()
+//  │  L1002  _cyShowInputRow()          展示输入行
+//  │  L1008  _cySubmitPlayerLine()      玩家插言提交
+//  │  L1020  _cyAbortChaoyi()           紧急中断
+//  │  L1028  _getPlayerLocation()       同地判定
+//  │  L1045  showChaoyiSetup()          选议题+参议臣
+//  │  L1079  startChaoyiSession()       开始（旧）
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §F 朝议模式 & 常朝流（L1082-1260） ────────────────┐
+//  │  L1082  _cyGetRank(ch)
+//  │  L1119  toggleCY(btn, name)        选/不选议员
+//  │  L1121  startChaoyiSession()       开始（新 LAYERED 覆盖上面）
+//  │  L1168  _startChangchao()          常朝模式·流式
+//  │  L1173  _buildChangchaoPrompt()    常朝 prompt
+//  │  L1259  _genEmergencyItem()        急务生成
+//  └─────────────────────────────────────────────────────┘
+//
+//  ┌─ §G 廷议/御前/科议/其他（L1260+ 至 end） ───────────┐
+//  │  廷议 2 轮流式 + 打断 · 御前 2 轮流式 · 科议自动邀请
+//  │  具体函数名以 _cy_Xxx / _keyi_Xxx / _jinshiXxx 前缀
+//  └─────────────────────────────────────────────────────┘
+//
+// ══════════════════════════════════════════════════════════════
+//  🛠️ 调试入口
+// ══════════════════════════════════════════════════════════════
+//
+//  CY                                 朝议当前状态对象
+//  GM.keju / P.keju                   科举运行时/预设
+//  DA.chars.byLocation(loc)           获取同地大臣（参议候选）
+//  openChaoyi()                       手工开朝议
+//  openKejuPanel()                    手工开科举
+//
+// ══════════════════════════════════════════════════════════════
+//  ⚠️ 架构注意事项
+// ══════════════════════════════════════════════════════════════
+//
+//  1. startChaoyiSession 在 L1079 和 L1121 有两个定义
+//     第二个（L1121）覆盖第一个（真实使用的是新版）
+//     历史原因未清理·未来合并时只保留 L1121
+//
+//  2. 朝议 + 科举混在一个文件 = 9,454 行
+//     未来拆 tm-keju.js (L16-960) + tm-chaoyi.js (L965-end)
+//     工时估算 40h（见 MODULE_REGISTRY §2）
+//
+//  3. 对话类 JSON 走 TM.validateAIOutput(parsed, 'xxx', 'dialogue')
+//     schema 在 tm-ai-schema.js:DIALOGUE 分组
+//
+// ══════════════════════════════════════════════════════════════
 
 // 朝议弹窗系统
 var CY={open:false,topic:"",selected:[],messages:[],speaking:false,abortCtrl:null,round:0,phase:'setup',stances:{}};
@@ -242,7 +331,7 @@ function _adjustHuangquan(delta, reason) {
       GM.huangquan.value = Math.max(0, Math.min(100, (GM.huangquan.value || 50) + delta));
       if (typeof addEB === 'function') addEB('\u7687\u6743', (delta > 0 ? '+' : '') + delta + '\u00B7' + (reason || ''));
     }
-  } catch(e) {}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
 }
 
 /** 辅助·调整民心 */
@@ -252,7 +341,7 @@ function _adjustMinxin(delta, reason) {
       GM.minxin.trueIndex = Math.max(0, Math.min(100, (GM.minxin.trueIndex || 50) + delta));
       if (typeof addEB === 'function') addEB('\u6C11\u5FC3', (delta > 0 ? '+' : '') + delta + '\u00B7' + (reason || ''));
     }
-  } catch(e) {}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -1013,15 +1102,15 @@ function _cySubmitPlayerLine(){
   CY._pendingPlayerLine = v;
   inp.value = '';
   // 立刻显示一个"候言"提示气泡，避免玩家以为没反应
-  try { if(typeof addCYBubble==='function') addCYBubble('内侍','（陛下举笏示意，待当前发言毕即插言。）', true); } catch(e){}
+  try { if(typeof addCYBubble==='function') addCYBubble('内侍','（陛下举笏示意，待当前发言毕即插言。）', true); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
 }
 
 /** 玩家打断：停止当前发言序列 */
 function _cyAbortChaoyi(){
   if(!CY || !CY.open) return;
   CY._abortChaoyi = true;
-  if(CY.abortCtrl){ try { CY.abortCtrl.abort(); } catch(e){} }
-  try { if(typeof addCYBubble==='function') addCYBubble('内侍','（陛下拊案——群臣噤声。）', true); } catch(e){}
+  if(CY.abortCtrl){ try { CY.abortCtrl.abort(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}} }
+  try { if(typeof addCYBubble==='function') addCYBubble('内侍','（陛下拊案——群臣噤声。）', true); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
 }
 
 /** 获取玩家当前所在地（可能不是京城） */
@@ -2828,7 +2917,7 @@ if(window.tianming&&window.tianming.isDesktop){
     // 优先从 IndexedDB 读取最新编辑数据（可能比磁盘更新）
     var _idbRecord = null;
     if (typeof TM_SaveDB !== 'undefined') {
-      try { _idbRecord = await TM_SaveDB.load('current_script'); } catch(e) {}
+      try { _idbRecord = await TM_SaveDB.load('current_script'); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
     }
     var scn = null;
     if (_idbRecord && _idbRecord.gameState && _idbRecord.gameState.name === name) {
@@ -4262,7 +4351,7 @@ function _adjustHuangwei(delta, reason) {
       GM.huangwei.value = Math.max(0, Math.min(100, (GM.huangwei.value || 50) + delta));
       if (typeof addEB === 'function') addEB('皇威', (delta > 0 ? '+' : '') + delta + '·' + (reason || ''));
     }
-  } catch(e) {}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
 }
 
 /** 归档本场科举到 history */
@@ -6065,7 +6154,7 @@ function closeKeyi() {
 if (typeof window !== 'undefined') {
   window.openKeyiSession = openKeyiSession;
   window.closeKeyi = closeKeyi;
-  window._keyiToggleAttendee = _keyiToggleAttendee;
+  // R102 删·_keyiToggleAttendee 从未定义·暴露到 window 会 ReferenceError·无调用点
   window._keyiStartDiscuss = _keyiStartDiscuss;
   window._keyiNextRound = _keyiNextRound;
   window._keyiProceedToVote = _keyiProceedToVote;
@@ -7355,7 +7444,7 @@ async function _cc2_judgeChaosOnset(item, rankedParticipants) {
     var raw = await callAI(prompt, 200);
     var obj = (typeof extractJSON === 'function') ? extractJSON(raw) : null;
     if (obj && typeof obj.chaos === 'boolean') return obj;
-  } catch(e){}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
   return { chaos: ctrs >= 7 };
 }
 
@@ -7465,7 +7554,7 @@ async function _cc2_genRoundSpeeches(item, picks, roundNum) {
       var _pline = CY._pendingPlayerLine;
       CY._pendingPlayerLine = null;
       var _pName = (P.playerInfo && P.playerInfo.characterName) || '陛下';
-      try { addCYBubble(_pName, _pline, true); } catch(e){}
+      try { addCYBubble(_pName, _pline, true); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
       speechHistoryThisRound.push({ name: _pName, type: '陛下口谕', line: _pline });
     }
     var p = picks[i];
@@ -7587,7 +7676,7 @@ async function _cc2_genRoundSpeeches(item, picks, roundNum) {
     var _tailLine = CY._pendingPlayerLine;
     CY._pendingPlayerLine = null;
     var _tailName = (P.playerInfo && P.playerInfo.characterName) || '陛下';
-    try { addCYBubble(_tailName, _tailLine, true); } catch(e){}
+    try { addCYBubble(_tailName, _tailLine, true); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
     speechHistoryThisRound.push({ name: _tailName, type: '陛下口谕', line: _tailLine });
   }
 }
@@ -7727,7 +7816,7 @@ async function _cc2_listenDissent() {
     var raw = await callAI(prompt, (typeof _aiDialogueTok==='function'?_aiDialogueTok("cy", dissenters.length):900));
     var arr = (typeof extractJSON === 'function') ? extractJSON(raw) : null;
     if (Array.isArray(arr)) arr.forEach(function(r){ if (r && r.name && r.line) addCYBubble(r.name, '〔抗辩〕' + r.line, false, true); });
-  } catch(e){}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
 
   // 玩家二选一：改判 或 朕意已决
   var footer = _$('cy-footer');
@@ -7804,7 +7893,7 @@ async function _cc2_doReprimand(name) {
           if (typeof addEB === 'function') addEB('暗流', name + '被斥后心生怨怼');
         }
       }
-    } catch(e){}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
   } else {
     ch.loyalty = Math.max(0, (ch.loyalty||50) - 10);
     ch.stress = Math.min(100, (ch.stress||0) + 15);
@@ -7921,7 +8010,7 @@ async function _cc2_doAskOfficial() {
   try {
     var raw = await callAI(prompt, (typeof _aiDialogueTok==='function'?_aiDialogueTok("cy", 1):400));
     addCYBubble(nm, raw.trim(), false, true);
-  } catch(e){}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
 }
 
 function _cc2_playerRaiseAgenda() {
@@ -8091,7 +8180,7 @@ async function _cc2_judgeSummonReaction(item) {
           var _sline = CY._pendingPlayerLine;
           CY._pendingPlayerLine = null;
           var _sName = (P.playerInfo && P.playerInfo.characterName) || '陛下';
-          try { addCYBubble(_sName, _sline, true); } catch(e){}
+          try { addCYBubble(_sName, _sline, true); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
         }
         var r0 = obj.reactions[ri];
         if (!r0 || !r0.name) continue;
@@ -8126,7 +8215,7 @@ async function _cc2_judgeSummonReaction(item) {
         }
       }
     }
-  } catch(e){}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
 
   // 进入 ask 环节：皇帝问被召者所为何事
   var footer = _$('cy-footer');
@@ -8160,7 +8249,7 @@ async function _cc2_doAskSummoned(name) {
   try {
     var raw = await callAI(prompt, (typeof _aiDialogueTok==='function'?_aiDialogueTok("cy", 1):400));
     addCYBubble(name, raw.trim(), false, true);
-  } catch(e){}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
   // 提供下一步
   var footer = _$('cy-footer');
   footer.innerHTML = '<div style="display:flex;gap:var(--space-1);justify-content:center;">'
@@ -8196,7 +8285,7 @@ function _cy_suggestAdd(sourceLabel) {
     if (bubble) {
       fromName = bubble.getAttribute('data-cy-speaker') || (bubble.querySelector('.speaker-name') && bubble.querySelector('.speaker-name').textContent) || '';
     }
-  } catch(e){}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
   // 自动抓取 topic——当前议题或议程
   var topic = '';
   if (sourceLabel === '廷议' && CY._ty2 && CY._ty2.topic) topic = '廷议·' + CY._ty2.topic;
@@ -8491,7 +8580,7 @@ async function _ty2_phaseInitialRound() {
         var _pl = CY._pendingPlayerLine; CY._pendingPlayerLine = null;
         addCYBubble('皇帝', _pl, false);
         _cy_jishiAdd('tinyi', CY._ty2.topic, '皇帝', _pl, { round: _rd, playerInterject: true });
-        try { await _ty2_playerTriggeredResponse(_pl); } catch(e){}
+        try { await _ty2_playerTriggeredResponse(_pl); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
       }
       var nm = CY._ty2.attendees[i];
       var res = await _ty2_genOneSpeech(nm, _rd, _prevSpeeches);
@@ -8580,7 +8669,7 @@ async function _ty2_genOneSpeech(name, roundNum, prevSpeeches) {
         if (_lm && _lm[1]) _rescuedLine = _lm[1].replace(/\\n/g,'\n').replace(/\\"/g,'"').replace(/\\\\/g,'\\');
         var _sm = raw.match(/"stance"\s*:\s*"([^"]+)"/);
         if (_sm) _rescuedStance = _sm[1];
-      } catch(e){}
+      } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
       if (_rescuedLine) {
         var _c2 = { '极力支持':'var(--celadon-400)','支持':'var(--celadon-400)','倾向支持':'var(--celadon-400)','中立':'var(--ink-300)','倾向反对':'var(--vermillion-400)','反对':'var(--vermillion-400)','极力反对':'var(--vermillion-400)','折中':'var(--amber-400)','另提议':'var(--indigo-400)' }[_rescuedStance] || '';
         _tyBubble.innerHTML = '\u3014' + (_rescuedStance||'\u4E2D\u7ACB') + '\u3015<span style="color:' + _c2 + ';">' + escHtml(_rescuedLine) + '</span>';
@@ -8643,7 +8732,7 @@ async function _ty2_playerTriggeredResponse(playerText) {
         }
         _cy_jishiAdd('tinyi', CY._ty2.topic, responders[i], obj.line, { round: CY._ty2.roundNum });
       }
-    } catch(e){}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
   }
   _ty2_render();
 }
@@ -8715,7 +8804,7 @@ async function _ty2_judgeStanceShifts(speechesThisRound) {
         }
       });
     }
-  } catch(e){}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
 }
 
 async function _ty2_offerMediation() {
@@ -8742,7 +8831,7 @@ async function _ty2_offerMediation() {
     addCYBubble(mediator, '〔折中〕' + escHtml(raw.trim()), false, true);
     _cy_jishiAdd('tinyi', CY._ty2.topic, mediator, raw.trim(), { round: CY._ty2.roundNum, mediation: true });
     CY._ty2._mediation = { author: mediator, content: raw.trim() };
-  } catch(e){}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
   _ty2_enterDecide();
 }
 
@@ -8950,7 +9039,7 @@ async function _ty2_afterOverride(groups, direction) {
         }
       });
     }
-  } catch(e){}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
 }
 
 function _ty2_finalEnd() {
@@ -9293,7 +9382,7 @@ async function _yq2_doAskAdvisor(name, question) {
     var line = raw.trim();
     addCYBubble(name, '〔深言〕' + escHtml(line), false, true);
     if (CY._yq2.record !== 'secret') _cy_jishiAdd('yuqian', CY._yq2.topic, name, line, { deep: true });
-  } catch(e){}
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
   _yq2_offerFollowUp();
 }
 
@@ -9431,7 +9520,7 @@ async function _yq2_evaluateLeak() {
           });
         }
       }
-    } catch(e){}
+    } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
   }
 
   setTimeout(_yq2_finalEnd, 800);
