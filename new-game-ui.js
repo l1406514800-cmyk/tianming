@@ -54,7 +54,7 @@ function initNewGameUI() {
                         <button class="ngui-action" onclick="switchGTab(null,'gt-tech')"><div class="ngui-action-title">${tmIcon('policy',14)} 科技树</div><div class="ngui-action-sub">军事 · 民用</div></button>
                         <button class="ngui-action" onclick="switchGTab(null,'gt-civic')"><div class="ngui-action-title">${tmIcon('policy',14)} 民政树</div><div class="ngui-action-sub">城市 · 政策</div></button>
                         <div class="ngui-group">其他</div>
-                        <button class="ngui-action" onclick="showMapInGame()"><div class="ngui-action-title">${tmIcon('map',14)} 地图</div><div class="ngui-action-sub">查看全图</div></button>
+                        <button class="ngui-action" onclick="TM.MapSystem.open('regions')"><div class="ngui-action-title">${tmIcon('map',14)} 地图</div><div class="ngui-action-sub">查看全图</div></button>
                         <button class="ngui-action" onclick="switchGTab(null,'gt-shiji')"><div class="ngui-action-title">${tmIcon('history',14)} 史记</div><div class="ngui-action-sub">历史记录</div></button>
                     </div>
                 </div>

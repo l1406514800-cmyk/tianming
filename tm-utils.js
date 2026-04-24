@@ -6,64 +6,66 @@
 var _$=function(id){return document.getElementById(id);};
 
 // ============================================================
-//  8.6 全局错误监控与上报
-//  捕获未处理异常，存入GM._errorLog，提供导出功能
+//  8.6 ErrorMonitor · R114 (2026-04-24) 降级为 TM.errors 的兼容 shim
+//
+//  唯一的错误系统现在是 TM.errors (tm-error-collector.js)，它已注册
+//  window.onerror / unhandledrejection / 资源加载错误 三套监听。
+//  ErrorMonitor 保留原 API (capture / getLog / exportText / clear / count)
+//  供既有 caller (tm-game-engine.js 错误日志导出按钮) 继续工作。
+//  新代码一律使用 TM.errors.capture()/getLog()。
 // ============================================================
 var ErrorMonitor = (function() {
-  var _log = []; // [{ts, type, message, stack, context}]
-  var _MAX = 30;
+  function _tm() { return (typeof window !== 'undefined' && window.TM && window.TM.errors) || null; }
 
-  // 全局错误捕获（R102 统一·接管 index.html 原重复注册）
-  if (typeof window !== 'undefined') {
-    window.onerror = function(msg, src, line, col, err) {
-      _capture('error', msg, err ? err.stack : (src + ':' + line + ':' + col));
-      return false; // 不阻止默认行为
-    };
-    window.addEventListener('unhandledrejection', function(e) {
-      var reason = e.reason;
-      _capture('promise', reason ? (reason.message || String(reason)) : 'Unknown promise rejection',
-        reason && reason.stack ? reason.stack : '');
-    });
-    // 资源加载错误（R102 合入·原 index.html 的 alert 改为静默记录）
-    window.addEventListener('error', function(e) {
-      if (e.target && e.target.tagName === 'SCRIPT') {
-        _capture('resource', 'Script load failed: ' + (e.target.src || 'unknown'), '');
-      }
-    }, true);
+  function capture(type, message, stack) {
+    var tm = _tm();
+    if (tm) {
+      // 构造伪 Error 对象喂给 TM.errors.capture
+      var err = { message: String(message || ''), stack: String(stack || '') };
+      tm.capture(err, 'errmon:' + (type || 'error'));
+      // 同步到 GM._errorLog 老字段（既有代码可能读取）
+      if (typeof GM !== 'undefined') GM._errorLog = getLog();
+    } else {
+      console.warn('[ErrorMonitor·no-TM]', type, message);
+    }
   }
 
-  function _capture(type, message, stack) {
-    var entry = {
-      ts: Date.now(),
-      turn: (typeof GM !== 'undefined' && GM.turn) ? GM.turn : 0,
+  // TM.errors 条目 → ErrorMonitor 老格式 {ts, turn, type, message, stack}
+  function _toLegacy(e) {
+    var mod = String(e.module || '');
+    var type = mod.indexOf('errmon:') === 0 ? mod.slice(7) : (mod || 'error');
+    return {
+      ts: e.t || Date.now(),
+      turn: e.turn || 0,
       type: type,
-      message: String(message).substring(0, 500),
-      stack: String(stack || '').substring(0, 1000)
+      message: (e.error && e.error.message) || '',
+      stack: (e.error && e.error.stack) || ''
     };
-    _log.push(entry);
-    if (_log.length > _MAX) _log = _log.slice(-_MAX);
-    // 同步到GM（如果存在）
-    if (typeof GM !== 'undefined') GM._errorLog = _log;
-    console.warn('[ErrorMonitor]', type, message);
   }
 
-  return {
-    /** 手动记录错误 */
-    capture: _capture,
-    /** 获取错误日志 */
-    getLog: function() { return _log.slice(); },
-    /** 导出为文本（供用户粘贴反馈） */
-    exportText: function() {
-      if (_log.length === 0) return '无错误记录';
-      return '天命错误日志 (' + _log.length + '条)\n' + _log.map(function(e) {
-        return '[T' + e.turn + ' ' + new Date(e.ts).toLocaleTimeString() + '] ' + e.type + ': ' + e.message;
-      }).join('\n');
-    },
-    /** 清空 */
-    clear: function() { _log = []; if (typeof GM !== 'undefined') GM._errorLog = []; },
-    /** 错误数 */
-    count: function() { return _log.length; }
-  };
+  function getLog() {
+    var tm = _tm();
+    if (!tm) return [];
+    return tm.getLog().map(_toLegacy);
+  }
+
+  function exportText() {
+    var log = getLog();
+    if (log.length === 0) return '无错误记录';
+    return '天命错误日志 (' + log.length + '条)\n' + log.map(function(e) {
+      return '[T' + e.turn + ' ' + new Date(e.ts).toLocaleTimeString() + '] ' + e.type + ': ' + e.message;
+    }).join('\n');
+  }
+
+  function clear() {
+    var tm = _tm();
+    if (tm) tm.clear();
+    if (typeof GM !== 'undefined') GM._errorLog = [];
+  }
+
+  function count() { return getLog().length; }
+
+  return { capture: capture, getLog: getLog, exportText: exportText, clear: clear, count: count };
 })();
 // 核心指标显示名映射——动态从剧本 P.variables 读取（标记 isCore=true 的变量）
 // 引擎不硬编码任何指标名，全由编辑器定义。以下仅为兜底（无剧本加载时）。

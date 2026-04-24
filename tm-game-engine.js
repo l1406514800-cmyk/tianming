@@ -6184,7 +6184,7 @@ function renderGameState(){
   // 结束回合按钮
   edictHTML += '<div class="ed-action-bar">';
   edictHTML += '<button class="bt bp" id="btn-end" onclick="confirmEndTurn()" style="padding:var(--space-3) var(--space-8);font-size:var(--text-md);letter-spacing:0.15em;border:2px solid var(--gold-400);box-shadow:0 2px 12px rgba(184,154,83,0.2);">'+_ei('end-turn',16)+' 诏付有司</button>';
-  edictHTML += '<button class="bt" title="地形图·山川城池分布（决策辅助）·与【军事·地图总览】数据源不同" onclick="openMapViewer()" style="padding:var(--space-3) var(--space-6);font-size:var(--text-md);">'+_ei('map',16)+' 查看地图</button>';
+  edictHTML += '<button class="bt" title="地形图·山川城池分布（决策辅助）·与【军事·地图总览】数据源不同" onclick="TM.MapSystem.open(\'terrain\')" style="padding:var(--space-3) var(--space-6);font-size:var(--text-md);">'+_ei('map',16)+' 查看地图</button>';
   edictHTML += '</div>';
   edictHTML += '</div>'; // 关闭右侧诏书编辑区
   edictHTML += '</div>'; // 关闭左右并排 flex 容器
@@ -8225,7 +8225,7 @@ function _renderZhaozhengCenter() {
     { label: '\u519B\u4E8B', icon: 'troops', color: 'var(--vermillion-400)', items: [
       {label:'\u519B\u4E8B\u8BCF\u4EE4', sub:'\u8C03\u5175\u9063\u5C06', action:'switchGTab(null,"gt-edict");var el=document.getElementById("edict-mil");if(el)el.focus()', icon:'troops', ok:true},
       {label:'\u5236\u5EA6\u6539\u9769', sub:'\u901A\u8FC7\u8BCF\u4EE4\u53D1\u8D77', action:'switchGTab(null,"gt-edict");var el=document.getElementById("edict-pol");if(el){el.focus();el.placeholder="\u5982\uFF1A\u63A8\u884C\u52DF\u5175\u5236/\u6539\u9769\u7A0E\u5236/\u5B9E\u884C\u79D1\u4E3E...";}', icon:'scroll', ok:true},
-      {label:'\u5730\u56FE\u603B\u89C8', sub:'\u52BF\u529B\u5206\u5E03', action:'showMapInGame()', icon:'map', ok:_canMap().ok, reason:_canMap().reason}
+      {label:'\u5730\u56FE\u603B\u89C8', sub:'\u52BF\u529B\u5206\u5E03', action:'TM.MapSystem.open("regions")', icon:'map', ok:_canMap().ok, reason:_canMap().reason}
     ]},
     { label: '\u4EBA\u4E8B', icon: 'person', color: 'var(--gold-400)', items: [
       {label:'\u5B98\u5236\u4EFB\u514D', sub:'\u67E5\u770B\u5B98\u5236\u6811', action:'switchGTab(null,"gt-office")', icon:'office', ok:true},

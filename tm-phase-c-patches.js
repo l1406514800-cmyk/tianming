@@ -1,6 +1,12 @@
 /**
  * tm-phase-c-patches.js — C 阶段补丁（制度+环境）
  *
+ * ⚠ 状态（R116b · 2026-04-24）：**ACCEPTED LAYERING · 暂不合并**
+ *    此文件是有意识的 monkey-patch 分层（OVERRIDE EdictParser.processImperialAssent
+ *    + EdictParser.tick）。R26 评估合并工时 10-20h 且必须先写 5-8 个 edict-parser
+ *    smoke 用例作为前置。在那些前置完成之前保留为独立文件是审慎决定，不是债务。
+ *    合并 checklist 见下方 R26 原注。
+ *
  * ⚠ 补丁分类（2026-04-24 R26 评估）：LAYERED（真 monkey patch）
  *   · APPEND：PhaseC.init/tick + EdictComplete.openClarificationPanel + QUERY_QUICK_OPTIONS
  *   · OVERRIDE：EdictParser.processImperialAssent（覆盖 edict-complete 原版）

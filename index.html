@@ -340,13 +340,13 @@ document.addEventListener('mousedown', function(e){
 </script>
 
 <script>
-// 全局错误捕获：已统一由 tm-utils.js 的 ErrorMonitor 接管（R102）
-// ErrorMonitor 同时处理 window.onerror / unhandledrejection / 资源加载错误
-// 查询错误：ErrorMonitor.getLog() 或 TM.errors.getLog()
+// 全局错误捕获：TM.errors 主引（tm-error-collector.js 先加载），ErrorMonitor 为兼容 shim（R114）
+// 查询错误：TM.errors.getLog()（主）或 ErrorMonitor.getLog()（老接口）
 console.log('天命游戏脚本开始加载...');
 </script>
 
 <script src="tm-env-detect.js?v=20260424v"></script>
+<script src="tm-error-collector.js?v=20260424v"></script>
 <script src="tm-icons.js"></script>
 <script src="tm-data-model.js"></script>
 <script src="tm-utils.js?v=20260424v"></script>
@@ -386,7 +386,7 @@ console.log('天命游戏脚本开始加载...');
 <script src="tm-modal-system.js?v=20260424v"></script>
 <script src="tm-military-ui.js?v=20260424v"></script>
 <script src="tm-world-view.js?v=20260424v"></script>
-<script src="tm-editor-details.js?v=20260424v"></script>
+<script src="tm-editor-details.js?v=20260424v" defer></script>
 <script src="tm-settings-ui.js?v=20260424v"></script>
 <script src="tm-three-systems-ext.js?v=20260424v"></script>
 <script src="tm-three-systems-ui.js?v=20260424v"></script>
@@ -446,8 +446,8 @@ console.log('天命游戏脚本开始加载...');
 <script src="tm-integration-bridge.js?v=20260424v"></script>
 <script src="tm-fiscal-cascade.js?v=20260424v"></script>
 <script src="tm-fiscal-fixed-expense.js?v=20260424v"></script>
-<script src="tm-error-collector.js?v=20260424v"></script>
-<script src="tm-errors-panel.js?v=20260424v"></script>
+<!-- tm-error-collector 已移至脚本加载最前（R114·ErrorMonitor shim 依赖） -->
+<script src="tm-errors-panel.js?v=20260424v" defer></script>
 <script src="tm-perf.js?v=20260424v"></script>
 <script src="tm-invariants.js?v=20260424v"></script>
 <script src="tm-pollution-guard.js?v=20260424v"></script>
@@ -455,28 +455,26 @@ console.log('天命游戏脚本开始加载...');
 <script src="tm-state.js?v=20260424v"></script>
 <script src="tm-diff.js?v=20260424v"></script>
 <script src="tm-hooks-tracker.js?v=20260424v"></script>
-<script src="tm-diagnostics-panel.js?v=20260424v"></script>
-<script src="tm-checklist.js?v=20260424v"></script>
-<script src="tm-cheatsheet-overlay.js?v=20260424v"></script>
-<script src="tm-onboard-tools.js?v=20260424v"></script>
+<script src="tm-diagnostics-panel.js?v=20260424v" defer></script>
+<script src="tm-checklist.js?v=20260424v" defer></script>
+<script src="tm-cheatsheet-overlay.js?v=20260424v" defer></script>
+<script src="tm-onboard-tools.js?v=20260424v" defer></script>
 <script src="tm-ai-schema.js?v=20260424v"></script>
 <script src="tm-ai-output-validator.js?v=20260424v"></script>
 <script src="tm-data-access.js?v=20260424v"></script>
 <script src="tm-ai-change-applier.js?v=20260424v"></script>
 <script src="tm-ai-npc-memorials.js"></script>
-<!-- 侧边抽屉三代叠加（顺序必须严格 v1→v2→v3，v2 替换为 Rich 版，v3 wrap 追加 Extra） -->
+<!-- 侧边抽屉·已合并三代为单文件 (R116a, 2026-04-24) -->
 <script src="tm-var-drawers.js?v=20260424v"></script>
-<script src="tm-var-drawers-ext.js?v=20260424v"></script>
-<script src="tm-var-drawers-final.js?v=20260424v"></script>
-<script src="tm-editor-division-deep.js"></script>
-<script src="tm-editor-office-deep.js"></script>
-<script src="tm-editor-custom-presets.js"></script>
-<script src="tm-test.js"></script>
+<script src="tm-editor-division-deep.js" defer></script>
+<script src="tm-editor-office-deep.js" defer></script>
+<script src="tm-editor-custom-presets.js" defer></script>
+<script src="tm-test.js" defer></script>
 <!-- 官方剧本 -->
 <script src="scenarios/tianqi7-1627.js?v=20260424v"></script>
 
 <!-- 测试框架（?test=1 自动运行） -->
-<script src="tm-test-harness.js?v=20260424v"></script>
+<script src="tm-test-harness.js?v=20260424v" defer></script>
 
 <!-- 邸报·更新公告 -->
 <script src="tm-changelog.js?v=20260424v"></script>

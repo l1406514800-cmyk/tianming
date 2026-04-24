@@ -194,6 +194,55 @@
   // ─── TM.ChangeQueue（引擎型·透传 window.ChangeQueue） ───
   TM.ChangeQueue = _buildEngineFacade('ChangeQueue', 'ChangeQueue');
 
+  // ─── TM.register (R118·命名空间闸门) ───
+  // 模块主动登记"我要在 window 上放一个 X"·记账用·未来可加拦截
+  // 用法：TM.register('ModuleName', 'functionName', fn) 或 TM.register('ModuleName', dict)
+  TM._registry = TM._registry || { byModule: {}, byName: {} };
+  TM.register = function(moduleName, nameOrDict, fn) {
+    if (!moduleName) return;
+    TM._registry.byModule[moduleName] = TM._registry.byModule[moduleName] || [];
+    function _one(name, f) {
+      TM._registry.byModule[moduleName].push(name);
+      TM._registry.byName[name] = { module: moduleName, t: Date.now() };
+      if (typeof f === 'function' && typeof window !== 'undefined') window[name] = f;
+    }
+    if (typeof nameOrDict === 'string') {
+      _one(nameOrDict, fn);
+    } else if (nameOrDict && typeof nameOrDict === 'object') {
+      Object.keys(nameOrDict).forEach(function(k){ _one(k, nameOrDict[k]); });
+    }
+  };
+  TM.registered = function(name) { return TM._registry.byName[name] || null; };
+  TM.registeredModules = function() { return Object.keys(TM._registry.byModule); };
+  TM.registryReport = function() {
+    var by = TM._registry.byModule;
+    return Object.keys(by).sort().map(function(m){
+      return { module: m, count: by[m].length, names: by[m].slice() };
+    });
+  };
+
+  // ─── TM.Storage（R113·存档门面·统一 UI/存储契约） ───
+  // SaveManager 是纯 UI 协调层·内部已走 TM_SaveDB (IndexedDB+gzip)
+  // 新代码应通过 TM.Storage.* 访问·旧代码的直接 SaveManager/TM_SaveDB 调用保留兼容
+  TM.Storage = {
+    // UI 层·打开案卷目录/读档对话框等
+    openManager:  function() { return (typeof window.openSaveManager === 'function') ? window.openSaveManager() : null; },
+    closeManager: function() { return (typeof window.closeSaveManager === 'function') ? window.closeSaveManager() : null; },
+    // 槽位读写·委托 SaveManager（它会调 TM_SaveDB）
+    saveSlot:     function(slotId, name) { return window.SaveManager ? window.SaveManager.saveToSlot(slotId, name) : false; },
+    loadSlot:     function(slotId) { return window.SaveManager ? window.SaveManager.loadFromSlot(slotId) : false; },
+    deleteSlot:   function(slotId) { return window.SaveManager ? window.SaveManager.deleteSlot(slotId) : false; },
+    listSlots:    function() { return window.SaveManager ? window.SaveManager.getAllSaves() : []; },
+    exportSlot:   function(slotId) { return window.SaveManager ? window.SaveManager.exportSave(slotId) : false; },
+    importSlot:   function(file, slotId) { return window.SaveManager ? window.SaveManager.importSave(file, slotId) : false; },
+    // 底层·直接访问 IndexedDB 门（项目存档/诊断用）
+    db: {
+      isAvailable: function() { return window.TM_SaveDB ? window.TM_SaveDB.isAvailable() : false; },
+      estimate:    function() { return window.TM_SaveDB ? window.TM_SaveDB.estimate() : Promise.resolve({}); },
+      persistent:  function() { return window.TM_SaveDB ? window.TM_SaveDB.requestPersistent() : Promise.resolve({ supported: false }); }
+    }
+  };
+
   // ─── 全局汇总 ───
   function _verify() {
     var out = {};

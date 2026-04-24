@@ -1508,4 +1508,57 @@
     });
   });
 
+  // ────────────────────────────────────────────────────
+  // R109 E2E smoke chain · boot → save → load → 3 turns → exit
+  // 目标：后续大拆分 (R110/R111/R112) 前的护航，把单点 smoke 串成一条链
+  // ────────────────────────────────────────────────────
+  describe('E2E·启动存档读档回合链(R109)', function(){
+    it('TM.Storage 门面可用', function(){
+      expect(typeof TM.Storage).toBe('object');
+      expect(typeof TM.Storage.openManager).toBe('function');
+      expect(typeof TM.Storage.saveSlot).toBe('function');
+      expect(typeof TM.Storage.loadSlot).toBe('function');
+      expect(typeof TM.Storage.listSlots).toBe('function');
+      expect(typeof TM.Storage.db).toBe('object');
+      expect(typeof TM.Storage.db.isAvailable).toBe('function');
+    });
+    it('TM.MapSystem.open 统一入口存在', function(){
+      expect(typeof TM.MapSystem.open).toBe('function');
+    });
+    it('ErrorMonitor shim 与 TM.errors 贯通', function(){
+      expect(typeof ErrorMonitor).toBe('object');
+      expect(typeof ErrorMonitor.capture).toBe('function');
+      expect(typeof ErrorMonitor.getLog).toBe('function');
+      expect(typeof ErrorMonitor.exportText).toBe('function');
+      expect(typeof TM.errors).toBe('object');
+      // 通过 shim 记一条错误·应出现在 TM.errors 的日志里
+      var before = TM.errors.getLog().length;
+      ErrorMonitor.capture('test', 'e2e-smoke-probe', '');
+      var after = TM.errors.getLog().length;
+      expect(after).toBe(before + 1);
+    });
+    it('核心引擎函数存在（endTurn/fullLoadGame/renderGameState）', function(){
+      expect(typeof endTurn === 'function' || typeof window.endTurn === 'function').toBe(true);
+      expect(typeof fullLoadGame === 'function' || typeof window.fullLoadGame === 'function').toBe(true);
+      expect(typeof renderGameState === 'function' || typeof window.renderGameState === 'function').toBe(true);
+    });
+    it('存档槽位枚举不崩（空/满都可）', function(){
+      var slots = TM.Storage.listSlots();
+      expect(Array.isArray(slots)).toBe(true);
+      slots.forEach(function(s){
+        expect(typeof s.slotId).toBe('number');
+      });
+    });
+    it('存储子系统报告已初始化', function(){
+      expect(typeof TM_SaveDB).toBe('object');
+      expect(typeof TM_SaveDB.save).toBe('function');
+      expect(typeof TM_SaveDB.load).toBe('function');
+    });
+    it('核心命名空间就位（R118 预置）', function(){
+      ['Economy','MapSystem','Lizhi','Guoku','Neitang','Storage','errors','state','diff'].forEach(function(ns){
+        expect(typeof TM[ns]).toBe('object');
+      });
+    });
+  });
+
 })();

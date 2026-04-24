@@ -2,6 +2,11 @@
 // 帑廪 P5 最终 A 级补完
 // 依赖：tm-guoku-engine.js + p2 + p4
 //
+// ⚠ 状态（R116c · 2026-04-24）：**ACCEPTED LAYERING · 暂不合并**
+//    guoku p2/p4/p5/p6 是 R19 明确记录的 5 层叠加链（tick 依次覆盖 4 次）。
+//    合并需为每层 tick 写行为快照测试，再按 R19 策略以 p6 为基础重建。
+//    无测试合并 = 回归风险。保留分片是审慎决定。
+//
 // ⚠ 补丁分类（2026-04-24 R19 评估）：LAYERED（5 层叠加链第 4 层）
 //   · APPEND：LOAN_SOURCES/takeLoanBySource/calcCaoyunLossRate/aiFiscalAdvisor/isAIAvailable
 //   · OVERRIDE：GuokuEngine.tick（覆盖 p4 的 tick，让位给 p6 终版）

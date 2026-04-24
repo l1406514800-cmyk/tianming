@@ -2,6 +2,9 @@
 // 帑廪/内帑 最终补完 P6
 // 依赖：engine + p2 + p4 + p5 + neitang-p2
 //
+// ⚠ 状态（R116c · 2026-04-24）：**ACCEPTED LAYERING · 暂不合并**
+//    此文件是 5 层叠加链的终端。合并策略见下方 R19 原注，但需先补 tick 行为测试。
+//
 // ⚠ 补丁分类（2026-04-24 R19 评估）：LAYERED（5 层叠加链终端 · GuokuEngine.tick 最终版）
 //   · APPEND：calcCustomTaxes
 //   · OVERRIDE：GuokuEngine.tick（终版·覆盖 p5）

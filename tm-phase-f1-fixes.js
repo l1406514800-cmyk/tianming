@@ -1,6 +1,12 @@
 /**
  * tm-phase-f1-fixes.js — F 阶段 ①：快速修正
  *
+ * ⚠ 状态（R116b · 2026-04-24）：**ACCEPTED LAYERING · 暂不合并**
+ *    此文件是有意识的 monkey-patch 分层（OVERRIDE AuthorityEngines.tick +
+ *    PhaseD.COUNTER_STRATEGIES.rotate_officials）。R26 评估合并工时 15-25h 且必须先
+ *    写 10 个 AuthorityEngines.tick 用例 + 行为快照作前置。合并前保留为独立文件是
+ *    审慎决定，不是债务。合并 checklist 见下方 R26 原注。
+ *
  * ⚠ 补丁分类（2026-04-24 R26 评估）：LAYERED（真 monkey patch）
  *   · APPEND：PhaseF1.init/tick
  *   · OVERRIDE：
