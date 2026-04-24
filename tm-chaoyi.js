@@ -8495,3 +8495,6 @@ function _yq2_globalFooter() {
     + _cy_suggestBtnHtml('御前会议')
     + '</div>';
 }
+
+// R112 显式暴露 advanceKejuByDays (被 tm-keju.js 和 tm-endturn-core.js 引用)
+if (typeof window !== 'undefined') window.advanceKejuByDays = advanceKejuByDays;

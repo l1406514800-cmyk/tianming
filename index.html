@@ -382,7 +382,10 @@ console.log('天命游戏脚本开始加载...');
 <script src="tm-memory-anchors.js?v=20260424v"></script>
 <script src="tm-chronicle-system.js?v=20260424v"></script>
 <script src="tm-endturn-edict.js?v=20260424v"></script>
-<script src="tm-endturn.js?v=20260424v"></script>
+<!-- R110 (2026-04-25) 拆分 tm-endturn.js → prep + ai-infer + core -->
+<script src="tm-endturn-prep.js?v=20260425v"></script>
+<script src="tm-endturn-ai-infer.js?v=20260425v"></script>
+<script src="tm-endturn-core.js?v=20260425v"></script>
 <script src="tm-endturn-render.js?v=20260424v"></script>
 <script src="tm-patches.js?v=20260424v"></script>
 <!-- R17-R22: 从 tm-patches.js 抽离的子模块（加载在 patches 之后覆盖原版） -->

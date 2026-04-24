@@ -892,7 +892,7 @@ if (typeof window !== 'undefined') {
   window.resolveKejuCouncilResult = resolveKejuCouncilResult;
   window.kejuConsultCourtier = kejuConsultCourtier;
   window.kejuConsultGuanGe = kejuConsultGuanGe;
-  window.advanceKejuByDays = advanceKejuByDays;
+  // R112·advanceKejuByDays 定义在 tm-chaoyi.js·由后者自行暴露到 window
   window.openDianshiDelegatePicker = openDianshiDelegatePicker;
   window._pickDianshiDelegate = _pickDianshiDelegate;
   window._filterDelegateList = _filterDelegateList;
