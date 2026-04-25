@@ -2,6 +2,19 @@
   "_comment": "天命·更新日志——新条目 unshift 到数组最前（由近及远）。格式：{date, module, title, items[]}；items 元素可为字符串或 {what, why}。",
   "entries": [
     {
+      "date": "2026-04-26",
+      "module": "邸报·BUG 修复六合·鸿雁回信 + 人物志位置闸门 + 朝议下狱过滤 + 抄家真扣 + 官制幽灵净化 + 官职所在地变迁",
+      "title": "六类长期 bug 收口·鸿雁回信兜底 / 在京 NPC 改投奏疏 / 人物志按位置三态 / 廷议状态闸先于位置闸 / 抄家真触发 EconomyLinkage / 任命幽灵 holder 净化 + vacancyCount 同步 / 官职所在地双路径冲突消除",
+      "items": [
+        { "what": "鸿雁传书 v=20260426k·两层修复：(1) 玩家发函 NPC 不回信——_settleLettersAndTravel 的 replying→returned 兜底只切 status 不填 reply·若 AI 异步失败/超时/存档读档丢承诺则永久空白。改为按 NPC 忠诚/好感/压力合成 4 档简短回信(慷慨/疏离/疲惫/中性)·_generateLetterReply.then/.catch 都 renderLetterPanel。(2) NPC 不主动来信——subcall1 npc_letters 在 location===首都 时静默 return·全部吞掉。改为在京 NPC 写信自动改投奏疏(memorials)+_dbg 4 档统计(入队/无角色/在京改投/缺字段)·NPC 来函抵达批量 toast「N 封新函」+立即重渲", "why": "鸿雁是 NPC 关系核心通道·空回信/吞信让玩家感觉系统死了。两条管道都补上后·NPC 通信成闭环" },
+        { "what": "人物志/问对/鸿雁闸门 v=20260426l·四处补：(1) 卡片(line 339-341) + 详情页(line 396-403)按位置三态：在京→「问对」·远方→「传书」·途中→不显示。(2) _rwpOpenLetter 关键 bug 修——之前只写 letter-to(根本不存在的 input id)·忘了 GM._pendingLetterTo·UI 永远停在概览。改为先设 GM._pendingLetterTo=name 再 switchGTab + letter-textarea.focus。(3) _rwpOpenWendui / _rwpOpenLetter / openWenduiModal / openWenduiPick 入口加自检阻止对自己。(4) sendLetter 防御兜底·过滤自己+在京者·提示「已剔除：xxx(在京)·宜面陈或召对」", "why": "人物志的两个按钮和鸿雁/问对入口形成网状·任何一处漏闸都让玩家做出违和动作（对死人传书·对自己问对）。集中堵漏后语义自洽" },
+        { "what": "朝议下狱过滤 + 抄家真扣 v=20260426m·两处修：(1) _cc3_classifyAbsent 重构闸门顺序——状态闸（下狱/贬谪/致仕/丁忧/逃亡/病重/称病/闭门）优先于位置闸（在京判定）·身体在牢却被算「在京·正常上朝」的 bug 消除。_cc3_buildSummonablePool 同步加状态过滤·下狱/贬谪/逃亡/病重者不入「可召池」。(2) onDismissal reason==='抄家' 之前只设 ch.alive=false·EconomyLinkage.triggerConfiscationByName 全代码库无人调用·char.privateWealth 不动·内帑/帑廪不增。改为识别 reason 含「抄/籍没/没官/抄没/查抄」即触发 confiscation·intensity 默认 0.6·「重抄/严抄/彻查/连坐/株连」提至 0.85·加 ch._confiscated 幂等标记·风闻条详细「明 X 万 + 暗 Y 万 = 共 Z 万两入内帑」", "why": "下狱者还能上朝是把场景写穿了。抄家不真扣银是「抄了个寂寞」·两条都是核心信誉问题" },
+        { "what": "官制任命幽灵 holder 净化 + vacancyCount 同步 v=20260426n·_offAppointPerson 入口加幽灵净化：扫 actualHolders·任何 name 设但 GM.chars 无对应角色的项·转为占位（name=''·generated=false·_ghostPurged 留痕）。这样新任能直接登 primary·sync 后 pos.holder=新任名。末尾同步 vacancyCount = establishedCount - 已任·防 v10 渲染读老 vacancyCount 误显「缺员」。3 场景测试全过：ghost holder + 新任 → 新任登 primary / 真有 holder + 新任 → 老任保留新任 additional / 真空位 + 新任 → 直填", "why": "老剧本/老存档 position.holder='李四' 但 GM.chars 无该人·findCharByName→null→isVacant=true·新任沦 additionalHolders[0]·界面继续显「空缺」·这就是「任命无效」长期 bug 的根" },
+        { "what": "官职所在地双路径冲突消除 v=20260426p·三处修：(1) tm-hongyan-office.js _settleLettersAndTravel L1226-1237 移除自带的简化抵达分支——之前只设 c.location 清 _travelTo 留下 _travelAssignPost / _travelRemainingDays / _travelReason 脏字段·之后 advanceCharTravelByDays 见 _travelTo===null 直接跳过·自动就任不调·编年抵达条不写·永远走「【入京】」措辞。改为让 advanceCharTravelByDays 在 tm-endturn-core.js Phase 4.6 独占处理·完成「位置迁移 + 自动就任 + 编年抵达条 + 起居注」一体化。(2) tm-office-panel.js 地方职正则扩 7→30+ 关键字（提督/镇守/戍守/宣慰/宣抚/安抚/知府/知州/知县/道员/同知/通判/推官/提刑/学政/提学/盐运/参政/参议/府尹/州牧/刺史/太守/节使/总管/都指挥/副将/参将/游击/守备/千总/把总/卫所）。(3) tm-ai-change-applier.js needTravel 分支由 action==='appoint' 扩为 appoint||transfer·调任带 toLocation 时同走旅程", "why": "三层根因·一改全通：双路径冲突让位置迁移残缺·关键字不全让大量地方实职走「中央默认→京师」分支·调任分支漏 if 让 AI 调动外放官员瞬移到达。全部修后角色官职所在地真正动态" },
+        { "what": "smoke 全过：5 个 bug 修复 commit 串行 smoke-chaoyi-v3 全 56/0·verify-all 全 5 项绿。零回归", "why": "保障稳定" }
+      ]
+    },
+    {
       "date": "2026-04-25",
       "module": "邸报·常朝迁移完整收官·v2 §1 物理删除 + 1628 剧本朝制配置",
       "title": "tm-chaoyi-v2.js §1 物理删除 1283 行 UI/动作死代码·tianqi7-1627 剧本注入 chaoyi schema(明制·奉天门·六部+都察院·东林/阉党 8 派系)·常朝唯一入口走 v3",
