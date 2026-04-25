@@ -2194,5 +2194,5 @@
     panel.innerHTML = html;
   }
 
-  // 监听scriptData变化——定时刷新预览
+  // 监听scriptData变化——定时刷新预览 (timer-leak-ok·文件顶层一次性·随编辑器页生命周期)
   setInterval(function() { if (_previewOpen) updateEditorPreview(); }, 3000);

@@ -250,7 +250,7 @@
   function enableAutoCheck() {
     if (_autoEnabled) return;
     _autoEnabled = true;
-    // 尝试 hook endTurn——若不可用则用 setInterval 轮询
+    // 尝试 hook endTurn——若不可用则用 setInterval 轮询 (timer-leak-ok·_autoEnabled 防双调)
     var lastTurn = -1;
     setInterval(function() {
       if (typeof GM === 'undefined' || !GM.running) return;

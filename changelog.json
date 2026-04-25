@@ -3,6 +3,17 @@
   "entries": [
     {
       "date": "2026-04-25",
+      "module": "R154 setInterval 泄漏审计·确认零真泄漏",
+      "title": "新增 scripts/lint-timer-leaks.js·14 处 setInterval 全审计 (10 已配对 clearInterval + 4 顶层一次性·标 timer-leak-ok)·零真泄漏",
+      "items": [
+        { "what": "R154 新增 scripts/lint-timer-leaks.js·三类分级：类1 无赋值无法 clear / 类2 有名但全库无 clearInterval(name) / 类3 已配对。首跑 14 个 setInterval：类1=4·类2=0·类3=10", "why": "Phase 3 (#893) 审过 setInterval/事件监听·但近年 R 系列拆分后没回头查·新代码可能引入泄漏。每多一个游戏开局/读档循环·泄漏的 setInterval 会累计跑·时间长后明显卡顿" },
+        { "what": "R154 审 4 个类1 (无赋值)：editor-fullgen.js:2198 (预览刷新·文件顶层) / tm-invariants.js:255 (轮询·_autoEnabled 防双调) / tm-save-lifecycle.js:885 (桌面端 60s 自存) / tm-save-lifecycle.js:927 (浏览器端 120s 自存)。**全部为顶层一次性·非函数体内·不会重复创建**·标注 `// timer-leak-ok` 注释让 lint 跳过", "why": "顶层 setInterval 在脚本加载时只跑一次·随页面生命周期·不算泄漏。函数体内（每次调用都新建）才是真泄漏。这 4 处都是前者" },
+        { "what": "R154 lint 支持 `// timer-leak-ok` 行内或前 2 行的豁免标注。10 个有名 setInterval 都已找到 clearInterval 配对·全干净。最终 0 真泄漏", "why": "豁免机制让审计可重复·新加 setInterval 默认会被 lint 拦截·必须显式标注或正确 clearInterval 才能通过·防御后续回归" },
+        { "what": "验证·verify-all 全绿 (180/180·179 ref·0 orphans·207/4 smoke)·所有改动仅注释 + 新增 lint 工具·零运行时影响", "why": "纯注释 + 工具·零回归" }
+      ]
+    },
+    {
+      "date": "2026-04-25",
       "module": "R153 localStorage 读取安全·清零未 try 调用",
       "title": "手工包 8 处读 + 1 处嵌套·lint 启发式 lookback 6→30 行·localStorage 未 try 28→0 (R152+R153 合计 -100%)",
       "items": [

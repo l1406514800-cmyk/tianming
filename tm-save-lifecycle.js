@@ -881,7 +881,7 @@ if(window.tianming&&window.tianming.isDesktop){
 
 // 6. 自动存档（Electron）
 if(window.tianming&&window.tianming.isDesktop){
-  // 每60秒自动存档（始终保存P，游戏运行时附带GM）
+  // 每60秒自动存档（始终保存P，游戏运行时附带GM） (timer-leak-ok·文件顶层一次性·桌面端生命周期)
   setInterval(async function(){
     try{
       if(GM.running && typeof _prepareGMForSave === 'function') _prepareGMForSave();
@@ -923,6 +923,7 @@ if(window.tianming&&window.tianming.isDesktop){
 
 // 6b. 浏览器端定期保存P + 页面关闭时保存
 if(!window.tianming||!window.tianming.isDesktop){
+  // timer-leak-ok·文件顶层一次性·浏览器端生命周期
   setInterval(function(){ try{saveP();}catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-audio-theme');}catch(_){}} },120000);
 }
 // 页面关闭/刷新时紧急保存P
