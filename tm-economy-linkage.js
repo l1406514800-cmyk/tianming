@@ -398,19 +398,19 @@
           allocateRegionTax(reg.id, monthlyNominal * share, mr);
         });
       }
-    } catch(e) { console.error('[linkage] regionAllocation:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'linkage] regionAllocation:') : console.error('[linkage] regionAllocation:', e); }
 
     // 发俸禄
-    try { paySalariesToOfficials(mr); } catch(e) { console.error('[linkage] salaries:', e); }
+    try { paySalariesToOfficials(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'linkage] salaries:') : console.error('[linkage] salaries:', e); }
 
     // 贪腐分配
-    try { distributeIllicitIncome(mr); } catch(e) { console.error('[linkage] illicit:', e); }
+    try { distributeIllicitIncome(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'linkage] illicit:') : console.error('[linkage] illicit:', e); }
 
     // 下拨单进度
-    try { processTransferOrders(mr); } catch(e) { console.error('[linkage] transfers:', e); }
+    try { processTransferOrders(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'linkage] transfers:') : console.error('[linkage] transfers:', e); }
 
     // 民心反馈（基于 peasantBurden 聚合）
-    try { applyBurdenToMinxin(mr); } catch(e) { console.error('[linkage] burdenMinxin:', e); }
+    try { applyBurdenToMinxin(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'linkage] burdenMinxin:') : console.error('[linkage] burdenMinxin:', e); }
   }
 
   // 民心受百姓负担影响

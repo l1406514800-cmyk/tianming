@@ -457,7 +457,7 @@ function processEdictEffects(allEdictText, edictCategory) {
     if (typeof handleEdictTextForRecruit === 'function') {
       handleEdictTextForRecruit(allEdictText).catch(function(e){ console.warn('[\u8BCF\u4EE4\u5F81\u8BCF] \u5F02\u5E38', e); });
     }
-  } catch(_rE) { console.warn('[\u8BCF\u4EE4\u5F81\u8BCF]', _rE); }
+  } catch(_rE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_rE, '\u8BCF\u4EE4\u5F81\u8BCF') : console.warn('[\u8BCF\u4EE4\u5F81\u8BCF]', _rE); }
 
   // 收集执行管线信息（如果有配置）
   var execResult = computeExecutionPipeline(allEdictText, edictCategory);
@@ -494,7 +494,7 @@ function processEdictEffects(allEdictText, edictCategory) {
       var techRes = EnvRecoveryFill.parseTechDecree(allEdictText);
       if (techRes && techRes.ok && typeof toast === 'function') toast('技术诏令：' + techRes.tech + ' 提升');
     }
-  } catch(e) { console.error('[edict] 制度分流失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'edict] 制度分流失败:') : console.error('[edict] 制度分流失败:', e); }
 
   return { summary: '', executionSummary: execResult.summary };
 }

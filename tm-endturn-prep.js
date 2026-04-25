@@ -185,7 +185,7 @@ function _endTurn_init() {
     GM._prevGuoku      = GM.guoku      ? JSON.parse(JSON.stringify(GM.guoku))      : null;
     GM._prevNeitang    = GM.neitang    ? JSON.parse(JSON.stringify(GM.neitang))    : null;
     GM._prevPopulation = GM.population ? JSON.parse(JSON.stringify(GM.population)) : null;
-  } catch(_snapE) { console.warn('[endTurn] snapshot failed:', _snapE); }
+  } catch(_snapE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_snapE, 'endTurn] snapshot failed:') : console.warn('[endTurn] snapshot failed:', _snapE); }
   // RNG检查点（支持存档重放）
   if (typeof checkpointRng === 'function') checkpointRng();
   // 角色完整字段守卫（回合中若有新角色产生，下一回合始端补齐）
@@ -193,7 +193,7 @@ function _endTurn_init() {
     if (typeof CharFullSchema !== 'undefined' && typeof CharFullSchema.ensureAll === 'function' && Array.isArray(GM.chars)) {
       CharFullSchema.ensureAll(GM.chars);
     }
-  } catch(e) { console.error('[endTurn_init] CharFullSchema.ensureAll 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn_init] CharFullSchema.ensureAll 失败:') : console.error('[endTurn_init] CharFullSchema.ensureAll 失败:', e); }
   // 清空本回合机械结算暂存
   GM._turnBattleResults = [];
   GM._turnRebellionResults = [];

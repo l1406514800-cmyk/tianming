@@ -704,14 +704,14 @@
       init(sc);
     }
     var mr = (typeof ctx.monthRatio === 'number') ? ctx.monthRatio : 1;
-    try { _updateCompliance(ctx, mr); } catch(e) { console.error('[CentralLocal] compliance:', e); }
+    try { _updateCompliance(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'CentralLocal] compliance:') : console.error('[CentralLocal] compliance:', e); }
     try {
       var las = generateLocalActions(ctx);
       executeLocalActions(las);
       ctx.localActions = las; // 供渲染/AI 观察
-    } catch(e) { console.error('[CentralLocal] localActions:', e); }
-    try { _processInspections(ctx); } catch(e) { console.error('[CentralLocal] inspections:', e); }
-    try { _maybeResetAnnualReport(ctx); } catch(e) { console.error('[CentralLocal] annualReport:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'CentralLocal] localActions:') : console.error('[CentralLocal] localActions:', e); }
+    try { _processInspections(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'CentralLocal] inspections:') : console.error('[CentralLocal] inspections:', e); }
+    try { _maybeResetAnnualReport(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'CentralLocal] annualReport:') : console.error('[CentralLocal] annualReport:', e); }
   }
 
   // ═══════════════════════════════════════════════════════════════════

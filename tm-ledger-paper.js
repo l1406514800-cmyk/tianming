@@ -376,10 +376,10 @@
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
     var G = global.GM;
-    try { extendMarketState(G); } catch(e) { console.error('[phaseF6] market:', e); }
-    try { _tickMerchantArbitrage(ctx, mr); } catch(e) { console.error('[phaseF6] arbitrage:', e); }
-    try { _checkWarlordAutonomyRise(ctx); } catch(e) { console.error('[phaseF6] warlord:', e); }
-    try { _checkRegionalCrises(ctx); } catch(e) { console.error('[phaseF6] regionalCrisis:', e); }
+    try { extendMarketState(G); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF6] market:') : console.error('[phaseF6] market:', e); }
+    try { _tickMerchantArbitrage(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF6] arbitrage:') : console.error('[phaseF6] arbitrage:', e); }
+    try { _checkWarlordAutonomyRise(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF6] warlord:') : console.error('[phaseF6] warlord:', e); }
+    try { _checkRegionalCrises(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF6] regionalCrisis:') : console.error('[phaseF6] regionalCrisis:', e); }
     // 升迁扫描（年度）
     try {
       if ((G.month || 1) === 1 && G.turn > 0 && G.chars) {
@@ -387,7 +387,7 @@
           if (c.alive !== false && c.rank && c.rank > 1 && Math.random() < 0.05) checkPromotion(c);
         });
       }
-    } catch(e) { console.error('[phaseF6] promotion:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF6] promotion:') : console.error('[phaseF6] promotion:', e); }
   }
 
   function init() {

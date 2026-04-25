@@ -326,8 +326,8 @@
     _origTick.call(this, context);
     var mr = (context && context._monthRatio) ||
              (typeof GuokuEngine.getMonthRatio === 'function' ? GuokuEngine.getMonthRatio() : 1);
-    try { maybeTriggerCaoyunIncident(mr); } catch(e) { console.error('[guoku-p5] caoyun:', e); }
-    try { processLoansMonthly(mr); }        catch(e) { console.error('[guoku-p5] loans:', e); }
+    try { maybeTriggerCaoyunIncident(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku-p5] caoyun:') : console.error('[guoku-p5] caoyun:', e); }
+    try { processLoansMonthly(mr); }        catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku-p5] loans:') : console.error('[guoku-p5] loans:', e); }
   };
 
   // 导出

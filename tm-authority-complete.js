@@ -871,11 +871,11 @@
   function tick(ctx) {
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
-    try { _tickMinxinMatrix(ctx, mr); } catch(e) { console.error('[auth-c] matrix:', e); }
-    try { _detectPowerMinister(ctx); _tickPowerMinister(ctx, mr); } catch(e) { console.error('[auth-c] pm:', e); }
-    try { _tickRevoltUpgrade(ctx, mr); } catch(e) { console.error('[auth-c] revolt:', e); }
-    try { _tickTyrantSyndrome(ctx, mr); } catch(e) { console.error('[auth-c] tyrant:', e); }
-    try { _tickLostAuthorityCrisis(ctx, mr); } catch(e) { console.error('[auth-c] lost:', e); }
+    try { _tickMinxinMatrix(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'auth-c] matrix:') : console.error('[auth-c] matrix:', e); }
+    try { _detectPowerMinister(ctx); _tickPowerMinister(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'auth-c] pm:') : console.error('[auth-c] pm:', e); }
+    try { _tickRevoltUpgrade(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'auth-c] revolt:') : console.error('[auth-c] revolt:', e); }
+    try { _tickTyrantSyndrome(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'auth-c] tyrant:') : console.error('[auth-c] tyrant:', e); }
+    try { _tickLostAuthorityCrisis(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'auth-c] lost:') : console.error('[auth-c] lost:', e); }
     try { _autoDetectHuangweiEvents(ctx, mr); } catch(e) { if(window.TM&&TM.errors) TM.errors.capture(e,'authority.autoDetectHuangwei'); }
     try { _autoDetectHuangquanEvents(ctx, mr); } catch(e) { if(window.TM&&TM.errors) TM.errors.capture(e,'authority.autoDetectHuangquan'); }
     try { _tickMinxinAdditionalSources(ctx, mr); } catch(e) { if(window.TM&&TM.errors) TM.errors.capture(e,'authority.tickMinxinSources'); }

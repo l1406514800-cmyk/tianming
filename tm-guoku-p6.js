@@ -179,7 +179,7 @@
     _origGuokuTick.call(this, context);
     var mr = (context && context._monthRatio) ||
              (GuokuEngine.getMonthRatio ? GuokuEngine.getMonthRatio() : 1);
-    try { processFixedDeductions(mr); } catch(e) { console.error('[guoku-p6] fixedDed:', e); }
+    try { processFixedDeductions(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku-p6] fixedDed:') : console.error('[guoku-p6] fixedDed:', e); }
   };
 
   // ═════════════════════════════════════════════════════════════

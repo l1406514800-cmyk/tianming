@@ -706,7 +706,7 @@ function fullLoadGame(data){
       if (typeof CharFullSchema !== 'undefined' && typeof CharFullSchema.ensureAll === 'function') {
         CharFullSchema.ensureAll(GM.chars);
       }
-    } catch(e) { console.error('[fullLoadGame] CharFullSchema.ensureAll 失败:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'fullLoadGame] CharFullSchema.ensureAll 失败:') : console.error('[fullLoadGame] CharFullSchema.ensureAll 失败:', e); }
 
     // 重建索引
     if (typeof buildIndices === 'function') buildIndices();
@@ -732,11 +732,11 @@ function fullLoadGame(data){
     }
     // 派生所有区划 autonomy（首次载入/老存档）
     if (typeof applyAutonomyToAllDivisions === 'function') {
-      try { applyAutonomyToAllDivisions(); } catch(_autE) { console.warn('[autonomy] 派生失败', _autE); }
+      try { applyAutonomyToAllDivisions(); } catch(_autE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_autE, 'autonomy] 派生失败') : console.warn('[autonomy] 派生失败', _autE); }
     }
     // 自动分配后妃居所
     if (typeof autoAssignHaremResidences === 'function') {
-      try { autoAssignHaremResidences(); } catch(_resE) { console.warn('[residence] 分配失败', _resE); }
+      try { autoAssignHaremResidences(); } catch(_resE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_resE, 'residence] 分配失败') : console.warn('[residence] 分配失败', _resE); }
     }
     // 载入存档后：若 GM.adminHierarchy 缺失/为空（老存档），从剧本或 P 恢复
     try {
@@ -753,11 +753,11 @@ function fullLoadGame(data){
           console.log('[fullLoadGame] GM.adminHierarchy 从 P 恢复·keys=' + Object.keys(GM.adminHierarchy).join(','));
         }
       }
-    } catch(_ahLE) { console.warn('[fullLoadGame] adminHierarchy 恢复失败', _ahLE); }
+    } catch(_ahLE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ahLE, 'fullLoadGame] adminHierarchy 恢复失败') : console.warn('[fullLoadGame] adminHierarchy 恢复失败', _ahLE); }
 
     // 集成桥梁：老存档可能缺 divisions 深化字段，init 会补齐并建立 legacy proxy
     if (typeof IntegrationBridge !== 'undefined' && typeof IntegrationBridge.init === 'function') {
-      try { IntegrationBridge.init(); } catch(_ibE) { console.warn('[bridge] init 失败', _ibE); }
+      try { IntegrationBridge.init(); } catch(_ibE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ibE, 'bridge] init 失败') : console.warn('[bridge] init 失败', _ibE); }
     }
 
     // 同步剧本自定义预设（HistoricalPresets 动态 getter 读取 window.scriptData.customPresets）
@@ -766,7 +766,7 @@ function fullLoadGame(data){
         if (!window.scriptData) window.scriptData = {};
         window.scriptData.customPresets = P.customPresets;
       }
-    } catch(_cpLE) { console.warn('[load] customPresets sync 失败', _cpLE); }
+    } catch(_cpLE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_cpLE, 'load] customPresets sync 失败') : console.warn('[load] customPresets sync 失败', _cpLE); }
 
     enterGame();
     renderGameState();

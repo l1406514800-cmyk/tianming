@@ -825,7 +825,7 @@
   function tick(ctx) {
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
-    try { _tickClassMobility(mr); } catch(e) { console.error('[deep] mobility:', e); }
+    try { _tickClassMobility(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'deep] mobility:') : console.error('[deep] mobility:', e); }
     try { _tickLandlordAnnexation(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
     try { _tickMerchantCycle(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}
     try { _tickGentryCycle(mr); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-huji-deep-fill');}catch(_){}}

@@ -428,7 +428,7 @@
   // ═══════════════════════════════════════════════════════════════════
 
   function tick(ctx) {
-    try { collect(ctx); } catch (e) { console.error('[CascadeTax.tick]', e); }
+    try { collect(ctx); } catch (e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'CascadeTax.tick') : console.error('[CascadeTax.tick]', e); }
   }
 
   global.CascadeTax = {

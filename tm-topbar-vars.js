@@ -1186,7 +1186,7 @@ document.addEventListener('keydown', function(e) {
       if (!t) return;
       var idx = parseInt(t.getAttribute('data-tip-idx'));
       if (isNaN(idx)) return;
-      try { _showBarVarTip(e, idx); } catch(err) { console.error('[topbar hover]', err); }
+      try { _showBarVarTip(e, idx); } catch(err) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(err, 'topbar hover') : console.error('[topbar hover]', err); }
     });
     host.addEventListener('mouseout', function(e) {
       var t = e.target.closest ? e.target.closest('.bar-var[data-tip-idx]') : null;

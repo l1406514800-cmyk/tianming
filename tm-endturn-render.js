@@ -860,7 +860,7 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
         });
       }
     }
-  } catch(_fwE) { console.warn('[shiji→fengwen] NPC evts 转录失败', _fwE); }
+  } catch(_fwE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_fwE, 'shiji→fengwen] NPC evts 转录失败') : console.warn('[shiji→fengwen] NPC evts 转录失败', _fwE); }
 
   var shijiHtml = layer1Html +
     '<div class="tr-detail-toggle" onclick="var p=this.parentElement;var d=p.querySelector(\'.tr-detail-content\');if(!d)return;var open=d.classList.toggle(\'show\');this.classList.toggle(\'open\',open);this.querySelector(\'.toggle-text\').textContent=open?\'\u6536 \u8D77 \u8BE6 \u60C5\':\'\u5C55 \u5F00 \u8BE6 \u60C5\';">' +

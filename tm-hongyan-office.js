@@ -2124,7 +2124,7 @@ function renderGameState(){
   renderWenduiChars();renderMemorials();renderBiannian();renderOfficeTree();renderShijiList();renderJishi();
   // 地方舆情每回合同步刷新（接新 adminHierarchy 深化字段）
   if (typeof _renderDifangPanel === 'function' && P.adminHierarchy) {
-    try { _renderDifangPanel(); } catch(_dfRefE) { console.warn('[difang refresh]', _dfRefE); }
+    try { _renderDifangPanel(); } catch(_dfRefE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_dfRefE, 'difang refresh') : console.warn('[difang refresh]', _dfRefE); }
   }
   if(typeof renderGameTech==='function')renderGameTech();
   if(typeof renderGameCivic==='function')renderGameCivic();

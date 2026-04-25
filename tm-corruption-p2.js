@@ -648,7 +648,7 @@
     _origTick.call(this, context);
 
     // 过期案件处理
-    try { expireOldCases(); } catch(e) { console.error('[corruption-p2] expireOldCases:', e); }
+    try { expireOldCases(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption-p2] expireOldCases:') : console.error('[corruption-p2] expireOldCases:', e); }
 
     // 概率生成新案件（月概率 × 回合月数）
     try {
@@ -664,16 +664,16 @@
       if (prob > 0 && activeCount < 5 && Math.random() < prob) {
         generateExposureCase();
       }
-    } catch(e) { console.error('[corruption-p2] case generation:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption-p2] case generation:') : console.error('[corruption-p2] case generation:', e); }
 
     // 风闻四类
-    try { _maybeGenerateRumor(); }           catch(e) { console.error('[corruption-p2] rumor:', e); }
-    try { _maybeGeneratePrivateLetter(); }   catch(e) { console.error('[corruption-p2] letter:', e); }
-    try { _maybeGenerateEavesdrop(); }       catch(e) { console.error('[corruption-p2] eavesdrop:', e); }
+    try { _maybeGenerateRumor(); }           catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption-p2] rumor:') : console.error('[corruption-p2] rumor:', e); }
+    try { _maybeGeneratePrivateLetter(); }   catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption-p2] letter:') : console.error('[corruption-p2] letter:', e); }
+    try { _maybeGenerateEavesdrop(); }       catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption-p2] eavesdrop:') : console.error('[corruption-p2] eavesdrop:', e); }
 
     // 新官标记衰减
-    try { decayRecentAppointments(); } catch(e) { console.error('[corruption-p2] decayAppointments:', e); }
-    try { snapshotCorruptionHistory(); } catch(e) { console.error('[corruption-p2] snapshot:', e); }
+    try { decayRecentAppointments(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption-p2] decayAppointments:') : console.error('[corruption-p2] decayAppointments:', e); }
+    try { snapshotCorruptionHistory(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption-p2] snapshot:') : console.error('[corruption-p2] snapshot:', e); }
   };
 
   // ═════════════════════════════════════════════════════════════

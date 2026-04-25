@@ -370,15 +370,15 @@
     var mr = ctx.monthRatio || 1;
     var G = global.GM;
     // 监察
-    try { _tickAudits(ctx); } catch(e) { console.error('[phaseA] audit:', e); }
+    try { _tickAudits(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseA] audit:') : console.error('[phaseA] audit:', e); }
     // 地域币值
-    try { updateCurrencyAcceptance(G, mr); } catch(e) { console.error('[phaseA] curAccept:', e); }
+    try { updateCurrencyAcceptance(G, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseA] curAccept:') : console.error('[phaseA] curAccept:', e); }
     // 年度归档（财政年初）
     try {
       if ((G.month || 1) === 1 && (G.turn || 0) > 0) {
         archiveLedgerYearly(G, G.turn);
       }
-    } catch(e) { console.error('[phaseA] archive:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseA] archive:') : console.error('[phaseA] archive:', e); }
     // 死亡继承扫描
     try {
       (G.chars || []).forEach(function(c) {
@@ -386,7 +386,7 @@
           processInheritance(c, G);
         }
       });
-    } catch(e) { console.error('[phaseA] inherit:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseA] inherit:') : console.error('[phaseA] inherit:', e); }
   }
 
   function init(sc) {

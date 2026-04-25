@@ -1927,7 +1927,7 @@ async function _ty2_decide(mode) {
         reformId: CY._ty2._reformId
       }, approveFlag ? 'approve' : 'reject');
     }
-  } catch(_e) { console.error('[tinyi] 经济改革回调失败:', _e); }
+  } catch(_e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_e, 'tinyi] 经济改革回调失败:') : console.error('[tinyi] 经济改革回调失败:', _e); }
 
   // 写入 courtRecords
   if (!GM._courtRecords) GM._courtRecords = [];

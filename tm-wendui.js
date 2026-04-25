@@ -931,7 +931,7 @@ async function _wd_extractCommitments(targetName) {
         NpcMemorySystem.remember(targetName, '奉旨：' + c.task, c.willingness > 0.6 ? '敬' : '忧', 6);
       }
     });
-  } catch(e) { console.warn('[_wd_extractCommitments]', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '_wd_extractCommitments') : console.warn('[_wd_extractCommitments]', e); }
 }
 
 function _wdUpdateCounter() {

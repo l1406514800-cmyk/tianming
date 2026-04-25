@@ -474,14 +474,14 @@
     ensureNeitangModel();
     var mr = (context && context._monthRatio) || getMonthRatio();
 
-    try { monthlySettle(mr); } catch(e) { console.error('[neitang] monthlySettle:', e); }
+    try { monthlySettle(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'neitang] monthlySettle:') : console.error('[neitang] monthlySettle:', e); }
 
     // 年末决算
     var dpt = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
     var curY = Math.floor(GM.turn * dpt / 360);
     var prevY = Math.floor((GM.turn - 1) * dpt / 360);
     if (curY > prevY) {
-      try { yearlySettle(); } catch(e) { console.error('[neitang] yearlySettle:', e); }
+      try { yearlySettle(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'neitang] yearlySettle:') : console.error('[neitang] yearlySettle:', e); }
     }
   }
 

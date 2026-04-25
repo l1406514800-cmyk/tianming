@@ -123,7 +123,7 @@ async function _multiPassGovernmentGen(ctx, existingContent, existingNote, maxTo
           renderGovernment(); autoSave();
           showToast('史料参考已保存');
         }
-      } catch (e0) { console.warn('[GovGen P0]', e0); }
+      } catch (e0) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e0, 'GovGen P0') : console.warn('[GovGen P0]', e0); }
     }
 
     var refBlock = scriptData.government.historicalReference ? '\n\n【本朝代职官志参考——必须遵守】\n' + scriptData.government.historicalReference + '\n\n' : '';
@@ -168,7 +168,7 @@ async function _multiPassGovernmentGen(ctx, existingContent, existingNote, maxTo
           });
           renderGovernment(); autoSave();
         }
-      } catch (e1) { console.warn('[GovGen P1]', e1); }
+      } catch (e1) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e1, 'GovGen P1') : console.warn('[GovGen P1]', e1); }
     }
 
     // ═══ 第2轮：子部门 + 子部门官员 ═══
@@ -201,7 +201,7 @@ async function _multiPassGovernmentGen(ctx, existingContent, existingNote, maxTo
               });
             }
           });
-        } catch(e) { console.warn('[GovGen P2]', e); }
+        } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'GovGen P2') : console.warn('[GovGen P2]', e); }
       }
       renderGovernment(); autoSave();
     }
@@ -269,7 +269,7 @@ async function _multiPassGovernmentGen(ctx, existingContent, existingNote, maxTo
           if (appointed > 0) { renderGovernment(); autoSave(); }
           showToast('已铨选' + appointed + '核心人员就任（' + vacantSecondary.length + '次要职位留作占位）');
         }
-      } catch(e3) { console.warn('[GovGen P3]', e3); }
+      } catch(e3) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e3, 'GovGen P3') : console.warn('[GovGen P3]', e3); }
     } else if (vacantSecondary.length > 0) {
       showToast('官制生成完成（' + vacantSecondary.length + '次要职位留作占位，运行时按需生成）');
     }
@@ -363,7 +363,7 @@ async function _multiPassAdminGen(ctx, existingContent, existingNote, maxTok) {
           + '每个需含governor(主官姓名，从现有角色选或留空)、capital(首府名)。\n'
           + '返回JSON对象：{"顶层区名":[{id,name,level,officialPosition,governor,capital,description,population,prosperity,terrain,specialResources,taxLevel,children:[]}]}';
         var r2 = await callAIEditor(p2, maxTok);
-        try { var o2 = JSON.parse(r2.match(/\{[\s\S]*\}/)[0]); Object.keys(o2).forEach(function(pn) { var par = divs.find(function(d) { return d.name === pn; }); if (par && Array.isArray(o2[pn])) { o2[pn].forEach(function(ch) { ensD(ch); if (!_allNames[ch.name]) { par.children.push(ch); _allNames[ch.name] = true; } }); } }); } catch(e) { console.warn('[AdminGen P2]', e); }
+        try { var o2 = JSON.parse(r2.match(/\{[\s\S]*\}/)[0]); Object.keys(o2).forEach(function(pn) { var par = divs.find(function(d) { return d.name === pn; }); if (par && Array.isArray(o2[pn])) { o2[pn].forEach(function(ch) { ensD(ch); if (!_allNames[ch.name]) { par.children.push(ch); _allNames[ch.name] = true; } }); } }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'AdminGen P2') : console.warn('[AdminGen P2]', e); }
       }
     }
 
@@ -399,7 +399,7 @@ async function _multiPassAdminGen(ctx, existingContent, existingNote, maxTok) {
               });
             });
           });
-        } catch(e) { console.warn('[AdminGen P3]', e); }
+        } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'AdminGen P3') : console.warn('[AdminGen P3]', e); }
       }
     }
 
@@ -458,7 +458,7 @@ async function _multiPassAdminGen(ctx, existingContent, existingNote, maxTok) {
             });
             if (appointed > 0) showToast('已为' + appointed + '个行政区配置主官');
           }
-        } catch(e4) { console.warn('[AdminGen P4]', e4); }
+        } catch(e4) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e4, 'AdminGen P4') : console.warn('[AdminGen P4]', e4); }
       }
     }
 

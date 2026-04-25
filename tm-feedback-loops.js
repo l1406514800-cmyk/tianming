@@ -220,10 +220,10 @@
   function tick(ctx) {
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
-    try { _checkEnlightenedLoop(ctx, mr); } catch(e) { console.error('[phaseE] enlightened:', e); }
-    try { _checkCollapseChain(ctx, mr); } catch(e) { console.error('[phaseE] collapse:', e); }
-    try { _checkLeakageTriangle(ctx, mr); } catch(e) { console.error('[phaseE] leakage:', e); }
-    try { _applyMinxinHuangquanInvertedU(ctx, mr); } catch(e) { console.error('[phaseE] invertedU:', e); }
+    try { _checkEnlightenedLoop(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseE] enlightened:') : console.error('[phaseE] enlightened:', e); }
+    try { _checkCollapseChain(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseE] collapse:') : console.error('[phaseE] collapse:', e); }
+    try { _checkLeakageTriangle(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseE] leakage:') : console.error('[phaseE] leakage:', e); }
+    try { _applyMinxinHuangquanInvertedU(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseE] invertedU:') : console.error('[phaseE] invertedU:', e); }
   }
 
   function init() {

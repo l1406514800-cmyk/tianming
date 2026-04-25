@@ -487,7 +487,7 @@
 
   function tick(ctx) {
     ctx = ctx || {};
-    try { generateProactiveMemorial(ctx); } catch(e) { console.error('[phaseF5] proactive:', e); }
+    try { generateProactiveMemorial(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF5] proactive:') : console.error('[phaseF5] proactive:', e); }
   }
 
   function init() {}

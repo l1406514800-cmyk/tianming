@@ -751,7 +751,7 @@ if (typeof GameEventBus !== 'undefined') {
           if (typeof renderOfficeTree === 'function') { try { renderOfficeTree(); } catch(_){} }
         }
       }
-    } catch(e) { console.error('[character:death vacate cascade]', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'character:death vacate cascade') : console.error('[character:death vacate cascade]', e); }
   });
 
   // 角色贬谪/免职也应级联清 officeTree（某些流程只改 officialTitle 不清 tree）

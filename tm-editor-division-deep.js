@@ -398,7 +398,7 @@
                 }
               }
               if (target) collectDivisionDeepFromForm(target);
-            } catch(e) { console.error('[editor-div-deep] save merge:', e); }
+            } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'editor-div-deep] save merge:') : console.error('[editor-div-deep] save merge:', e); }
             global._dd_mode = null;
             global._dd_currentNode = null;
             global._dd_parentNode = null;

@@ -1354,7 +1354,7 @@ function processBiannian(){
   if (!Array.isArray(GM._chronicle)) GM._chronicle = [];
   // 长期事势追踪器·每回合采集（科举/诏令/阴谋/工程/积压奏疏）
   if (typeof ChronicleTracker !== 'undefined' && ChronicleTracker.tick) {
-    try { ChronicleTracker.tick(); } catch(_e){ console.warn('[Chronicle.tick]', _e); }
+    try { ChronicleTracker.tick(); } catch(_e){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_e, 'Chronicle.tick') : console.warn('[Chronicle.tick]', _e); }
   }
   var completed = [];
   GM.biannianItems = (GM.biannianItems||[]).filter(function(item) {

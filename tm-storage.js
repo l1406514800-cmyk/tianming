@@ -262,7 +262,7 @@ var TM_SaveDB = (function() {
       // 7.1: 解压压缩的gameState
       if (record._compressed && record.gameState) {
         return SaveCompression.decompress(record.gameState).then(function(jsonStr) {
-          try { record.gameState = JSON.parse(jsonStr); } catch(e) { console.error('[SaveDB] 解压后JSON解析失败:', e); }
+          try { record.gameState = JSON.parse(jsonStr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'SaveDB] 解压后JSON解析失败:') : console.error('[SaveDB] 解压后JSON解析失败:', e); }
           delete record._compressed;
           return record;
         });

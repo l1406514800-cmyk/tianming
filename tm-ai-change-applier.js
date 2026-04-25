@@ -1362,17 +1362,17 @@
     if (anyPathCount > 0) applied.semantic.anyPathChanges = anyPathCount;
 
     // ── 12. 赤字惩罚 engine：帑廪/内帑 任一项 < 0 → 按深度施以严惩 ──
-    try { _applyFiscalDeficitPenalties(G); } catch(_dfE) { console.warn('[applier] deficit penalty:', _dfE); }
+    try { _applyFiscalDeficitPenalties(G); } catch(_dfE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_dfE, 'applier] deficit penalty:') : console.warn('[applier] deficit penalty:', _dfE); }
 
     // ── 13. 问天 directive 合规回报 ──
     // schema: directive_compliance:[{id,status:'followed|partial|ignored',reason,evidence}]
-    try { _applyDirectiveCompliance(G, aiOutput); } catch(_dcE) { console.warn('[applier] directive compliance:', _dcE); }
+    try { _applyDirectiveCompliance(G, aiOutput); } catch(_dcE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_dcE, 'applier] directive compliance:') : console.warn('[applier] directive compliance:', _dcE); }
 
     // ── 14. 财务一致性校验：扫描叙事中的金额 vs fiscal_adjustments 总量 ──
-    try { _validateFiscalConsistency(G, aiOutput, applied); } catch(_fvE) { console.warn('[applier] fiscal validator:', _fvE); }
+    try { _validateFiscalConsistency(G, aiOutput, applied); } catch(_fvE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_fvE, 'applier] fiscal validator:') : console.warn('[applier] fiscal validator:', _fvE); }
 
     // ── 15. 死亡墓志铭 & 诈死holding ──
-    try { _processDeathEpitaphs(G, aiOutput); } catch(_deE) { console.warn('[applier] death epitaph:', _deE); }
+    try { _processDeathEpitaphs(G, aiOutput); } catch(_deE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_deE, 'applier] death epitaph:') : console.warn('[applier] death epitaph:', _deE); }
 
     return { ok: true, applied: applied };
   }
@@ -2003,7 +2003,7 @@
               reason: (reason || '') + '·赴任抵达'
             });
           }
-        } catch(_appE) { console.warn('[travelTick] auto-appoint', _appE); }
+        } catch(_appE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_appE, 'travelTick] auto-appoint') : console.warn('[travelTick] auto-appoint', _appE); }
       }
 
       // 播报

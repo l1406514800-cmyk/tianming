@@ -939,7 +939,7 @@ async function execFullGen(){
       var j3=JSON.parse(r3.replace(/```json|```/g,"").trim());
       if(j3.variables&&Array.isArray(j3.variables))j3.variables.forEach(function(v){P.variables.push({id:uid(),sid:sid,name:v.name||"",value:v.value!=null?v.value:50,min:v.min!=null?v.min:0,max:v.max!=null?v.max:100,desc:v.desc||""});});
       if(j3.relations&&Array.isArray(j3.relations))j3.relations.forEach(function(r){P.relations.push({id:uid(),sid:sid,from:r.from||"",to:r.to||"",type:r.type||"",value:r.value!=null?r.value:50});});
-    }catch(e){console.warn('Step 3 (variables/relations) parse failed:',e);}
+    }catch(e){(window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Step 3 (variables/relations) parse failed:') : console.warn('Step 3 (variables/relations) parse failed:', e); }
     done.push("\u53d8\u91cf\u4e0e\u5173\u7cfb");
 
     // Step 4
@@ -952,7 +952,7 @@ async function execFullGen(){
     try{
       var j4=JSON.parse(r4.replace(/```json|```/g,"").trim());
       if(Array.isArray(j4))j4.forEach(function(d){P.officeTree.push({id:uid(),sid:sid,name:d.name||"",desc:d.desc||"",headRole:d.headRole||"",slots:d.slots||3,members:[]});});
-    }catch(e){console.warn('Step 4 (officeTree) parse failed:',e);}
+    }catch(e){(window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Step 4 (officeTree) parse failed:') : console.warn('Step 4 (officeTree) parse failed:', e); }
     done.push("\u5b98\u5236\u6811");
 
     // Step 5
@@ -965,7 +965,7 @@ async function execFullGen(){
     try{
       var j5=JSON.parse(r5.replace(/```json|```/g,"").trim());
       if(Array.isArray(j5))j5.forEach(function(t){P.techTree.push({id:uid(),sid:sid,name:t.name||"",desc:t.desc||"",effect:t.effect||"",era:t.era||scn.era,prereqs:t.prereqs||[],costs:t.costs||{},unlocked:false});});
-    }catch(e){console.warn('Step 5 (techTree) parse failed:',e);}
+    }catch(e){(window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Step 5 (techTree) parse failed:') : console.warn('Step 5 (techTree) parse failed:', e); }
     done.push("\u79d1\u6280\u6811");
 
     // Step 6
@@ -978,7 +978,7 @@ async function execFullGen(){
     try{
       var j6=JSON.parse(r6.replace(/```json|```/g,"").trim());
       if(Array.isArray(j6))j6.forEach(function(c){P.civicTree.push({id:uid(),sid:sid,name:c.name||"",desc:c.desc||"",effect:c.effect||"",era:c.era||scn.era,prereqs:c.prereqs||[],costs:c.costs||{},adopted:false});});
-    }catch(e){console.warn('Step 6 (civicTree) parse failed:',e);}
+    }catch(e){(window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Step 6 (civicTree) parse failed:') : console.warn('Step 6 (civicTree) parse failed:', e); }
     done.push("\u5e02\u653f\u6811");
 
     // Step 7
@@ -997,7 +997,7 @@ async function execFullGen(){
           P.military[k].push({id:uid(),sid:sid,name:m.name||"",type:m.type||k,description:m.description||""});
         });
       });
-    }catch(e){console.warn('Step 7 (military) parse failed:',e);}
+    }catch(e){(window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Step 7 (military) parse failed:') : console.warn('Step 7 (military) parse failed:', e); }
     done.push("\u519b\u4e8b\u4f53\u7cfb");
 
     // Step 8
@@ -1012,7 +1012,7 @@ async function execFullGen(){
       if(Array.isArray(j8))j8.forEach(function(fc){
         P.factions.push({id:uid(),sid:sid,name:fc.name||"",leader:fc.leader||"",desc:fc.desc||"",color:"#888",traits:[],strength:fc.strength||50,territory:"",ideology:fc.ideology||"",courtInfluence:fc.courtInfluence||50,popularInfluence:fc.popularInfluence||50});
       });
-    }catch(e){console.warn('Step 8 (factions) parse failed:',e);}
+    }catch(e){(window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Step 8 (factions) parse failed:') : console.warn('Step 8 (factions) parse failed:', e); }
     done.push("\u52bf\u529b\u6d3e\u7cfb");
 
     // Step 9
@@ -1027,7 +1027,7 @@ async function execFullGen(){
       if(Array.isArray(j9))j9.forEach(function(ev){
         P.events.push({id:uid(),sid:sid,name:ev.name||"",trigger:ev.trigger||"",effect:ev.effect||"",era:ev.era||scn.era,options:[],conditions:[],fired:false});
       });
-    }catch(e){console.warn('Step 9 (events) parse failed:',e);}
+    }catch(e){(window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Step 9 (events) parse failed:') : console.warn('Step 9 (events) parse failed:', e); }
     done.push("\u5386\u53f2\u4e8b\u4ef6");
 
     // Step 10
@@ -1043,7 +1043,7 @@ async function execFullGen(){
         if(!P.items)P.items=[];
         P.items.push({id:uid(),sid:sid,name:it.name||"",type:it.type||"",desc:it.desc||"",effect:it.effect||"",rarity:it.rarity||"common",owner:"",quantity:1});
       });
-    }catch(e){console.warn('Step 10 (items) parse failed:',e);}
+    }catch(e){(window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Step 10 (items) parse failed:') : console.warn('Step 10 (items) parse failed:', e); }
     done.push("\u5386\u53f2\u7269\u54c1");
 
     // ============ 第12步：交叉验证 + 自动修复 ============
@@ -1096,7 +1096,7 @@ async function execFullGen(){
       }
 
       _dbg('[FullGen] 交叉验证完成');
-    } catch(e) { console.warn('[FullGen] 验证步骤异常:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'FullGen] 验证步骤异常:') : console.warn('[FullGen] 验证步骤异常:', e); }
     done.push("交叉验证");
 
     // 确保时间配置存在

@@ -841,7 +841,7 @@ function saveP(){
       _hasFullData: true // 标记：完整数据在IndexedDB
     };
     localStorage.setItem('tm_P_lite', JSON.stringify(lite));
-  } catch(e) { console.warn('[saveP] localStorage骨架写入失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'saveP] localStorage骨架写入失败:') : console.warn('[saveP] localStorage骨架写入失败:', e); }
   // 3. 桌面端额外保存
   if (window.tianming && window.tianming.isDesktop) {
     window.tianming.autoSave(P).catch(function(e) { console.warn('[saveP] desktop failed:', e); });
@@ -876,7 +876,7 @@ function saveP(){
         console.log('[restoreP] 从localStorage骨架恢复AI配置');
       }
     }
-  } catch(e) { console.warn('[restoreP] localStorage恢复失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'restoreP] localStorage恢复失败:') : console.warn('[restoreP] localStorage恢复失败:', e); }
 
   // 层2: IndexedDB 完整数据（异步，覆盖骨架）
   if (typeof TM_SaveDB !== 'undefined') {

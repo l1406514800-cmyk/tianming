@@ -314,7 +314,7 @@
                   }
                 }
               }
-            } catch(_e) { console.warn('[office-deep] merge', _e); }
+            } catch(_e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_e, 'office-deep] merge') : console.warn('[office-deep] merge', _e); }
             global._pd_currentPos = null;
             global._pd_mode = null;
             global._pd_editPath = null;

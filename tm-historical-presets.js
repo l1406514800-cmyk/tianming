@@ -490,7 +490,7 @@
   function tick(ctx) {
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
-    try { tickAgePyramidFine(mr); } catch(e) { console.error('[hist] agePyramid:', e); }
+    try { tickAgePyramidFine(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'hist] agePyramid:') : console.error('[hist] agePyramid:', e); }
     try { _initPlagueWarFields(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-historical-presets');}catch(_){}}
   }
 

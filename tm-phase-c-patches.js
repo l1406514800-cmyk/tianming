@@ -420,8 +420,8 @@
 
   function tick(ctx) {
     ctx = ctx || {};
-    try { _tickInvestigations(ctx); } catch(e) { console.error('[phaseC] inv:', e); }
-    try { _tickDynamicInstitutions(ctx, ctx.monthRatio || 1); } catch(e) { console.error('[phaseC] inst:', e); }
+    try { _tickInvestigations(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseC] inv:') : console.error('[phaseC] inv:', e); }
+    try { _tickDynamicInstitutions(ctx, ctx.monthRatio || 1); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseC] inst:') : console.error('[phaseC] inst:', e); }
   }
 
   function init() {

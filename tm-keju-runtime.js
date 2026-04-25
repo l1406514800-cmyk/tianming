@@ -1250,7 +1250,7 @@ async function generateDianshiResults() {
 
   // v5·F4·生成考官建议（合议推荐三甲）
   if (typeof _kejuUpdateDianshiProgress === 'function') _kejuUpdateDianshiProgress('\u8BF8\u8003\u5B98\u5408\u8BAE\u63A8\u8350\u4E09\u7532\u2026', 92);
-  try { await _kejuGenExaminerSuggestions(exam); } catch(e) { console.warn('[F4] 考官建议失败', e); }
+  try { await _kejuGenExaminerSuggestions(exam); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'F4] 考官建议失败') : console.warn('[F4] 考官建议失败', e); }
 }
 
 /** 解析 AI 返回的 JSON 数组·多级降级 */
@@ -2777,7 +2777,7 @@ function finishKeju() {
   P.keju.history[P.keju.history.length - 1].examinerParty = exam.examinerParty || '';
 
   // v5·G1+G2·三甲自动纳入·4-20 入进士池填缺·全部算阶层党派吏治影响
-  try { _kejuFinalize(exam); } catch(e) { console.warn('[科举·G] finalize 失败', e); }
+  try { _kejuFinalize(exam); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '科举·G] finalize 失败') : console.warn('[科举·G] finalize 失败', e); }
 
   // P7: 科举入仕生命周期——未手动授官的进士进入待铨队列
   if (!GM._kejuPendingAssignment) GM._kejuPendingAssignment = [];

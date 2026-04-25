@@ -1671,7 +1671,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         }
       }
       if (_tsBlock) sysP += _tsBlock + '\n★ 推演时必须按上述数值展开·势力 lifePhase 决定基调·党派 influence 决定话语权·军变险 >= 60 必生事件。';
-    } catch(_tsIE) { console.warn('[sysP] 三系统状态注入失败', _tsIE); }
+    } catch(_tsIE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_tsIE, 'sysP] 三系统状态注入失败') : console.warn('[sysP] 三系统状态注入失败', _tsIE); }
 
     // ★ NPC 预规划注入(scThreeSystemsAI 生成·未来 3 回合 NPC 势力/党派/将领行动池)
     try {
@@ -1681,7 +1681,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           sysP += _npcBlock + '\n★ NPC 预规划条目·AI 推演时按 rationale 展开·不得背离 NPC 已设定的动机。';
         }
       }
-    } catch(_npcIE) { console.warn('[sysP] NPC 决策注入失败', _npcIE); }
+    } catch(_npcIE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_npcIE, 'sysP] NPC 决策注入失败') : console.warn('[sysP] NPC 决策注入失败', _npcIE); }
 
     // ★ 官员任免铁则+纯文本输出铁则(防两兵尚/HTML 残片污染)
     sysP += '\n\n【★ 官员任免铁则·AI 必遵】';
@@ -1702,7 +1702,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         var _efBlock = buildEdictEfficacyFollowUp();
         if (_efBlock) sysP += _efBlock;
       }
-    } catch(_efIE) { console.warn('[sysP] 御批回听注入失败', _efIE); }
+    } catch(_efIE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_efIE, 'sysP] 御批回听注入失败') : console.warn('[sysP] 御批回听注入失败', _efIE); }
 
     // ★ 人物情节弧·后台推进的 NPC 心路·让 AI 按弧线演 NPC
     try {
@@ -1710,7 +1710,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         var _arcBlock = buildCharArcsForSysP();
         if (_arcBlock) sysP += _arcBlock;
       }
-    } catch(_arcIE) { console.warn('[sysP] 情节弧注入失败', _arcIE); }
+    } catch(_arcIE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_arcIE, 'sysP] 情节弧注入失败') : console.warn('[sysP] 情节弧注入失败', _arcIE); }
 
     // 注入·启动预演规划（aiPlanScenarioForInference 生成·轻量版·提升推演稳定性）
     if (GM._aiInferencePlan && GM._aiInferencePlan.generatedAt) {
@@ -3810,15 +3810,15 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       try {
         // ①地方按税制征收 → 分账 → 损耗 → 上解中央（所有税种钱粮布走三账）
         if (typeof CascadeTax !== 'undefined' && typeof CascadeTax.collect === 'function') {
-          try { CascadeTax.collect(); } catch(_ctE) { console.warn('[endTurn] CascadeTax.collect', _ctE); }
+          try { CascadeTax.collect(); } catch(_ctE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ctE, 'endTurn] CascadeTax.collect') : console.warn('[endTurn] CascadeTax.collect', _ctE); }
         }
         // ①.5 固定支出（俸禄/军饷/宫廷）—— 三账扣减
         if (typeof FixedExpense !== 'undefined' && typeof FixedExpense.collect === 'function') {
-          try { FixedExpense.collect(); } catch(_feE) { console.warn('[endTurn] FixedExpense.collect', _feE); }
+          try { FixedExpense.collect(); } catch(_feE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_feE, 'endTurn] FixedExpense.collect') : console.warn('[endTurn] FixedExpense.collect', _feE); }
         }
         // ②区划 → 七变量聚合（户口/民心/腐败/财政 等）
         if (typeof IntegrationBridge !== 'undefined' && typeof IntegrationBridge.aggregateRegionsToVariables === 'function') {
-          try { IntegrationBridge.aggregateRegionsToVariables(); } catch(_aggE) { console.warn('[endTurn] aggregate pre-AI', _aggE); }
+          try { IntegrationBridge.aggregateRegionsToVariables(); } catch(_aggE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_aggE, 'endTurn] aggregate pre-AI') : console.warn('[endTurn] aggregate pre-AI', _aggE); }
         }
         // v3：NpcMemorials 不再硬扫事件，只构造朝堂场景上下文
         if (typeof buildNpcSceneContext === 'function') {
@@ -3831,9 +3831,9 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           if (_chronCtx) tp1 += '\n\n' + _chronCtx;
         }
         // 后妃请见生成器——每回合按冷落/性格/宫心决定概率
-        try { _generateConsortAudiences(); } catch(_caE) { console.warn('[consortAudience]', _caE); }
+        try { _generateConsortAudiences(); } catch(_caE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_caE, 'consortAudience') : console.warn('[consortAudience]', _caE); }
         // 后妃文苑参与生成——高学识/智力后妃有概率作文投稿
-        try { _generateConsortLiterary(); } catch(_clE) { console.warn('[consortLit]', _clE); }
+        try { _generateConsortLiterary(); } catch(_clE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_clE, 'consortLit') : console.warn('[consortLit]', _clE); }
         // 后妃文苑作品待 AI 补完题名正文
         if (Array.isArray(GM.culturalWorks)) {
           // R88-fix: era 在本函数从未声明·原 pre-existing ReferenceError
@@ -4043,7 +4043,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           tp1 += '\n · NPC 行为不要按职位套模板（御史必谏/将军必请战是工具人思维）';
           tp1 += '\n · 突发事件（灾/疫/异象/权臣/民变）通过 npc_interactions 让大臣/官员上奏或求见告知玩家，不要另起弹窗';
         }
-      } catch(_fctxErr) { console.warn('[endturn] fullCtx inject:', _fctxErr); }
+      } catch(_fctxErr) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_fctxErr, 'endturn] fullCtx inject:') : console.warn('[endturn] fullCtx inject:', _fctxErr); }
 
       // 1.2+1.8+S1：ModelAdapter温度 + OpenAI原生JSON模式 + 流式感知进度
       // 动态 max_tokens：取模型单次最大输出（_MODEL_CTX_MAP）与业务需要 16K 的较小值·避免小模型被要求超限、大模型被限制过保守
@@ -4069,7 +4069,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           tp1 += '  · cultural_works/npc_correspondence/fengwen_snippets 可 []（由 SC1b/SC1c 补充）\n';
           tp1 += '  · 核心字段 shizhengji/zhengwen/edict_feedback/char_updates 必填\n';
         }
-      } catch(_g1E) { console.warn('[G1 schema prune]', _g1E); }
+      } catch(_g1E) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_g1E, 'G1 schema prune') : console.warn('[G1 schema prune]', _g1E); }
       // G3·温度按子调用类型分：SC1 主推演叙事·保持 _modelTemp（常 0.8）
       var _sc1Temp = _modelTemp;
       var _sc1Body = {model:P.ai.model||"gpt-4o",messages:[{role:"system",content:sysP},{role:"user",content:tp1}],temperature:_sc1Temp,max_tokens:_tok(_sc1BaseTok)};
@@ -4642,7 +4642,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       })();  // end SC1c IIFE
 
       // 并行等待 SC1b + SC1c 完成（S3 优化·两者无交集字段）
-      try { await Promise.all([_sc1bP, _sc1cP]); } catch(_sc1bcErr) { console.warn('[sc1b+1c parallel]', _sc1bcErr); }
+      try { await Promise.all([_sc1bP, _sc1cP]); } catch(_sc1bcErr) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_sc1bcErr, 'sc1b+1c parallel') : console.warn('[sc1b+1c parallel]', _sc1bcErr); }
 
       // G2·失败降级链：若 SC1 主推演 JSON 失败或空·从 SC1b/SC1c 合成最小可用 p1·避免整回合卡死
       if (!p1 || (!p1.shizhengji && !p1.zhengwen)) {
@@ -4695,7 +4695,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
               directive_compliance: Array.isArray(p1.directive_compliance) ? p1.directive_compliance : []
             });
           }
-        } catch(_applyErr) { console.warn('[endturn] applyAITurnChanges:', _applyErr); }
+        } catch(_applyErr) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_applyErr, 'endturn] applyAITurnChanges:') : console.warn('[endturn] applyAITurnChanges:', _applyErr); }
 
         // v5·人物生成 B · 推演扫描+自动生成/pending
         try {
@@ -4718,7 +4718,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
               }
             }).catch(function(e){ console.warn('[\u4EBA\u7269\u626B\u63CF]', e); });
           }
-        } catch(_scE) { console.warn('[\u4EBA\u7269\u626B\u63CF] \u5F02\u5E38', _scE); }
+        } catch(_scE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_scE, '\u4EBA\u7269\u626B\u63CF] \u5F02\u5E38') : console.warn('[\u4EBA\u7269\u626B\u63CF] \u5F02\u5E38', _scE); }
 
         shizhengji=p1.shizhengji||"";
         turnSummary=p1.turn_summary||"";

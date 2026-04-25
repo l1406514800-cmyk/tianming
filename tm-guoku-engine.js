@@ -592,7 +592,7 @@
     var mr = (context && context._monthRatio) || getMonthRatio();
     if (context) context._guokuMonthRatio = mr;
 
-    try { monthlySettle(mr); } catch(e) { console.error('[guoku] monthlySettle:', e); }
+    try { monthlySettle(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku] monthlySettle:') : console.error('[guoku] monthlySettle:', e); }
 
     // 年末决算（每年一次，简化：若当前 turn 跨越年）
     var dpt = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
@@ -601,7 +601,7 @@
     var currentYear = Math.floor(currentDay / daysPerYear);
     var prevYear = Math.floor((GM.turn - 1) * dpt / daysPerYear);
     if (currentYear > prevYear) {
-      try { yearlySettle(); } catch(e) { console.error('[guoku] yearlySettle:', e); }
+      try { yearlySettle(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku] yearlySettle:') : console.error('[guoku] yearlySettle:', e); }
     }
   }
 

@@ -398,11 +398,11 @@
   function tick(ctx) {
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
-    try { _detectAdditionalHuangweiEvents(ctx, mr); } catch(e) { console.error('[phaseF4] hwDetect:', e); }
-    try { _detectAdditionalHuangquanEvents(ctx, mr); } catch(e) { console.error('[phaseF4] hqDetect:', e); }
-    try { _tickPermanentReforms(ctx, mr); } catch(e) { console.error('[phaseF4] permReforms:', e); }
-    try { _applyMultiRebellionInspiration(ctx, mr); } catch(e) { console.error('[phaseF4] multiRev:', e); }
-    try { detectFraudulentReports(ctx); } catch(e) { console.error('[phaseF4] fraud:', e); }
+    try { _detectAdditionalHuangweiEvents(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF4] hwDetect:') : console.error('[phaseF4] hwDetect:', e); }
+    try { _detectAdditionalHuangquanEvents(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF4] hqDetect:') : console.error('[phaseF4] hqDetect:', e); }
+    try { _tickPermanentReforms(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF4] permReforms:') : console.error('[phaseF4] permReforms:', e); }
+    try { _applyMultiRebellionInspiration(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF4] multiRev:') : console.error('[phaseF4] multiRev:', e); }
+    try { detectFraudulentReports(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF4] fraud:') : console.error('[phaseF4] fraud:', e); }
   }
 
   function init() {

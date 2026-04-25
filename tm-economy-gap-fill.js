@@ -689,12 +689,12 @@
   function tick(ctx) {
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
-    try { tickRegionalAcceptance(ctx, mr); } catch(e) { console.error('[gapfill] regAcc:', e); }
-    try { tickTradeArbitrage(ctx, mr); } catch(e) { console.error('[gapfill] arb:', e); }
-    try { tickFeudalHoldings(ctx, mr); } catch(e) { console.error('[gapfill] feudal:', e); }
-    try { tickOverstatement(ctx, mr); } catch(e) { console.error('[gapfill] overstatement:', e); }
-    try { tickLandAnnexation(ctx, mr); } catch(e) { console.error('[gapfill] land:', e); }
-    try { tickLoans(ctx, mr); } catch(e) { console.error('[gapfill] loans:', e); }
+    try { tickRegionalAcceptance(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'gapfill] regAcc:') : console.error('[gapfill] regAcc:', e); }
+    try { tickTradeArbitrage(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'gapfill] arb:') : console.error('[gapfill] arb:', e); }
+    try { tickFeudalHoldings(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'gapfill] feudal:') : console.error('[gapfill] feudal:', e); }
+    try { tickOverstatement(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'gapfill] overstatement:') : console.error('[gapfill] overstatement:', e); }
+    try { tickLandAnnexation(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'gapfill] land:') : console.error('[gapfill] land:', e); }
+    try { tickLoans(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'gapfill] loans:') : console.error('[gapfill] loans:', e); }
     // 年度重置
     var isNewYear = (global.GM.month === 1) || (global.GM.turn && global.GM.turn % 12 === 0);
     if (isNewYear) { try { _resetForceLevyCounts(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-economy-gap-fill');}catch(_){}} }

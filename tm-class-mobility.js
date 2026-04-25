@@ -348,12 +348,12 @@
   function tick(ctx) {
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
-    try { _tickClassMobilityChain(ctx, mr); } catch(e) { console.error('[phaseF3] classChain:', e); }
-    try { _tickMagnateAnnexation(ctx, mr); } catch(e) { console.error('[phaseF3] magnate:', e); }
-    try { _applyCropYieldBoost(ctx, mr); } catch(e) { console.error('[phaseF3] crops:', e); }
-    try { _checkHuichangDestructBuddhism(ctx); } catch(e) { console.error('[phaseF3] huichang:', e); }
-    try { _tickMarriageCulture(ctx, mr); } catch(e) { console.error('[phaseF3] marriage:', e); }
-    try { _tickEthnicDynamics(ctx, mr); } catch(e) { console.error('[phaseF3] ethnic:', e); }
+    try { _tickClassMobilityChain(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF3] classChain:') : console.error('[phaseF3] classChain:', e); }
+    try { _tickMagnateAnnexation(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF3] magnate:') : console.error('[phaseF3] magnate:', e); }
+    try { _applyCropYieldBoost(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF3] crops:') : console.error('[phaseF3] crops:', e); }
+    try { _checkHuichangDestructBuddhism(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF3] huichang:') : console.error('[phaseF3] huichang:', e); }
+    try { _tickMarriageCulture(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF3] marriage:') : console.error('[phaseF3] marriage:', e); }
+    try { _tickEthnicDynamics(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF3] ethnic:') : console.error('[phaseF3] ethnic:', e); }
   }
 
   function init(sc) {

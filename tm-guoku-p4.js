@@ -382,8 +382,8 @@
   var _origTick = GuokuEngine.tick;
   GuokuEngine.tick = function(context) {
     _origTick.call(this, context);
-    try { tickReforms(context); } catch(e) { console.error('[guoku-p4] tickReforms:', e); }
-    try { updatePriceIndex((context && context._monthRatio) || 1); } catch(e) { console.error('[guoku-p4] prices:', e); }
+    try { tickReforms(context); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku-p4] tickReforms:') : console.error('[guoku-p4] tickReforms:', e); }
+    try { updatePriceIndex((context && context._monthRatio) || 1); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku-p4] prices:') : console.error('[guoku-p4] prices:', e); }
   };
 
   // ═════════════════════════════════════════════════════════════

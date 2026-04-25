@@ -133,7 +133,7 @@ function _postTurnCourtChoose(openCourt) {
         if (typeof _cc2_openPrepareDialog === 'function') _cc2_openPrepareDialog();
         // 4) 添加底栏进度 banner
         if (typeof _showPostTurnCourtBanner === 'function') _showPostTurnCourtBanner();
-      } catch(_e) { console.error('[postTurnCourt] openFailed:', _e); }
+      } catch(_e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_e, 'postTurnCourt] openFailed:') : console.error('[postTurnCourt] openFailed:', _e); }
     }, 200);
   } else {
     // 不开朝——直接跑 endTurn，显示加载条
@@ -187,18 +187,18 @@ async function _onPostTurnCourtEnd() {
 
   // 1) 先弹史记（临时放开 courtDone，让 showTurnResult 直通）
   GM._pendingShijiModal.courtDone = true;
-  try { _endTurn_render.apply(null, _payload); } catch(_e){ console.error('[postTurnCourt] render:', _e); }
+  try { _endTurn_render.apply(null, _payload); } catch(_e){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_e, 'postTurnCourt] render:') : console.error('[postTurnCourt] render:', _e); }
 
   // 2) 重新启用"队列模式"，让 phase5 产生的模态都进队列·不立即弹
   GM._pendingShijiModal.courtDone = false; // 假装朝会还在
   if (typeof _deferredPhase5 === 'function') {
-    try { await _deferredPhase5(); } catch(_ph5){ console.warn('[postTurnCourt] deferredPhase5:', _ph5); }
+    try { await _deferredPhase5(); } catch(_ph5){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ph5, 'postTurnCourt] deferredPhase5:') : console.warn('[postTurnCourt] deferredPhase5:', _ph5); }
   }
 
   // 3) 收官：恢复正常状态 + 延迟 1s 后按队列依次弹出其他模态（给用户看史记的时间）
   GM._isPostTurnCourt = false;
   GM._pendingShijiModal.courtDone = true;
   setTimeout(function(){
-    try { if (typeof _flushPostTurnModalQueue === 'function') _flushPostTurnModalQueue(); } catch(_fq){ console.warn('[postTurnCourt] flush:', _fq); }
+    try { if (typeof _flushPostTurnModalQueue === 'function') _flushPostTurnModalQueue(); } catch(_fq){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_fq, 'postTurnCourt] flush:') : console.warn('[postTurnCourt] flush:', _fq); }
   }, 1000);
 }

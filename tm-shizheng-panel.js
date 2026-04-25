@@ -731,7 +731,7 @@ function _mzSpeakMinister(ch, blockId, roundNum) {
           NpcMemorySystem.remember(ch.name, evt, emo, imp, '天子', { type:'dialogue', source:'witnessed', credibility:100 });
         }
       }
-    } catch(_finishE){ console.warn('[独召] finish 处理异常', _finishE); }
+    } catch(_finishE){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_finishE, '独召] finish 处理异常') : console.warn('[独召] finish 处理异常', _finishE); }
   };
 
   // ── max_tokens 与 tier 策略（与问对/朝议一致·次 API 配置则走次 API·否则主 API）──

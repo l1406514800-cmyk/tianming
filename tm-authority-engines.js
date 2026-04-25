@@ -609,10 +609,10 @@
   function tick(ctx) {
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
-    try { _tickHuangwei(ctx, mr); } catch(e) { console.error('[auth] hw:', e); }
-    try { _tickHuangquan(ctx, mr); } catch(e) { console.error('[auth] hq:', e); }
-    try { _tickMinxin(ctx, mr); } catch(e) { console.error('[auth] mx:', e); }
-    try { _tickVarLinkage(ctx, mr); } catch(e) { console.error('[auth] linkage:', e); }
+    try { _tickHuangwei(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'auth] hw:') : console.error('[auth] hw:', e); }
+    try { _tickHuangquan(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'auth] hq:') : console.error('[auth] hq:', e); }
+    try { _tickMinxin(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'auth] mx:') : console.error('[auth] mx:', e); }
+    try { _tickVarLinkage(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'auth] linkage:') : console.error('[auth] linkage:', e); }
   }
 
   // ═══════════════════════════════════════════════════════════════════

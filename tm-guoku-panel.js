@@ -49,7 +49,7 @@ function openGuokuPanel() {
   try {
     if (typeof GuokuEngine !== 'undefined' && typeof GuokuEngine.ensureModel === 'function') GuokuEngine.ensureModel();
     if (typeof NeitangEngine !== 'undefined' && typeof NeitangEngine.ensureModel === 'function') NeitangEngine.ensureModel();
-  } catch(_e) { console.warn('[openGuokuPanel] ensureModel', _e); }
+  } catch(_e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_e, 'openGuokuPanel] ensureModel') : console.warn('[openGuokuPanel] ensureModel', _e); }
   try { renderGuokuPanel(); } catch(_re) {
     console.error('[openGuokuPanel] renderGuokuPanel threw:', _re);
     var body = document.getElementById('guoku-body');

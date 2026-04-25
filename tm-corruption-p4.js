@@ -510,9 +510,9 @@
   var _origTick = CorruptionEngine.tick;
   CorruptionEngine.tick = function(context) {
     _origTick.call(this, context);
-    try { applyRotationSideEffects(context); } catch(e) { console.error('[corruption-p4] rotation:', e); }
-    try { applyJuannaMonthly(context); }       catch(e) { console.error('[corruption-p4] juanna:', e); }
-    try { updateRegionalCorruption(); }        catch(e) { console.error('[corruption-p4] region:', e); }
+    try { applyRotationSideEffects(context); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption-p4] rotation:') : console.error('[corruption-p4] rotation:', e); }
+    try { applyJuannaMonthly(context); }       catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption-p4] juanna:') : console.error('[corruption-p4] juanna:', e); }
+    try { updateRegionalCorruption(); }        catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption-p4] region:') : console.error('[corruption-p4] region:', e); }
   };
 
   // 扩展 updatePerceived 以应用模式调节

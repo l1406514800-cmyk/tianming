@@ -21,13 +21,13 @@ function enterGame(){
       _initOfficePublicTreasury(GM.officeTree);
       if (GM.turn === 1) console.log('[enterGame] 官职公库初始化完成');
     }
-  } catch(_opE) { console.warn('[enterGame] 官职公库初始化失败', _opE); }
+  } catch(_opE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_opE, 'enterGame] 官职公库初始化失败') : console.warn('[enterGame] 官职公库初始化失败', _opE); }
 
   // 角色私产：按 wealth 字符串+品级推算填入 resources.privateWealth
   try {
     _initCharacterPrivateWealth(GM.chars || []);
     if (GM.turn === 1) console.log('[enterGame] 角色私产初始化完成');
-  } catch(_pwE) { console.warn('[enterGame] 角色私产初始化失败', _pwE); }
+  } catch(_pwE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_pwE, 'enterGame] 角色私产初始化失败') : console.warn('[enterGame] 角色私产初始化失败', _pwE); }
 
   // 角色公库镜像：按 officialTitle 绑定到官职·读其 publicTreasury.money.stock
   try {
@@ -40,7 +40,7 @@ function enterGame(){
       });
       if (GM.turn === 1) console.log('[enterGame] 角色公库镜像刷新完成');
     }
-  } catch(_mpE) { console.warn('[enterGame] 角色公库镜像失败', _mpE); }
+  } catch(_mpE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_mpE, 'enterGame] 角色公库镜像失败') : console.warn('[enterGame] 角色公库镜像失败', _mpE); }
 
   // 首次进入游戏（turn=1 且未初始化过腐败预设）→ 按朝代预设初始化腐败
   try {
@@ -53,7 +53,7 @@ function enterGame(){
       GM._corruptionPresetDone = true;
       console.log('[corruption] 初始化：', r);
     }
-  } catch(e) { console.error('[enterGame] 腐败朝代预设失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] 腐败朝代预设失败:') : console.error('[enterGame] 腐败朝代预设失败:', e); }
 
   // 帑廪朝代预设
   try {
@@ -65,7 +65,7 @@ function enterGame(){
       GM._guokuPresetDone = true;
       console.log('[guoku] 初始化：', gr);
     }
-  } catch(e) { console.error('[enterGame] 帑廪朝代预设失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] 帑廪朝代预设失败:') : console.error('[enterGame] 帑廪朝代预设失败:', e); }
 
   // 内帑朝代预设（依赖帑廪先完成）
   try {
@@ -77,7 +77,7 @@ function enterGame(){
       GM._neitangPresetDone = true;
       console.log('[neitang] 初始化：', nr);
     }
-  } catch(e) { console.error('[enterGame] 内帑朝代预设失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] 内帑朝代预设失败:') : console.error('[enterGame] 内帑朝代预设失败:', e); }
 
   // 剧本历史人物加载（若剧本指定了 historicalChars）
   try {
@@ -89,7 +89,7 @@ function enterGame(){
       }
       GM._historicalCharsLoaded = true;
     }
-  } catch(e) { console.error('[enterGame] 历史人物加载失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] 历史人物加载失败:') : console.error('[enterGame] 历史人物加载失败:', e); }
 
   // 统一角色字段补齐（字/性别/家族成员/仕途/内心等 UI 所需字段）
   try {
@@ -97,7 +97,7 @@ function enterGame(){
       var _filled = CharFullSchema.ensureAll(GM.chars);
       if (GM.turn === 1) console.log('[CharFullSchema] 初始化 ' + _filled + ' 位角色完整字段');
     }
-  } catch(e) { console.error('[enterGame] CharFullSchema 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] CharFullSchema 失败:') : console.error('[enterGame] CharFullSchema 失败:', e); }
 
   // 货币系统初始化（币种/本位制/铸币机构/纸币预设/市场）
   try {
@@ -106,7 +106,7 @@ function enterGame(){
       CurrencyEngine.init(_sc5);
       if (GM.turn === 1) console.log('[CurrencyEngine] 初始化 朝代=' + (GM.currency && GM.currency.dynasty));
     }
-  } catch(e) { console.error('[enterGame] CurrencyEngine 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] CurrencyEngine 失败:') : console.error('[enterGame] CurrencyEngine 失败:', e); }
 
   // 央地财政初始化（分层/分账预设/合规/监察）
   try {
@@ -115,7 +115,7 @@ function enterGame(){
       CentralLocalEngine.init(_sc6);
       if (GM.turn === 1) console.log('[CentralLocalEngine] 初始化 预设=' + (GM.fiscal && GM.fiscal._currentPreset));
     }
-  } catch(e) { console.error('[enterGame] CentralLocalEngine 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] CentralLocalEngine 失败:') : console.error('[enterGame] CentralLocalEngine 失败:', e); }
 
   // 经济补完模块（19 税种/四层/封建 5 类/土地兼并/借贷/口碑/廷议/强征/购买力传播）
   try {
@@ -126,7 +126,7 @@ function enterGame(){
       EconomyGapFill.buildHierarchyFromAdminDepth(_sc7);
       if (GM.turn === 1) console.log('[EconomyGapFill] 补完模块就绪（12 项）');
     }
-  } catch(e) { console.error('[enterGame] EconomyGapFill 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] EconomyGapFill 失败:') : console.error('[enterGame] EconomyGapFill 失败:', e); }
 
   // 户口系统初始化（户/口/丁 + 色目户 + 徭役 + 兵役 + 人口动态）
   try {
@@ -141,7 +141,7 @@ function enterGame(){
       HujiEngine.init(_sc8);
       if (GM.turn === 1) console.log('[HujiEngine] 初始化后 GM.population.national:', GM.population && GM.population.national);
     }
-  } catch(e) { console.error('[enterGame] HujiEngine 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] HujiEngine 失败:') : console.error('[enterGame] HujiEngine 失败:', e); }
 
   // 环境承载力初始化（五维承载/疤痕/过载/危机/技术阶梯）
   try {
@@ -150,7 +150,7 @@ function enterGame(){
       EnvCapacityEngine.init(_sc9);
       if (GM.turn === 1) console.log('[EnvCapacityEngine] 初始化 技术朝代=' + (GM.environment && GM.environment.techEra));
     }
-  } catch(e) { console.error('[enterGame] EnvCapacityEngine 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] EnvCapacityEngine 失败:') : console.error('[enterGame] EnvCapacityEngine 失败:', e); }
 
   // 户口深化（阶层系统/A6-A8/C2-C10/D2-D6/F30 核心）
   try {
@@ -158,7 +158,7 @@ function enterGame(){
       HujiDeepFill.init();
       if (GM.turn === 1) console.log('[HujiDeepFill] 深化模块就绪（阶层+封建+F30）');
     }
-  } catch(e) { console.error('[enterGame] HujiDeepFill 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] HujiDeepFill 失败:') : console.error('[enterGame] HujiDeepFill 失败:', e); }
 
   // 诏令补完（P1 + 反向触发 + 自动路由 + Help UI）
   try {
@@ -166,14 +166,14 @@ function enterGame(){
       EdictComplete.init();
       if (GM.turn === 1) console.log('[EdictComplete] 诏令补完就绪（P1+11 反向触发）');
     }
-  } catch(e) { console.error('[enterGame] EdictComplete 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] EdictComplete 失败:') : console.error('[enterGame] EdictComplete 失败:', e); }
 
   // 环境恢复政策 + §9 全联动
   try {
     if (typeof EnvRecoveryFill !== 'undefined' && typeof EnvRecoveryFill.init === 'function') {
       EnvRecoveryFill.init();
     }
-  } catch(e) { console.error('[enterGame] EnvRecoveryFill 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] EnvRecoveryFill 失败:') : console.error('[enterGame] EnvRecoveryFill 失败:', e); }
 
   // 皇威/皇权/民心 三系统 + 7×6 变量联动
   try {
@@ -181,7 +181,7 @@ function enterGame(){
       AuthorityEngines.init();
       if (GM.turn === 1) console.log('[AuthorityEngines] 皇威/皇权/民心 + 联动矩阵就绪');
     }
-  } catch(e) { console.error('[enterGame] AuthorityEngines 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] AuthorityEngines 失败:') : console.error('[enterGame] AuthorityEngines 失败:', e); }
 
   // 权力系统补完（权臣/民变5级/暴君症状/失威危机/天象/四象限/联动全）
   try {
@@ -189,7 +189,7 @@ function enterGame(){
       AuthorityComplete.init();
       if (GM.turn === 1) console.log('[AuthorityComplete] 补完就绪（16 项 P0+P1+P2）');
     }
-  } catch(e) { console.error('[enterGame] AuthorityComplete 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] AuthorityComplete 失败:') : console.error('[enterGame] AuthorityComplete 失败:', e); }
 
   // 历史预设库（25 徭役 / 9 迁徙 / 7 兵制 / 8 阶层 / 65 诏令 / 30 典范 / 12 抗疏）
   try {
@@ -197,7 +197,7 @@ function enterGame(){
       HistoricalPresets.init();
       if (GM.turn === 1) console.log('[HistoricalPresets] 历史数据库就绪');
     }
-  } catch(e) { console.error('[enterGame] HistoricalPresets 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] HistoricalPresets 失败:') : console.error('[enterGame] HistoricalPresets 失败:', e); }
 
   // C/D/B/A/E/F 阶段补丁 init
   try {
@@ -232,23 +232,23 @@ function enterGame(){
           '·player.divisions 长度=' + (GM.adminHierarchy.player && GM.adminHierarchy.player.divisions ? GM.adminHierarchy.player.divisions.length : '(无 player.divisions)')) : '(空)');
     }
     if (typeof CascadeTax !== 'undefined' && typeof CascadeTax.collect === 'function') {
-      try { CascadeTax.collect(); } catch(_ctInitE) { console.warn('[enterGame] CascadeTax.collect init', _ctInitE); }
+      try { CascadeTax.collect(); } catch(_ctInitE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ctInitE, 'enterGame] CascadeTax.collect init') : console.warn('[enterGame] CascadeTax.collect init', _ctInitE); }
     }
     // 固定支出：俸禄+军饷+宫廷（endTurn 本来每回合跑·此处补首回合）
     if (typeof FixedExpense !== 'undefined' && typeof FixedExpense.collect === 'function') {
       try {
         var _feR = FixedExpense.collect();
         if (GM.turn === 1) console.log('[enterGame-T1] FixedExpense 首回合结算:', _feR && _feR.turnExpense);
-      } catch(_feInitE) { console.warn('[enterGame] FixedExpense.collect init', _feInitE); }
+      } catch(_feInitE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_feInitE, 'enterGame] FixedExpense.collect init') : console.warn('[enterGame] FixedExpense.collect init', _feInitE); }
     }
     if (typeof IntegrationBridge !== 'undefined' && typeof IntegrationBridge.aggregateRegionsToVariables === 'function') {
-      try { IntegrationBridge.aggregateRegionsToVariables(); } catch(_agInitE) { console.warn('[enterGame] bridge aggregate init', _agInitE); }
+      try { IntegrationBridge.aggregateRegionsToVariables(); } catch(_agInitE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_agInitE, 'enterGame] bridge aggregate init') : console.warn('[enterGame] bridge aggregate init', _agInitE); }
     }
     if (GM.turn === 1) {
       console.log('[enterGame-T1] 聚合后 GM.population.national:', GM.population && GM.population.national);
     }
 
-  } catch(e) { console.error('[enterGame] Phase 补丁 init 失败:', e); }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] Phase 补丁 init 失败:') : console.error('[enterGame] Phase 补丁 init 失败:', e); }
 
   // 兜底：Phase init 无论成败，都再做一次户口检查
   // 若 national.mouths 明显偏低（< 剧本初始 1/2），直接从剧本 populationConfig 强制写入
@@ -277,7 +277,7 @@ function enterGame(){
     } else if (GM.turn === 1) {
       console.warn('[enterGame-兜底] 剧本无 populationConfig.initial.nationalMouths·跳过兜底');
     }
-  } catch(_popFbE) { console.warn('[enterGame] 户口兜底失败', _popFbE); }
+  } catch(_popFbE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_popFbE, 'enterGame] 户口兜底失败') : console.warn('[enterGame] 户口兜底失败', _popFbE); }
 
   renderGameState();
 
@@ -473,7 +473,7 @@ function startGame(sid){
         if (!confirm(_msg)) { toast('已取消·请在设置中更换模型或跑"模型能力校验"'); return; }
       }
     }
-  } catch(_mrE) { console.warn('[M1 modelReq check]', _mrE); }
+  } catch(_mrE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_mrE, 'M1 modelReq check') : console.warn('[M1 modelReq check]', _mrE); }
   _$("scn-page").classList.remove("show");
   _$("launch").style.display="none";_$("bar").style.display="flex";_$("bar-btns").innerHTML="";_$("G").style.display="grid";_$("E").style.display="none";
   _$("shiji-btn").classList.add("show");_$("save-btn").classList.add("show");
@@ -978,7 +978,7 @@ if (sc.culturalConfig && sc.culturalConfig.enabled && Array.isArray(sc.culturalC
           var _scN = (typeof findScenarioById === 'function') ? findScenarioById(sid) : null;
           var _scName = (_scN && _scN.name) || '新游戏';
           SaveManager.saveToSlot(0, '开局封存·' + _scName + '·第1回合');
-        } catch(_e){ console.warn('[startGame] 开局自动封存失败', _e); }
+        } catch(_e){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_e, 'startGame] 开局自动封存失败') : console.warn('[startGame] 开局自动封存失败', _e); }
       }, 1200);
     }
   } catch(_e){}

@@ -478,9 +478,9 @@
   // —— 统一 endturn 接口 ——
   function updateThreeSystemsOnEndTurn() {
     if (!global.GM) return;
-    try { _updateFactionState(); } catch(e) { console.warn('[三系统回合] faction', e); }
-    try { _updatePartyState(); } catch(e) { console.warn('[三系统回合] party', e); }
-    try { _updateMilitaryState(); } catch(e) { console.warn('[三系统回合] military', e); }
+    try { _updateFactionState(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '三系统回合] faction') : console.warn('[三系统回合] faction', e); }
+    try { _updatePartyState(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '三系统回合] party') : console.warn('[三系统回合] party', e); }
+    try { _updateMilitaryState(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '三系统回合] military') : console.warn('[三系统回合] military', e); }
   }
 
   // ══════════════════════════════════════════════════════════════════════
@@ -1104,16 +1104,16 @@
   // 注册到 GameHooks 的 enterGame:after 和 startGame:after
   if (global.GameHooks && typeof global.GameHooks.on === 'function') {
     global.GameHooks.on('enterGame:after', function(){
-      try { initThreeSystemsOnStart(); } catch(e) { console.warn('[三系统扩展] enterGame:after 异常', e); }
-      try { _wireCrossSystemLinks(); } catch(e) { console.warn('[三系统联动] wire 异常', e); }
-      try { _activateOpeningEvents(); } catch(e) { console.warn('[开局事件] enterGame:after 异常', e); }
-      try { _activateOpeningLetters(); } catch(e) { console.warn('[开局信件] enterGame:after 异常', e); }
+      try { initThreeSystemsOnStart(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '三系统扩展] enterGame:after 异常') : console.warn('[三系统扩展] enterGame:after 异常', e); }
+      try { _wireCrossSystemLinks(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '三系统联动] wire 异常') : console.warn('[三系统联动] wire 异常', e); }
+      try { _activateOpeningEvents(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '开局事件] enterGame:after 异常') : console.warn('[开局事件] enterGame:after 异常', e); }
+      try { _activateOpeningLetters(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '开局信件] enterGame:after 异常') : console.warn('[开局信件] enterGame:after 异常', e); }
     });
     global.GameHooks.on('startGame:after', function(){
-      try { initThreeSystemsOnStart(); } catch(e) { console.warn('[三系统扩展] startGame:after 异常', e); }
-      try { _wireCrossSystemLinks(); } catch(e) { console.warn('[三系统联动] wire 异常', e); }
-      try { _activateOpeningEvents(); } catch(e) { console.warn('[开局事件] startGame:after 异常', e); }
-      try { _activateOpeningLetters(); } catch(e) { console.warn('[开局信件] startGame:after 异常', e); }
+      try { initThreeSystemsOnStart(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '三系统扩展] startGame:after 异常') : console.warn('[三系统扩展] startGame:after 异常', e); }
+      try { _wireCrossSystemLinks(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '三系统联动] wire 异常') : console.warn('[三系统联动] wire 异常', e); }
+      try { _activateOpeningEvents(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '开局事件] startGame:after 异常') : console.warn('[开局事件] startGame:after 异常', e); }
+      try { _activateOpeningLetters(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '开局信件] startGame:after 异常') : console.warn('[开局信件] startGame:after 异常', e); }
     });
   }
   // 脚本加载即尝试 wire(若事件总线已就绪)

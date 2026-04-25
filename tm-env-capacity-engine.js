@@ -545,11 +545,11 @@
       init(sc);
     }
     var mr = ctx.monthRatio || 1;
-    try { _tickScarAccumulation(ctx, mr); } catch(e) { console.error('[env] scars:', e); }
-    try { _tickOverloadFeedback(ctx, mr); } catch(e) { console.error('[env] overload:', e); }
-    try { _tickCrisisEvents(ctx, mr); } catch(e) { console.error('[env] crises:', e); }
+    try { _tickScarAccumulation(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'env] scars:') : console.error('[env] scars:', e); }
+    try { _tickOverloadFeedback(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'env] overload:') : console.error('[env] overload:', e); }
+    try { _tickCrisisEvents(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'env] crises:') : console.error('[env] crises:', e); }
     try { _cleanExpiredPolicies(ctx); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-env-capacity-engine');}catch(_){}}
-    try { _applyMinxinCoupling(mr); } catch(e) { console.error('[env] minxin:', e); }
+    try { _applyMinxinCoupling(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'env] minxin:') : console.error('[env] minxin:', e); }
   }
 
   // ═══════════════════════════════════════════════════════════════════

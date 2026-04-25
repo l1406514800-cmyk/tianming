@@ -388,7 +388,7 @@
         + _makePrice('盐',_ya.val,_ya.unit,_ya.trend,_ya.spark)
         + _makePrice('银',_yi.val,_yi.unit,_yi.trend,_yi.spark);
       gl.appendChild(pp);
-    } catch(e) { console.warn('[shell-extras] price panel:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'shell-extras] price panel:') : console.warn('[shell-extras] price panel:', e); }
 
     // 6. 典藏书阁
     try {
@@ -404,7 +404,7 @@
       + '<div class="gs-book-card b-ji"><div class="gs-book-name">集</div><div class="gs-book-num">'+num(libs.ji)+'</div><div class="gs-book-sub">诗文·笔记</div></div>'
       + '</div>';
     gl.appendChild(bk);
-    } catch(e) { console.warn('[shell-extras] book panel:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'shell-extras] book panel:') : console.warn('[shell-extras] book panel:', e); }
 
     // 7. 宫殿之序
     try {
@@ -421,7 +421,7 @@
       + '<div class="gs-palace-gate">午 门 · 端 门 · 承 天 门</div>'
       + '</div>';
     gl.appendChild(pal);
-    } catch(e) { console.warn('[shell-extras] palace panel:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'shell-extras] palace panel:') : console.warn('[shell-extras] palace panel:', e); }
 
     // 8. 界面主题（实装：主题/字号/字体）
     try {
@@ -464,7 +464,7 @@
       +   '<option value="STXinghkaiti"' + (_savedTitle==='STXinghkaiti'?' selected':'') + '>华文行楷</option>'
       + '</select></div>';
     gl.appendChild(tm);
-    } catch(e) { console.warn('[shell-extras] theme panel:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'shell-extras] theme panel:') : console.warn('[shell-extras] theme panel:', e); }
 
     // 9. 帮助·典范
     try {
@@ -477,7 +477,7 @@
       + '<div class="gs-help-item" onclick="if(typeof openHelpAI===\'function\')openHelpAI();else toast(\'AI 推演原理\')"><span class="ic">AI</span><span class="t">AI 推 演 原 理</span><span class="arr">›</span></div>'
       + '<div class="gs-help-item" onclick="if(typeof openHelpHotkey===\'function\')openHelpHotkey();else toast(\'[ ] = 开关抽屉·Ctrl+1..9 切 tab·F1 帮助\')"><span class="ic">键</span><span class="t">键 位 速 查</span><span class="arr">›</span></div>';
     gl.appendChild(hp);
-    } catch(e) { console.warn('[shell-extras] help panel:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'shell-extras] help panel:') : console.warn('[shell-extras] help panel:', e); }
 
     // 10. 音声调度
     try {
@@ -500,7 +500,7 @@
       + '<div class="gs-audio-loop"><button class="gs-audio-loop-btn active">顺 序</button><button class="gs-audio-loop-btn">单 曲</button><button class="gs-audio-loop-btn">随 机</button></div>'
       + '</div>';
     gl.appendChild(au);
-    } catch(e) { console.warn('[shell-extras] audio panel:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'shell-extras] audio panel:') : console.warn('[shell-extras] audio panel:', e); }
   };
 
   // ─────────────────────── 右抽屉 shell extras ───────────────────────

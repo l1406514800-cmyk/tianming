@@ -319,10 +319,10 @@
   function tick(ctx) {
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
-    try { _checkEvents(ctx); } catch(e) { console.error('[phaseF2] events:', e); }
-    try { _applyHujiCouplings(ctx, mr); } catch(e) { console.error('[phaseF2] hujiCoup:', e); }
-    try { _applyFullLeakageTriangle(ctx, mr); } catch(e) { console.error('[phaseF2] leakage:', e); }
-    try { _checkAndTriggerBankruptcy(ctx); } catch(e) { console.error('[phaseF2] bankruptcy:', e); }
+    try { _checkEvents(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF2] events:') : console.error('[phaseF2] events:', e); }
+    try { _applyHujiCouplings(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF2] hujiCoup:') : console.error('[phaseF2] hujiCoup:', e); }
+    try { _applyFullLeakageTriangle(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF2] leakage:') : console.error('[phaseF2] leakage:', e); }
+    try { _checkAndTriggerBankruptcy(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseF2] bankruptcy:') : console.error('[phaseF2] bankruptcy:', e); }
   }
 
   function init() {

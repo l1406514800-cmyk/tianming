@@ -201,7 +201,7 @@
           if (G.huangwei && typeof G.huangwei === 'object') {
             _updatePerceivedHuangwei_full(G.huangwei);
           }
-        } catch(e) { console.error('[f1] perceived:', e); }
+        } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'f1] perceived:') : console.error('[f1] perceived:', e); }
         return r;
       };
     }

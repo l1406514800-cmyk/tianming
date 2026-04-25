@@ -37,7 +37,7 @@ async function _endTurnCore(){
     if (typeof ensureCharArcsBeforeEndturn === 'function') {
       ensureCharArcsBeforeEndturn();
     }
-  } catch(_arcBE) { console.warn('[endTurn] 情节弧兜底失败', _arcBE); }
+  } catch(_arcBE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_arcBE, 'endTurn] 情节弧兜底失败') : console.warn('[endTurn] 情节弧兜底失败', _arcBE); }
 
   // Phase 0-0·清理本回合待下诏书快照（任免已正式颁布·不再可撤销）
   try {
@@ -47,7 +47,7 @@ async function _endTurnCore(){
         if (n.subs) _clearPE(n.subs);
       });
     })(GM.officeTree||[]);
-  } catch(_peE) { console.warn('[endTurn] clear _pendingEdict', _peE); }
+  } catch(_peE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_peE, 'endTurn] clear _pendingEdict') : console.warn('[endTurn] clear _pendingEdict', _peE); }
 
   // Phase 0-0b·兜底 sweep：清死亡/消失角色遗留 holder（防 character:death 事件漏发）
   try {
@@ -66,7 +66,7 @@ async function _endTurnCore(){
         });
       }
     }
-  } catch(_swE) { console.warn('[endTurn] ghost sweep', _swE); }
+  } catch(_swE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_swE, 'endTurn] ghost sweep') : console.warn('[endTurn] ghost sweep', _swE); }
 
   // Phase 0-0c·NPC 势力自动补任·扫外部派系控制的空缺官职·AI 代替 NPC 提名
   try {
@@ -84,10 +84,10 @@ async function _endTurnCore(){
         });
       }
     }
-  } catch(_napE) { console.warn('[endTurn] npc auto-appoint', _napE); }
+  } catch(_napE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_napE, 'endTurn] npc auto-appoint') : console.warn('[endTurn] npc auto-appoint', _napE); }
 
   // Phase 0-0: 提交本回合所有奏疏决定的副作用（NPC 记忆 + 朱批回传）
-  try { if (typeof _commitMemorialDecisions === 'function') _commitMemorialDecisions(); } catch(_cmE) { console.warn('[endTurn] _commitMemorialDecisions', _cmE); }
+  try { if (typeof _commitMemorialDecisions === 'function') _commitMemorialDecisions(); } catch(_cmE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_cmE, 'endTurn] _commitMemorialDecisions') : console.warn('[endTurn] _commitMemorialDecisions', _cmE); }
 
   // Phase 0-1: 初始化 + 收集输入
   var npcContext = _endTurn_init();
@@ -102,21 +102,21 @@ async function _endTurnCore(){
     if (typeof updateThreeSystemsOnEndTurn === 'function') {
       updateThreeSystemsOnEndTurn();
     }
-  } catch(_tseE) { console.warn('[endTurn] 三系统更新失败', _tseE); }
+  } catch(_tseE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_tseE, 'endTurn] 三系统更新失败') : console.warn('[endTurn] 三系统更新失败', _tseE); }
 
   // Phase 1.75·NPC AI 决策器(每 3 回合·批量势力/党派/将领预规划)
   try {
     if (typeof scThreeSystemsAI === 'function') {
       await scThreeSystemsAI();
     }
-  } catch(_nDE) { console.warn('[endTurn] NPC 决策器失败', _nDE); }
+  } catch(_nDE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_nDE, 'endTurn] NPC 决策器失败') : console.warn('[endTurn] NPC 决策器失败', _nDE); }
 
   // Phase 1.8·长期行动摘要 AI 调用（过回合前读取全部长期诏书+编年·防长期项被推演遗忘）
   try {
     if (typeof aiDigestLongTermActions === 'function' && P.ai && P.ai.key) {
       await aiDigestLongTermActions();
     }
-  } catch(_ltdE) { console.warn('[endTurn] 长期摘要失败', _ltdE); }
+  } catch(_ltdE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ltdE, 'endTurn] 长期摘要失败') : console.warn('[endTurn] 长期摘要失败', _ltdE); }
 
   // Phase 2: AI 推演
   var aiResult = await _endTurn_aiInfer(edicts, xinglu, memRes, oldVars);
@@ -145,7 +145,7 @@ async function _endTurnCore(){
     if (typeof aiEdictEfficacyAudit === 'function' && P.ai && P.ai.key) {
       await aiEdictEfficacyAudit(aiResult, edicts);
     }
-  } catch(_efE) { console.warn('[endTurn] 御批回听失败', _efE); }
+  } catch(_efE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_efE, 'endTurn] 御批回听失败') : console.warn('[endTurn] 御批回听失败', _efE); }
 
   // 生成变化报告
   var changeReportHtml = generateChangeReport();
@@ -165,28 +165,28 @@ async function _endTurnCore(){
   }
 
   // Phase 4.5: 勤政 streak 结算
-  try { if (typeof _settleCourtMeter === 'function') _settleCourtMeter(); } catch(_ccE) { console.warn('[endTurn] courtMeter', _ccE); }
+  try { if (typeof _settleCourtMeter === 'function') _settleCourtMeter(); } catch(_ccE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ccE, 'endTurn] courtMeter') : console.warn('[endTurn] courtMeter', _ccE); }
 
   // Phase 4.6: 角色路程推进·到达自动就任（AI 至高权力·Step 4）
-  try { if (typeof advanceCharTravelByDays === 'function') advanceCharTravelByDays((P.time && P.time.daysPerTurn) || 30); } catch(_trvE){ console.warn('[endTurn] char travel tick', _trvE); }
+  try { if (typeof advanceCharTravelByDays === 'function') advanceCharTravelByDays((P.time && P.time.daysPerTurn) || 30); } catch(_trvE){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_trvE, 'endTurn] char travel tick') : console.warn('[endTurn] char travel tick', _trvE); }
 
   // Phase 5: 后续钩子——后朝进行中则全部延后（避免 keju 等弹窗覆盖朝会）
   if (GM._pendingShijiModal && GM._pendingShijiModal.courtDone === false) {
     GM._pendingShijiModal.deferredPhase5 = async function() {
-      try { await EndTurnHooks.execute('after'); } catch(_ph5e){ console.warn('[postTurn] phase5 hooks', _ph5e); }
+      try { await EndTurnHooks.execute('after'); } catch(_ph5e){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ph5e, 'postTurn] phase5 hooks') : console.warn('[postTurn] phase5 hooks', _ph5e); }
       // v5·科举时间化推进（每回合累天数）
       if (P.keju && (P.keju.currentExam || P.keju.currentEnke) && typeof advanceKejuByDays === 'function') {
-        try { advanceKejuByDays((P.time && P.time.daysPerTurn) || 30); } catch(_kjA){ console.warn('[postTurn] keju advance', _kjA); }
+        try { advanceKejuByDays((P.time && P.time.daysPerTurn) || 30); } catch(_kjA){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_kjA, 'postTurn] keju advance') : console.warn('[postTurn] keju advance', _kjA); }
       }
       if (P.keju && P.keju.enabled && !P.keju.currentExam) {
-        try { await checkKejuTrigger(); } catch(_kj){ console.warn('[postTurn] keju', _kj); }
+        try { await checkKejuTrigger(); } catch(_kj){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_kj, 'postTurn] keju') : console.warn('[postTurn] keju', _kj); }
       }
     };
   } else {
     await EndTurnHooks.execute('after');
     // v5·科举时间化推进
     if (P.keju && (P.keju.currentExam || P.keju.currentEnke) && typeof advanceKejuByDays === 'function') {
-      try { advanceKejuByDays((P.time && P.time.daysPerTurn) || 30); } catch(_kjA){ console.warn('[endTurn] keju advance', _kjA); }
+      try { advanceKejuByDays((P.time && P.time.daysPerTurn) || 30); } catch(_kjA){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_kjA, 'endTurn] keju advance') : console.warn('[endTurn] keju advance', _kjA); }
     }
     if (P.keju && P.keju.enabled && !P.keju.currentExam) {
       await checkKejuTrigger();
@@ -361,7 +361,7 @@ async function _endTurnCore(){
 
   // 回合结束前最后一次聚合：确保 七变量(national) 严格等于 各区划叶子之和
   // （因 AI 推演/各 engine.tick 都可能修改 division.population.mouths，需重新累计）
-  try { if (typeof IntegrationBridge !== 'undefined' && typeof IntegrationBridge.aggregateRegionsToVariables === 'function') IntegrationBridge.aggregateRegionsToVariables(); } catch(_aggFinalE) { console.warn('[endTurn] final aggregate', _aggFinalE); }
+  try { if (typeof IntegrationBridge !== 'undefined' && typeof IntegrationBridge.aggregateRegionsToVariables === 'function') IntegrationBridge.aggregateRegionsToVariables(); } catch(_aggFinalE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_aggFinalE, 'endTurn] final aggregate') : console.warn('[endTurn] final aggregate', _aggFinalE); }
 
   GM.busy=false;
   GM._endTurnBusy=false;

@@ -836,7 +836,7 @@ startGame=async function(sid){
       var _detK = await detectModelContextSize();
       showLoading("\u6A21\u578B\u4E0A\u4E0B\u6587: " + _detK + "K tokens",72);
       await new Promise(function(r){setTimeout(r,500);});
-    } catch(_detErr) { console.warn('[CtxDetect] 探测失败，使用默认值:', _detErr); }
+    } catch(_detErr) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_detErr, 'CtxDetect] 探测失败，使用默认值:') : console.warn('[CtxDetect] 探测失败，使用默认值:', _detErr); }
     showLoading("\u8FDE\u63A5AI\u7CFB\u7EDF...",72);
     await new Promise(function(r){setTimeout(r,300);});
 
@@ -1712,13 +1712,13 @@ function doActualStart(sid){
       try {
         showLoading('\u903B\u8F91\u5BA1\u67E5\uFF1A\u68C0\u67E5\u5267\u672C\u6570\u636E\u77DB\u76FE...', 90);
         await _logicAuditOnStart(sc);
-      } catch(e) { console.warn('[LogicAudit] error:', e); }
+      } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'LogicAudit] error:') : console.warn('[LogicAudit] error:', e); }
 
       // AI深度预热（剧本标 isFullyDetailed 时内部跳过·用剧本文本兜底）
       if (typeof aiDeepReadScenario === 'function') {
         try {
           await aiDeepReadScenario();
-        } catch(e) { console.warn('[DeepRead in doActualStart] error:', e); }
+        } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'DeepRead in doActualStart] error:') : console.warn('[DeepRead in doActualStart] error:', e); }
       }
       // 三项推演规划·并行发射（节省等待）·各 1 次 AI：
       //   · aiPlanScenarioForInference: NPC 议程/危机分岔/行文指纹
@@ -1731,7 +1731,7 @@ function doActualStart(sid){
           (typeof aiPlanFactionMatrix === 'function') ? aiPlanFactionMatrix().catch(function(e){ console.warn('[aiFacMatrix]', e); }) : Promise.resolve(),
           (typeof aiPlanFirstTurnEvents === 'function') ? aiPlanFirstTurnEvents().catch(function(e){ console.warn('[aiFTE]', e); }) : Promise.resolve()
         ]);
-      } catch(e) { console.warn('[3 plans parallel]', e); }
+      } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '3 plans parallel') : console.warn('[3 plans parallel]', e); }
       showLoading('\u751F\u6210\u521D\u59CB\u594F\u758F...', 98);
       generateMemorials();
       hideLoading();

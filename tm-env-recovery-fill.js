@@ -163,8 +163,8 @@
   function tick(ctx) {
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
-    try { _tickRecoveries(mr); } catch(e) { console.error('[envRec] recoveries:', e); }
-    try { _applyFullCoupling(mr); } catch(e) { console.error('[envRec] coupling:', e); }
+    try { _tickRecoveries(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'envRec] recoveries:') : console.error('[envRec] recoveries:', e); }
+    try { _applyFullCoupling(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'envRec] coupling:') : console.error('[envRec] coupling:', e); }
   }
 
   function init() {

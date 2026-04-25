@@ -238,7 +238,7 @@
       a.download = 'tm-perf-' + Date.now() + '.json';
       a.click();
       setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
-    } catch(e) { console.warn('[perf] 下载失败', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'perf] 下载失败') : console.warn('[perf] 下载失败', e); }
   }
 
   // ─── UI 浮层（Ctrl+Shift+P） ───

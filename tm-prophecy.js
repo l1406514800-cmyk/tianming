@@ -538,22 +538,22 @@
   function tick(ctx) {
     ctx = ctx || {};
     var mr = ctx.monthRatio || 1;
-    try { _tianrenGanying(ctx, mr); } catch(e) { console.error('[phaseD] ganying:', e); }
-    try { _checkTyrantAwakening(ctx, mr); } catch(e) { console.error('[phaseD] awaken:', e); }
+    try { _tianrenGanying(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseD] ganying:') : console.error('[phaseD] ganying:', e); }
+    try { _checkTyrantAwakening(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseD] awaken:') : console.error('[phaseD] awaken:', e); }
     // 暴君段每回合 20% 概率产生粉饰奏疏
     try {
       var G = global.GM;
       if (G.huangwei && G.huangwei.tyrantSyndrome && G.huangwei.tyrantSyndrome.active && Math.random() < 0.2 * mr) {
         generateFlatteryMemorial(ctx);
       }
-    } catch(e) { console.error('[phaseD] flattery:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseD] flattery:') : console.error('[phaseD] flattery:', e); }
     // 民心暴跌 + 高压下 1% 概率出谶纬
     try {
       var G2 = global.GM;
       if (G2.minxin && G2.minxin.trueIndex < 35 && Math.random() < 0.01 * mr) {
         spawnProphecy(ctx);
       }
-    } catch(e) { console.error('[phaseD] prophecy:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseD] prophecy:') : console.error('[phaseD] prophecy:', e); }
   }
 
   function init() {

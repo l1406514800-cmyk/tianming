@@ -538,7 +538,7 @@
     if (!G) return;
     // 扩 region 五字段
     (G.regions || []).forEach(function(r) {
-      try { _enrichRegion(r); } catch(e) { console.error('[phaseB] enrich:', e); }
+      try { _enrichRegion(r); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseB] enrich:') : console.error('[phaseB] enrich:', e); }
     });
     // 若 population.byRegion 也要扩
     if (G.population && G.population.byRegion) {
@@ -561,13 +561,13 @@
       });
     }
     // Phase B3: 马政
-    try { updateMaZheng(G, mr); } catch(e) { console.error('[phaseB] maZheng:', e); }
+    try { updateMaZheng(G, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseB] maZheng:') : console.error('[phaseB] maZheng:', e); }
     // Phase B5: 作物革命/疫病/税基流失
-    try { tickNewWorldCrops(ctx, mr); } catch(e) { console.error('[phaseB] crops:', e); }
-    try { tickDiseaseCycle(ctx, mr); } catch(e) { console.error('[phaseB] disease:', e); }
-    try { computeTaxEvasion(G); } catch(e) { console.error('[phaseB] taxEvasion:', e); }
+    try { tickNewWorldCrops(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseB] crops:') : console.error('[phaseB] crops:', e); }
+    try { tickDiseaseCycle(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseB] disease:') : console.error('[phaseB] disease:', e); }
+    try { computeTaxEvasion(G); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseB] taxEvasion:') : console.error('[phaseB] taxEvasion:', e); }
     // Phase B2: 徭役民变检查
-    try { checkCorveeRebellionTrigger(ctx); } catch(e) { console.error('[phaseB] corveeRev:', e); }
+    try { checkCorveeRebellionTrigger(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'phaseB] corveeRev:') : console.error('[phaseB] corveeRev:', e); }
   }
 
   // ═══════════════════════════════════════════════════════════════════

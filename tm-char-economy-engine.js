@@ -846,7 +846,7 @@
     });
 
     // 家族共财两层
-    try { tickClanPool(mr); } catch(e) { console.error('[charEcon] clanPool:', e); }
+    try { tickClanPool(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'charEcon] clanPool:') : console.error('[charEcon] clanPool:', e); }
   }
 
   // ═════════════════════════════════════════════════════════════

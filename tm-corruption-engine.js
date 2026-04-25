@@ -887,7 +887,7 @@
     if (typeof addEB === 'function') {
       addEB('朝代', message, { credibility: 'high' });
     }
-    if (effectFn) try { effectFn(); } catch(e) { console.error('[corruption] backlash error:', e); }
+    if (effectFn) try { effectFn(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption] backlash error:') : console.error('[corruption] backlash error:', e); }
     GM.corruption.history.backlash.push({
       type: type, turn: GM.turn, message: message
     });
@@ -964,9 +964,9 @@
     ensureCorruptionModel();
     _origTick(context);
     // P1 扩展
-    try { checkFactionFormation(context); } catch(e) { console.error('[corruption] checkFactionFormation:', e); }
-    try { checkBacklash(context); } catch(e) { console.error('[corruption] checkBacklash:', e); }
-    try { applyCrossLinkage(context); } catch(e) { console.error('[corruption] applyCrossLinkage:', e); }
+    try { checkFactionFormation(context); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption] checkFactionFormation:') : console.error('[corruption] checkFactionFormation:', e); }
+    try { checkBacklash(context); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption] checkBacklash:') : console.error('[corruption] checkBacklash:', e); }
+    try { applyCrossLinkage(context); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'corruption] applyCrossLinkage:') : console.error('[corruption] applyCrossLinkage:', e); }
   };
 
   // ─── 导出到全局 ───

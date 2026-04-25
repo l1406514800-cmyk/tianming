@@ -255,14 +255,14 @@
              (typeof GuokuEngine.getMonthRatio === 'function' ? GuokuEngine.getMonthRatio() : 1);
 
     // P0 扩展
-    try { applyTyrantFiscalDistortion(mr); }    catch(e) { console.error('[guoku-p2] tyrant:', e); }
-    try { applyTaxMinxinFeedback(mr); }          catch(e) { console.error('[guoku-p2] minxinFeedback:', e); }
+    try { applyTyrantFiscalDistortion(mr); }    catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku-p2] tyrant:') : console.error('[guoku-p2] tyrant:', e); }
+    try { applyTaxMinxinFeedback(mr); }          catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku-p2] minxinFeedback:') : console.error('[guoku-p2] minxinFeedback:', e); }
     try {
       updateRegionalAccounts(mr,
         GM.guoku.monthlyIncome || 0,
         GM.guoku.monthlyExpense || 0);
-    } catch(e) { console.error('[guoku-p2] regional:', e); }
-    try { updateGrainClothFlow(mr); } catch(e) { console.error('[guoku-p2] grainCloth:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku-p2] regional:') : console.error('[guoku-p2] regional:', e); }
+    try { updateGrainClothFlow(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku-p2] grainCloth:') : console.error('[guoku-p2] grainCloth:', e); }
   };
 
   // 暴露

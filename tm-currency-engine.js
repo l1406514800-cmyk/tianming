@@ -674,12 +674,12 @@
       init(sc);
     }
     var mr = (ctx && typeof ctx.monthRatio === 'number') ? ctx.monthRatio : 1;
-    try { _mintCycle(ctx||{}, mr); } catch(e) { console.error('[CurrencyEngine] mint:', e); }
-    try { _updatePrivateMinting(mr); } catch(e) { console.error('[CurrencyEngine] privateMint:', e); }
-    try { _updatePaperLifecycle(ctx||{}); } catch(e) { console.error('[CurrencyEngine] paper:', e); }
-    try { _updateMarket(ctx||{}, mr); } catch(e) { console.error('[CurrencyEngine] market:', e); }
-    try { _checkMoneySupply(ctx||{}); } catch(e) { console.error('[CurrencyEngine] moneySupply:', e); }
-    try { _updateForeignFlow(ctx||{}, mr); } catch(e) { console.error('[CurrencyEngine] foreign:', e); }
+    try { _mintCycle(ctx||{}, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'CurrencyEngine] mint:') : console.error('[CurrencyEngine] mint:', e); }
+    try { _updatePrivateMinting(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'CurrencyEngine] privateMint:') : console.error('[CurrencyEngine] privateMint:', e); }
+    try { _updatePaperLifecycle(ctx||{}); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'CurrencyEngine] paper:') : console.error('[CurrencyEngine] paper:', e); }
+    try { _updateMarket(ctx||{}, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'CurrencyEngine] market:') : console.error('[CurrencyEngine] market:', e); }
+    try { _checkMoneySupply(ctx||{}); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'CurrencyEngine] moneySupply:') : console.error('[CurrencyEngine] moneySupply:', e); }
+    try { _updateForeignFlow(ctx||{}, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'CurrencyEngine] foreign:') : console.error('[CurrencyEngine] foreign:', e); }
   }
 
   // ═══════════════════════════════════════════════════════════════════

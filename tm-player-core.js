@@ -316,11 +316,11 @@ function switchGTab(btn,panelId){
   // 切换到官制tab时重绘树状图（panel可能首次渲染时尺寸计算失败）
   if(panelId==='gt-office' && typeof renderOfficeTree==='function') {
     // 延迟确保 display:block 已生效，SVG 尺寸能正确计算
-    setTimeout(function(){ try { renderOfficeTree(); } catch(e) { console.error('[OfficeTree]', e); } }, 30);
+    setTimeout(function(){ try { renderOfficeTree(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'OfficeTree') : console.error('[OfficeTree]', e); } }, 30);
   }
   // 切换到文苑tab时渲染作品列表
   if(panelId==='gt-wenyuan' && typeof renderWenyuan==='function') {
-    setTimeout(function(){ try { renderWenyuan(); } catch(e) { console.error('[Wenyuan]', e); } }, 30);
+    setTimeout(function(){ try { renderWenyuan(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Wenyuan') : console.error('[Wenyuan]', e); } }, 30);
   }
 }
 
@@ -2411,7 +2411,7 @@ function openCharRenwuPage(charName) {
       });
       h += '</div></div>';
     }
-  } catch(_inlawE) { console.warn('[人物志] 姻亲段', _inlawE); }
+  } catch(_inlawE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_inlawE, '人物志] 姻亲段') : console.warn('[人物志] 姻亲段', _inlawE); }
   // 在朝者·从 GM.chars 筛同 family 且有官职者
   try {
     if (ch.family) {
@@ -2434,7 +2434,7 @@ function openCharRenwuPage(charName) {
         h += '</div></div>';
       }
     }
-  } catch(_incE) { console.warn('[人物志] 在朝者段', _incE); }
+  } catch(_incE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_incE, '人物志] 在朝者段') : console.warn('[人物志] 在朝者段', _incE); }
   h += '</div>'; // tab3
 
   // ═══ Tab 4: 仕途 ═══
@@ -2482,7 +2482,7 @@ function openCharRenwuPage(charName) {
       });
       h += '</div></div>';
     }
-  } catch(_beE) { console.warn('[人物志] 大事纪段', _beE); }
+  } catch(_beE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_beE, '人物志] 大事纪段') : console.warn('[人物志] 大事纪段', _beE); }
   // 文事作品集·从 ch.works / ch.culturalWorks 读
   try {
     var _works = [];
@@ -2512,7 +2512,7 @@ function openCharRenwuPage(charName) {
       });
       h += '</div>';
     }
-  } catch(_wkE) { console.warn('[人物志] 作品集段', _wkE); }
+  } catch(_wkE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_wkE, '人物志] 作品集段') : console.warn('[人物志] 作品集段', _wkE); }
   // 颜面+志向
   h += '<div class="rwp-grid-2">';
   if (typeof FaceSystem !== 'undefined' && ch._face !== undefined) {
@@ -2636,7 +2636,7 @@ function openCharRenwuPage(charName) {
         h += '</div>';
       }
     }
-  } catch(_expE) { console.warn('[人物志] 历练段', _expE); }
+  } catch(_expE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_expE, '人物志] 历练段') : console.warn('[人物志] 历练段', _expE); }
   // 近期记忆
   if (ch._memory && ch._memory.length > 0) {
     h += '<div class="rwp-sec"><div class="rwp-sec-title">此 人 记 忆<small>近 5 条</small></div><div>';
@@ -2774,7 +2774,7 @@ function openCharRenwuPage(charName) {
       }
       h += '</div>';
     }
-  } catch(_relE) { console.warn('[人物志] 血缘/门生段', _relE); }
+  } catch(_relE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_relE, '人物志] 血缘/门生段') : console.warn('[人物志] 血缘/门生段', _relE); }
   // 降级文本·PatronNetwork(若存在·作为补充)
   if (typeof PatronNetwork !== 'undefined') {
     var pnt = PatronNetwork.getTextForChar(ch.name);

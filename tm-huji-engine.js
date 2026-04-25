@@ -670,12 +670,12 @@
       init(sc);
     }
     var mr = ctx.monthRatio || 1;
-    try { _tickPopulationDynamics(ctx, mr); } catch(e) { console.error('[huji] dynamics:', e); }
-    try { _tickCorvee(ctx, mr); } catch(e) { console.error('[huji] corvee:', e); }
-    try { _tickLargeCorvee(ctx, mr); } catch(e) { console.error('[huji] largeCorvee:', e); }
-    try { _tickMilitary(ctx, mr); } catch(e) { console.error('[huji] military:', e); }
-    try { _tickMigration(ctx, mr); } catch(e) { console.error('[huji] migration:', e); }
-    try { _tickRegistration(ctx); } catch(e) { console.error('[huji] registration:', e); }
+    try { _tickPopulationDynamics(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'huji] dynamics:') : console.error('[huji] dynamics:', e); }
+    try { _tickCorvee(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'huji] corvee:') : console.error('[huji] corvee:', e); }
+    try { _tickLargeCorvee(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'huji] largeCorvee:') : console.error('[huji] largeCorvee:', e); }
+    try { _tickMilitary(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'huji] military:') : console.error('[huji] military:', e); }
+    try { _tickMigration(ctx, mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'huji] migration:') : console.error('[huji] migration:', e); }
+    try { _tickRegistration(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'huji] registration:') : console.error('[huji] registration:', e); }
   }
 
   // ═══════════════════════════════════════════════════════════════════

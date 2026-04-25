@@ -447,7 +447,7 @@
         G._memorialNotifications.push({ id: memo.id, drafter: memo.drafter, summary: (memo.draftText || '').slice(0, 80) });
         if (global.addEB) global.addEB('奏疏', memo.drafter + '呈奏：' + (memo.draftText || '').slice(0, 30) + '…');
         // 重大奏疏触发抗疏
-        try { _checkAbduction(memo, ctx); } catch(e) { console.error('[edict] abduction:', e); }
+        try { _checkAbduction(memo, ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'edict] abduction:') : console.error('[edict] abduction:', e); }
       }
     });
     // 清理 30 回合前的
@@ -530,7 +530,7 @@
 
   function tick(ctx) {
     ctx = ctx || {};
-    try { _tickPendingMemorials(ctx); } catch(e) { console.error('[edict] memo:', e); }
+    try { _tickPendingMemorials(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'edict] memo:') : console.error('[edict] memo:', e); }
   }
 
   // ═══════════════════════════════════════════════════════════════════

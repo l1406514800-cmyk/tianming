@@ -1125,7 +1125,7 @@ function _peTriggerCascadeNow() {
 
     // 聚合到顶栏变量
     if (typeof IntegrationBridge !== 'undefined' && typeof IntegrationBridge.aggregateRegionsToVariables === 'function') {
-      try { IntegrationBridge.aggregateRegionsToVariables(); } catch(e){ console.warn('[立即结算] aggregate 失败', e); }
+      try { IntegrationBridge.aggregateRegionsToVariables(); } catch(e){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, '立即结算] aggregate 失败') : console.warn('[立即结算] aggregate 失败', e); }
     }
 
     // 刷新顶栏变量

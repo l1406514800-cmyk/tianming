@@ -450,8 +450,8 @@
     var mr = (context && context._monthRatio) ||
              (typeof NeitangEngine.getMonthRatio === 'function' ? NeitangEngine.getMonthRatio() : 1);
 
-    try { processIncidentalSources(mr); } catch(e) { console.error('[neitang-p2] incidental:', e); }
-    try { applyRoyalClanPressure(mr); }   catch(e) { console.error('[neitang-p2] royalClan:', e); }
+    try { processIncidentalSources(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'neitang-p2] incidental:') : console.error('[neitang-p2] incidental:', e); }
+    try { applyRoyalClanPressure(mr); }   catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'neitang-p2] royalClan:') : console.error('[neitang-p2] royalClan:', e); }
 
     // 应用被重定向的税收
     if (GM.neitang._redirectedThisMonth && GM.neitang._redirectedThisMonth > 0) {

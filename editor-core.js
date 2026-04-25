@@ -303,10 +303,10 @@ var scriptData = {
   var editingCharIndex = -1;
 
   function editorInit() {
-    try { loadScript(); } catch(e) { console.error('[editor] loadScript FAILED:', e); }
-    try { initSidebar(); } catch(e) { console.error('[editor] initSidebar FAILED:', e); }
-    try { initSubTabs(); } catch(e) { console.error('[editor] initSubTabs FAILED:', e); }
-    try { renderAll(); } catch(e) { console.error('[editor] renderAll FAILED:', e); }
+    try { loadScript(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'editor] loadScript FAILED:') : console.error('[editor] loadScript FAILED:', e); }
+    try { initSidebar(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'editor] initSidebar FAILED:') : console.error('[editor] initSidebar FAILED:', e); }
+    try { initSubTabs(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'editor] initSubTabs FAILED:') : console.error('[editor] initSubTabs FAILED:', e); }
+    try { renderAll(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'editor] renderAll FAILED:') : console.error('[editor] renderAll FAILED:', e); }
   }
   // 始终等DOMContentLoaded后初始化（确保所有defer脚本已加载完毕）
   if (document.readyState === 'loading') {

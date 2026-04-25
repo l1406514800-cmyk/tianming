@@ -422,7 +422,7 @@
   function tick(ctx) {
     ctx = ctx || {};
     try { _patchTryExecute(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-edict-complete');}catch(_){}}
-    try { _checkMemorialTriggers(ctx); } catch(e) { console.error('[edictC] triggers:', e); }
+    try { _checkMemorialTriggers(ctx); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'edictC] triggers:') : console.error('[edictC] triggers:', e); }
   }
 
   function init() {

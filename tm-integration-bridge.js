@@ -504,7 +504,7 @@
     if (!G) return;
 
     // 0. 人口自然漂移（在汇总之前）
-    try { _naturalPopulationGrowth(); } catch(_e) { console.warn('[bridge] natPopGrowth', _e); }
+    try { _naturalPopulationGrowth(); } catch(_e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_e, 'bridge] natPopGrowth') : console.warn('[bridge] natPopGrowth', _e); }
 
     var topLevel = getTopLevelDivisions(G.adminHierarchy, 'player');
     if (topLevel.length === 0) return;
@@ -677,11 +677,11 @@
   // ═══════════════════════════════════════════════════════════════════
 
   function tick(ctx) {
-    try { aggregateRegionsToVariables(); } catch(e) { console.error('[bridge] aggregate:', e); }
+    try { aggregateRegionsToVariables(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'bridge] aggregate:') : console.error('[bridge] aggregate:', e); }
   }
 
   function init() {
-    try { initializeFromLegacy(); } catch(e) { console.error('[bridge] init:', e); }
+    try { initializeFromLegacy(); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'bridge] init:') : console.error('[bridge] init:', e); }
     // 首次聚合
     try { aggregateRegionsToVariables(); } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-integration-bridge');}catch(_){}}
   }

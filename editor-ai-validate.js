@@ -823,7 +823,7 @@
           var gen = generates[gi];
           if (_gMap[gen.module]) {
             setProgress(50 + gi / generates.length * 20, '生成' + gen.module + '……');
-            try { await _gMap[gen.module](); } catch(eg) { console.warn('[Improve gen]', eg); }
+            try { await _gMap[gen.module](); } catch(eg) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(eg, 'Improve gen') : console.warn('[Improve gen]', eg); }
           }
         }
       }
@@ -1233,7 +1233,7 @@
                 });
               }
             }
-          } catch(e) { console.warn('[Polish modify]', e); }
+          } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Polish modify') : console.warn('[Polish modify]', e); }
         } else if (_genMap[d.module]) {
           // 调用模块专用生成器（丰富完整的AI生成）
           try {

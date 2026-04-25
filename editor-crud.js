@@ -546,7 +546,7 @@
           _parent.parentElement.insertBefore(_ext, _parent.nextSibling);
         }
       }
-    } catch(e) { console.error('[openCharModal] 扩展字段注入失败:', e); }
+    } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'openCharModal] 扩展字段注入失败:') : console.error('[openCharModal] 扩展字段注入失败:', e); }
 
     // 特质选择器 + 个人目标（动态注入到性格字段之后）
     var existingPicker = document.getElementById('trait-picker-wrapper');
