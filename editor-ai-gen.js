@@ -1,6 +1,16 @@
 // ============================================================
-// 剧本编辑器 — AI 生成功能 (AI Generation)
+// 剧本编辑器 — AI 生成功能 (AI Generation) (R141 从 editor.js 拆)
 // 依赖: editor-core.js (scriptData, escHtml, autoSave, etc.)
+// 姊妹: editor-ai-multipass.js (R141 多轮深化生成 / 官制+行政区划)
+//
+// R157 章节导航 (1848 行)：
+//   §1 [L5]    通用 modal/openGenericModal 入口
+//   §2 [L40]   生成后轻量检验·重名检查
+//   §3 [L177]  玩家势力指定字段
+//   §4 [L600]  doAIGenerate 主调度·按 schema 分发
+//   §5 [L900]  playerGen 玩家自定义生成
+//   §6 [L1100] 数据格式提示·worldSettings/rules 特殊处理
+//   §7 [L1500] 生成结果合并·跨数据引用解析
 // ============================================================
   function openGenericModal(title, bodyHTML, onSave) {
     document.getElementById(

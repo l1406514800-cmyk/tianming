@@ -3,6 +3,16 @@
   "entries": [
     {
       "date": "2026-04-25",
+      "module": "R157 中型文件章节导航·6 个 1500-2100 行文件加 TOC",
+      "title": "tm-npc-engine·tm-map-system·editor-ai-gen·tm-endturn-render·tm-chaoyi·tm-endturn-helpers 各加顶部章节导航·维护者一眼定位",
+      "items": [
+        { "what": "R157 给 6 个 1500-2100 行文件加 R147 风格的顶部章节导航 (6-9 段)：tm-npc-engine 2017 行 (性格/心声/事件/互动/长期行动/风闻/墓志) · tm-map-system 1947 行 (init/配色/地形/绘制/编辑器/工具) · editor-ai-gen 1848 行 (modal/检验/玩家字段/doAIGenerate/playerGen/合并) · tm-endturn-render 1803 行 (主入口/财务/宰辅/Delta/起居注/存档/史官) · tm-chaoyi 1665 行 (入口/输入/位置/三模式/分发/AI流式/落地/收尾) · tm-endturn-helpers 1503 行 (职能/哈希/议程/考课/Chancellor/继承/Settlement/NPC意图/成就)", "why": "R147/R150 给最大文件 (10k+ 和 2k+) 加了导航·中型文件 (1.5k-2k) 同样 navigation cost·没 TOC 等于强迫维护者从头读。一次性写 6 个 banner·之后所有 1500+ 文件全部覆盖" },
+        { "what": "审计指标·1500+ 行文件 TOC 覆盖率 13/13 = 100% (此前 7/13 = 54%)。INDEX.md 文件顶部导航表已包含 9 大文件·R157 的 6 个属于次级·暂不全列入 INDEX (避免太散)·只在文件本身有 TOC", "why": "INDEX 是入口·只列必看的 9 个；其余 4 个 (tm-wendui/editor-fullgen/tm-game-loop/tm-ai-change-applier) 已有内置 TOC·浏览者打开即见。INDEX 不爆炸·文件级 TOC 不缺" },
+        { "what": "验证·verify-all 全绿 (180/180·179 ref·0 orphans·207/4 smoke)·所有改动仅注释·零运行时影响", "why": "纯文档" }
+      ]
+    },
+    {
+      "date": "2026-04-25",
       "module": "R156 类2 catch (toast+console) 迁移·保留 toast 仅迁 console",
       "title": "新增 scripts/migrate-catch-toast-console.js·7 处编辑器 AI 多步生成的 catch 迁移·toast UI 反馈不变·console 走 TM.errors",
       "items": [

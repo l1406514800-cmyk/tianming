@@ -5,6 +5,17 @@
 // 包含：findOfficeByFunction, 考课, Chancellor, resolveHeir,
 //       goals, SettlementPipeline注册, NPC意图, 成就, 议程
 // Requires: tm-utils.js, tm-mechanics.js
+//
+// R157 章节导航 (1503 行)：
+//   §1 [L10]   findOfficeByFunction / OfficeFunctionSummary 职能查询
+//   §2 [L80]   _computeOfficeHash 官制哈希 (变更检测)
+//   §3 [L98]   议程模板示例 (内政/军事/民生·完全配置驱动)
+//   §4 [L300]  考课系统 (任期评估·升迁/罢免)
+//   §5 [L500]  Chancellor 宰辅决策器 (建议生成)
+//   §6 [L700]  resolveHeir 继承人解析 (皇位/势力领袖)
+//   §7 [L900]  Settlement 注册表 (按 schedule 调度引擎)
+//   §8 [L1100] NPC 意图 + 太史公生成
+//   §9 [L1300] 成就系统 + 议程执行
 // ============================================================
 
 function findOfficeByFunction(funcKeyword) {

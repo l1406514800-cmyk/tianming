@@ -6,6 +6,15 @@
 //           tm-index-world.js (findCharByName, findFacByName),
 //           tm-game-engine.js (addEB),
 //           tm-dynamic-systems.js (AICache, recordChange, addToIndex)
+//
+// R157 章节导航 (2017 行)：
+//   §1 [L11]   性格系统 (8D 聚合·五常·文化标签·能力短板·压力·心声)
+//   §2 [L125]  NPC 心声注入 (Prompt 上下文·重要 NPC 优先)
+//   §3 [L200]  事件触发条件检查 (复合条件求值)
+//   §4 [L500]  NPC 互动注册表 (interactions 系统)
+//   §5 [L1100] 长期行动追踪 (longTermActions / archs)
+//   §6 [L1500] 风闻录事 (lizhi 案例库)
+//   §7 [L1800] 死亡墓志铭 + 持有清算
 // ============================================================
 
 // ============================================================

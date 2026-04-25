@@ -4,6 +4,17 @@
 // EndTurn 渲染模块（从 tm-endturn.js 拆分）
 // 包含：_endTurn_render, Delta面板, 角色高亮, 信息源渲染
 // Requires: tm-endturn.js (must load before this file)
+//
+// R157 章节导航 (1803 行)：
+//   §1 [L9]    主渲染 _endTurn_render 入口·参数 17 个
+//   §2 [L20]   死亡角色叙事过滤·年号系统
+//   §3 [L56]   财务报表 HTML 生成 (收入/支出/净变化)
+//   §4 [L103]  宰辅进言渲染 (区分忠臣/佞臣建议)
+//   §5 [L140]  主角状态区·朝野反应
+//   §6 [L500]  Delta 面板生成 (按 turnChanges)
+//   §7 [L900]  起居注/编年史/时政记面板
+//   §8 [L1300] 自动存档触发 + meta 写入
+//   §9 [L1600] 角色高亮工具 + 史官弹窗
 // ============================================================
 
 function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts, xinglu, oldVars, changeReportHtml, queueResult, suggestions, tyrantResult, turnSummary, shiluText, szjTitle, szjSummary, personnelChanges, hourenXishuo) {

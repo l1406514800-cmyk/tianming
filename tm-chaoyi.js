@@ -4,7 +4,17 @@
 //  tm-chaoyi.js — 朝议系统（R112 从 tm-chaoyi-keju.js L1054-end 拆出）
 // Requires: tm-utils.js (GameHooks, _$, callAI, escHtml),
 //           tm-index-world.js (findCharByName)
-// 姊妹文件：tm-keju.js (科举)
+// 姊妹文件：tm-keju.js (科举) · tm-chaoyi-v2.js (R129 三会议 v2 流式版)
+//
+// R157 章节导航 (1665 行)：
+//   §1 [L10]   openChaoyi/closeChaoyi 入口 + 频率限制
+//   §2 [L47]   _cyShowInputRow / _cySubmitPlayerLine 玩家输入
+//   §3 [L73]   _getPlayerLocation / _isAtCapital 位置判定
+//   §4 [L90]   showChaoyiSetup 三模式选择 (廷议/常朝/御前)
+//   §5 [L150]  _cy_pickMode 模式分发 + 议程构造
+//   §6 [L500]  AI 流式发言生成 + 玩家插言响应
+//   §7 [L1000] 议程结果落地 → GM 状态变更
+//   §8 [L1400] 收尾/史记钩子/post-turn 触发
 // ============================================================
 
 function openChaoyi(){
