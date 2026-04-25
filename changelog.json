@@ -3,6 +3,17 @@
   "entries": [
     {
       "date": "2026-04-25",
+      "module": "R153 localStorage 读取安全·清零未 try 调用",
+      "title": "手工包 8 处读 + 1 处嵌套·lint 启发式 lookback 6→30 行·localStorage 未 try 28→0 (R152+R153 合计 -100%)",
+      "items": [
+        { "what": "R153 手工包 7 处 localStorage 读取 (var-default 模式·`var x = null; try { x = localStorage.getItem(...); } catch(_){}`)：editor-fullgen.js:1203 / map-editor-smart.js:1900+1988 (const 改 let) / tm-audio-theme.js 4 处 (init audio/theme/font/animation)", "why": "private 模式下 getItem 抛 SecurityError·之前会让游戏启动卡死。读取转 try/catch + null 兜底比写入复杂 (写入只需包·读取需解耦 var 声明)·所以 R152 留给 R153 单独做" },
+        { "what": "R153 包 tm-player-settings.js:151 onclick HTML 属性内的 setItem+removeItem (放进字符串里的 JS·包成 try/catch + 后续 toast 不受影响)。包 tm-utils.js:872 嵌套 try 内的 lite 读取 (防外层 catch 误吞·lint 嵌套 try/catch 检测有缺陷)", "why": "onclick 内的 JS 是真异常源·点击时 quota 满直接崩按钮 handler。tm-utils 那个虽在外层 try 里·但内层失败被外层 catch 吞掉时·后续 console.warn 也吞·所以加内层 try 显式静默" },
+        { "what": "R153 改 lint-localstorage.js·把 try{} 探测的 lookback 从 6 行扩到 30 行 (函数级 try 通常 10-30 行内·6 行误判太多)。同行已含 try{}catch 的也跳过", "why": "R152 跑出 12 待迁·R153 包 8 处后还剩 4 个·全是 lint 误报 (lookback 不够看到外层 try)。改 30 行后误报清零·真实剩 0" },
+        { "what": "审计指标·writes 未 try 18 → 0·reads 未 try 10 → 0·总计 28 → 0 (-100%·R152+R153 合计)。验证全绿 (180/180·179 ref·0 orphans·207/4 smoke)", "why": "整个 localStorage 调用面 100% 包好·浏览器 private 模式 / quota 满 / cookie disabled 三种状态都不再崩游戏" }
+      ]
+    },
+    {
+      "date": "2026-04-25",
       "module": "R152 localStorage 写入安全·防 quota/private 崩溃",
       "title": "新增 scripts/lint-localstorage.js + wrap-localstorage-writes.js·审计 28 处裸用·自动包裹 16 处写入·写入未 try 从 18 → 2 (-89%)",
       "items": [

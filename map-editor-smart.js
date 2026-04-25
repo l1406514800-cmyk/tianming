@@ -1897,7 +1897,9 @@ async function aiGenerateProvinceData() {
         return;
     }
 
-    const apiKey = localStorage.getItem('apiKey');
+    // R153 包 try·private 模式不崩
+    let apiKey = null;
+    try { apiKey = localStorage.getItem('apiKey'); } catch(_){}
     if (!apiKey) {
         alert('请先在剧本编辑器中设置 API Key！');
         return;
@@ -1985,7 +1987,9 @@ async function aiGenerateProvinceData() {
 }
 
 async function aiGenerateCustomFields() {
-    const apiKey = localStorage.getItem('apiKey');
+    // R153 包 try
+    let apiKey = null;
+    try { apiKey = localStorage.getItem('apiKey'); } catch(_){}
     if (!apiKey) {
         alert('请先在剧本编辑器中设置 API Key！');
         return;

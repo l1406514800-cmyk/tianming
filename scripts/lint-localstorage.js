@@ -27,9 +27,11 @@ for (const f of walk(ROOT)) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     if (!/localStorage\.(getItem|setItem|removeItem)/.test(line)) continue;
-    // 启发式：前 6 行内有 try { 而该行之前没有匹配的 catch
+    // 同行已有 try {...} catch — 已包好
+    if (/\btry\s*\{/.test(line) && /\}\s*catch/.test(line)) continue;
+    // 启发式：前 30 行内有 try { 而该行之前没有匹配的 catch (R153 lookback 从 6 → 30 减少误报)
     let inTry = false;
-    for (let j = Math.max(0, i - 6); j <= i; j++) {
+    for (let j = Math.max(0, i - 30); j <= i; j++) {
       if (/\btry\s*\{/.test(lines[j])) inTry = true;
       if (/\}\s*catch/.test(lines[j]) && j < i) inTry = false;
     }

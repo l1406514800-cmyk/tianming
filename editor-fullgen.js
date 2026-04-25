@@ -1199,8 +1199,9 @@
   }
 
   function loadScript() {
-    // 层1: localStorage（同步，立即渲染）
-    var saved = localStorage.getItem('tianming_script');
+    // 层1: localStorage（同步，立即渲染） (R153 包 try)
+    var saved = null;
+    try { saved = localStorage.getItem('tianming_script'); } catch(_){}
     if (saved) {
       try {
         var d = JSON.parse(saved);

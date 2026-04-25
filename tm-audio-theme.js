@@ -82,8 +82,9 @@ var AudioSystem = {
 
   // 初始化
   init: function() {
-    // 从本地存储加载设置
-    var savedSettings = localStorage.getItem('tianming_audio_settings');
+    // 从本地存储加载设置 (R153 包 try·private 模式不崩)
+    var savedSettings = null;
+    try { savedSettings = localStorage.getItem('tianming_audio_settings'); } catch(_){}
     if (savedSettings) {
       try {
         var settings = JSON.parse(savedSettings);
@@ -346,8 +347,9 @@ var ThemeSystem = {
 
   // 初始化
   init: function() {
-    // 从本地存储加载主题
-    var savedTheme = localStorage.getItem('tianming_theme');
+    // 从本地存储加载主题 (R153 包 try)
+    var savedTheme = null;
+    try { savedTheme = localStorage.getItem('tianming_theme'); } catch(_){}
     if (savedTheme && this.themes[savedTheme]) {
       this.currentTheme = savedTheme;
     }
@@ -475,14 +477,16 @@ function toggleAnimation() {
 GameHooks.on('startGame:after', function() {
   ThemeSystem.init();
 
-  // 恢复字体大小
-  var savedFontSize = localStorage.getItem('tianming_font_size');
+  // 恢复字体大小 (R153 包 try)
+  var savedFontSize = null;
+  try { savedFontSize = localStorage.getItem('tianming_font_size'); } catch(_){}
   if (savedFontSize) {
     document.documentElement.style.fontSize = savedFontSize + 'px';
   }
 
-  // 恢复动画设置
-  var savedAnimation = localStorage.getItem('tianming_animation');
+  // 恢复动画设置 (R153 包 try)
+  var savedAnimation = null;
+  try { savedAnimation = localStorage.getItem('tianming_animation'); } catch(_){}
   if (savedAnimation === 'false') {
     document.documentElement.style.setProperty('--transition-speed', '0s');
   }

@@ -868,8 +868,9 @@ function saveP(){
         });
       }
     } else {
-      // 新格式：从lite骨架恢复API配置
-      var lite = localStorage.getItem('tm_P_lite');
+      // 新格式：从lite骨架恢复API配置 (R153 包内 try·防嵌套被外层 catch 误吞)
+      var lite = null;
+      try { lite = localStorage.getItem('tm_P_lite'); } catch(_){}
       if (lite) {
         var liteData = JSON.parse(lite);
         if (liteData.ai) P.ai = liteData.ai;
