@@ -226,7 +226,7 @@ function openEditorHtml(scnId){
     });
     P._activeScnName=meta.scnName||scn.name;
     // 不删除localStorage中的剧本数据——保留以便下次直接打开编辑器时可恢复
-    localStorage.removeItem('tianming_editor_meta');
+    try { localStorage.removeItem('tianming_editor_meta'); } catch(_){}
     // 注意：保留 tianming_script 以支持直接打开editor.html
     // 持久化P（确保浏览器版本也能保存剧本列表）
     if (typeof saveP === 'function') saveP();

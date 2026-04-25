@@ -460,7 +460,7 @@ function loadImage() {
 }
 
 function saveMap() {
-    localStorage.setItem('map-editor-data', JSON.stringify(mapData));
+    try { localStorage.setItem('map-editor-data', JSON.stringify(mapData)); } catch(_){}
     updateStatus('已保存到浏览器本地存储');
 }
 

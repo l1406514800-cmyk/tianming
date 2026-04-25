@@ -540,9 +540,9 @@ function _sSaveImgAPI() {
   var iu = (_$('s-img-url')||{}).value || '';
   var im = (_$('s-img-model')||{}).value || 'dall-e-3';
   if (ik || iu) {
-    localStorage.setItem('tm_api_image', JSON.stringify({key:ik.trim(), url:iu.trim(), model:im.trim()}));
+    try { localStorage.setItem('tm_api_image', JSON.stringify({key:ik.trim(), url:iu.trim(), model:im.trim()})); } catch(_){}
   } else {
-    localStorage.removeItem('tm_api_image');
+    try { localStorage.removeItem('tm_api_image'); } catch(_){}
   }
   toast('\u751F\u56FEAPI\u5DF2\u4FDD\u5B58');
 }

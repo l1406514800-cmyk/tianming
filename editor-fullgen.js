@@ -1037,7 +1037,7 @@
       // 同时更新 meta 中的 scnId 以保持一致
       if (meta && !meta.scnId) {
         meta.scnId = scriptData.id;
-        localStorage.setItem('tianming_editor_meta', JSON.stringify(meta));
+        try { localStorage.setItem('tianming_editor_meta', JSON.stringify(meta)); } catch(_){}
       }
       window.tianming.saveScenario(fname, scriptData).then(function(r) {
         if (r && r.success) { showToast('\u5df2\u4fdd\u5b58\u5230\u5267\u672c\u6587\u4ef6\u5939'); }
@@ -1229,7 +1229,7 @@
           if (r && r.success && r.data) {
             _mergeAndRenderScriptData(r.data);
             // 回写到localStorage
-            localStorage.setItem('tianming_script', JSON.stringify(scriptData));
+            try { localStorage.setItem('tianming_script', JSON.stringify(scriptData)); } catch(_){}
             console.log('[Load] 已从磁盘恢复剧本: ' + scriptData.name);
           }
         }).catch(function(e) {
@@ -1244,9 +1244,9 @@
             return window.tianming.loadScenario(latest.name).then(function(r) {
               if (r && r.success && r.data) {
                 _mergeAndRenderScriptData(r.data);
-                localStorage.setItem('tianming_script', JSON.stringify(scriptData));
+                try { localStorage.setItem('tianming_script', JSON.stringify(scriptData)); } catch(_){}
                 // 保存meta以便下次使用
-                localStorage.setItem('tianming_editor_meta', JSON.stringify({ scnName: latest.name, scnId: scriptData.id || '' }));
+                try { localStorage.setItem('tianming_editor_meta', JSON.stringify({ scnName: latest.name, scnId: scriptData.id || '' })); } catch(_){}
               }
             });
           }
@@ -1958,7 +1958,7 @@
     var key = document.getElementById('apiKey') ? document.getElementById('apiKey').value.trim() : '';
     var url = document.getElementById('apiUrl') ? document.getElementById('apiUrl').value.trim() : '';
     var model = document.getElementById('apiModel') ? document.getElementById('apiModel').value.trim() : '';
-    localStorage.setItem('tm_api', JSON.stringify({key:key, url:url, model:model}));
+    try { localStorage.setItem('tm_api', JSON.stringify({key:key, url:url, model:model})); } catch(_){}
     showToast('API设置已保存');
   }
 
@@ -1981,9 +1981,9 @@
     var url = (document.getElementById('imgApiUrl') || {}).value || '';
     var model = (document.getElementById('imgApiModel') || {}).value || '';
     if (key || url) {
-      localStorage.setItem('tm_api_image', JSON.stringify({key: key.trim(), url: url.trim(), model: model.trim() || 'dall-e-3'}));
+      try { localStorage.setItem('tm_api_image', JSON.stringify({key: key.trim(), url: url.trim(), model: model.trim() || 'dall-e-3'})); } catch(_){}
     } else {
-      localStorage.removeItem('tm_api_image');
+      try { localStorage.removeItem('tm_api_image'); } catch(_){}
     }
     showToast('\u751F\u56FEAPI\u8BBE\u7F6E\u5DF2\u4FDD\u5B58');
   }

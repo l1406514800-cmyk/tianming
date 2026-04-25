@@ -3,6 +3,17 @@
   "entries": [
     {
       "date": "2026-04-25",
+      "module": "R152 localStorage 写入安全·防 quota/private 崩溃",
+      "title": "新增 scripts/lint-localstorage.js + wrap-localstorage-writes.js·审计 28 处裸用·自动包裹 16 处写入·写入未 try 从 18 → 2 (-89%)",
+      "items": [
+        { "what": "R152a 新增 scripts/lint-localstorage.js·审计 localStorage.{getItem/setItem/removeItem} 是否在 try 内 (启发式·检前 6 行)。首跑发现 28 处裸用 (18 写 + 10 读)", "why": "private 模式 / quota 满 / cookie disabled 时 localStorage 抛 SecurityError。一处未包就崩整个游戏。R136-R139 加 ref-check/find-orphans 后·此类静默崩溃路径还没 lint" },
+        { "what": "R152b 新增 scripts/wrap-localstorage-writes.js·把单语句 `localStorage.setItem(...);` 自动改成 `try { localStorage.setItem(...); } catch(_){}`。匹配缩进保留·跳过已在 try 内的。改写 16 处 / 6 文件 (editor-fullgen 7·tm-audio-theme 4·tm-patches 2·map-region-editor/tm-office-editor/tm-save-manager 各 1)。剩 2 写入是复杂多行表达式·留人工", "why": "quota 满时 setItem 抛错·之前主存档失败用户根本看不到提示·游戏继续假装一切正常。包后即使写失败·游戏继续运行不崩" },
+        { "what": "R152c 读取未 try 的 10 处暂不动·包读需 var-default 解耦 (`var x; try { x = localStorage.getItem(); } catch(_){ x = null; }`)·语义转换比写入复杂·下波 R 处理或人工", "why": "读取兜底涉及业务语义·`localStorage.getItem(...) || '{}'` 的 || 短路在抛错时不触发·得改成 try/catch + null 兜底·每处都得读上下文·不能纯regex" },
+        { "what": "审计指标·写入未 try 18 → 2 (-89%)·读取保持 10·总计 28 → 12 (-57%)。验证全绿 (180/180·179 ref·0 orphans·207/4 smoke)", "why": "尾部 12 处递减回报·主要崩溃路径已堵" }
+      ]
+    },
+    {
+      "date": "2026-04-25",
       "module": "R151 catch console 二代迁移·支持动态拼接标签",
       "title": "新增 scripts/migrate-catch-console-v2.js 处理 R145 strict regex 漏掉的同行复合 try-catch + 动态拼接标签场景·14 处自动迁移到 TM.errors·待迁移从 64 降到 50",
       "items": [

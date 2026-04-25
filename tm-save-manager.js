@@ -21,7 +21,7 @@ function _updateSaveIndex(slotId, meta) {
     } else {
       delete idx['slot_' + slotId];
     }
-    localStorage.setItem('tm_save_index', JSON.stringify(idx));
+    try { localStorage.setItem('tm_save_index', JSON.stringify(idx)); } catch(_){}
   } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-dynamic-systems');}catch(_){}}
 }
 function _getSaveIndex() {

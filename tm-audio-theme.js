@@ -218,7 +218,7 @@ var AudioSystem = {
       enabled: this.enabled,
       bgmEnabled: this.bgmEnabled
     };
-    localStorage.setItem('tianming_audio_settings', JSON.stringify(settings));
+    try { localStorage.setItem('tianming_audio_settings', JSON.stringify(settings)); } catch(_){}
   }
 };
 
@@ -361,7 +361,7 @@ var ThemeSystem = {
     } else {
       document.documentElement.setAttribute('data-theme', this.currentTheme);
     }
-    localStorage.setItem('tianming_theme', this.currentTheme);
+    try { localStorage.setItem('tianming_theme', this.currentTheme); } catch(_){}
   },
 
   // 切换主题
@@ -457,7 +457,7 @@ function adjustFontSize(delta) {
   }
 
   root.style.fontSize = newSize + 'px';
-  localStorage.setItem('tianming_font_size', newSize);
+  try { localStorage.setItem('tianming_font_size', newSize); } catch(_){}
   AudioSystem.playSfx('click');
 }
 
@@ -468,7 +468,7 @@ function toggleAnimation() {
   } else {
     document.documentElement.style.setProperty('--transition-speed', '0s');
   }
-  localStorage.setItem('tianming_animation', enabled);
+  try { localStorage.setItem('tianming_animation', enabled); } catch(_){}
 }
 
 // 在游戏启动时初始化主题系统
