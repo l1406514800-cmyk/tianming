@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-huji-deep-fill.js — 户口系统深化补完（模块 E + A6-A8 + B3-B8 + C2-C10 + D2-D6 + F30）
  *

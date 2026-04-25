@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-chronicle-tracker.js —— 长期事势追踪器
  *

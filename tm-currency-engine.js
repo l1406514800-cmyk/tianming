@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-currency-engine.js — 货币系统引擎
  *

@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-e-patches.js — E 阶段正反馈回路 + UI 残项
  *

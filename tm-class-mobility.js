@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-f3-depth.js — F 阶段 ③：阶层流动多步骤 + B 历史细化
  *

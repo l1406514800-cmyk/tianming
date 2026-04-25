@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /*
  * tm-char-arcs.js
  * 人物情节弧推进·后台 idle 异步调度

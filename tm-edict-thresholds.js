@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-g3-edict-finalize.js — G 阶段 ③：诏令联动终结
  *

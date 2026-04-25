@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-c-patches.js — C 阶段补丁（制度+环境）
  *

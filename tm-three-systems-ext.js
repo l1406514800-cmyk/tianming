@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /*
  * tm-three-systems-ext.js
  * 三大系统升级·波1 数据模型补全

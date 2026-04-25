@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-endturn-ai-helpers.js — endTurn AI 预演辅助
 //

@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-env-recovery-fill.js — 环境恢复政策 + §9 联动补完
  *

@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-indices.js — 索引 & WorldHelper (R123 从 tm-index-world.js L1-863 拆出)
 // 姊妹: tm-world.js (L864-end·特质/AI 上下文/奏疏/官制/编年)

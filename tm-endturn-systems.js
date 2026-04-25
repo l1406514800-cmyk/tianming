@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-endturn-systems.js — endTurn §E 系统更新调度器
 //

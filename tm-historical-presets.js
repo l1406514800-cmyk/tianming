@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-historical-presets.js — 6 文档第二期补完
  *

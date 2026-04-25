@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-office-panel.js — 官制选任+编年 (R124 从 tm-world.js L6550-end 拆出)
 // 姊妹: tm-world.js (AI 上下文) + tm-memorials.js (奏疏)

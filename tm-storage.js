@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // IndexedDB 存储层 — 替代 localStorage 的 5MB 限制
 // 两个 store：saves（游戏存档）+ projects（剧本项目P）

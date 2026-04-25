@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-save-manager.js — 存档管理系统 UI (R134 从 tm-dynamic-systems.js L1038-1788 拆出)
 // 姊妹: tm-storage.js (IndexedDB 后端) + TM.Storage 门面 (tm-namespaces.js)

@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-f6-economy-deep.js — F 阶段 ⑥：财政货币央地深化
  *

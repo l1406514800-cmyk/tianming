@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-economy-gap-fill.js — 经济系统补完模块
  *

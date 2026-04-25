@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-b-fills.js — B 阶段户口+军事+人口深化
  *

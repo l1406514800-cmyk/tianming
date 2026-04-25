@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-g2-huji-complete.js — G 阶段 ②：户口全剩余缺口
  *

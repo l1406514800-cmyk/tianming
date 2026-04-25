@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /* ============================================================
  * tm-ai-schema.js — AI 推演输出的权威 Schema（单一真源）
  *

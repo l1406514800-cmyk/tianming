@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 //  tm-patches.js — 跨领域补丁合集（2,186 行·"大杂烩"）
 // Requires: tm-data-model.js, tm-utils.js, tm-mechanics.js,

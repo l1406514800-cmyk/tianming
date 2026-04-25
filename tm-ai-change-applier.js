@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-ai-change-applier.js — AI 推演变化应用管道
  *

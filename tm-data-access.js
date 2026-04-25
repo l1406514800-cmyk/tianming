@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /* ============================================================
  * tm-data-access.js — 统一数据访问层（Strangler Pattern 桥接层）
  *

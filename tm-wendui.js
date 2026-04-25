@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-wendui.js — 问对系统 (R132 从 tm-memorials.js L867-3057 拆出)
 // 姊妹: tm-memorials.js (真·奏疏) + tm-office-runtime.js (官员表 UI)

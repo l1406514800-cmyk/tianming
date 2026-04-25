@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * 角色自动生成系统 (v5·统一接口)
  *

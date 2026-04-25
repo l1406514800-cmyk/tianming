@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /*
  * tm-three-systems-ui.js
  * 三大系统升级·波4 UI 面板 + 结构化诏书工具箱

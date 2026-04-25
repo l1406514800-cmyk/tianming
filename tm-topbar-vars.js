@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ═══════════════════════════════════════════════════════════════
 // 顶栏 · 七官方变量显示 + 悬停详情 + 全部变量模态
 // 依赖：GM.guoku / GM.neitang / GM.hukou / GM.corruption / GM.minxin / GM.huangquan / GM.huangwei

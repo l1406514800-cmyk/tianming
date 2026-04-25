@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-g1-authority-ui.js — G 阶段 ①：权威运行时 UI + 朝代预设 + 历史案例库
  *

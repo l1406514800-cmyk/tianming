@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-char-full-schema.js — 角色完整字段 Schema
  *

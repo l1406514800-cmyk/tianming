@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-help-social.js — 教程/帮助+关系/面子/迁移 (R134 从 tm-dynamic-systems.js L1789-end 拆出)
 // 姊妹: tm-dynamic-systems.js + tm-save-manager.js

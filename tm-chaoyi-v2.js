@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-chaoyi-v2.js — 朝议 v2·常朝/廷议/御前新版 (R129 从 tm-keju-runtime.js L3198-end 拆出)
 //

@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /* ============================================================
  * tm-onboard-tools.js — Onboarding 演示 + 剧本校验 + 版本查询
  *

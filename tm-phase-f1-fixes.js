@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-f1-fixes.js — F 阶段 ①：快速修正
  *

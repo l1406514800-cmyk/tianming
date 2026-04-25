@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /* ============================================================
  * tm-errors-panel.js — 错误日志 UI 面板
  *

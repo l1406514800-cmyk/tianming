@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-chaoyi-misc.js — 朝议附带杂务 (R125 从 tm-chaoyi.js L1664-2781 拆出)
 //

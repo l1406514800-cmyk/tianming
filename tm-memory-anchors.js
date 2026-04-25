@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-memory-anchors.js — 记忆锚点系统（借鉴 HistorySimAI）
 //

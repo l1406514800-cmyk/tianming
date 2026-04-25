@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-authority-complete.js — 皇威/皇权/民心 全补完（P0+P1+P2）
  *

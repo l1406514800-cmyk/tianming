@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-fiscal-cascade.js — 地方→中央 税收级联自然结算（三账版）
  *

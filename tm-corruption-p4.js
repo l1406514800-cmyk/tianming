@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ═══════════════════════════════════════════════════════════════
 // 腐败系统 · P4 完善模块
 // 依赖：tm-corruption-engine.js + tm-corruption-p2.js

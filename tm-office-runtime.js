@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-office-runtime.js — 官员表游戏内 UI (R132 从 tm-memorials.js L3058-end 拆出)
 // 姊妹: tm-memorials.js + tm-wendui.js + tm-office-panel.js + tm-office-editor.js

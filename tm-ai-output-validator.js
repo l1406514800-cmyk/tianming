@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /* ============================================================
  * tm-ai-output-validator.js — AI 推演输出校验器
  *

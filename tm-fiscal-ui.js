@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-g4-economy-finalize.js — G 阶段 ④：经济终结补完
  *

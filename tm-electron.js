@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-electron.js — Electron 桌面端存档支持 (R126 从 tm-chaoyi-misc.js L174-776 拆出)
 //

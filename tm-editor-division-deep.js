@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-editor-division-deep.js — 行政区划编辑器深化字段扩展
  *

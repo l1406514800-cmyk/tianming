@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-court-meter.js — 勤政/怠政 朝会追踪 + post-turn 朝会决策
 //

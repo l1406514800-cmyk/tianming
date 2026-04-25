@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-integration-bridge.js — 新旧系统真融合桥接
  *

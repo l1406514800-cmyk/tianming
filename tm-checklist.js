@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /* ============================================================
  * tm-checklist.js — 合并审计工作流（preMerge/postMerge 一键操作）
  *

@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 //  tm-keju.js — 科举系统（R112 从 tm-chaoyi-keju.js L1-1053 拆出）
 // Requires: tm-utils.js (GameHooks, _$, callAI, escHtml),

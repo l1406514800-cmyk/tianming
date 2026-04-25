@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-f5-ui-ai.js — F 阶段 ⑤：玩家 UI + AI 赋能
  *

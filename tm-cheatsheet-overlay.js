@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /* ============================================================
  * tm-cheatsheet-overlay.js — 游戏内速查卡浮层（Ctrl+Shift+/）
  *

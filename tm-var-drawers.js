@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-var-drawers.js — 户口/民心/皇权/皇威 侧边抽屉（纯数据展示）
  *

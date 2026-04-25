@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-f4-authority-deep.js — F 阶段 ④：权威民心腐败深化
  *

@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-env-capacity-engine.js — 环境承载力引擎
  *

@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-keju-runtime.js — 科举考试运行时 (R125 从 tm-chaoyi.js L2782-end 拆出)
 // 历史：此部分原在 tm-audio-theme.js·后迁入 tm-chaoyi-keju.js·R112 拆时错误留在 chaoyi 侧

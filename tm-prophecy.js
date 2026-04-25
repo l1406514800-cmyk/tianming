@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-d-patches.js — D 阶段补丁（权威系统深化）
  *

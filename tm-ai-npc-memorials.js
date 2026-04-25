@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-ai-npc-memorials.js v3 —— 朝堂场景描述器（仅构造 AI 上下文，不硬触发）
  *

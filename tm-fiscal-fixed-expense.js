@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-fiscal-fixed-expense.js — 固定支出自然结算（俸禄 / 军饷 / 宫廷）
  *

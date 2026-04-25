@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // ChangeQueue System - 变动队列系统
 // Requires: tm-data-model.js (P, GM), tm-utils.js (_dbg, deepClone),

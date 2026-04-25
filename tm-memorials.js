@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-memorials.js — 奏疏系统 (R124 从 tm-world.js L1564-6549 拆出)
 // 姊妹: tm-world.js (AI 上下文) + tm-office-panel.js (官制+编年)

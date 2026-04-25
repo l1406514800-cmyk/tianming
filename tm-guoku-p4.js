@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ═══════════════════════════════════════════════════════════════
 // 帑廪 P1 补完模块
 // 依赖：tm-guoku-engine.js + tm-guoku-p2.js

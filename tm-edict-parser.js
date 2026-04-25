@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-edict-parser.js — 诏令识别与制度演化
  *

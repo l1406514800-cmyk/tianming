@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // 天命 中国风SVG图标系统
 // 25个手绘风格图标，统一viewBox 24x24, stroke=currentColor

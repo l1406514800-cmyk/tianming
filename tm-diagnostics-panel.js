@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /* ============================================================
  * tm-diagnostics-panel.js — 统一诊断仪表板（Ctrl+Shift+D）
  *

@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 //  tm-chaoyi.js — 朝议系统（R112 从 tm-chaoyi-keju.js L1054-end 拆出）
 // Requires: tm-utils.js (GameHooks, _$, callAI, escHtml),

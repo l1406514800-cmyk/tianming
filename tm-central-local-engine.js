@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-central-local-engine.js — 央地财政分层引擎
  *

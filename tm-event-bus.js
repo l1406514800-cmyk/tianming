@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-f2-linkage.js — F 阶段 ②：事件总线 + §G 联动
  *

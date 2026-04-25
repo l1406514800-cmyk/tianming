@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ═══ 天命·更新公告弹窗 ═══
 // 进入游戏首屏时若有未读更新，弹出邸报；主菜单可随时重开
 (function() {

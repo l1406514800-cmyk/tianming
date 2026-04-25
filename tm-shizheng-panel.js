@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 // ============================================================
 // tm-shizheng-panel.js — 御案时政+独召密问 (R137 从 tm-shell-extras.js L1088-end 拆出)
 // 姊妹: tm-shell-extras.js (抽屉 shell UI 注入)

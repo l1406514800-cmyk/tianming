@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-authority-engines.js — 皇威/皇权/民心三系统 + 变量联动
  *

@@ -1,3 +1,5 @@
+// @ts-check
+/// <reference path="types.d.ts" />
 /**
  * tm-phase-h-final.js — H 阶段终极补丁（补完所有残余缺口）
  *
