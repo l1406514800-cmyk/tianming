@@ -41,10 +41,8 @@
     return d; // 已是 YYYY-MM-DD 或 YYYY-MM-DD HH:mm
   }
 
-  function _esc(s) {
-    s = s == null ? '' : String(s);
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
+  // R143·委托给 tm-utils.js:569 的 escHtml·有 fallback 防加载时序问题
+  function _esc(s) { return (typeof escHtml === 'function') ? escHtml(s) : (s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')); }
 
   function _renderEntries(entries, unreadCount) {
     if (!entries || !entries.length) {

@@ -25,11 +25,8 @@
   var isOpen = false;
   var autoRefreshTimer = null;
 
-  function _esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function(m){
-      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m];
-    });
-  }
+  // R143·委托给 tm-utils.js:569 的 escHtml
+  function _esc(s) { return (typeof escHtml === 'function') ? escHtml(s) : String(s==null?'':s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];}); }
 
   function _fmt(n, d) {
     if (typeof n !== 'number') return '—';

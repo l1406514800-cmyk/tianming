@@ -122,7 +122,7 @@
     }
   }
 
-  function _escapeHtml(s) { return (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function _escapeHtml(s) { return (typeof escHtml === 'function') ? escHtml(s) : (s||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   // ═══════════════════════════════════════════════════════════════════
   //  C2 · 扩朱批 7 选项 + AI 草稿质量

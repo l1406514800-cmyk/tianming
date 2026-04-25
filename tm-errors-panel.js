@@ -20,11 +20,8 @@
   var panelId = 'tm-errors-panel';
   var isOpen = false;
 
-  function _esc(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-      .replace(/"/g,'&quot;');
-  }
+  // R143·委托给 tm-utils.js:569 的 escHtml
+  function _esc(s) { return (typeof escHtml === 'function') ? escHtml(s) : String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
   function _fmtTime(ts) {
     if (!ts) return '—';

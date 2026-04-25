@@ -18,11 +18,8 @@
   var overlayId = 'tm-cheatsheet-overlay';
   var isOpen = false;
 
-  function _esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function(m){
-      return { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[m];
-    });
-  }
+  // R143·委托给 tm-utils.js:569 的 escHtml
+  function _esc(s) { return (typeof escHtml === 'function') ? escHtml(s) : String(s==null?'':s).replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];}); }
 
   function _codeBlock(code) {
     return '<pre style="background:#0a0806;border:1px solid #2a2010;border-radius:3px;padding:8px 10px;font-size:11px;color:#d9c77a;margin:4px 0;overflow-x:auto;line-height:1.5">' + _esc(code) + '</pre>';

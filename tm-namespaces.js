@@ -194,28 +194,12 @@
   // ─── TM.ChangeQueue（引擎型·透传 window.ChangeQueue） ───
   TM.ChangeQueue = _buildEngineFacade('ChangeQueue', 'ChangeQueue');
 
-  // ─── TM.register (R118·命名空间闸门) ───
-  // 模块主动登记"我要在 window 上放一个 X"·记账用·未来可加拦截
-  // 用法：TM.register('ModuleName', 'functionName', fn) 或 TM.register('ModuleName', dict)
-  TM._registry = TM._registry || { byModule: {}, byName: {} };
-  TM.register = function(moduleName, nameOrDict, fn) {
-    if (!moduleName) return;
-    TM._registry.byModule[moduleName] = TM._registry.byModule[moduleName] || [];
-    function _one(name, f) {
-      TM._registry.byModule[moduleName].push(name);
-      TM._registry.byName[name] = { module: moduleName, t: Date.now() };
-      if (typeof f === 'function' && typeof window !== 'undefined') window[name] = f;
-    }
-    if (typeof nameOrDict === 'string') {
-      _one(nameOrDict, fn);
-    } else if (nameOrDict && typeof nameOrDict === 'object') {
-      Object.keys(nameOrDict).forEach(function(k){ _one(k, nameOrDict[k]); });
-    }
-  };
-  TM.registered = function(name) { return TM._registry.byName[name] || null; };
-  TM.registeredModules = function() { return Object.keys(TM._registry.byModule); };
+  // ─── TM.register (R118·命名空间闸门) — R143 删除 ───
+  // 历史：R118 设计为"主动登记 window 全局"·但实际 0 业务代码使用·只在自测用过
+  // R143 决定：未启用的设计不留死信。如未来需要重启·可从 git history 取回。
+  // (R118 旧 API: TM.register/registered/registeredModules/registryReport)
   TM.registryReport = function() {
-    var by = TM._registry.byModule;
+    var by = (TM._registry && TM._registry.byModule) || {};
     return Object.keys(by).sort().map(function(m){
       return { module: m, count: by[m].length, names: by[m].slice() };
     });

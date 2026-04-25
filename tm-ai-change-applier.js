@@ -1848,9 +1848,8 @@
     if (abs >= 1e4) return (n/1e4).toFixed(1) + '万';
     return Math.round(n).toLocaleString();
   }
-  function _esc(s) {
-    return (s == null ? '' : String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
+  // R143·委托给 tm-utils.js:569 的 escHtml
+  function _esc(s) { return (typeof escHtml === 'function') ? escHtml(s) : (s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')); }
 
   // ═══════════════════════════════════════════════════════════════════
   //  AI Prompt 上下文（注入七变量+NPC+关系网）

@@ -14,7 +14,7 @@
   'use strict';
 
   function _fmtNum(n) { return (n == null || isNaN(n)) ? '0' : String(n); }
-  function _esc(s) { return (s == null ? '' : String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function _esc(s) { return (typeof escHtml === 'function') ? escHtml(s) : (s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')); }
 
   // 初始化 division 深化字段默认值
   function _ensureDivisionDeepFields(node) {

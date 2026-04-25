@@ -1558,9 +1558,9 @@
       ['Economy','MapSystem','Lizhi','Guoku','Neitang','Storage','errors','state','guard','perf'].forEach(function(ns){
         expect(typeof TM[ns]).toBe('object');
       });
-      // TM.diff 是 function（curry 接口），TM.register 是 function
+      // TM.diff 是 function（curry 接口）
+      // R143 删了 TM.register (零业务调用·设计未启用)
       expect(typeof TM.diff).toBe('function');
-      expect(typeof TM.register).toBe('function');
     });
   });
 

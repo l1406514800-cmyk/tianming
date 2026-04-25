@@ -313,7 +313,8 @@ function _buildClassicsHelpContent() {
   var HP = window.HistoricalPresets;
   if (!HP) return '<p style="color:var(--vermillion-400);">历史预设库未加载</p>';
 
-  function _esc(s){return String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  // R143·委托给 tm-utils.js:569 (此处只需 <> 不严格)
+  function _esc(s){return (typeof escHtml === 'function') ? escHtml(s) : String(s||'').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
   var html = '<p style="color:var(--celadon-300);font-style:italic;">以下内容仅供参考——这些是历代典型案例，玩家推演时并不受其约束，AI 只要合理可产出任何架空策略。</p>';
 

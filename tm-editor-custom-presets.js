@@ -29,7 +29,7 @@
     { key: 'edictTemplates',       label: '诏令模板',    sampleFields: '键名:{name,templateText,hintFields[]}' }
   ];
 
-  function _esc(s) { return (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+  function _esc(s) { return (typeof escHtml === 'function') ? escHtml(s) : (s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')); }
 
   function _getCurrentPresets(key) {
     var sd = global.scriptData || {};
