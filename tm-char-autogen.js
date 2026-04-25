@@ -103,6 +103,35 @@
       '3. \u5E74\u9F84\u5FC5\u987B\u5408 ' + year + ' \u5E74\u53F2\u5B9E\uFF08\u82E5\u6B64\u4EBA\u751F\u4E8E 1600 \u5E74\u00B7' + year + '=1627 \u5219\u5E74 27\uFF09\n' +
       '4. \u771F\u5B9E\u5386\u53F2\u4EBA\u7269\u5FC5\u9700 shiliao \u5B57\u6BB5\u00B7\u53F2\u4E66\u539F\u6587\u6458\u5F15 80-200 \u5B57\n' +
       '5. \u867A\u6784\u4EBA\u7269\u59D3\u540D/\u7C4D\u8D2F/\u6027\u683C\u987B\u7B26\u5408\u8BE5\u671D\u4EE3\u5730\u57DF\u7279\u5F81\n\n' +
+      '【角色定型→五常→能力】（先后顺序·性格鲜明·勿平均化）\n' +
+      '步骤一·先决定此人属于哪一类：corrupt(巨贪)|regent(权臣)|military(名将)|clean(清官)|scholar(文宗)|loyal(忠臣)|reformer(改革家)|usurper(篡臣)|eunuch(宦权)|normal(普通士人)\n' +
+      '步骤二·按角色类型分布【五常 wuchang】（仁义礼智信 0-100·必有强弱差异·勿一律 60）\n' +
+      '  仁(关怀体恤)·义(公道气节)·礼(规矩恭敬)·智(谋略机敏)·信(诚信守诺)\n' +
+      '  · 巨贪/篡臣：仁20-40 义15-35 礼50-65(伪) 智75-90 信15-35\n' +
+      '  · 宦权：    仁25-45 义25-40 礼50-65 智75-90 信25-40\n' +
+      '  · 权臣：    仁50-70 义50-70 礼60-75 智80-95 信55-70\n' +
+      '  · 名将：    仁55-75 义80-95 礼55-70 智65-80 信80-95\n' +
+      '  · 清官：    仁80-95 义85-100 礼75-90 智65-80 信85-100\n' +
+      '  · 忠臣：    仁75-90 义90-100 礼75-90 智60-75 信90-100\n' +
+      '  · 改革家：  仁65-80 义75-90 礼55-70 智85-95 信70-85\n' +
+      '  · 文宗：    仁70-85 义70-85 礼80-95 智85-95 信75-90\n' +
+      '  · 普通士人：四维50-70·按个性±10\n' +
+      '步骤三·按角色类型分布【能力】（结合五常·勿矛盾）\n' +
+      '  · 巨贪：     ambition80-95 integrity5-25 loyalty30-55 valor20-50 intelligence70-85 administration60-80\n' +
+      '  · 篡臣：     ambition90-100 integrity25-50 loyalty10-30 valor75-90 intelligence80-95 administration70-90\n' +
+      '  · 宦权：     ambition80-95 integrity10-30 loyalty50-75 valor20-45 intelligence70-85 administration55-75\n' +
+      '  · 权臣：     ambition70-90 integrity50-75 loyalty60-80 valor50-75 intelligence80-95 administration85-95\n' +
+      '  · 名将：     ambition60-80 integrity75-90 loyalty80-95 valor85-100 intelligence65-85 administration60-80\n' +
+      '  · 清官：     ambition35-55 integrity90-100 loyalty85-95 valor30-55 intelligence70-85 administration80-95 benevolence85-95\n' +
+      '  · 忠臣：     ambition50-70 integrity85-100 loyalty90-100 valor60-85 intelligence65-80 administration70-85\n' +
+      '  · 改革家：   ambition75-90 integrity70-90 loyalty75-90 valor40-65 intelligence85-95 administration90-100\n' +
+      '  · 文宗：     ambition40-65 integrity80-95 loyalty70-85 valor25-50 intelligence88-98 administration65-85 charisma75-90\n' +
+      '  · 普通士人：各维50-75·必有1-2项偏低\n' +
+      '步骤四·一致性强约束\n' +
+      '  · personality/stance/traits/bio 必须与 wuchang+ability 呼应（巨贪 bio 不可写勤政为民·清官 wuchang.信 不可低于80）\n' +
+      '  · ambition高+loyalty低 → 篡臣相·必反映在 stance\n' +
+      '  · integrity高+benevolence高 → 清官相·必反映在 personality\n\n' +
+     
       '\u8FD4\u56DE JSON\u5305\u542B\uFF1A\n{\n' +
       '  "isHistorical": true/false,\n' +
       '  "age": number,\n' +
@@ -153,7 +182,7 @@
         else if (P.conf && P.conf._detectedMaxOutput > 0) _tokBudget = P.conf._detectedMaxOutput;
         else _tokBudget = 4000;
 
-        var raw = await callAISmart(prompt, _tokBudget, { maxRetries: 1 });
+        var raw = await callAISmart(prompt, _tokBudget, { maxRetries: 1, tier: opts.tier });
         var data = (typeof extractJSON === 'function') ? extractJSON(raw) : null;
         if (!data) data = JSON.parse(raw.replace(/```json|```/g, '').trim());
 
@@ -714,6 +743,26 @@
 
   // 复姓白名单——只有开头命中复姓时才允许 3-4 字；否则姓只占 1 字
   var COMPOUND_SURNAMES = ['\u53F8\u9A6C','\u6B27\u9633','\u590F\u4FAF','\u8BF8\u845B','\u4E0A\u5B98','\u4EE4\u72D0','\u8D6B\u8FDE','\u6155\u5BB9','\u5B87\u6587','\u4E07\u4FDF','\u7533\u5C60','\u95FB\u4EBA','\u4E1C\u65B9','\u65BC\u94B1','\u516C\u51B6','\u8F69\u8F95','\u7687\u752B','\u957F\u5B59','\u5B97\u653F','\u5BB0\u7236','\u4E1C\u90ED','\u5357\u95E8','\u897F\u95E8','\u4E1C\u95E8','\u516C\u5B59','\u4EF2\u5B59','\u590F\u8C37','\u76D6\u805B','\u6EE1\u5BB9','\u95FE\u4E18','\u6FEE\u9633','\u4E50\u6B63','\u8C37\u6881','\u5DE6\u4E18','\u4E1C\u91CC','\u5357\u5BAB','\u516C\u4E58','\u6E06\u53F0','\u7AEF\u6728','\u5DEB\u9A6C','\u5B50\u8F66','\u9885\u5B59','\u516C\u897F','\u7F8A\u820C','\u5FE0\u541B'];
+  // 修 bug：误抓数字/量词/机构名（其一/万两/羽林卫）
+  var DIGIT_CHARS = '一二三四五六七八九十百千万亿两壹贰叁肆伍陆柒捌玖拾佰仟廿卅';
+  var QUANTIFIER_TAIL_CHARS = '两钱匹石斗升亩顷丈寸里尺斤贯';
+  var INSTITUTION_TAIL_CHARS = '卫营司监院寺厂署局仓库坐驿铺';
+  var INSTITUTION_PREFIXES = {
+    '羽林':1,'锦衣':1,'虎贲':1,'龙骧':1,
+    '金吾':1,'千牛':1,'监门':1,
+    '左卫':1,'右卫':1,'左武':1,'右武':1,
+    '左威':1,'右威':1,'左领':1,'右领':1,
+    '奏學':1,'奉宸':1,'旗手':1,'上直':1,
+    '腾骤':1,'神机':1,'神武':1,'府军':1,
+    '东厂':1,'西厂':1,'内厂':1,'五军':1,
+    '五城':1,'三大':1,'三法':1,'六部':1,
+    '詹事':1,'翰林':1,'钦天':1,'光禄':1,
+    '鸿胪':1,'国子':1,'都察':1,'督察':1,
+    '大理':1,'太仆':1,'宗人':1,'五府':1,
+    '司礼':1,'尚宝':1,'行人':1,'八旗':1,
+    '蒙古':1,'满洲':1
+  };
+
   // 人名后常接的动词/助词/语气词——若 3-4 字名以此结尾，说明误抓，须截短
   var TRAIL_TRIM_CHARS = '\u63A5\u5165\u51FA\u767B\u5949\u594F\u8BF4\u8A00\u8BF7\u4EE4\u6D3E\u9063\u4F7F\u5E26\u9886\u7387\u547D\u4F20\u544A\u62A5\u53D7\u884C\u53BB\u8FD4\u8D70\u8FDB\u9000\u7559\u5C45\u7ACB\u5750\u6B7B\u6D3B\u751F\u4EA1\u901D\u85A8\u5D29\u9635\u65A9\u6740\u64DE\u4FD8\u8D25\u80DC\u6218\u5F81\u4F10\u653B\u5B88\u5F00\u95ED\u8BFB\u5199\u4E34\u5C65\u62DC\u8C22\u62D2\u7EB3\u8D50\u8D4F\u7F5A\u8D2C\u8FC1\u6388\u53EC\u8F9E\u8BBF\u63A2\u5F80\u5F52\u8FD8\u8DEA\u4E4B\u7684\u4E4E\u4E5F\u77E3\u7109\u54C9\u8033\u800C\u4E14\u6216\u65E2\u5C24\u4E0E\u548C\u540C\u5408\u5171\u8FDE\u504C\u5E76\u4EA6\u53C8\u518D\u590D\u6108\u8D8A\u66F4\u6B64\u662F\u5373\u4E43\u4FBF\u5C31\u5219\u76D6\u975E\u5C82\u4F55\u5974\u66F0\u80E1\u5B89\u59CB\u7EC8\u672B\u521D\u5728\u4ECE\u5411\u4EE5\u4E3A\u7531\u56E0\u4E8E\u6308\u52D1\u5374\u4E26\u53EA\u4EC5\u7686\u5C1A\u53CA\u90A3\u8FD9\u770B\u95EE\u7B54\u8BAE\u79FB\u5EF7\u9047\u5F17\u6302\u79BB\u5EFA\u8D77\u79F0\u964D\u5352\u6B81\u8D74\u8FCE\u643A\u903C\u56F4\u51FB\u7834\u7F1A\u541B\u5F13\u6EE1\u653E\u53D6\u6DF1\u5FE0\u4FE1\u660E\u5FAA\u6307\u62F1\u5F80\u8FD0\u81F3\u5230\u5012\u6258\u5347\u8F6C\u5DE1\u628A\u5EA7\u6B63\u4E1C\u897F\u5357\u5317\u4E2D\u4E0A\u4E0B\u547C\u53F7\u5E9C\u6BD2\u8D23\u8BAD\u7B97';
 
@@ -791,7 +840,11 @@
     // 单: "单+名词"
     '单独':1,'单子':1,'单位':1,
     // 上: 一律虚词
-    '上官':1,'上旨':1,'上表':1,'上书':1,
+    '上官':1,'上旨':1,'上表':1,'上书':1,'上谕':1,'上奏':1,'上闻':1,'上意':1,'上恩':1,'上心':1,'上达':1,'上侍':1,'上难':1,'上阳':1,'上口':1,'上塔':1,
+    // 其: 一律虚词
+    '其余':1,'其它':1,'其他':1,'其内':1,'其外':1,'其下':1,'其上':1,'其中':1,'其后':1,'其前':1,'其间':1,'其时':1,'其实':1,'其命':1,'其状':1,'其辞':1,'其因':1,'其果':1,'其志':1,'其心':1,'其意':1,'其义':1,'其势':1,
+    // 第: 序数
+    '第一':1,'第二':1,'第三':1,'第四':1,'第五':1,'第六':1,'第七':1,'第八':1,'第九':1,'第十':1,
     // 景: "景+名词"
     '景色':1,'景象':1,'景况':1,
     // 井: "井+名词"
@@ -847,6 +900,15 @@
     function _validateCandidate(cand) {
       if (!cand || cand.length < 2 || cand.length > 5) return false;
       if (NAME_BLACKLIST[cand]) return false;
+      // 修 bug：数字字过滤（第2字起含一/二/万/两等→ reject）
+      for (var __di = 1; __di < cand.length; __di++) { if (DIGIT_CHARS.indexOf(cand.charAt(__di)) >= 0) return false; }
+      // 修 bug：量词末字过滤（末字为"两/石/斛"等→ reject）
+      if (QUANTIFIER_TAIL_CHARS.indexOf(cand.charAt(cand.length - 1)) >= 0) return false;
+      // 修 bug：机构后缀字过滤（末字为"卫/营/府"且非已知人物 → reject）
+      if (INSTITUTION_TAIL_CHARS.indexOf(cand.charAt(cand.length - 1)) >= 0) {
+        var __k = (typeof _knownNamesCache !== 'undefined' && _knownNamesCache) ? _knownNamesCache : null;
+        if (!__k || !__k[cand]) return false;
+      }
       // 过滤明显的称谓/官职/地名/时间短语
       if (/[\u5E1D\u541B\u81E3\u540E\u5983\u5B5F\u7956\u7687\u54C1\u8FB9\u4EAC\u90E1\u53BF\u5E9C\u8857\u5FB7]/.test(cand)) {
         // 含这些字且纯粹为地名/称谓的 reject
@@ -867,6 +929,16 @@
       var block = m[0];
       for (var i = 0; i < block.length; i++) {
         if (COMMON_SURNAMES.indexOf(block.charAt(i)) < 0) continue;
+        // 修 bug：机构名前缀跳过（如"羽林卫"中的"林"）
+        if (i > 0) {
+          var __pf = block.substr(i - 1, 2);
+          if (INSTITUTION_PREFIXES[__pf]) continue;
+        }
+        // 修 bug：[i-2, i-1] 机构前缀（"锦衣卫"中扫到"卫"·前两字"锦衣"是前缀）
+        if (i > 1) {
+          var __pf2 = block.substr(i - 2, 2);
+          if (INSTITUTION_PREFIXES[__pf2]) continue;
+        }
         var two = block.substr(i, 2);
         var isCompound = (i + 1 < block.length) && (COMPOUND_SURNAMES.indexOf(two) >= 0);
         var maxLen = isCompound ? 4 : 3;
@@ -897,6 +969,12 @@
         }
         if (_hitTitle) continue;
         if (NAME_BLACKLIST[cand]) continue;
+        // 修 bug：Pass 1 同步三道过滤
+        var __badDigit = false;
+        for (var __dii = 1; __dii < cand.length; __dii++) { if (DIGIT_CHARS.indexOf(cand.charAt(__dii)) >= 0) { __badDigit = true; break; } }
+        if (__badDigit) continue;
+        if (QUANTIFIER_TAIL_CHARS.indexOf(cand.charAt(cand.length - 1)) >= 0) continue;
+        if (INSTITUTION_TAIL_CHARS.indexOf(cand.charAt(cand.length - 1)) >= 0 && !known[cand]) continue;
         if (known[cand] || (typeof findCharByName === 'function' && findCharByName(cand))) {
           i += cand.length - 1;
           continue;

@@ -558,7 +558,7 @@ async function callAISmart(prompt, maxTok, options) {
     }
 
     try {
-      var result = await callAI(currentPrompt, maxTok, signal);
+      var result = await callAI(currentPrompt, maxTok, signal, options.tier);
 
       // Append to existing content
       if (allContent.length > 0) {

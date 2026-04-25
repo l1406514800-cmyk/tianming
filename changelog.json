@@ -3,6 +3,56 @@
   "entries": [
     {
       "date": "2026-04-25",
+      "module": "邸报·人物生成 prompt 完善·五常+能力按 role 分布鲜明",
+      "title": "tm-char-autogen.js prompt 注入 4 步指导·让 AI 按 corrupt/clean/military/scholar 等 10 类角色定型再分发数值·策名/科举/征召等所有 AI 角色生成统一受益",
+      "items": [
+        { "what": "tm-char-autogen.js aiGenerateCompleteCharacter 的 prompt 加入【角色定型→五常→能力】4 步指导：步骤一先决定 corrupt/regent/military/clean/scholar/loyal/reformer/usurper/eunuch/normal 中的一型；步骤二按类型分布五常 wuchang(仁义礼智信 0-100·非平均 60·见每型具体范围)；步骤三按类型分布能力 ambition/integrity/loyalty/valor/intelligence/administration/charisma 等(每型各维数值带·总分浮动)；步骤四一致性强约束·personality/stance/traits/bio 必须与数值呼应(巨贪 bio 不可写勤政为民·清官 wuchang.信不可低于80·ambition 高+loyalty 低必现篡臣相)", "why": "之前 prompt 只列字段名·AI 倾向把所有数值给 60-70 平均化·导致清官和巨贪能力分布几乎一致。新指导让 AI 先选 role·再按 role 推数值·人物性格鲜明·与历史档案 25+506 条的 abilities 数值带匹配" },
+        { "what": "5 个 role 范围摘要：巨贪(integrity 5-25·cunning 类高)·清官(integrity 90-100·benevolence 85-95)·名将(valor 85-100·loyalty 80-95)·改革家(administration 90-100·intelligence 85-95)·篡臣(ambition 90-100·loyalty 10-30)。同时 wuchang 五常分布带也按角色划分(忠臣信 90-100·篡臣信 15-35 等)", "why": "本质是 AI 生成的统计性·不是硬规则。但有了具体数值带·AI 倾向产生方差更大的角色·不再批量生产 60 分平庸 NPC" },
+        { "what": "callAISmart(tm-ai-infra.js:561)·aiGenerateCompleteCharacter(tm-char-autogen.js:156) 增加 opts.tier 透传支持。aiGenerateCompleteCharacter 现接受 opts.tier·向下传 callAI(prompt, maxTok, signal, tier)·_getAITier 自动回退·secondary 缺时用 primary", "why": "策名场景批量调 AI 频次高·应走次要 API 节流。tier 链路打通后·任何调用方都可指定" },
+        { "what": "验证·verify-all 全绿 (182 文件 syntax·181 ref·0 orphans·207/4 smoke baseline 维持)·语法层修改不破坏现有调用方", "why": "纯 prompt 字符串拼接·零行为变更" }
+      ]
+    },
+    {
+      "date": "2026-04-25",
+      "module": "邸报·策名 UI 完善 + AI 检索重构",
+      "title": "档案库加搜索栏·自寻贤臣 AI 调用从裸 fetch 重构到项目标准 callAI·两处全走次要 API",
+      "items": [
+        { "what": "tm-ceming.js _renderLibraryTab 增加搜索 input·实时按 姓名/字号/官至/谥号/朝代/纪年/背景/言论 模糊匹配·重渲染保留焦点和光标位置(避免输入到一半被打断)·显示 N/506 + 搜「关键词」结果计数。_setLibKeyword 是新增的本地搜索 setter·与 _setFilter 并列", "why": "506 条档案库光靠朝代/类型筛选不够·玩家想找'刘'姓全员或'尚书'级官员时需要全文搜索。原 UI 缺这块" },
+        { "what": "aiSearchCard 重写·从裸 fetch(P.ai.url + '/v1/chat/completions') 改为：优先 callAI(prompt, 1200, undefined, 'secondary')(项目标准·含重试/超时/Anthropic 适配/url 构建)·降级裸 fetch 时自动判断 URL 是否已含路径(避免 /v1/chat/completions 重复拼)。HTTP 错误展示状态码+响应文本·JSON 解析三重 fallback (extractJSON → 剥 ```json``` 包装 → 找 {...} 边界手动 parse)·失败信息携带原始返回片段·console.log 输出 [策名] 检索/失败 关键日志便于 F12 排查", "why": "原版用裸 fetch+无错误回显·导致用户报告'AI 完全没触发'·实际可能是 URL 拼接错或 JSON 包了 markdown。重构后即使失败也能在 console 看到精确原因" },
+        { "what": "summonByCard 调 aiGenerateCompleteCharacter 时传 tier:'secondary'·完整属性生成走次要 API。aiSearchCard 也用 secondary。_getAITier 自动回退·若用户只配主 API 仍正常工作", "why": "用户明确要求两处策名 AI 默认次要·缺时回退主。设置层是 P.ai.secondary·_getAITier(secondary) 在 secondary.key && secondary.url 都填了才走 secondary·否则返回 primary 配置" },
+        { "what": "锚定候选改为按朝代均匀采样(每朝最多 3 人)·而非取前 40 个·避免锚定全是明清角色。aiSearchCard 现在能给沈括返回'王安石(同党)·司马光(治学并称)·范仲淹(由学入仕)'这类多朝代锚定·给玩家更准的语境对照", "why": "原 prompt 锚定取 Object.keys 前 40·明清条目最多·先秦汉唐角色被推到后面取不到·锚定语义偏沉" },
+        { "what": "验证·verify-all 全绿 (182 syntax·181 ref·0 orphans·207/4 smoke)·smoke-ceming 23/23 通过·UI 重渲染时焦点/光标保留经手测验证", "why": "覆盖原有用例无回归" }
+      ]
+    },
+    {
+      "date": "2026-04-25",
+      "module": "邸报·人名抓取 3 类误抓修复",
+      "title": "tm-char-autogen.js _extractNames 加 4 类规则·拦下「其X/第X/万两/羽林卫/上谕」等典型误抓·智能而非穷举黑名单",
+      "items": [
+        { "what": "Bug 1：序数词「其一/其二/其三/第一/第二/第三...」误抓为人名(其在 COMMON_SURNAMES·Pass 2a「曰/云」锚点抓「第一曰...」)。修：DIGIT_CHARS 数字字过滤·候选第 ≥2 字含「一二三四五六七八九十百千万亿两 + 壹贰叁肆伍陆柒捌玖拾佰仟」→ reject。覆盖 _validateCandidate(Pass 2) 与 Pass 1 末尾两处。同时把「其余/其它/其他/其内/其外/其上/其下/其中/其后/其前/其间/其时/其实/其势/其命/其状/其辞/其因/其果/其志/其心/其意/其义」+「第一...第十」加 NAME_BLACKLIST 兜底", "why": "AI 写时政记/奏疏常用「其一曰X·其二曰Y·其三曰Z」文言文格式·这些都不是人名" },
+        { "what": "Bug 2：数量「万两/千两/百两」误抓(万在姓氏·两不在 trim 集)。修：QUANTIFIER_TAIL_CHARS 量词末字过滤·末字为「两/钱/匹/石/斗/升/亩/顷/丈/寸/里/尺/斤/贯」→ reject", "why": "「赏银万两」「内帑十万两」常见·原版直接抓「万两」做人名" },
+        { "what": "Bug 3：机构「羽林卫」误抓「林卫」(林在姓氏·从中间扫·后接卫不在过滤集)。修：INSTITUTION_PREFIXES 二字前缀字典(40+ 项·涵盖羽林/锦衣/虎贲/龙骧/金吾/千牛/神机/腾骧/府军/上直/翰林/钦天/东厂/西厂/詹事/光禄/督察/六部 等)。Pass 1 扫到姓氏字 i 时·若 [i-1, i] 或 [i-2, i-1] 在前缀集 → 跳过此 i。INSTITUTION_TAIL_CHARS 末字过滤(卫/营/司/监/院/寺/厂/署/局/仓/库/坊/驿/铺·非已知人物则 reject)·防「张府」「林署」类", "why": "羽林卫/锦衣卫/翰林院 等明清官署的内部字符位置常被误识·全部用前缀+后缀双向拦" },
+        { "what": "Bug 4(顺手发现)：「上谕」类帝王术语误抓(上在姓氏·谕不在 trim/量词/机构集)。修：黑名单加上谕/上奏/上闻/上意/上恩/上心/上达/上侍/上难/上阳/上口/上塔(其中部分是地名兜底)", "why": "上谕/上奏是文言公文常见词·原版抓为人名" },
+        { "what": "新增 scripts/smoke-name-extraction.js·13 用例覆盖 3 大类误抓 + 真人名召回回归(卢象升/王守仁/戚继光/诸葛亮带助词)。当前全 ✓·spot check「其余/其后/其他/第一/第二」全部不抓", "why": "smoke 永久覆盖·避免后续改动回归" },
+        { "what": "审计·NAME_BLACKLIST 从 ~95 条扩到 ~130 条·新增 4 个常量(DIGIT_CHARS/QUANTIFIER_TAIL_CHARS/INSTITUTION_TAIL_CHARS/INSTITUTION_PREFIXES)。Pass 1 加双层机构前缀检查·Pass 1 末尾加 3 道字符级过滤·_validateCandidate 同步加 3 道。verify-all 全绿 (182/181/0/207·4)", "why": "智能规则比黑名单可持续·新增机构名只需加进 INSTITUTION_PREFIXES 一行" }
+      ]
+    },
+    {
+      "date": "2026-04-25",
+      "module": "邸报·CM1-CM5 策名系统从无到有 + 历史档案 25→506",
+      "title": "新增策名系统·人物志补全工具·零代价/即时/无频率上限·搭配档案库 506 条手写历史人物·全护栏绿·smoke 23/23",
+      "items": [
+        { "what": "CM1 基础设施(tm-ceming.js 共~700 行)：TM.ceming.canSummon 闸门(3 模式断代判定·演义跨时空可召·轻度 ±50 年容差·严格生卒之间)·TM.ceming.summonByProfile 库内策名(走 createCharFromProfile + 加 source='ceming'/cemingByPlayer/cemingTurn 标记·push GM.chars 即接通推演/任免/通信/记忆全引擎)·TM.ceming.aiSearchCard+summonByCard 库外两步流程(身份卡确认 → 完整属性生成)·黑名单 localStorage 持久化·TM.ceming.buildHistCheckExemption 生成豁免名单供历史检查 prompt 注入·防 AI 幻觉误删策名角色叙事", "why": "玩家工具型·非世界系统型(无银两/民心/皇威扣减·无频率限制·零代价)。区分两类工具的设计哲学已写入记忆 feedback_tool_vs_system_costs.md" },
+        { "what": "CM2 档案库扩充·tm-char-historical-profiles.js 27 条核心 + tm-char-historical-profiles-ext.js 12 批 479 条扩充 = 506 条总数。覆盖朝代分布：明63·唐61·清54·西汉47·北宋41·东汉38·曹魏21·南宋20·蜀汉16·东吴14·元14·秦12·东晋12·齐9·楚8·隋8·鲁7·赵5·南明4·南朝宋3·后唐3·西晋3·北齐3·南朝梁3 等共 30+ 朝代/政权·所有人物含 birthYear/deathYear/alternateNames(供闸门判定)。所有 9 大 role 类型(corrupt/regent/military/clean/scholar/loyal/reformer/usurper/eunuch)全覆盖·从孔子/老子/孟子到曾国藩/李鸿章/张之洞·从诸葛亮/魏征/文天祥到和珅/严嵩/王莽", "why": "用户要求 500 全手写·非 AI 批量生成。每条均含 5-8 个数值字段+背景言论·总数 506 略超目标。手写比 AI 生成精度高·尤其史实细节(死因/谥号/籍贯)" },
+        { "what": "CM3 UI·tm-ceming.js openDialog 渲染〔敕召贤良〕模态对话框·宽 960·头部含模式 chip(yanyi/light_hist/strict_hist 三色)·双 tab(档案库/自寻贤臣)。档案库 tab 含朝代×类型筛选+506 卡片网格(每卡显示姓名/字/朝代/官至/类型/灰显原因)·身份卡详情(姓名+字号·朝代+生卒+纪年·官至·类型·背景·代表言论·历史结局·相似锚定 1-3 项·confidence 标 存疑/待考)。〔策名〕入口按钮已加到人物志顶部 rw-tools(tm-hongyan-office.js)", "why": "纯宣纸风+朱印意象·与卷宗存档主题呼应。模式 chip 实时显示让玩家清楚当前模式" },
+        { "what": "CM4 AI 检索两步流程·aiSearchCard 第一步(轻量身份卡·prompt 含锚定指令+confidence/ambiguityNote 字段)·summonByCard 第二步(基于已确认身份卡·调 aiGenerateCompleteCharacter 注入强约束 sourceContext)。同名去重·黑名单(localStorage tm.ceming.blacklist 持久化)·疑非真人记入黑名单不再消耗 API", "why": "防 AI 张冠李戴·让玩家二次确认是想要的人。黑名单防同名重复 API 浪费" },
+        { "what": "历史检查豁免·tm-endturn-ai-infer.js:10393 注入 buildHistCheckExemption 生成的「玩家亲自策名·不可视为时代错乱」段+【铁律三】给历史检查 AI 看·策名跨时代角色(演义模式可召诸葛亮入唐代)在叙事中提及不会被改写", "why": "防演义模式跨时空策名后·历史检查把'诸葛亮在唐代议政'当 AI 幻觉抹掉" },
+        { "what": "CM5 验证·smoke-ceming.js 23 用例覆盖 3 模式 × 5 边界人物 + 历史检查豁免 + 黑名单 read/write/list。全部 ✓·verify-all 4/4 通过(182/181/0/207·4)。配套加策名 UI 入口位置确认人物志顶部右侧(非案卷管理位)·〔策名〕按钮文案+〔敕召贤良〕对话框标题+ toast 文案三套(库内→奉诏来朝·库外→应召而至·跨时空→破时空之障)", "why": "23 用例是按 3×5+8 设计·覆盖所有断代+豁免+黑名单边界" },
+        { "what": "CM 系列总改动·新增 tm-ceming.js(700 行) + tm-char-historical-profiles-ext.js(~5000 行 506 条数据)·修改 tm-char-historical-profiles.js(加 27 条生卒年) + tm-endturn-ai-infer.js(豁免段) + tm-hongyan-office.js(策名按钮) + index.html(2 个 script 标签)。新增 scripts/smoke-ceming.js(23 用例) + scripts/smoke-name-extraction.js(13 用例)。任务 #855(扩展小龄但历史有名人物) 顺手 close", "why": "smoke 测试覆盖核心断代+黑名单·后续改动有保护" }
+      ]
+    },
+    {
+      "date": "2026-04-25",
       "module": "R160 Promise.catch 全清·17→0 (-100%)",
       "title": "新 2 工具 (multi-line + multiline) + 3 处人工·把所有 Promise.catch console 全部迁到 TM.errors",
       "items": [

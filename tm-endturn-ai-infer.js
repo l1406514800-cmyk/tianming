@@ -10389,8 +10389,17 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
 
           var histCheckPrompt = "你是历史顾问 AI。剧本背景：" + (sc ? sc.dynasty : "") + "，" + (sc ? sc.emperor : "") + "皇帝时期。\n\n";
           histCheckPrompt += "【不可改的部分·玩家诏令原文】\n · " + (_edictText || '（无明确诏令）') + "\n";
+          // 策名豁免名单（玩家亲自策名的人物，含跨时代）
+          var _cemingExempt = '';
+          try {
+            if (window.TM && TM.ceming && typeof TM.ceming.buildHistCheckExemption === 'function') {
+              _cemingExempt = TM.ceming.buildHistCheckExemption();
+            }
+          } catch(_ce) {}
+          if (_cemingExempt) histCheckPrompt += _cemingExempt + '\n';
           histCheckPrompt += '【铁律一】玩家诏令字面执行是最高原则。即使诏令本身时代错乱（如唐代用白银、刑部管科举），你绝不得将其改回「历史正确版本」——那是玩家的选择·以混乱/阻力形式体现。与玩家诏令相关的叙事文字原样保留。\n';
-          histCheckPrompt += '【铁律二】纯 AI 自生的时代错乱（如 AI 凭空写出 火枪/蒸汽船/拿破仑/共和国/未出生的历史人物 等超时代元素）必须修正。此为你的核心职责。\n\n';
+          histCheckPrompt += '【铁律二】纯 AI 自生的时代错乱（如 AI 凭空写出 火枪/蒸汽船/拿破仑/共和国/未出生的历史人物 等超时代元素）必须修正。此为你的核心职责。\n';
+          histCheckPrompt += '【铁律三】玩家通过策名系统纳入的人物（上方豁免名单·若有）一律视为合法角色·与玩家诏令字面同等保护·任何叙事提及不得改写。\n\n';
           histCheckPrompt += "【检查并修正】下方时政记/正文：\n";
           histCheckPrompt += "时政记：" + shizhengji + "\n";
           histCheckPrompt += "正文：" + zhengwen.substring(0, 500) + "\n\n";

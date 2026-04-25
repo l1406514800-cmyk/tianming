@@ -1991,6 +1991,7 @@ function renderGameState(){
     +'<div class="rw-title"><div class="seal">\u4EBA<br>\u7269</div><div class="main">\u4EBA \u7269 \u5FD7</div><div class="sub">\u82F1 \u6770 \u5217 \u4F20\u3000\u3000\u81E7 \u5426 \u54C1 \u8BC4</div></div>'
     +'<div id="rw-statbar" class="rw-statbar"></div>'
     +'<div class="rw-tools">'
+    +'<button class="bt bp" onclick="(window.TM&&TM.ceming&&TM.ceming.openDialog)?TM.ceming.openDialog():(typeof toast===\'function\'&&toast(\'策名未就绪\'))" style="padding:5px 12px;font-size:12px;margin-right:6px;" title="策名·将历史人物纳入人物志">策　名</button>'
     +'<span class="rw-tools-lbl">\u62AB \u89C8</span>'
     +'<div class="rw-search-wrap"><input id="rw-search" class="rw-search" placeholder="\u641C\u7D22\u59D3\u540D\u00B7\u5B57\u53F7\u00B7\u5B98\u804C\u2026" oninput="_rwSearch=this.value;renderRenwu();"></div>'
     +'<select id="rw-faction" class="rw-filter" onchange="_rwFaction=this.value;renderRenwu();"><option value="all">\u5168\u90E8\u6D3E\u7CFB</option></select>'
