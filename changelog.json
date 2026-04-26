@@ -2,6 +2,17 @@
   "_comment": "天命·更新日志——新条目 unshift 到数组最前（由近及远）。格式：{date, module, title, items[]}；items 元素可为字符串或 {what, why}。",
   "entries": [
     {
+      "date": "2026-04-27",
+      "module": "邸报·官职公库默认覆盖 + 角色私产 4 字段补齐",
+      "title": "用户反馈『公库和私产很多官职没有/显示不正常』。审计 1627 剧本：183 官职只 97 有 publicTreasuryInit(53% 覆盖) → 47% 显示 0；98 chars 几乎全用 3 字段{money,grain,cloth}·缺 land/treasure/slaves/commerce 4 字段(0.99% = 仅 1 chars 用 7 字段)。修：runtime 层兜底·所有官职公库按品级+部门自动推算·所有 chars 的 privateWealth 4 字段缺则按品级补齐·不需要补完 1627 剧本数据",
+      "items": [
+        { "what": "tm-hongyan-office.js 新增 _inferPublicTreasuryByRank(p, deptName) 按品级+部门推算公库默认 — money tier(正一品 20 万 / 二品 10 万 / 三品 5 万 / 四品 2 万 / 五品 8000 / 六品 3000 / 七品 1500 / 八品 600 / 九品 300 / 无品 100)·grain/cloth 同比例·deptBoost 户部/工部/河道/太仓 ×2.0 / 兵部 ×1.5 / 礼部翰林清要 ×0.4 / 御史言官 ×0.6 / 内阁辅臣 ×0.3(贵而不富)·quota = stock × 4(年配额)", "why": "明代史实参照《明会典》：户部尚书署衙存银约 20 万·六部其他衙银 5-10 万·州县官库千两·杂职几乎无库。让 53% 漏失的 86 个官职都有合理默认显示" },
+        { "what": "tm-hongyan-office.js _initOfficePublicTreasury 加兜底逻辑·若 publicTreasuryInit 缺或全 0 → 调 _inferPublicTreasuryByRank·标记 p._publicTreasuryInferred=true·UI 可显示『推算』tag 区分手填 vs 自动·deptName 沿递归路径(部门·子部门) 拼接给 boost 判定", "why": "之前 publicTreasury.money.stock=0 显示『0 两 / 0 石 / 0 匹』·现在所有官职都有合理初值" },
+        { "what": "tm-hongyan-office.js _initCharacterPrivateWealth 加 4 字段补齐分支·若 privateWealth 已存(money>0 或 land>0)但缺 land/treasure/slaves/commerce·按 _inferPrivateWealthByRank 推算补齐·跳过 isNeitang 领袖镜像", "why": "scenario 大多数 chars 只 3 字段(原 cash/grain/cloth)·UI 显示田亩/珍宝/僮仆/商铺 全 0·这次自动按品级补齐·正一品田 1 万亩 / 珍宝估值 3 万 / 僮仆 200 / 商铺 2 万。覆盖率 1% → ~100%" },
+        { "what": "verify-all 5/5 全过(syntax 185/ref-check/find-orphans/smoke 207-4 baseline/cc3-smoke 56-0)·改动 1 文件(tm-hongyan-office.js)", "why": "局部 runtime 增强·不破存档·重启游戏即生效" }
+      ]
+    },
+    {
       "date": "2026-04-26",
       "module": "邸报·辽饷接入 cascade + AI 推演叙事数值脱节修 + turnDays 调试日志",
       "title": "用户反馈三事：(1) AI 推演明明说『获得三百万两白银』·数值不变化；(2) 帑廪/内帑 数值显示 label 改成『回合入/支』但数值未变化；(3) 官方剧本辽饷未真正参与级联。逐一定位 root cause 并修：(A) 财务校验器正则只识别支出动词(赐/赏/发/拨)·不识别收入动词(获得/收/入/进)·导致 AI 叙述获得款项时校验器抓不到·叙事 vs fiscal_adjustments 脱节但不报警 (B) 辽饷加派 / 茶马司 / 钞关 等历史税种放在 fiscalConfig.customTaxes 但 cascade 不读·完全不参与级联结算 (C) turnDays 已正确按 _getDaysPerTurn() 缩放·但用户调整 perTurn 后老存档 turnIncome 字段 stale·加 console 日志便于自查",

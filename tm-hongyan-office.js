@@ -2504,15 +2504,61 @@ function _applyPolishedEdict(mode) {
   if (typeof renderQiju === 'function') renderQiju();
 }
 
+// 按品级推算官职 publicTreasuryInit 默认值（当 scenario 未提供时）
+// 设计原则：中央高位官库厚·州县中等·杂职寡薄·虚衔/无品级近零
+// 史实基准：户部/内阁年支度银百万级·六部尚书署衙银十万级·州县几千两·七品以下千两以下
+function _inferPublicTreasuryByRank(p, deptName) {
+  var rankStr = (typeof p.rank === 'string' ? p.rank : '') + '|' + (p.name || '');
+  var numMap = { '一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9 };
+  var m = rankStr.match(/(正|从)([一二三四五六七八九])品/);
+  var rank = m ? numMap[m[2]] : 0;
+  // 部门类型加成：户部/工部/兵部 库银厚·礼部/翰林清要薄·御史言官中等
+  var deptBoost = 1;
+  var dn = (deptName || '') + (p.name || '');
+  if (/户部|度支|太仓|工部|营造|河道|节慎库|宝泉|宝源/.test(dn)) deptBoost = 2.0;
+  else if (/兵部|京营|武库|马政/.test(dn)) deptBoost = 1.5;
+  else if (/礼部|翰林|国子|詹事/.test(dn)) deptBoost = 0.4;
+  else if (/御史|都察|按察|科道/.test(dn)) deptBoost = 0.6;
+  else if (/吏部|刑部|大理寺/.test(dn)) deptBoost = 1.0;
+  // 内阁特殊：辅臣有票拟权·公库不大但贵
+  if (/首辅|次辅|大学士|阁臣/.test(p.name || '')) deptBoost = 0.3;
+  // 按品级查表（年用度 → 摊到当前库存约 1/4 ≈ 当季可用）
+  var moneyTier = {
+    1: 200000,  2: 100000, 3: 50000,  4: 20000,
+    5: 8000,    6: 3000,   7: 1500,   8: 600,    9: 300
+  };
+  var grainTier = { 1: 50000, 2: 25000, 3: 12000, 4: 5000, 5: 2000, 6: 800, 7: 400, 8: 150, 9: 60 };
+  var clothTier = { 1: 8000,  2: 4000,  3: 2000,  4: 800,  5: 300,  6: 120, 7: 60,  8: 30,  9: 15 };
+  if (!rank || rank < 1) {
+    // 无品级·杂职/吏员/未入流·寡薄
+    return { money: 100, grain: 30, cloth: 10 };
+  }
+  return {
+    money: Math.round((moneyTier[rank] || 300) * deptBoost),
+    grain: Math.round((grainTier[rank] || 60) * deptBoost),
+    cloth: Math.round((clothTier[rank] || 15) * deptBoost),
+    quotaMoney: Math.round((moneyTier[rank] || 300) * deptBoost * 4),  // 年配额 ≈ 当前 × 4
+    quotaGrain: Math.round((grainTier[rank] || 60) * deptBoost * 4),
+    quotaCloth: Math.round((clothTier[rank] || 15) * deptBoost * 4)
+  };
+}
+
 // 官职公库初始化：walk officeTree，从 publicTreasuryInit 建立 live publicTreasury
-function _initOfficePublicTreasury(nodes) {
+// 若无 publicTreasuryInit 则按品级+部门自动推算·保证所有官职都有公库显示
+function _initOfficePublicTreasury(nodes, deptName) {
   (nodes || []).forEach(function(n) {
     if (!n) return;
+    var dn = deptName ? (deptName + '·' + (n.name || '')) : (n.name || '');
     (n.positions || []).forEach(function(p) {
       if (!p) return;
       // 若已有 live publicTreasury 则跳过（保存加载时不覆盖）
       if (p.publicTreasury && p.publicTreasury.money && p.publicTreasury.money.stock != null) return;
-      var init = p.publicTreasuryInit || {};
+      var init = p.publicTreasuryInit;
+      // ★ 若 scenario 没显式写 publicTreasuryInit·按品级+部门自动推算·避免 stock=0 显示
+      if (!init || (init.money == null && init.grain == null && init.cloth == null)) {
+        init = _inferPublicTreasuryByRank(p, dn);
+        p._publicTreasuryInferred = true;  // 标记自动推算·UI 可显示『推算』tag
+      }
       p.publicTreasury = {
         money: { stock: init.money || 0, quota: init.quotaMoney || 0, used: 0, available: init.money || 0, deficit: 0 },
         grain: { stock: init.grain || 0, quota: init.quotaGrain || 0, used: 0, available: init.grain || 0, deficit: 0 },
@@ -2522,7 +2568,7 @@ function _initOfficePublicTreasury(nodes) {
         handoverLog: []
       };
     });
-    if (n.subs) _initOfficePublicTreasury(n.subs);
+    if (n.subs) _initOfficePublicTreasury(n.subs, dn);
   });
 }
 
@@ -2633,8 +2679,23 @@ function _initCharacterPrivateWealth(chars) {
       }
       return;
     }
-    // 若 resources.privateWealth 已有有效数据（存档加载）则跳过
-    if (ch.resources.privateWealth && (ch.resources.privateWealth.money > 0 || ch.resources.privateWealth.land > 0)) return;
+    // 若 resources.privateWealth 已有有效数据（存档加载）·补齐 4 缺字段(land/treasure/slaves/commerce)再跳过
+    // scenario 多数 chars 只写 {money,grain,cloth} 3 字段·缺 4 字段会导致 UI 田亩/珍宝/僮仆/商铺 全显示 0
+    if (ch.resources.privateWealth && (ch.resources.privateWealth.money > 0 || ch.resources.privateWealth.land > 0)) {
+      var pw = ch.resources.privateWealth;
+      // 跳过领袖私库(已是内帑镜像)
+      if (!pw.isNeitang) {
+        // 任一字段缺失则按品级补齐(money 已有则保留)
+        if (pw.land == null || pw.treasure == null || pw.slaves == null || pw.commerce == null) {
+          var inferred = _inferPrivateWealthByRank(ch);
+          if (pw.land == null) pw.land = inferred.land;
+          if (pw.treasure == null) pw.treasure = inferred.treasure;
+          if (pw.slaves == null) pw.slaves = inferred.slaves;
+          if (pw.commerce == null) pw.commerce = inferred.commerce;
+        }
+      }
+      return;
+    }
     // 剧本可直接提供 wealthInit 覆盖全部
     if (ch.wealthInit && typeof ch.wealthInit === 'object') {
       ch.resources.privateWealth = {
