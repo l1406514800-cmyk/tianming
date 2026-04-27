@@ -101,7 +101,7 @@ function enterGame(){
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] economyBase 初始化失败:') : console.error('[enterGame] economyBase 初始化失败:', e); }
 
-  // ★ 首回合预跑 CascadeTax 以填充 annualIncome / 各账 sources 初值
+  // ★ 首回合预跑 CascadeTax + FixedExpense 以填充岁入岁出初值
   // 否则首回合 UI 显示 GuokuEngine.initFromDynasty 的 80000×mult 旧公式·新校准速率不生效
   try {
     if (GM.turn === 1 && !GM._cascadePreviewDone && typeof CascadeTax !== 'undefined' && typeof CascadeTax.collect === 'function') {
@@ -116,6 +116,33 @@ function enterGame(){
       }
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] CascadeTax 预跑失败:') : console.error('[enterGame] CascadeTax 预跑失败:', e); }
+
+  // 同样首回合预跑 FixedExpense.preview·只算不扣·让 turnExpense/monthlyExpense 显示新校准
+  try {
+    if (GM.turn === 1 && !GM._fixedExpensePreviewDone && typeof FixedExpense !== 'undefined' && typeof FixedExpense.preview === 'function') {
+      var _fp = FixedExpense.preview();
+      GM._fixedExpensePreviewDone = true;
+      if (_fp) {
+        // 同步到 GM.guoku 显示字段·preview 不扣账·只填 monthly/turn 数值
+        if (GM.guoku) {
+          GM.guoku.monthlyExpense = Math.round(_fp.totalMoney || 0);
+          GM.guoku.turnExpense = Math.round(_fp.totalMoney || 0);
+          GM.guoku.turnGrainExpense = Math.round(_fp.totalGrain || 0);
+          GM.guoku.turnClothExpense = Math.round(_fp.totalCloth || 0);
+          GM.guoku.annualExpense = Math.round((_fp.totalMoney || 0) * 12);
+        }
+        GM._lastFixedExpense = _fp;
+        console.log('[enterGame] FixedExpense.preview 完成(只算不扣)·本回合支出: 银 ' +
+          Math.round((_fp.totalMoney||0)/10000) + ' 万 · 粮 ' +
+          Math.round((_fp.totalGrain||0)/10000) + ' 万石 · 布 ' +
+          Math.round((_fp.totalCloth||0)/10000) + ' 万匹');
+        if (_fp.salary) console.log('  俸禄: 银 ' + Math.round((_fp.salary.money||0)/10000) + ' 万 · 米 ' + Math.round((_fp.salary.grain||0)/10000) + ' 万石');
+        if (_fp.royal) console.log('  宗禄: 银 ' + Math.round((_fp.royal.money||0)/10000) + ' 万 · 米 ' + Math.round((_fp.royal.grain||0)/10000) + ' 万石');
+        if (_fp.army) console.log('  军饷: 银 ' + Math.round((_fp.army.money||0)/10000) + ' 万 · 粮 ' + Math.round((_fp.army.grain||0)/10000) + ' 万石');
+        if (_fp.imperial) console.log('  宫廷: 银 ' + Math.round((_fp.imperial.money||0)/10000) + ' 万');
+      }
+    }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] FixedExpense.preview 失败:') : console.error('[enterGame] FixedExpense.preview 失败:', e); }
 
   // 剧本历史人物加载（若剧本指定了 historicalChars）
   try {

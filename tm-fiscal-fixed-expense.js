@@ -446,10 +446,26 @@
 
   function preview(ctx) {
     try {
+      var sal = _calcSalary(ctx);
+      var roy = _calcRoyalStipend(ctx);
+      var arm = _calcArmyPay(ctx);
+      var imp = _calcImperialExpense(ctx);
+      // 平铺成 {totalMoney/Grain/Cloth + 各项 .money/.grain/.cloth} 便于 enterGame 同步显示
       return {
-        salary: _calcSalary(ctx),
-        army: _calcArmyPay(ctx),
-        imperial: _calcImperialExpense(ctx)
+        salary:   sal.total,    // {money,grain,cloth}
+        royal:    roy.total,    // {money,grain,cloth}
+        army:     arm.total,    // {money,grain,cloth}
+        imperial: imp.total,    // {money,grain,cloth}
+        totalMoney: (sal.total.money || 0) + (roy.total.money || 0) + (arm.total.money || 0) + (imp.total.money || 0),
+        totalGrain: (sal.total.grain || 0) + (roy.total.grain || 0) + (arm.total.grain || 0) + (imp.total.grain || 0),
+        totalCloth: (sal.total.cloth || 0) + (roy.total.cloth || 0) + (arm.total.cloth || 0) + (imp.total.cloth || 0),
+        // raw 字段·panel 可深挖
+        _salaryByDept: sal.byDept,
+        _royalMembers: roy.members,
+        _royalArrears: roy.arrears,
+        _armyByArmy: arm.byArmy,
+        _imperialScale: imp.scale,
+        _royalCount: imp.royalCount
       };
     } catch (e) {
       console.error('[FixedExpense.preview]', e);
