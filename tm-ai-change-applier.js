@@ -1439,6 +1439,22 @@
     // ── 14a. 人事一致性校验·扫描叙事中『某某下狱/赐死/抄家/流放』vs 结构化数据 ──
     try { _validatePersonnelConsistency(G, aiOutput, applied); } catch(_pvE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_pvE, 'applier] personnel validator:') : console.warn('[applier] personnel validator:', _pvE); }
 
+    // ── 14b. 军事一致性校验·扫描『扩军/裁汰 N 万』vs GM.armies 真实变化 ──
+    try { _validateMilitaryConsistency(G, aiOutput, applied); } catch(_mvE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_mvE, 'applier] military validator:') : console.warn('[applier] military validator:', _mvE); }
+
+    // ── 14c. 民心/皇威一致性校验·扫描『民心大振/民怨沸腾/朝野失望』vs turnChanges ──
+    try { _validateSentimentConsistency(G, aiOutput, applied); } catch(_svE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_svE, 'applier] sentiment validator:') : console.warn('[applier] sentiment validator:', _svE); }
+
+    // ── 14d. 户口一致性校验·扫描『饥荒死 N/逃户 M/迁徙 X』vs GM.population ──
+    try { _validatePopulationConsistency(G, aiOutput, applied); } catch(_uvE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_uvE, 'applier] population validator:') : console.warn('[applier] population validator:', _uvE); }
+
+    // ── 14e. 官职任免一致性校验·扫描『拜 X 为 Y/擢 X 为 Y/迁』vs office_assignments ──
+    try { _validateOfficeConsistency(G, aiOutput, applied); } catch(_ovE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ovE, 'applier] office validator:') : console.warn('[applier] office validator:', _ovE); }
+
+    // ── 14f. 二次 AI 自审·若多个 validator 报警·调一次 AI 让其自查 narrative-vs-structured ──
+    // 仅当本回合校验器累计补录 > 5 条时触发·避免每回合都额外烧 token
+    try { _maybeReconcileWithAI(G, aiOutput, applied); } catch(_rvE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_rvE, 'applier] ai reconcile:') : console.warn('[applier] ai reconcile:', _rvE); }
+
     // ── 15. 死亡墓志铭 & 诈死holding ──
     try { _processDeathEpitaphs(G, aiOutput); } catch(_deE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_deE, 'applier] death epitaph:') : console.warn('[applier] death epitaph:', _deE); }
 
@@ -1563,6 +1579,328 @@
     }
 
     console.warn('[PersonnelValidator] 叙事提及但 AI 未填结构化的人物状态变化(已自动补录 ' + patched + '/' + missing.length + '):', missing);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  通用 helper: 从 narrative 抓所有文本·供各领域 validator 用
+  // ═══════════════════════════════════════════════════════════════════
+  function _getNarrativeText(aiOutput) {
+    var t = '';
+    if (!aiOutput) return t;
+    if (aiOutput.shilu_text)   t += String(aiOutput.shilu_text) + '\n';
+    if (aiOutput.shizhengji)   t += String(aiOutput.shizhengji) + '\n';
+    if (aiOutput.yupiHuiting)  t += String(aiOutput.yupiHuiting) + '\n';
+    if (aiOutput.qijuHistory)  t += String(aiOutput.qijuHistory) + '\n';
+    if (aiOutput.event && aiOutput.event.desc) t += String(aiOutput.event.desc) + '\n';
+    if (Array.isArray(aiOutput.events)) {
+      aiOutput.events.forEach(function(e){ if (e && e.desc) t += String(e.desc) + '\n'; });
+    }
+    if (Array.isArray(aiOutput.npc_actions)) {
+      aiOutput.npc_actions.forEach(function(na){ if (na && na.desc) t += String(na.desc) + '\n'; });
+    }
+    return t;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  军事一致性校验器·Wave 1b
+  //  扫『扩军/募兵/裁汰 N 万兵』vs GM.armies / military_changes
+  // ═══════════════════════════════════════════════════════════════════
+  function _validateMilitaryConsistency(G, aiOutput, applied) {
+    if (!G || !aiOutput) return;
+    var narrative = _getNarrativeText(aiOutput);
+    if (!narrative) return;
+
+    // 数字解析(中阿混合)
+    function parseNum(s, mult) {
+      var cnMap = {'零':0,'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'百':100,'千':1000,'万':10000};
+      var n = parseFloat(s);
+      if (isNaN(n) || n <= 0) {
+        n = 0; var prev = 0;
+        for (var i = 0; i < s.length; i++) {
+          var ch = s.charAt(i);
+          if (cnMap[ch] != null) {
+            if (ch === '十' || ch === '百' || ch === '千' || ch === '万') prev = (prev || 1) * cnMap[ch];
+            else prev = prev * 10 + cnMap[ch];
+          }
+        }
+        n = prev;
+      }
+      if (mult === '万') n *= 10000;
+      else if (mult === '千') n *= 1000;
+      return n;
+    }
+
+    // 增兵动词 + 减兵动词
+    var addVerbs = '招募|募兵|招兵|增兵|扩军|新建|添募|添兵|增编|拨补|增添';
+    var cutVerbs = '裁汰|裁军|裁撤|遣散|罢遣|裁革|削减|裁减';
+    var lossVerbs = '阵亡|战死|溃散|逃亡|染瘟|染瘴';
+    function _scan(verbs, kind) {
+      var pat = new RegExp('(' + verbs + ')[^。；,\\s]{0,8}?([\\d一二三四五六七八九十百千万]+)\\s*(万|千)?\\s*(兵|人|卒|马|骑|众|甲)', 'g');
+      var arr = [], m;
+      while ((m = pat.exec(narrative)) !== null) {
+        var n = parseNum(m[2], m[3] || '');
+        if (n < 100) continue;
+        arr.push({ kind: kind, verb: m[1], num: n, raw: m[0] });
+      }
+      return arr;
+    }
+    var mentioned = [].concat(_scan(addVerbs, 'add'), _scan(cutVerbs, 'cut'), _scan(lossVerbs, 'loss'));
+    if (!mentioned.length) return;
+
+    // 与 military_changes / npc_actions 中军事行动对比·结构化数据中是否有同等量变
+    var structuredTotal = { add: 0, cut: 0, loss: 0 };
+    if (Array.isArray(aiOutput.military_changes)) {
+      aiOutput.military_changes.forEach(function(mc) {
+        if (!mc) return;
+        var n = Math.abs(parseInt(mc.delta) || 0);
+        if (mc.delta > 0) structuredTotal.add += n;
+        else if (mc.delta < 0) structuredTotal.cut += n;
+      });
+    }
+
+    var mentTotal = { add: 0, cut: 0, loss: 0 };
+    mentioned.forEach(function(x) { mentTotal[x.kind] += x.num; });
+
+    var warnings = [];
+    ['add','cut','loss'].forEach(function(k) {
+      if (mentTotal[k] <= 1000) return;  // 千以下噪声
+      if (structuredTotal[k] < mentTotal[k] * 0.5) {
+        warnings.push({ kind: k, mentioned: mentTotal[k], structured: structuredTotal[k], shortfall: mentTotal[k] - structuredTotal[k] });
+      }
+    });
+
+    if (!warnings.length) return;
+
+    if (!G._militaryValidatorLog) G._militaryValidatorLog = [];
+    G._militaryValidatorLog.push({ turn: G.turn || 0, warnings: warnings, samples: mentioned.slice(0, 5) });
+    if (G._militaryValidatorLog.length > 20) G._militaryValidatorLog = G._militaryValidatorLog.slice(-20);
+
+    if (G._turnReport) G._turnReport.push({ type: 'military_validation', warnings: warnings, samples: mentioned.slice(0, 5), turn: G.turn || 0 });
+    console.warn('[MilitaryValidator] 叙事兵数与结构化 military_changes 偏差:', warnings);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  民心/皇威/皇权一致性校验器·Wave 1b
+  //  扫『民心大振/民怨沸腾/朝野失望/天下共愤』 vs turnChanges.variables 中民心/皇威/皇权 delta
+  // ═══════════════════════════════════════════════════════════════════
+  function _validateSentimentConsistency(G, aiOutput, applied) {
+    if (!G || !aiOutput) return;
+    var narrative = _getNarrativeText(aiOutput);
+    if (!narrative) return;
+
+    // 极性词典: 正向情绪(应升民心/皇威) vs 负向(应降)
+    var positiveKW = /民心大振|百姓欢悦|歌颂圣明|海内归心|朝野振奋|众心翕然|万民欣戴|四海升平|拥护|赞颂|拊掌|颂扬/g;
+    var negativeKW = /民怨沸腾|怨声载道|朝野失望|天下共愤|举国震骇|民不聊生|流离失所|冤死狼藉|弃捐道路|哀鸿遍野|怨望|愤激|忿恚|骚然/g;
+    var posCount = (narrative.match(positiveKW) || []).length;
+    var negCount = (narrative.match(negativeKW) || []).length;
+    if (posCount === 0 && negCount === 0) return;
+
+    // 检查 turnChanges 是否含 民心/皇威/皇权 delta
+    var sentDelta = 0;
+    var tc = (G.turnChanges && G.turnChanges.variables) || [];
+    tc.forEach(function(v) {
+      if (!v || !v.name) return;
+      if (/民心|皇威|皇权|声望|威信|拥戴/.test(v.name)) {
+        sentDelta += (v.delta || (v.newValue||0) - (v.oldValue||0));
+      }
+    });
+
+    var warnings = [];
+    // 强正向但 sentDelta 不正 → 警告
+    if (posCount >= 2 && sentDelta <= 0) {
+      warnings.push({ kind: 'positive_no_uplift', posCount: posCount, sentDelta: sentDelta });
+    }
+    // 强负向但 sentDelta 不负 → 警告
+    if (negCount >= 2 && sentDelta >= 0) {
+      warnings.push({ kind: 'negative_no_drop', negCount: negCount, sentDelta: sentDelta });
+    }
+
+    if (!warnings.length) return;
+
+    if (!G._sentimentValidatorLog) G._sentimentValidatorLog = [];
+    G._sentimentValidatorLog.push({ turn: G.turn || 0, posCount: posCount, negCount: negCount, sentDelta: sentDelta, warnings: warnings });
+    if (G._sentimentValidatorLog.length > 20) G._sentimentValidatorLog = G._sentimentValidatorLog.slice(-20);
+
+    if (G._turnReport) G._turnReport.push({ type: 'sentiment_validation', warnings: warnings, turn: G.turn || 0 });
+    console.warn('[SentimentValidator] 叙事情绪与变量变动不一致·posKW=' + posCount + '·negKW=' + negCount + '·sentDelta=' + sentDelta + ':', warnings);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  户口一致性校验器·Wave 1b
+  //  扫『饥荒死 N/逃户 M/迁徙 X』 vs GM.population.* 实际变动
+  // ═══════════════════════════════════════════════════════════════════
+  function _validatePopulationConsistency(G, aiOutput, applied) {
+    if (!G || !aiOutput) return;
+    var narrative = _getNarrativeText(aiOutput);
+    if (!narrative) return;
+
+    function _pn(s, mult) {
+      var cnMap = {'零':0,'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'百':100,'千':1000,'万':10000};
+      var n = parseFloat(s);
+      if (isNaN(n) || n <= 0) {
+        n = 0;
+        for (var i = 0; i < s.length; i++) {
+          var ch = s.charAt(i);
+          if (cnMap[ch] != null) {
+            if (ch === '十' || ch === '百' || ch === '千' || ch === '万') n = (n || 1) * cnMap[ch];
+            else n = n * 10 + cnMap[ch];
+          }
+        }
+      }
+      if (mult === '万') n *= 10000;
+      return n;
+    }
+
+    var deathVerbs = '饿死|冻死|疫死|战死|灾亡|溺死|染瘟|疫亡|流亡|罹难|罹疫';
+    var fleeVerbs = '逃亡|逃难|流离|迁徙|迁移|流民';
+    function _scan(verbs, kind) {
+      var pat = new RegExp('(' + verbs + ')[^。；,\\s]{0,10}?([\\d一二三四五六七八九十百千万]+)\\s*(万|千)?\\s*(口|户|人|众)', 'g');
+      var arr = [], m;
+      while ((m = pat.exec(narrative)) !== null) {
+        var n = _pn(m[2], m[3] || '');
+        if (n < 100) continue;
+        arr.push({ kind: kind, verb: m[1], num: n, raw: m[0] });
+      }
+      return arr;
+    }
+    var mentioned = [].concat(_scan(deathVerbs, 'death'), _scan(fleeVerbs, 'flee'));
+    if (!mentioned.length) return;
+
+    // 与 turnChanges.variables 中户口 delta 对比
+    var popDelta = { death: 0, flee: 0 };
+    var tc = (G.turnChanges && G.turnChanges.variables) || [];
+    tc.forEach(function(v) {
+      if (!v || !v.name) return;
+      var d = (v.delta || (v.newValue||0) - (v.oldValue||0));
+      if (/口|人口|mouths|总口|户籍|户口/.test(v.name)) {
+        if (d < 0) popDelta.death += Math.abs(d);
+      }
+      if (/逃户|流民|fugitives/.test(v.name)) {
+        if (d > 0) popDelta.flee += d;
+      }
+    });
+
+    var mentTotal = { death: 0, flee: 0 };
+    mentioned.forEach(function(x) { mentTotal[x.kind] += x.num; });
+
+    var warnings = [];
+    if (mentTotal.death > 1000 && popDelta.death < mentTotal.death * 0.3) {
+      warnings.push({ kind: 'death', mentioned: mentTotal.death, structured: popDelta.death, shortfall: mentTotal.death - popDelta.death });
+    }
+    if (mentTotal.flee > 1000 && popDelta.flee < mentTotal.flee * 0.3) {
+      warnings.push({ kind: 'flee', mentioned: mentTotal.flee, structured: popDelta.flee, shortfall: mentTotal.flee - popDelta.flee });
+    }
+
+    if (!warnings.length) return;
+
+    if (!G._populationValidatorLog) G._populationValidatorLog = [];
+    G._populationValidatorLog.push({ turn: G.turn || 0, warnings: warnings, samples: mentioned.slice(0, 5) });
+    if (G._populationValidatorLog.length > 20) G._populationValidatorLog = G._populationValidatorLog.slice(-20);
+
+    if (G._turnReport) G._turnReport.push({ type: 'population_validation', warnings: warnings, samples: mentioned.slice(0, 5), turn: G.turn || 0 });
+    console.warn('[PopulationValidator] 叙事人口变动与结构化偏差:', warnings);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  官职任免一致性校验器·Wave 1b
+  //  扫『拜 X 为 Y / 擢 X 为 Y / 迁 X 为 Y / 命 X 为 Y』vs office_assignments
+  // ═══════════════════════════════════════════════════════════════════
+  function _validateOfficeConsistency(G, aiOutput, applied) {
+    if (!G || !aiOutput) return;
+    var narrative = _getNarrativeText(aiOutput);
+    if (!narrative) return;
+
+    var allChars = (G.chars || []).filter(function(c){return c && c.name && c.alive !== false;});
+    var charNames = {};
+    allChars.forEach(function(c){ charNames[c.name] = c; });
+
+    // 任命动词 + 人名 + 为 + 官职
+    var appointVerbs = '拜|擢|迁|转|命|授|任|升|进|起|起复|改任|擢任|超擢';
+    // 模式 1: 动词 X 为/任 Y
+    var pat = new RegExp('(' + appointVerbs + ')\\s*([\\u4e00-\\u9fff]{2,4})\\s*(?:为|任)\\s*([\\u4e00-\\u9fff]{2,12})', 'g');
+
+    var mentioned = [];
+    var m;
+    while ((m = pat.exec(narrative)) !== null) {
+      var name = m[2];
+      var post = m[3];
+      if (!charNames[name]) continue;
+      var key = name + '_' + post;
+      if (mentioned.find(function(x){return x.key===key;})) continue;
+      mentioned.push({ key: key, name: name, post: post, verb: m[1], raw: m[0] });
+    }
+    if (!mentioned.length) return;
+
+    var handled = {};
+    (aiOutput.office_assignments || []).forEach(function(oa) {
+      if (oa && oa.name && (oa.action === 'appoint' || oa.action === 'transfer')) handled[oa.name] = true;
+    });
+    (aiOutput.personnel_changes || []).forEach(function(pc) {
+      if (pc && pc.name) handled[pc.name] = true;
+    });
+
+    var missing = mentioned.filter(function(m){ return !handled[m.name]; });
+    if (!missing.length) return;
+
+    // 自动补录·调 onAppointment
+    var patched = 0;
+    missing.forEach(function(m) {
+      try {
+        if (typeof onAppointment === 'function') {
+          var r = onAppointment(m.name, m.post, null);
+          if (r && r.ok) {
+            patched++;
+            if (global.addEB) global.addEB('校验补录', '官职校验·' + m.name + '『' + m.verb + '为' + m.post + '』补录(原文: ' + m.raw + ')');
+          }
+        }
+      } catch(_e) {
+        try { window.TM && TM.errors && TM.errors.captureSilent && TM.errors.captureSilent(_e, 'office-validator'); } catch(__){}
+      }
+    });
+
+    if (!G._officeValidatorLog) G._officeValidatorLog = [];
+    G._officeValidatorLog.push({ turn: G.turn || 0, missing: missing, patched: patched });
+    if (G._officeValidatorLog.length > 20) G._officeValidatorLog = G._officeValidatorLog.slice(-20);
+
+    if (G._turnReport) G._turnReport.push({ type: 'office_validation', missing: missing, patched: patched, turn: G.turn || 0 });
+    console.warn('[OfficeValidator] 叙事任命与 office_assignments 漏录(补 ' + patched + '/' + missing.length + '):', missing);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  //  二次 AI 自审 reconciliation·Wave 1c
+  //  仅当本回合 5 个 validator 累计警告 >= 3 时触发·让 AI 看自己的 narrative+JSON·查矛盾·返回补录
+  //  返回的 reconciliation_patch 自动 apply 到 GM·token 成本约 +20%
+  // ═══════════════════════════════════════════════════════════════════
+  function _maybeReconcileWithAI(G, aiOutput, applied) {
+    if (!G || !aiOutput) return;
+    // 统计本回合各 validator 警告数·阈值 3
+    var fiscalW = (G._fiscalValidatorLog||[]).filter(function(x){return x.turn===G.turn;}).reduce(function(s,x){return s+(x.warnings||[]).length;},0);
+    var personW = (G._personnelValidatorLog||[]).filter(function(x){return x.turn===G.turn;}).reduce(function(s,x){return s+(x.missing||[]).length;},0);
+    var militaryW = (G._militaryValidatorLog||[]).filter(function(x){return x.turn===G.turn;}).reduce(function(s,x){return s+(x.warnings||[]).length;},0);
+    var sentW = (G._sentimentValidatorLog||[]).filter(function(x){return x.turn===G.turn;}).reduce(function(s,x){return s+(x.warnings||[]).length;},0);
+    var popW = (G._populationValidatorLog||[]).filter(function(x){return x.turn===G.turn;}).reduce(function(s,x){return s+(x.warnings||[]).length;},0);
+    var officeW = (G._officeValidatorLog||[]).filter(function(x){return x.turn===G.turn;}).reduce(function(s,x){return s+(x.missing||[]).length;},0);
+    var totalW = fiscalW + personW + militaryW + sentW + popW + officeW;
+
+    if (!G._reconcileLog) G._reconcileLog = [];
+    G._reconcileLog.push({ turn: G.turn || 0, fiscalW: fiscalW, personW: personW, militaryW: militaryW, sentW: sentW, popW: popW, officeW: officeW, total: totalW });
+    if (G._reconcileLog.length > 20) G._reconcileLog = G._reconcileLog.slice(-20);
+
+    if (totalW < 3) return;  // 未达阈值
+    // ★ 不在 applier 同步触发 AI(applier 是同步函数)·标记需要 reconcile·让 endturn-ai-infer 异步处理
+    G._needsReconcile = {
+      turn: G.turn || 0,
+      warnings: { fiscal: fiscalW, personnel: personW, military: militaryW, sentiment: sentW, population: popW, office: officeW },
+      narrativeSnapshot: _getNarrativeText(aiOutput).slice(0, 2000),  // 截断防止 prompt 过长
+      structuredSnapshot: {
+        personnel_changes: aiOutput.personnel_changes || [],
+        office_assignments: aiOutput.office_assignments || [],
+        fiscal_adjustments: aiOutput.fiscal_adjustments || [],
+        military_changes: aiOutput.military_changes || []
+      }
+    };
+    console.warn('[ReconcileAI] 本回合校验器累计警告 ' + totalW + ' 条 >= 阈值·标记 GM._needsReconcile·待异步 AI 自审');
+    if (G._turnReport) G._turnReport.push({ type: 'reconcile_pending', total: totalW, turn: G.turn || 0 });
   }
 
   function _validateFiscalConsistency(G, aiOutput, applied) {
