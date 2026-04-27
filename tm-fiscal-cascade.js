@@ -39,7 +39,7 @@
     {
       id: 'land_grain',    name: '田赋（粮）',
       base: 'arableLand',  baseFallback: 'mouths',
-      baseFactor: 0.3,     rate: 0.08,            // 亩产 * 30% * 8% ≈ 0.024 石/亩·年(对应史实人均岁纳粮约 0.5 石)
+      baseFactor: 0.3,     rate: 0.13,            // 亩产 * 30% * 13% ≈ 0.04 石/亩·年(对应史实田赋率 5-10%·中央实收 ~600 万石/年)
       storeAs: 'grain',    sourceTag: 'tianfu',
       annual: true
     },

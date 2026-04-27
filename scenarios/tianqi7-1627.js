@@ -2450,7 +2450,7 @@
           { id: 'chama', name: '茶马司', formulaType: 'flat', amount: 300000, description: '陕甘茶马司年额定 30 万两·实征约 12 万到中央(扣损耗约 60%)。备边军马。' },
           { id: 'chaoguan', name: '钞关过货税', formulaType: 'flat', amount: 1200000, description: '运河沿线八大钞关名义 120 万两·实征中央约 50-60 万。临清/淮安/扬州/河西务等。' },
           { id: 'guanshui', name: '海关（月港）', formulaType: 'flat', amount: 80000, description: '福建漳州月港市舶司名义 8 万两·实征 3-5 万。万历开海后设。' },
-          { id: 'junhu', name: '军户屯田', formulaType: 'perMu', rate: 0.04, description: '九边军屯亩税 4 分(法定·实际已大半侵占·cascade 自动按 compliance 折扣)。' }
+          { id: 'junhu', name: '军户屯田', formulaType: 'perMu', rate: 0.005, description: '九边军屯亩税法定 4 分·实际已 90% 被勋贵卫所将官侵占·剩余仅 5% 实收·故净税率 0.005 两/亩。' }
         ],
         // ──── 央地分账（对齐 editor-fiscal centralLocalRules preset）────
         centralLocalRules: {

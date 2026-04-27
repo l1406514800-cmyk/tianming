@@ -144,15 +144,28 @@
     var total = { money: 0, grain: 0, cloth: 0 };
     var byDept = {};
 
+    // 兜底·若 holder 多缺(scenario 只填京官)·按 establishedCount × 实任率 估算虚拟应发俸
+    // 史实明清官员含外官学官散官达 2-5 万·scenario holder 通常仅填 ~100 人·按 establishedCount × fillRate 折算
+    var virtualFillRate = (cfg.virtualFillRate != null) ? cfg.virtualFillRate : 0.6;  // 60% 实任率(明末因战乱拖欠常空缺)
+
     function _walk(nodes, deptPath) {
       (nodes || []).forEach(function (n) {
         if (!n) return;
         var dp = (deptPath ? deptPath + '·' : '') + (n.name || '');
         (n.positions || []).forEach(function (p) {
           if (!p) return;
-          // 空缺职位不发俸
+          // 实际填 holder 的人数
           var hasHolder = p.holder && p.holder !== '' && p.holder !== '空缺' && p.holder !== '(空缺)';
-          if (!hasHolder) return;
+          // 编制人数(scenario 标 establishedCount·明清『定员』)
+          var established = (typeof p.establishedCount === 'number' && p.establishedCount > 0) ? p.establishedCount : 1;
+          // 实任人数 = max(填 holder 数, established × 实任率) — 缺失 holder 时用编制 × 0.6 兜底
+          // 已填 holder=1 取 1·establishedCount 大(如 100 个县令)且 holder 仅填 1 个 → 兜底虚拟数 = max(1, established×0.6)
+          var actualHeads = hasHolder ? Math.max(1, Math.floor(established * virtualFillRate)) : 0;
+          if (!hasHolder && established > 5) {
+            // 编制大但 holder 全空·走兜底估算(避免漏发外官俸)·只对 establishedCount 显式 > 5 的批量职位生效
+            actualHeads = Math.floor(established * virtualFillRate * 0.5);  // 全空职位再折半·避免高估
+          }
+          if (actualHeads <= 0) return;
 
           // 月俸 —— 优先 position.salary，否则按 rank 表
           var monthly = 0;
@@ -160,14 +173,12 @@
           else if (p.perPersonSalary != null && !isNaN(+p.perPersonSalary)) monthly = +p.perPersonSalary;
           else monthly = salaryTable[p.rank] != null ? salaryTable[p.rank] : DEFAULT_UNRANKED_SALARY;
 
-          var thisTurn = monthly * turnFracMonth;
+          var thisTurn = monthly * turnFracMonth * actualHeads;
           // 单位分流：明清『石』单位 → 本色米 + 折银双扣；其他单位走 salaryKind/money
           var posKind = p.salaryKind;
           if (posKind) {
-            // 显式 kind 优先(剧本作者明确指定)
             total[posKind] += thisTurn;
           } else if (unit === 'grain_stone') {
-            // 石(米)单位·本色 grainRatio 比例发米·折色 (1-grainRatio) 比例 × stoneToSilver 折银
             total.grain += thisTurn * grainRatio;
             total.money += thisTurn * (1 - grainRatio) * stoneToSilver;
           } else {
