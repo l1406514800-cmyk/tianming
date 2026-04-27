@@ -277,15 +277,24 @@ function renderGuokuPanel() {
       html +=   '<div class="bar"><span style="width:' + barW + '%;"></span></div>';
       html +=   '<span class="v">' + _guokuFmt(val) + '<span class="pct">' + pct + '%</span></span>';
       html += '</div>';
-      // 地方贡献 top
+      // 地方贡献：列前 3 + 显式标出其余省份合计·避免误以为"只结算这三省"
       if (typeof CascadeTax !== 'undefined' && typeof CascadeTax.getTopContributors === 'function' && km.key === 'money') {
-        var tops = CascadeTax.getTopContributors(tag, 3);
-        if (tops && tops.length > 0) {
-          var topsStr = tops.map(function(t){
+        var allContribs = CascadeTax.getTopContributors(tag, 999);  // 全部贡献省
+        if (allContribs && allContribs.length > 0) {
+          var topN = allContribs.slice(0, 3);
+          var topsStr = topN.map(function(t){
             var safeName = String(t.name).replace(/'/g, '\\\'');
             return '<span class="top" onclick="if(typeof openDivisionDetail===\'function\')openDivisionDetail(\'' + safeName + '\')">' + _escHtml(t.name) + ' ' + t.pct.toFixed(0) + '%</span>';
           }).join('');
-          html += '<div class="tr-flow-tops"><span class="arrow">↳ 贡献</span>' + topsStr + '</div>';
+          var restCount = allContribs.length - topN.length;
+          var restPct = 0;
+          if (restCount > 0) {
+            for (var ri = topN.length; ri < allContribs.length; ri++) restPct += allContribs[ri].pct;
+          }
+          var restStr = restCount > 0
+            ? '<span class="top" style="opacity:0.7;cursor:default;">余 ' + restCount + ' 省 ' + restPct.toFixed(0) + '%</span>'
+            : '';
+          html += '<div class="tr-flow-tops"><span class="arrow">↳ 前三贡献</span>' + topsStr + restStr + '</div>';
         }
       }
     });
