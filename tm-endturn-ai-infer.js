@@ -917,6 +917,8 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
     tp += '  · 抄家/抄没/籍没 → personnel_changes change 含『抄家』·将自动 EconomyLinkage.confiscate·私产入内帑+追隐匿·禁直接 fiscal_adjustments 写抄家收入(会双计)\n';
     tp += '  · 流放/发配/戍边 → personnel_changes change 含『流放/发配』·设 _exiled\n';
     tp += '  · 致仕/退休/乞骸 → personnel_changes change 含『致仕/退休』·设 _retired\n';
+    tp += '    ★【强制·一致性铁律】narrative(实录/起居注/御批/史记/事件 desc)中提到任何人物状态变化(下狱/赐死/抄家/流放/致仕/逃亡/革职)·必须 100% 同步在 personnel_changes 或 office_assignments 或 char_updates 里·后端 PersonnelValidator 会扫 narrative 自动补录但记警告·不要靠它兜底\n';
+    tp += '    ★ 反例(已修): 实录写"严贵崔呈秀贪墨·命方正化捉拿抄家下狱·得银八十万"·但 personnel_changes 不写崔呈秀·导致他还在朝议·80 万也不入账。正例: 实录同上文·personnel_changes:[{name:"崔呈秀",change:"捉拿抄家下狱",reason:"...贪墨..."}]·fiscal_adjustments:[]空(因抄家由 personnel_changes 触发 confiscate·重复写会双计)\n';
     tp += '  · 新设/裁撤衙门 → anyPathChanges 改 P.officeTree；同时建立/解除对应 publicTreasury 绑定\n';
     tp += '  · 财政调整（赐金/征发/专款/缴获/贡品/赔款/罚没/赈济）→ fiscal_adjustments:[{target:"guoku|neitang|province:X",kind:"income|expense",resource:"money|grain|cloth",amount,name,reason,recurring:false}]\n';
     tp += '    ★【强制·核心 bug 历史教训】任何钱/粮/布流动——无论是玩家诏令所引（赏银万两·赈粮千石·修宫殿·发军饷）·还是推演中的 NPC 行为（贪污·贡纳·缴获·赔款·走私入库）·必须一条一条写入 fiscal_adjustments·绝不可只在叙事/戏说/实录里提及数字而不落账\n';

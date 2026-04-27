@@ -1436,6 +1436,9 @@
     // ── 14. 财务一致性校验：扫描叙事中的金额 vs fiscal_adjustments 总量 ──
     try { _validateFiscalConsistency(G, aiOutput, applied); } catch(_fvE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_fvE, 'applier] fiscal validator:') : console.warn('[applier] fiscal validator:', _fvE); }
 
+    // ── 14a. 人事一致性校验·扫描叙事中『某某下狱/赐死/抄家/流放』vs 结构化数据 ──
+    try { _validatePersonnelConsistency(G, aiOutput, applied); } catch(_pvE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_pvE, 'applier] personnel validator:') : console.warn('[applier] personnel validator:', _pvE); }
+
     // ── 15. 死亡墓志铭 & 诈死holding ──
     try { _processDeathEpitaphs(G, aiOutput); } catch(_deE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_deE, 'applier] death epitaph:') : console.warn('[applier] death epitaph:', _deE); }
 
@@ -1446,6 +1449,122 @@
   //  财务一致性校验器
   //  扫描 shilu_text/shizhengji/events 中提及金额，比对 fiscal_adjustments 总量
   // ═══════════════════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════════════════
+  //  人事一致性校验器·Wave 1a (2026-04-27)
+  //  解决: AI narrative 提『某某下狱/赐死/抄家/流放』但不写 personnel_changes·数据不变
+  //  做法: 扫所有 narrative 字段·用动词关键字 + 人名 regex 抓·与结构化数据对比·直接补调 onDismissal
+  // ═══════════════════════════════════════════════════════════════════
+  function _validatePersonnelConsistency(G, aiOutput, applied) {
+    if (!G || !aiOutput) return;
+    var narrativeText = '';
+    if (aiOutput.shilu_text) narrativeText += String(aiOutput.shilu_text) + '\n';
+    if (aiOutput.shizhengji) narrativeText += String(aiOutput.shizhengji) + '\n';
+    if (aiOutput.yupiHuiting) narrativeText += String(aiOutput.yupiHuiting) + '\n';
+    if (aiOutput.qijuHistory) narrativeText += String(aiOutput.qijuHistory) + '\n';
+    if (Array.isArray(aiOutput.events)) {
+      aiOutput.events.forEach(function(e){ if (e && e.desc) narrativeText += String(e.desc) + '\n'; });
+    }
+    if (aiOutput.event && aiOutput.event.desc) narrativeText += String(aiOutput.event.desc) + '\n';
+    // npc_actions 也扫
+    if (Array.isArray(aiOutput.npc_actions)) {
+      aiOutput.npc_actions.forEach(function(na){ if (na && na.desc) narrativeText += String(na.desc) + '\n'; });
+    }
+    if (!narrativeText) return;
+
+    // 状态动词字典·区分 7 大动作类型
+    var statusVerbs = {
+      execute:    ['处决', '赐死', '诛戮', '凌迟', '腰斩', '弃市', '绞刑', '斩首', '诛九族'],
+      imprison:   ['下狱', '入狱', '系狱', '收押', '关押', '捉拿下狱', '逮捕下狱', '锁拿'],
+      arrest:     ['捉拿', '逮捕', '抓捕', '缉拿', '锁拿'],   // 不一定下狱·区分对待
+      exile:      ['流放', '发配', '戍边', '充军', '远谪', '贬谪边远'],
+      retire:     ['致仕', '乞骸骨', '归田', '退休', '告老'],
+      flee:       ['潜逃', '远遁', '逃匿', '隐遁'],
+      confiscate: ['抄家', '抄没', '籍没', '查抄', '没官'],
+      dismiss:    ['革职', '罢官', '罢免', '降职贬黜', '罢相', '罢免']
+    };
+
+    // 收集所有人名(2-4字·过滤明显非人名)
+    var allChars = (G.chars || []).filter(function(c){ return c && c.name && c.alive !== false; });
+    var charNameSet = {};
+    allChars.forEach(function(c){
+      charNameSet[c.name] = c;
+      // 也收去前缀的『字』『号』·如『字'国之'』
+      if (c.zi) charNameSet[c.zi] = c;
+    });
+
+    // 扫 narrative·匹配 "<人名> + <动作>" 或 "<动作> + <人名>" 模式
+    var mentioned = [];
+    Object.keys(statusVerbs).forEach(function(action) {
+      statusVerbs[action].forEach(function(verb) {
+        // 正向: "X 下狱"
+        var pat1 = new RegExp('([\\u4e00-\\u9fff]{2,4})\\s*' + verb, 'g');
+        // 反向: "下狱 X" / "命...将 X 下狱"
+        var pat2 = new RegExp(verb + '[^\\u4e00-\\u9fff]{0,5}([\\u4e00-\\u9fff]{2,4})', 'g');
+        [pat1, pat2].forEach(function(pat) {
+          var m;
+          while ((m = pat.exec(narrativeText)) !== null) {
+            var name = m[1];
+            if (!charNameSet[name]) continue;
+            // 去重·同人同 action 只记一次
+            var key = name + '_' + action;
+            if (mentioned.find(function(x){return x.key===key;})) continue;
+            mentioned.push({ key: key, name: name, action: action, verb: verb, raw: m[0] });
+          }
+        });
+      });
+    });
+
+    if (!mentioned.length) return;
+
+    // 已在结构化数据中处理的人·跳过
+    var handled = {};
+    (aiOutput.personnel_changes || []).forEach(function(pc) {
+      if (pc && pc.name) handled[pc.name] = true;
+    });
+    (aiOutput.office_assignments || []).forEach(function(oa) {
+      if (oa && oa.name && (oa.action === 'dismiss' || oa.action === 'transfer')) handled[oa.name] = true;
+    });
+    (aiOutput.char_updates || []).forEach(function(cu) {
+      if (cu && cu.name && cu.updates) {
+        var u = cu.updates;
+        if (u.alive === false || u._imprisoned || u._exiled || u._retired || u._fled) handled[cu.name] = true;
+      }
+    });
+
+    var missing = mentioned.filter(function(m){ return !handled[m.name]; });
+    if (!missing.length) return;
+
+    // 直接补调 onDismissal·让其状态字段写入·不修改 aiOutput.personnel_changes(已处理过)
+    var patched = 0;
+    missing.forEach(function(m) {
+      // 找该人物
+      var ch = charNameSet[m.name];
+      if (!ch) return;
+      try {
+        // 调 onDismissal·reason 用 verb 让函数内部 regex 命中状态分支
+        var r = onDismissal(ch.name, m.verb);
+        if (r && r.ok) {
+          patched++;
+          if (global.addEB) {
+            global.addEB('校验补录', '人事校验器·' + ch.name + '『' + m.verb + '』补录入库(原文: ' + m.raw + ')');
+          }
+        }
+      } catch(_e) {
+        try { window.TM && TM.errors && TM.errors.captureSilent && TM.errors.captureSilent(_e, 'personnel-validator'); } catch(__){}
+      }
+    });
+
+    if (!G._personnelValidatorLog) G._personnelValidatorLog = [];
+    G._personnelValidatorLog.push({ turn: G.turn || 0, missing: missing, patched: patched });
+    if (G._personnelValidatorLog.length > 20) G._personnelValidatorLog = G._personnelValidatorLog.slice(-20);
+
+    if (G._turnReport) {
+      G._turnReport.push({ type: 'personnel_validation', missing: missing, patched: patched, turn: G.turn || 0 });
+    }
+
+    console.warn('[PersonnelValidator] 叙事提及但 AI 未填结构化的人物状态变化(已自动补录 ' + patched + '/' + missing.length + '):', missing);
+  }
+
   function _validateFiscalConsistency(G, aiOutput, applied) {
     if (!G || !aiOutput) return;
     var narrativeText = '';
