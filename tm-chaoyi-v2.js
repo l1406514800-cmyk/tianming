@@ -854,6 +854,19 @@ function _ty2_finalEnd() {
   if (typeof closeChaoyi === 'function') closeChaoyi();
 }
 
+// 通用：建言要点按钮（廷议/御前会议共用）；定义缺失会导致裁决阶段抛 ReferenceError
+function _cy_suggestBtnHtml(category) {
+  try {
+    if (typeof _mzShowSummary !== 'function') return '';
+    var label = (category === '御前会议') ? '密 议 要 点' : '建 言 要 点';
+    var tip = '由 AI 归总此' + (category||'议') + '中各家主张，便于裁断。';
+    return '<button onclick="if(typeof _mzShowSummary===&quot;function&quot;)_mzShowSummary();" title="' + tip + '" '
+         + 'style="padding:4px 10px;font-size:11px;background:transparent;border:1px solid var(--color-border-subtle);'
+         + 'color:var(--ink-500);border-radius:var(--radius-sm);cursor:pointer;letter-spacing:0.05em;">'
+         + label + '</button>';
+  } catch(_) { return ''; }
+}
+
 function _ty2_globalFooter() {
   return '<div style="margin-top:var(--space-2);padding-top:var(--space-2);border-top:1px solid var(--color-border-subtle);display:flex;gap:3px;justify-content:center;flex-wrap:wrap;">'
     + _cy_suggestBtnHtml('廷议')

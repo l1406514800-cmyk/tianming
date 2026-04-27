@@ -3065,9 +3065,37 @@ function _ty3_phase15_scanAndSpawnTopics() {
       if (_ty3_alreadyHasTopic(disputeKey)) return;
       // 限频：每党每 3 回合至多 spawn 一次 focal_dispute
       if (p._lastFocalSpawnTurn && (GM.turn - p._lastFocalSpawnTurn) < 3) return;
-      var stancePrefix = (pick.stake === 'oppose' || pick.stakes === 'oppose') ? '反' : '议';
-      var topicTxt10 = stancePrefix + (pick.topic.indexOf('议') === 0 ? pick.topic.slice(1) : pick.topic);
-      if (pick.rival) topicTxt10 += '·与' + pick.rival + '相争';
+      // 议题修辞：以含蓄典雅之笔包裹·避免"议X·与Y相争"过于直白
+      var rawTopic = pick.topic.indexOf('议') === 0 ? pick.topic.slice(1) : pick.topic;
+      var isOppose = (pick.stake === 'oppose' || pick.stakes === 'oppose');
+      var topicTxt10 = '';
+      // 据议题语义择典雅前缀
+      if (/内阁|辅弼|阁臣|首辅|次辅|枢辅|阁老/.test(rawTopic)) {
+        topicTxt10 = (isOppose ? '阁臣进退之议·' : '枢辅调度之议·') + rawTopic;
+      } else if (/京察|大计|铨叙|考功|吏治|黜陟/.test(rawTopic)) {
+        topicTxt10 = (isOppose ? '京察持平之议·' : '吏治整饬之议·') + rawTopic;
+      } else if (/边|军|兵|关|戍|讨|征|寇|虏|镇|防/.test(rawTopic)) {
+        topicTxt10 = (isOppose ? '边事筹议·' : '武备议处·') + rawTopic;
+      } else if (/财|税|帑|盐|漕|榷|赋|加派|矿|铸/.test(rawTopic)) {
+        topicTxt10 = (isOppose ? '财计宽免之议·' : '帑廪经画之议·') + rawTopic;
+      } else if (/礼|科举|学|庙|郊|祀|经筵|讲|文/.test(rawTopic)) {
+        topicTxt10 = (isOppose ? '文教持论·' : '士林清议·') + rawTopic;
+      } else if (/刑|狱|讼|赦|宥|戮/.test(rawTopic)) {
+        topicTxt10 = (isOppose ? '刑狱平反之议·' : '法度厘正之议·') + rawTopic;
+      } else if (/党|朋|阉|宦|外戚|外朝/.test(rawTopic)) {
+        topicTxt10 = (isOppose ? '朝局清议·' : '朝纲整肃之议·') + rawTopic;
+      } else if (/河|漕|工|水利|河漕/.test(rawTopic)) {
+        topicTxt10 = '河漕筹议·' + rawTopic;
+      } else if (/迁|定都|陪都|京师|留都/.test(rawTopic)) {
+        topicTxt10 = '宗社大议·' + rawTopic;
+      } else {
+        topicTxt10 = (isOppose ? '清议·' : '枢机之议·') + rawTopic;
+      }
+      // 党争暗示：以"朝议未一""廷臣异同"代直白"与XX相争"
+      if (pick.rival) {
+        var hintPool = ['·朝议未一', '·廷臣异同', '·众论纷纭', '·或主或抑'];
+        topicTxt10 += hintPool[Math.floor(Math.random() * hintPool.length)];
+      }
       var t10 = {
         topic: topicTxt10,
         from: '推演 spawn·' + p.name + '·短期诉求',

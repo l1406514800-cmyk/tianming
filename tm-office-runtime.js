@@ -1578,6 +1578,83 @@ function _renderOfficeSummary() {
   }
 }
 
+/** 全局·荐贤廷推入口——列出所有空缺职位·点击进入对应职位的荐贤/廷推流程
+ *  解决 tm-hongyan-office.js 头按钮 onclick 调用 _offOpenZhongtui 但未实现的 bug
+ *  - 高品级(rank≤6) 自动进 _offTingTui(廷推 modal)
+ *  - 一般品级 进 _offRecommend(候选人列表 modal)
+ *  - 选定者写入 _edictSuggestions(诏书建议库)·下回合 endturn 推演读为人事议题
+ */
+function _offOpenZhongtui() {
+  if (!GM.officeTree || GM.officeTree.length === 0) {
+    if (typeof toast === 'function') toast('官制未配置·无职位可推');
+    return;
+  }
+  // 收集所有空缺职位·路径+品级
+  var vacancies = [];
+  (function _walk(nodes, prefix) {
+    if (!nodes) return;
+    nodes.forEach(function(n, i) {
+      var basePath = prefix.concat([i]);
+      (n.positions || []).forEach(function(p, pi) {
+        if (!p.holder) {
+          var rl = (typeof getRankLevel === 'function') ? getRankLevel(p.rank) : 99;
+          vacancies.push({
+            pathArr: basePath.concat(['p', pi]),
+            deptName: n.name,
+            posName: p.name,
+            rank: p.rank || '',
+            rankLevel: rl,
+            isHigh: rl <= 6,
+            duty: (p.desc || p.duties || '').slice(0, 40)
+          });
+        }
+      });
+      if (n.subs) _walk(n.subs, basePath.concat(['s']));
+    });
+  })(GM.officeTree, []);
+
+  if (vacancies.length === 0) {
+    if (typeof toast === 'function') toast('百司满员·无缺可推');
+    return;
+  }
+  // 按品级·高品级在前
+  vacancies.sort(function(a, b) { return a.rankLevel - b.rankLevel; });
+
+  // 弹窗列出缺
+  var bg = document.createElement('div');
+  bg.style.cssText = 'position:fixed;inset:0;z-index:1100;background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;';
+  var html = '<div style="background:var(--color-surface);border:1px solid var(--gold-500);border-radius:var(--radius-lg);padding:1.2rem 1.5rem;max-width:600px;max-height:80vh;overflow-y:auto;width:90vw;">';
+  html += '<div style="font-size:var(--text-md);color:var(--color-primary);margin-bottom:var(--space-2);letter-spacing:0.15em;text-align:center;">〔 荐 贤 廷 推 〕</div>';
+  html += '<div style="font-size:var(--text-xs);color:var(--color-foreground-muted);text-align:center;margin-bottom:var(--space-3);">共 ' + vacancies.length + ' 职待补·选一荐之·高品走廷推·余者荐贤</div>';
+
+  var lastGroup = '';
+  vacancies.forEach(function(v) {
+    // 高品级/一般 分组
+    var group = v.isHigh ? '高品·廷推' : '一般·荐贤';
+    if (group !== lastGroup) {
+      html += '<div style="font-size:0.7rem;color:var(--gold-400);margin:var(--space-2) 0 var(--space-1);letter-spacing:0.1em;border-bottom:1px solid var(--color-border-subtle);padding-bottom:2px;">' + group + '</div>';
+      lastGroup = group;
+    }
+    var pathJSON = JSON.stringify(v.pathArr).replace(/"/g, '&quot;');
+    var safeDept = escHtml(v.deptName).replace(/'/g, "\\'");
+    var safePos = escHtml(v.posName).replace(/'/g, "\\'");
+    html += '<div style="padding:var(--space-2);margin-bottom:var(--space-1);background:var(--color-elevated);border:1px solid ' + (v.isHigh ? 'var(--gold-500)' : 'var(--color-border-subtle)') + ';border-radius:var(--radius-sm);cursor:pointer;display:flex;justify-content:space-between;align-items:center;" '
+      + 'onclick="this.closest(\'div[style*=fixed]\').remove();_offRecommend(' + pathJSON + ',\'' + safeDept + '\',\'' + safePos + '\')">';
+    html += '<div>';
+    html += '<span style="font-size:var(--text-sm);' + (v.isHigh ? 'color:var(--gold-400);font-weight:var(--weight-bold);' : '') + '">' + escHtml(v.deptName) + ' · ' + escHtml(v.posName) + '</span>';
+    if (v.rank) html += '<span style="font-size:0.65rem;color:var(--ink-300);margin-left:6px;">' + escHtml(v.rank) + '</span>';
+    if (v.duty) html += '<div style="font-size:0.62rem;color:var(--color-foreground-muted);margin-top:2px;">' + escHtml(v.duty) + '</div>';
+    html += '</div>';
+    html += '<span style="font-size:0.7rem;color:var(--gold-400);">' + (v.isHigh ? '入 廷 推 ›' : '荐 贤 ›') + '</span>';
+    html += '</div>';
+  });
+  html += '<div style="text-align:center;margin-top:var(--space-2);"><button class="bt" onclick="this.closest(\'div[style*=fixed]\').remove();">关闭</button></div>';
+  html += '</div>';
+  bg.innerHTML = html;
+  document.body.appendChild(bg);
+}
+if (typeof window !== 'undefined') window._offOpenZhongtui = _offOpenZhongtui;
+
 /** 荐贤——显示候选人列表，选择后写入诏令建议库 */
 /** 高品级职位（从三品以上）触发廷推流程 */
 function _offRecommend(pathArr, deptName, posName) {

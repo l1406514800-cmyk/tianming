@@ -1176,6 +1176,7 @@ function avatarHtml(name, opts = {}) {
 
 function addBubble(opts) {
   const main = $('cy-stage-main');
+  if (!main) return;  // 面板已关·async 链残留调用静默丢弃
   const row = document.createElement('div');
   row.className = 'cy-bubble-row ' + (opts.kind || 'npc');
   let inner = '';
@@ -1831,20 +1832,29 @@ function maybeAmbient(prob) {
   addBubble({ kind: 'system', text: line });
 }
 
+// 面板存活校验·_cc3_close 后 DOM 已移除·任何 DOM 写入应早退
+function _cc3_panelAlive() {
+  return !!document.getElementById('cy-stage');
+}
+
 function setActions(html) {
-  $('cy-action-bar').innerHTML = html;
+  var el = $('cy-action-bar');
+  if (!el) return;
+  el.innerHTML = html;
 }
 
 function setPhase(label, hint) {
-  $('cy-phase-label').textContent = label;
-  $('cy-phase-hint').textContent = hint || '';
+  var lbl = $('cy-phase-label'); if (lbl) lbl.textContent = label;
+  var ht  = $('cy-phase-hint');  if (ht)  ht.textContent = hint || '';
 }
 
 function updateProgress() {
-  $('cy-progress-tag').textContent = '已议 ' + state.decisions.length;
+  var tg = $('cy-progress-tag'); if (!tg) return;
+  tg.textContent = '已议 ' + state.decisions.length;
 }
 
 function refreshTitle() {
+  if (!_cc3_panelAlive()) return;
   // 朝代配置·从 scenario.chaoyi 读
   const cfg = (typeof _cc3_getScenarioConfig === "function") ? _cc3_getScenarioConfig() : null;
   if (cfg) {
@@ -1860,9 +1870,11 @@ function refreshTitle() {
   // 兜底（preview mode·或 GM 未初始化）
   const isShuo = state.mode === 'shuochao';
   const ttl = isShuo ? '〔 朔 朝 〕奉天门 · 戊辰年三月初一' : '〔 早 朝 〕奉天门 · 戊辰年三月十二';
-  $('cy-title').textContent = ttl;
-  $('cy-ceremony-title').textContent = isShuo ? '〔 朔 朝 〕' : '〔 早 朝 〕';
-  $('cy-ceremony').querySelector('.sub').textContent = isShuo
+  var tEl3 = $('cy-title'); if (tEl3) tEl3.textContent = ttl;
+  var cEl3 = $('cy-ceremony-title'); if (cEl3) cEl3.textContent = isShuo ? '〔 朔 朝 〕' : '〔 早 朝 〕';
+  var ceremEl = $('cy-ceremony');
+  var subEl = ceremEl && ceremEl.querySelector('.sub');
+  if (subEl) subEl.textContent = isShuo
     ? '奉天门 · 朔月初一 · 戊辰年三月初一'
     : '奉天门 · 五更三点 · 戊辰年三月十二';
 }
@@ -3782,6 +3794,15 @@ function _cc3_createModal() {
 
 /** 关闭 v3 modal */
 function _cc3_close() {
+  // 退朝按钮直接关闭时·若是朔朝(post-turn)且 runClosing 未跑过钩子·此处补触发
+  // 保证后续 _onPostTurnCourtEnd 能展示推演 loading / 弹史记
+  var _wasPostTurn = false;
+  try {
+    _wasPostTurn = (typeof state !== 'undefined' && state._isPostTurn)
+                || (typeof GM !== 'undefined' && GM._isPostTurnCourt);
+  } catch(_) {}
+  var _alreadyDone = (typeof state !== 'undefined' && state.done);
+
   const m = document.getElementById('cy-stage');
   if (m) m.remove();
   // 清理 popovers
@@ -3789,6 +3810,13 @@ function _cc3_close() {
   if (typeof CY !== 'undefined') {
     CY.open = false;
     if (CY.abortCtrl) try { CY.abortCtrl.abort(); } catch(_){}
+  }
+
+  // 朔朝退朝兜底·若 runClosing 还没跑过(state.done!=true)·补触发后朝结束钩子
+  if (_wasPostTurn && !_alreadyDone && typeof _onPostTurnCourtEnd === 'function') {
+    try { _onPostTurnCourtEnd(); } catch(_e) {
+      if (window.TM && TM.errors && TM.errors.capture) TM.errors.capture(_e, 'cc3_close] postTurnEnd:');
+    }
   }
 }
 
