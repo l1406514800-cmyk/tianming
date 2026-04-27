@@ -5138,6 +5138,70 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           }
         } catch(_applyErr) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_applyErr, 'endturn] applyAITurnChanges:') : console.warn('[endturn] applyAITurnChanges:', _applyErr); }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // Wave 1c · 二次 AI 自审 reconciliation·处理 _maybeReconcileWithAI 标记的 _needsReconcile
+        // 6 个 validator 累计警告 >= 3 时·_maybeReconcileWithAI 设 GM._needsReconcile·此处取走并调 AI 二审
+        // ═══════════════════════════════════════════════════════════════════
+        if (GM && GM._needsReconcile) {
+          var _rec = GM._needsReconcile;
+          GM._needsReconcile = null;  // 立即取走·避免下回合重复
+          try {
+            var _reconcilePrompt = '【一致性自审任务】\n你刚才输出的 narrative 与结构化 JSON 之间·校验器检测到 ' +
+              (Object.values(_rec.warnings).reduce(function(a,b){return a+b;},0)) + ' 处不一致·按领域分布:\n' +
+              JSON.stringify(_rec.warnings) + '\n\n' +
+              '【你的 narrative 节选(2KB)】\n' + _rec.narrativeSnapshot + '\n\n' +
+              '【你已写的结构化数据(摘要)】\n' +
+              'personnel_changes: ' + JSON.stringify((_rec.structuredSnapshot.personnel_changes||[]).slice(0,5)) + '\n' +
+              'office_assignments: ' + JSON.stringify((_rec.structuredSnapshot.office_assignments||[]).slice(0,5)) + '\n' +
+              'fiscal_adjustments: ' + JSON.stringify((_rec.structuredSnapshot.fiscal_adjustments||[]).slice(0,5)) + '\n' +
+              'military_changes: ' + JSON.stringify((_rec.structuredSnapshot.military_changes||[]).slice(0,5)) + '\n\n' +
+              '请检查 narrative 中提到但未在结构化数据里体现的状态变化·只补遗漏的·不要重复已写过的·返回纯 JSON:\n' +
+              '{"reconciliation_patch":{' +
+              '"personnel_changes":[{"name":"X","change":"下狱/赐死/抄家/流放/致仕/逃亡","reason":"..."}],' +
+              '"office_assignments":[{"name":"Y","action":"appoint|dismiss","post":"...","reason":"..."}],' +
+              '"fiscal_adjustments":[{"target":"guoku|neitang","kind":"income|expense","resource":"money|grain|cloth","amount":N,"name":"...","reason":"..."}],' +
+              '"military_changes":[{"armyName":"...","delta":N,"reason":"..."}]' +
+              '}}\n' +
+              '若 narrative 与结构化已一致·返回 {"reconciliation_patch":{}} 空对象。';
+            var _recRaw = await callAI(_reconcilePrompt, 1500, undefined, 'secondary');
+            var _recParsed = null;
+            try {
+              var _jm = String(_recRaw).match(/\{[\s\S]*\}/);
+              if (_jm) _recParsed = JSON.parse(_jm[0]);
+            } catch(_pe) { console.warn('[Reconcile] AI 返回 JSON 解析失败:', _pe); }
+            if (_recParsed && _recParsed.reconciliation_patch) {
+              var _patch = _recParsed.reconciliation_patch;
+              // 应用 patch·复用 applyAITurnChanges 但只传 patch 字段
+              if (typeof applyAITurnChanges === 'function' && (
+                (_patch.personnel_changes||[]).length || (_patch.office_assignments||[]).length ||
+                (_patch.fiscal_adjustments||[]).length  || (_patch.military_changes||[]).length
+              )) {
+                applyAITurnChanges({
+                  personnel_changes: _patch.personnel_changes || [],
+                  office_assignments: _patch.office_assignments || [],
+                  fiscal_adjustments: _patch.fiscal_adjustments || [],
+                  military_changes: _patch.military_changes || [],
+                  // 不传 narrative·避免触发 validator 死循环
+                  shilu_text: '',
+                  shizhengji: ''
+                });
+                if (!GM._reconcilePatchLog) GM._reconcilePatchLog = [];
+                GM._reconcilePatchLog.push({ turn: GM.turn||0, patch: _patch, timestamp: Date.now() });
+                if (GM._reconcilePatchLog.length > 10) GM._reconcilePatchLog = GM._reconcilePatchLog.slice(-10);
+                console.log('[Reconcile] AI 二审完成·补录:', _patch);
+                if (typeof addEB === 'function') {
+                  var _patched = (_patch.personnel_changes||[]).length + (_patch.office_assignments||[]).length + (_patch.fiscal_adjustments||[]).length + (_patch.military_changes||[]).length;
+                  if (_patched > 0) addEB('校验补录', 'AI 二审一致性·补录 ' + _patched + ' 条结构化数据');
+                }
+              } else {
+                console.log('[Reconcile] AI 二审完成·无需补录');
+              }
+            }
+          } catch(_recE) {
+            (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_recE, 'endturn] reconcile AI:') : console.warn('[endturn] reconcile AI failed:', _recE);
+          }
+        }
+
         // v5·人物生成 B · 取消每回合 API 调用·改为玩家在史记弹窗手动点击 pending 名时按需生成
         // (原 scanMentionedCharacters 调用已废弃·扫描+自动 AI 生成会产生误抓且耗 token)
         // pending 名仍由 char-link 的 onclick 触发 _tmClickPendingChar → crystallizePendingCharacter
