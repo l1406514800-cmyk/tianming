@@ -480,6 +480,13 @@
     var fc = (sc && sc.fiscalConfig) || (global.P && global.P.fiscalConfig) || {};
     var taxes = (fc.taxes && fc.taxes.length > 0) ? fc.taxes.slice() : DEFAULT_TAXES.slice();
     var centralLocalRules = (fc.centralLocalRules) || DEFAULT_ALLOCATION;
+    // ★ 调试日志·让用户在 DevTools 验证 cascade 正在用新速率计算
+    console.log('[CascadeTax.collect] T' + (G.turn||0) + ' | 税种数=' + taxes.length +
+      ' | DEFAULT田赋率=' + (DEFAULT_TAXES[0]||{}).rate +
+      ' | DEFAULT丁税率=' + (DEFAULT_TAXES[2]||{}).rate +
+      ' | DEFAULT商税率=' + (DEFAULT_TAXES[4]||{}).rate +
+      ' | scenario有 fc.taxes=' + (!!(fc.taxes && fc.taxes.length)) +
+      ' | customTaxes=' + ((fc.customTaxes||[]).length));
 
     // ★ 接入 fc.customTaxes·把 perMu/flat 类型转换成 cascade 内部格式·让辽饷/茶马司/钞关 等真正参与级联
     if (Array.isArray(fc.customTaxes) && fc.customTaxes.length > 0) {

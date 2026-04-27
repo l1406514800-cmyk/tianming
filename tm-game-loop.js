@@ -101,6 +101,22 @@ function enterGame(){
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] economyBase 初始化失败:') : console.error('[enterGame] economyBase 初始化失败:', e); }
 
+  // ★ 首回合预跑 CascadeTax 以填充 annualIncome / 各账 sources 初值
+  // 否则首回合 UI 显示 GuokuEngine.initFromDynasty 的 80000×mult 旧公式·新校准速率不生效
+  try {
+    if (GM.turn === 1 && !GM._cascadePreviewDone && typeof CascadeTax !== 'undefined' && typeof CascadeTax.collect === 'function') {
+      var _ctR = CascadeTax.collect();
+      GM._cascadePreviewDone = true;
+      if (_ctR && _ctR.ok) {
+        console.log('[enterGame] CascadeTax 预跑完成·中央年化银 ' +
+          Math.round((GM.guoku.annualIncome||0)/10000) + ' 万两·粮 ' +
+          Math.round((GM.guoku.annualGrainIncome||0)/10000) + ' 万石');
+      } else {
+        console.warn('[enterGame] CascadeTax 预跑失败:', _ctR && _ctR.reason);
+      }
+    }
+  } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'enterGame] CascadeTax 预跑失败:') : console.error('[enterGame] CascadeTax 预跑失败:', e); }
+
   // 剧本历史人物加载（若剧本指定了 historicalChars）
   try {
     if (GM.turn === 1 && !GM._historicalCharsLoaded && typeof loadHistoricalCharsFromScenario === 'function') {
