@@ -2445,12 +2445,13 @@
           qita: true          // 其他（茶马/矿税已罢/竹木税）
         },
         customTaxes: [
-          // amount 为名义额(史实记录)·cascade 会乘 ~0.4-0.5 retention 才到中央。perMu 速率为亩税法定。
-          { id: 'liaoxiang', name: '辽饷加派', formulaType: 'perMu', rate: 0.018, description: '万历四十六年始征·每亩九厘银实折后约 0.018 两(扣损耗反算)。专供辽东军饷。田赋压苛之源。' },
-          { id: 'chama', name: '茶马司', formulaType: 'flat', amount: 300000, description: '陕甘茶马司年额定 30 万两·实征约 12 万到中央(扣损耗约 60%)。备边军马。' },
-          { id: 'chaoguan', name: '钞关过货税', formulaType: 'flat', amount: 1200000, description: '运河沿线八大钞关名义 120 万两·实征中央约 50-60 万。临清/淮安/扬州/河西务等。' },
-          { id: 'guanshui', name: '海关（月港）', formulaType: 'flat', amount: 80000, description: '福建漳州月港市舶司名义 8 万两·实征 3-5 万。万历开海后设。' },
-          { id: 'junhu', name: '军户屯田', formulaType: 'perMu', rate: 0.005, description: '九边军屯亩税法定 4 分·实际已 90% 被勋贵卫所将官侵占·剩余仅 5% 实收·故净税率 0.005 两/亩。' }
+          // ★ 透明化：nominalRate/Amount 为法定额(史实记录) · occupationRate 为侵占/损耗比例(0-1)
+          // 实收 = 法定 × (1 - 侵占率)·侵占率可被『清丈』『反贪』诏令降低·UI 三段显示『法定/侵占/实收』
+          { id: 'liaoxiang', name: '辽饷加派', formulaType: 'perMu', nominalRate: 0.009, occupationRate: 0,    description: '万历四十六年始征·每亩九厘银。专供辽东军饷。新征不久·胥吏侵占未深。田赋压苛之源。' },
+          { id: 'chama',     name: '茶马司',   formulaType: 'flat',  amount: 300000, occupationRate: 0.6,  description: '陕甘茶马司年法定 30 万两·万历末走私严重·胥吏侵蚀 60%·实收 12 万。备边军马。' },
+          { id: 'chaoguan',  name: '钞关过货税', formulaType: 'flat',  amount: 1200000, occupationRate: 0.5,  description: '运河沿线八大钞关法定 120 万两·胥吏勾结商贾侵 50%·实征 60 万。临清/淮安/扬州/河西务等。' },
+          { id: 'guanshui',  name: '海关（月港）', formulaType: 'flat',  amount: 80000,  occupationRate: 0.5, description: '福建漳州月港市舶司法定 8 万两·走私漏报 50%·实收 4 万。万历开海后设。' },
+          { id: 'junhu',     name: '军户屯田', formulaType: 'perMu', nominalRate: 0.04, occupationRate: 0.875, description: '九边军屯法定亩税 4 分·明末 87.5% 被勋戚卫所将官侵占·剩 12.5% 实收·清丈军屯诏可降侵占率。' }
         ],
         // ──── 央地分账（对齐 editor-fiscal centralLocalRules preset）────
         centralLocalRules: {

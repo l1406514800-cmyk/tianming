@@ -277,6 +277,24 @@ function renderGuokuPanel() {
       html +=   '<div class="bar"><span style="width:' + barW + '%;"></span></div>';
       html +=   '<span class="v">' + _guokuFmt(val) + '<span class="pct">' + pct + '%</span></span>';
       html += '</div>';
+      // ★ 透明化『法定/侵占率/实收』- 仅 customTax 含 occupationRate 时显示
+      var ctMeta = (g._customTaxMeta || {})[tag];
+      if (ctMeta && ctMeta.occupationRate > 0) {
+        var occPct = (ctMeta.occupationRate * 100).toFixed(1);
+        var nominalDesc = '';
+        if (ctMeta.formulaType === 'perMu' && ctMeta.nominalRate != null) {
+          nominalDesc = '法定 ' + (ctMeta.nominalRate * 1000).toFixed(1) + ' 厘/亩';
+        } else if (ctMeta.formulaType === 'perDing' && ctMeta.nominalRate != null) {
+          nominalDesc = '法定 ' + (ctMeta.nominalRate).toFixed(2) + ' 两/丁';
+        } else if (ctMeta.nominalAmount != null) {
+          nominalDesc = '法定 ' + _guokuFmt(ctMeta.nominalAmount) + '/年';
+        }
+        html += '<div class="tr-flow-tops" style="font-size:0.66rem;color:var(--txt-d);padding-left:14px;">'+
+                  '<span style="color:var(--gold-d);">' + nominalDesc + '</span>' +
+                  '<span style="color:var(--vermillion-400);margin:0 6px;">▸ 侵占 ' + occPct + '%</span>' +
+                  '<span style="color:var(--celadon-400);">▸ 实收 ' + _guokuFmt(val) + '</span>' +
+                '</div>';
+      }
       // 地方贡献：列前 3 + 显式标出其余省份合计·避免误以为"只结算这三省"
       if (typeof CascadeTax !== 'undefined' && typeof CascadeTax.getTopContributors === 'function' && km.key === 'money') {
         var allContribs = CascadeTax.getTopContributors(tag, 999);  // 全部贡献省

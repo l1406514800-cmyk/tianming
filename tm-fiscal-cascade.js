@@ -485,41 +485,52 @@
     if (Array.isArray(fc.customTaxes) && fc.customTaxes.length > 0) {
       fc.customTaxes.forEach(function(ct) {
         if (!ct || !ct.id || !ct.formulaType) return;
+        // ★ 侵占率显式化：剧本可填 nominalRate(法定) + occupationRate(被勋戚卫所/胥吏侵占的比例·0-1)
+        // 实税率 = nominalRate × (1 - occupationRate)·玩家可通过『清丈』『反贪』诏令降低 occupationRate
+        // 兼容老格式：若只填 rate 字段·视为已扣损耗后的实税率·不标侵占
+        var nominalRate = (typeof ct.nominalRate === 'number') ? ct.nominalRate : ct.rate;
+        var occupationRate = (typeof ct.occupationRate === 'number') ? Math.max(0, Math.min(0.99, ct.occupationRate)) : 0;
+        var effectiveRate = nominalRate * (1 - occupationRate);
         var converted = null;
-        if (ct.formulaType === 'perMu' && typeof ct.rate === 'number' && ct.rate > 0) {
-          // 每亩 N 厘 → base=arableLand · rate=ct.rate · baseFactor=1
+        if (ct.formulaType === 'perMu' && typeof effectiveRate === 'number' && effectiveRate > 0) {
           converted = {
             id: ct.id, name: ct.name || ct.id,
             base: 'arableLand', baseFallback: 'mouths',
-            baseFactor: 1, rate: ct.rate,
+            baseFactor: 1, rate: effectiveRate,
             storeAs: ct.storeAs || 'money',
             sourceTag: ct.sourceTag || ct.id,
             annual: true,
-            description: ct.description || ''
+            description: ct.description || '',
+            // 透明化字段·UI 可显示『法定 × 侵占率 = 实收』
+            _nominalRate: nominalRate,
+            _occupationRate: occupationRate
           };
         } else if (ct.formulaType === 'flat' && typeof ct.amount === 'number' && ct.amount > 0) {
-          // 全国定额·按 division 数均分(简化处理·实际可按贡献度)·每个 division 摊一份
-          // 这里采用 baseFactor 方式：以 mouths 为 base·rate 反算让总额接近 ct.amount
-          // 简化：直接按 division 数均分·所以用 mouths 为 base·rate 取使全国累计 ≈ amount
+          // flat 也支持 occupation·名义额 × (1-侵占) = 实收
+          var effectiveAmount = ct.amount * (1 - occupationRate);
           converted = {
             id: ct.id, name: ct.name || ct.id,
             base: 'mouths', baseFallback: null,
             baseFactor: 1,
-            rate: ct.amount / Math.max(50000000, _estimateNationalMouths(G)),  // 大约 2 亿口·按比例分摊
+            rate: effectiveAmount / Math.max(50000000, _estimateNationalMouths(G)),
             storeAs: ct.storeAs || 'money',
             sourceTag: ct.sourceTag || ct.id,
             annual: true,
-            description: ct.description || ''
+            description: ct.description || '',
+            _nominalAmount: ct.amount,
+            _occupationRate: occupationRate
           };
-        } else if (ct.formulaType === 'perDing' && typeof ct.rate === 'number') {
+        } else if (ct.formulaType === 'perDing' && typeof effectiveRate === 'number') {
           converted = {
             id: ct.id, name: ct.name || ct.id,
             base: 'ding', baseFallback: 'mouths',
-            baseFactor: 1, rate: ct.rate,
+            baseFactor: 1, rate: effectiveRate,
             storeAs: ct.storeAs || 'money',
             sourceTag: ct.sourceTag || ct.id,
             annual: true,
-            description: ct.description || ''
+            description: ct.description || '',
+            _nominalRate: nominalRate,
+            _occupationRate: occupationRate
           };
         }
         if (converted) taxes.push(converted);
@@ -652,6 +663,22 @@
     if (totals.contribByCategory) {
       G.guoku._sourceContributors = totals.contribByCategory;
     }
+
+    // ★ customTax 法定/侵占/实收元数据·供 UI 透明显示『原有 X · 侵占 Y% · 实收 Z』
+    var customMeta = {};
+    taxes.forEach(function(t) {
+      if (t._nominalRate != null || t._occupationRate != null || t._nominalAmount != null) {
+        customMeta[t.sourceTag || t.id] = {
+          name: t.name,
+          nominalRate: t._nominalRate,
+          nominalAmount: t._nominalAmount,
+          occupationRate: t._occupationRate || 0,
+          effectiveRate: t.rate,
+          formulaType: t.base === 'arableLand' ? 'perMu' : (t.base === 'ding' ? 'perDing' : (t._nominalAmount != null ? 'flat' : 'other'))
+        };
+      }
+    });
+    G.guoku._customTaxMeta = customMeta;
 
     // ★ cascade 细分推入 GM.turnChanges.variables·让史记『财政』组自动渲染上解中央/地方留存/被贪/路耗
     // 之前这些细分只在 G._lastCascadeSummary 临时对象·tm-endturn-render 反向查·结构松散
