@@ -79,10 +79,10 @@ var SaveManager = {
       dynastyPhase: GM.eraState ? GM.eraState.dynastyPhase : ''
     };
 
-    // 写入 IndexedDB（异步，不阻塞UI）
+    // 写入 IndexedDB（异步）·返回 Promise 让调用方等待 commit 再刷新 UI(修两次保存才生效 bug)
     var slotKey = 'slot_' + slotId;
     console.log('[saveToSlot] 保存到:', slotKey, 'IDB available:', TM_SaveDB.isAvailable());
-    TM_SaveDB.save(slotKey, gameState, meta).then(function(ok) {
+    return TM_SaveDB.save(slotKey, gameState, meta).then(function(ok) {
       console.log('[saveToSlot] 保存结果:', ok);
       if (ok) {
         toast('\u2705 \u5DF2\u4FDD\u5B58\u5230\u69FD\u4F4D ' + (slotId + 1));
@@ -91,7 +91,6 @@ var SaveManager = {
         toast('\u274C \u4FDD\u5B58\u5931\u8D25');
       }
     }).catch(function(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'saveToSlot') : console.error('[saveToSlot] 存档异常:', e); toast('\u274C \u5B58\u6863\u5F02\u5E38'); });
-    return true;
   },
 
   // 从指定槽位加载游戏（异步）
@@ -477,8 +476,8 @@ function _renderSaveManagerUI(ov, saves, preEndturnRec) {
       html += '<div class="scroll-save-card ' + ink.cls + freshCls + '" style="--ribbon-h:' + ribbon.h + ';--ribbon-c:' + ribbon.c + ';" onclick="event.stopPropagation();">';
       // 归档编号
       html += '<div class="scroll-archive-id">' + archiveId + '</div>';
-      // 标题
-      html += '<div class="scroll-title">' + (title || save.name) + '</div>';
+      // 标题：玩家自取名优先(escHtml 防 XSS)·无名字时回退自动生成的卷宗标题
+      html += '<div class="scroll-title">' + (save.name ? (typeof escHtml==='function'?escHtml(save.name):save.name) : title) + '</div>';
       // 元数据 + P11: 存档预览增强
       html += '<div class="scroll-meta">';
       html += save.scenarioName + ' · 第' + save.turn + '回合';
@@ -653,27 +652,33 @@ function saveToSlot(slotId) {
     defaultName = getTSText(GM.turn) + ' 纪要';
   }
   showPrompt('为此卷命名：', defaultName, function(saveName) {
-    if (saveName) {
-      // 玉玺按压动画
-      _playJadeSealAnimation(slotId === 0 ? '自' : '封');
-      // 延迟保存，让动画先展现
-      setTimeout(function() {
-        SaveManager.saveToSlot(slotId === -1 ? (function(){
-          // 找最早的空槽位或最旧的手动槽位
-          for (var i = 1; i < SaveManager.maxSlots; i++) {
-            var key = 'slot_' + i;
-            var idx = _getSaveIndex();
-            if (!idx[key]) return i;
-          }
-          return 1;
-        })() : slotId, saveName);
+    // 取消(saveName=null) 或空字符串都跳过；玩家保留默认名也走这里
+    if (saveName == null) return;
+    var trimmedName = String(saveName).trim() || defaultName;
+    // 玉玺按压动画
+    _playJadeSealAnimation(slotId === 0 ? '自' : '封');
+    // 延迟保存让动画先展现，存完(IDB commit)再刷新 UI
+    setTimeout(function() {
+      var actualSlotId = slotId === -1 ? (function(){
+        // 找最早的空槽位或最旧的手动槽位
+        for (var i = 1; i < SaveManager.maxSlots; i++) {
+          var key = 'slot_' + i;
+          var idx = _getSaveIndex();
+          if (!idx[key]) return i;
+        }
+        return 1;
+      })() : slotId;
+      // 等待 IDB commit 完成再 close+open·避免上一次的存档没刷出来导致需要存两次的 bug
+      var p = SaveManager.saveToSlot(actualSlotId, trimmedName);
+      var afterSave = function() {
         toast('已载入编年');
-        // 刷新时标记新卷需动画
-        window._scrollJustSavedSlot = slotId === -1 ? -2 : slotId;
+        window._scrollJustSavedSlot = slotId === -1 ? -2 : actualSlotId;
         closeSaveManager();
         openSaveManager();
-      }, 450);
-    }
+      };
+      if (p && typeof p.then === 'function') p.then(afterSave).catch(afterSave);
+      else afterSave();
+    }, 450);
   });
 }
 

@@ -3,6 +3,19 @@
   "entries": [
     {
       "date": "2026-04-28",
+      "module": "邸报·修手动存档两 bug：1次写入即生效 + 玩家自取名生效",
+      "title": "用户反馈两 bug：(1) 手动存档需点两次才在案卷目录显示；(2) 玩家在『为此卷命名』输入的名字不生效·依然显示自动生成的『〔崇祯 国事纪要〕』。审计后定位：(1) 异步竞态·SaveManager.saveToSlot 把 IDB 写入 fire-and-forget·UI 调 closeSaveManager+openSaveManager 时 IDB 还没 commit·所以读不到刚存的卷；(2) 渲染逻辑 `(title || save.name)` 中 `_scrollTitle()` 永远返回非空(默认『〔X 国事纪要〕』)·导致 save.name 被 short-circuit 跳过永不显示",
+      "items": [
+        { "what": "tm-save-manager.js SaveManager.saveToSlot 返回 Promise(原本 fire-and-forget·返回 true)·删除 .then 之后的死代码 `return true;`·让调用方可 .then() 等 IDB commit 完成", "why": "IDB 异步事务真实耗时 50-300ms·原本 saveToSlot 的同步 return 让 UI 立刻读 list·读到的是 commit 前的旧状态。返回 Promise 是必要前提" },
+        { "what": "tm-save-manager.js 顶层 saveToSlot(slotId) UI handler 改为：拿到 SaveManager.saveToSlot 返回的 Promise · .then(afterSave) 后再 closeSaveManager+openSaveManager。afterSave 里执行 toast '已载入编年' / 标记动画 / 关旧+开新", "why": "存一次=点一次按钮·UI 立刻显示。修这条 bug 后旧的『需要点两次』现象消失" },
+        { "what": "tm-save-manager.js _renderSaveManagerUI 渲染标题改为 `save.name ? escHtml(save.name) : title` · 玩家自取名优先 · 名字空时回退自动生成 _scrollTitle『〔崇祯 国事纪要〕』 · 加 escHtml 防玩家输入 < > & 等导致 XSS", "why": "原 `(title || save.name)` 中 title 是 _scrollTitle 永不空·形成 short-circuit 让 save.name 永远被忽略。这是『取的名字不生效』直接根因" },
+        { "what": "tm-save-manager.js 顶层 saveToSlot UI handler 加 `String(saveName).trim() || defaultName` · 玩家清空输入框后保留默认名 · 不再因为空字符串静默丢失存档", "why": "原 `if (saveName)` 判断把空字符串当做取消处理 · 玩家保留默认名(直接点确定不改) 走 truthy 分支没问题但若手动清空就丢操作。trim 后兜底让两种 UX 行为一致" },
+        { "what": "tools/smoke-save-name-and-double.js 新增 9 项 smoke：T1 名字优先(2)·T2 saveToSlot 返回 Promise + 无死代码(2)·T3 UI await Promise + 无旧 immediate close+open(2)·T4 完整 IDB live cycle 验证 80ms 异步 commit 后能读到记录+名字保留(3)。全过", "why": "回归点锁定：未来若 save UI 又改回 fire-and-forget·或 _scrollTitle 又被前置·smoke 立刻黄牌" },
+        { "what": "index.html cache-bust → tm-save-manager.js v=2026042820d · node -c 通过 · 零字段迁移 · 零数据破坏 · 重启即生效。已存档案卷目录下次打开自动展示玩家原本输入的名字(IDB record 里 meta.name 一直存的是用户输入·只是 UI 渲染层之前没读)", "why": "兼容性：之前的存档 meta.name 字段一直在·是 UI 渲染逻辑没用它。修 UI 即可让历史存档名字自动浮现·无需迁移" }
+      ]
+    },
+    {
+      "date": "2026-04-28",
       "module": "邸报·过回合前快照在案卷目录可见 + 双存档落位审计",
       "title": "用户指出『一回合两次自动保存是否都生效·别保存了但是在游戏存档界面没成功存入』。审计后发现：(1) 推演完成后的 autosave 写入 IDB 'autosave' + 'slot_0' 双键·案卷目录读 list() 后将 slot_0 映射到『案卷·零』·正常显示；(2) 过回合前快照写入 IDB 'pre_endturn' 独立键·原本 openSaveManager 仅识别 'autosave' / 'slot_*'·**忽略 pre_endturn**·UI 看不见。结果：保存确实生效·但用户无法验证。改为在案卷目录顶部增专用『过回合前快照』 banner·朱砂边框区分案卷·展示回合/剧本/时间·『启封此卷』按钮可手动恢复",
       "items": [
