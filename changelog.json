@@ -3,6 +3,18 @@
   "entries": [
     {
       "date": "2026-04-28",
+      "module": "邸报·税赋三数与钱账分项同源·终结 67 vs 201 撕裂",
+      "title": "用户反馈帑廪面板『应征 67.1 万 / 官收 33 万 / 民缴 94.8 万』与下方『钱账本回 201 万』数字撕裂。审计发现两套财政模型并行：(A)旧 GuokuEngine 八源八支按 hukou × 0.3 户均田 × 4% 一刀切粗算·写 g.monthlyIncome；(B)新 CascadeTax 按 16 division × 11 税种 × 多重 penalty 链 × qiyun/cunliu 分账·写 GM.guoku.ledgers + GM._lastCascadeSummary。三数面板用 A·岁入分项用 B·两套都在跑互不知。本次保留三数概念·只把它的数据源从 A 切到 B·让面板与钱账分项同源",
+      "items": [
+        { "what": "tm-lizhi-panel.js computeTaxThreeNumber(nominalParam) 重写：优先读 GM._lastCascadeSummary(cascade 每回合 collect 后写入·结构 {central,localRetain,skimmed,lostTransit}.{money,grain,cloth})·钱账计算：名义 = central+localRetain+skimmed+lostTransit(扣 corruption/灾/抗税后法定额)·官收 = central+localRetain(实际入库)·民缴 = 名义 ×(1+overCollectRate)(浮收·百姓多交)·差额三流向：clerk(州县吏胥)=浮收·official(各级私分)=cascade.skimmed·power(豪强抵偿)=cascade.lostTransit。返回多 _source:'cascade' 标记便于排错", "why": "三数概念(应征/官收/民缴)是核心政治叙事·必须保留；但底层数据要跟岁入分项·钱账·级联结算 同源·才不会出现 67 万 vs 201 万 同框打架。改后差额三流向也变得有具体语义(过去是按腐败比例硬分)" },
+        { "what": "tm-lizhi-panel.js 抽 _calcOverCollectRate() 独立 helper·浮收率 = 腐败贡献(fc+pc)/200×0.5 + 全局 floatingCollectionRate + 5% 苛捐底色 + 重税区域加成 - salaryReform 折扣 - publicAppeal 折扣·硬上限 100%·让 cascade 路径与回退路径共用一致逻辑·导出到 window._calcOverCollectRate", "why": "新老两条路径都要算浮收·之前 80 行内联在 computeTaxThreeNumber·提取后单点维护" },
+        { "what": "tm-lizhi-panel.js 保留回退路径·若 GM._lastCascadeSummary 不存在(开局首回合 cascade 还没跑)·走老的 nominal × leakageRate 估算·返回 _source:'fallback_estimate'·与之前行为一致·不破坏老存档", "why": "回退保兼容·非用即弃·永远只走更准的 cascade 路径(开局后每回合都有)" },
+        { "what": "tm-guoku-panel.js 三数渲染条件 `g.monthlyIncome > 0` 改为 `(GM._lastCascadeSummary 有数据) 或 g.monthlyIncome > 0`·渲染时传 g.monthlyIncome||0·新版 computeTaxThreeNumber 不再依赖 nominalParam(走 cascade 路径)·badge 标题加 turnDays 适配(月入 vs 回合)", "why": "之前 monthlyIncome > 0 才渲染·若 cascade 写 monthlyIncome 时机晚或被 GuokuEngine 覆盖·三数面板会消失。新条件只要 cascade 跑过就渲染" },
+        { "what": "改动 2 文件全过 node -c 校验·index.html cache-bust → tm-lizhi-panel v=2026042820 + tm-guoku-panel v=2026042820·重启即生效·零字段迁移·零数据破坏", "why": "局部 UI 数据源切换·GuokuEngine.八源八支 仍在跑(写 g.sources/g.expenses 老字段供 AI prompt + 顶栏速察读)·只是三数面板不再读 monthlyIncome·两套并行的撕裂在 UI 层消失" }
+      ]
+    },
+    {
+      "date": "2026-04-28",
       "module": "邸报·策名/征召/推演 人物归属修·消灭『无势力』",
       "title": "用户反馈：策名生成的人物全被纳入『无势力』。审计发现『无势力』不是真势力名·而是 UI 兜底字符串(char.faction 空时显示)。三条路径会落空：(1) 库内当世人物 createCharFromProfile() 完全不写 faction 字段·秒返路径漏；(2) _fallbackTemplate(API 缺失/AI 失败) 也不写 faction；(3) AI 兜底链原本最后落到 GM.factions[0]·偶尔模糊匹配落空也会出 '中立'。修：抽统一 helper _resolveFactionForChar(opts) 走 7 步兜底链·三处全走 helper·新增 historicalFaction 字段表达『范文程史实属后金』『岳飞史实属南宋』这类无法从 dynasty 推断的归属。永不再出现『无势力』",
       "items": [

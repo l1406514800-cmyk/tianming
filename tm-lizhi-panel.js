@@ -816,31 +816,20 @@ function _lizhi_toggleMapHeat() {
 // §5.4 三数展示（名义/官府实收/民间实缴）—— 通用组件
 // 暴露到全局，供 帑廪面板 / 税收奏疏 / 地方汇报 复用
 // ═══════════════════════════════════════════════════════
-function computeTaxThreeNumber(nominal) {
-  if (!nominal) {
-    return { nominal: 0, actualReceived: 0, peasantPaid: 0,
-             leakageRate: 0, overCollectRate: 0, totalLoss: 0,
-             gaps: { clerk:0, official:0, power:0 } };
-  }
-  var c = GM.corruption || {};
-  // —— 腐败指数兜底：subDepts 若未初始化则用全局 trueIndex；若仍无则取设计默认(户部45/地方35) ——
-  // 设计方案-腐败系统.md §1.1：吏治败坏是常态，需有底色，即便太平之世亦有"浮收"
+// 浮收率·腐败贡献 + 全局浮收 + 苛捐底色 + 重税加成 - 反贪改革折扣
+// 提取为独立 helper·让 cascade 路径与回退路径共用一致逻辑
+function _calcOverCollectRate() {
+  var c = (typeof GM !== 'undefined' && GM.corruption) || {};
   var _baseCorr = (c.trueIndex != null ? c.trueIndex : 30);
   var fc = ((c.subDepts && c.subDepts.fiscal) || {}).true;
-  if (fc == null) fc = Math.max(_baseCorr, 25); // 户部起步 25 分
+  if (fc == null) fc = Math.max(_baseCorr, 25);
   var pc = ((c.subDepts && c.subDepts.provincial) || {}).true;
-  if (pc == null) pc = Math.max(_baseCorr, 20); // 地方起步 20 分
+  if (pc == null) pc = Math.max(_baseCorr, 20);
 
-  var leakageRate = Math.min(0.7, (fc + pc) / 200 * 0.7);
-  // 浮收率：腐败贡献 + 全局浮收率（皇威/昏聩积累） + 税率层级加成（苛捐杂税层层盘剥）
-  // 设计方案-央地财政.md §8.1 + tm-guoku-p2.js §21.4
-  var overCollectRate = (fc + pc) / 200 * 0.5;
-  var floatingRate = (GM.fiscal && typeof GM.fiscal.floatingCollectionRate === 'number') ? GM.fiscal.floatingCollectionRate : 0;
-  overCollectRate += floatingRate;
-  // 苛捐杂税底色：即便无腐败，地方官吏/胥吏/豪强仍会加派 3%-8%
-  // （地方财政缺口 + 私家惯例 + 火耗归公前常态）
-  var _kejuanBase = 0.05;  // 5% 常态加派
-  // 税率等级修正：重税区域加派更重（豪强更贪，衙门更酷）
+  var rate = (fc + pc) / 200 * 0.5;
+  var floating = (GM.fiscal && typeof GM.fiscal.floatingCollectionRate === 'number') ? GM.fiscal.floatingCollectionRate : 0;
+  rate += floating + 0.05;  // 苛捐底色 5%
+
   var _taxLevelBonus = 0;
   try {
     if (GM.adminHierarchy) {
@@ -854,26 +843,81 @@ function computeTaxThreeNumber(nominal) {
           } else _walk(d.children);
         });
       })((GM.adminHierarchy[Object.keys(GM.adminHierarchy)[0]] || {}).divisions || []);
-      if (_totalLeaf > 0) _taxLevelBonus = (_hvyCount / _totalLeaf) * 0.05; // 重税占比越高，加派越重
+      if (_totalLeaf > 0) _taxLevelBonus = (_hvyCount / _totalLeaf) * 0.05;
     }
-  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-lizhi-panel');}catch(_){}}
-  overCollectRate += _kejuanBase + _taxLevelBonus;
-  // 如设有养廉银改革（salaryReform > 0）则浮收率打折
-  var cm = c.countermeasures || {};
-  if (cm.salaryReform > 0) overCollectRate *= (1 - cm.salaryReform * 0.4);
-  // 登闻鼓畅通时民间浮收略降
-  if (cm.publicAppeal > 0.5) overCollectRate *= (1 - (cm.publicAppeal - 0.5) * 0.3);
-  // 硬上限：民缴不超过官定 2 倍（避免数值失真）
-  overCollectRate = Math.max(0, Math.min(1.0, overCollectRate));
+  } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-lizhi-panel·_calcOverCollectRate');}catch(_){}}
+  rate += _taxLevelBonus;
 
+  var cm = c.countermeasures || {};
+  if (cm.salaryReform > 0) rate *= (1 - cm.salaryReform * 0.4);
+  if (cm.publicAppeal > 0.5) rate *= (1 - (cm.publicAppeal - 0.5) * 0.3);
+  return Math.max(0, Math.min(1.0, rate));
+}
+
+// ═══════════════════════════════════════════════════════
+// 计算三数·名义/官府实收/民间实缴
+// 优先从 CascadeTax._lastCascadeSummary 读·与钱账分项同源·避免 67 vs 201 撕裂
+// 回退到老的 hukou × landTaxRate 估算·兼容 cascade 未跑过的早期回合
+// ═══════════════════════════════════════════════════════
+function computeTaxThreeNumber(nominalParam) {
+  var c = GM.corruption || {};
+  var _baseCorr = (c.trueIndex != null ? c.trueIndex : 30);
+  var fc = ((c.subDepts && c.subDepts.fiscal) || {}).true;
+  if (fc == null) fc = Math.max(_baseCorr, 25);
+  var pc = ((c.subDepts && c.subDepts.provincial) || {}).true;
+  if (pc == null) pc = Math.max(_baseCorr, 20);
+
+  var overCollectRate = _calcOverCollectRate();
+
+  // ── 优先路径：cascade 同源 ──
+  // 读 GM._lastCascadeSummary·结构·{central,localRetain,skimmed,lostTransit}.{money,grain,cloth}
+  // 钱账·名义(扣corruption/灾/抗税后) = central + localRetain + skimmed + lostTransit
+  // 官收 = 实际入库(中央上解+地方公库) = central + localRetain
+  // 民缴 = 名义 + 浮收 = 名义 × (1 + overCollectRate)
+  // 差额三流向：
+  //   州县吏胥(clerk) = 浮收·民多交那部分(歷史上胥吏火耗加派)
+  //   各级私分(official) = cascade.skimmed·主官+幕僚私吞
+  //   豪强抵偿(power) = cascade.lostTransit + 名义剩余·路上消失 + 抗税
+  var summary = (typeof GM !== 'undefined' && GM._lastCascadeSummary) ? GM._lastCascadeSummary : null;
+  if (summary && (summary.central.money > 0 || summary.localRetain.money > 0)) {
+    var central = summary.central.money || 0;
+    var localRetain = summary.localRetain.money || 0;
+    var skimmed = summary.skimmed.money || 0;
+    var lostTransit = summary.lostTransit.money || 0;
+    var nominalNet = central + localRetain + skimmed + lostTransit;  // "扣损耗后名义"
+
+    var actualReceived = central + localRetain;
+    var floatingCollection = nominalNet * overCollectRate;
+    var peasantPaid = nominalNet + floatingCollection;
+    var totalLoss = peasantPaid - actualReceived;
+
+    return {
+      nominal: nominalNet,
+      actualReceived: actualReceived,
+      peasantPaid: peasantPaid,
+      totalLoss: totalLoss,
+      leakageRate: nominalNet > 0 ? (1 - actualReceived / nominalNet) : 0,
+      overCollectRate: overCollectRate,
+      gaps: {
+        clerk:    floatingCollection,                // 浮收 → 州县吏胥
+        official: skimmed,                            // 被贪 → 各级私分
+        power:    lostTransit                         // 路耗 → 豪强抵偿/路途流失
+      },
+      _source: 'cascade'
+    };
+  }
+
+  // ── 回退路径·cascade 还没跑过(开局首回合前)·用老的估算 ──
+  var nominal = nominalParam;
+  if (!nominal) {
+    return { nominal: 0, actualReceived: 0, peasantPaid: 0,
+             leakageRate: 0, overCollectRate: 0, totalLoss: 0,
+             gaps: { clerk:0, official:0, power:0 }, _source: 'fallback_zero' };
+  }
+  var leakageRate = Math.min(0.7, (fc + pc) / 200 * 0.7);
   var actualReceived = nominal * (1 - leakageRate);
   var peasantPaid    = nominal * (1 + overCollectRate);
   var totalLoss      = peasantPaid - actualReceived;
-
-  // 分配差额——三向
-  // 州县吏胥占比取决于地方腐败
-  // 各级私分占比取决于税司腐败
-  // 豪强抵偿占比相对固定
   var clerkRatio    = 0.25 + (pc / 100) * 0.2;
   var officialRatio = 0.25 + (fc / 100) * 0.2;
   var powerRatio    = 1 - clerkRatio - officialRatio;
@@ -889,7 +933,8 @@ function computeTaxThreeNumber(nominal) {
       clerk:    totalLoss * clerkRatio,
       official: totalLoss * officialRatio,
       power:    totalLoss * powerRatio
-    }
+    },
+    _source: 'fallback_estimate'
   };
 }
 
@@ -965,6 +1010,7 @@ function renderTaxThreeNumberBlock(nominal, opts) {
 if (typeof window !== 'undefined') {
   window.computeTaxThreeNumber = computeTaxThreeNumber;
   window.renderTaxThreeNumberBlock = renderTaxThreeNumberBlock;
+  window._calcOverCollectRate = _calcOverCollectRate;
 }
 
 // ═══════════════════════════════════════════════════════

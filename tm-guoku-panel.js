@@ -218,10 +218,12 @@ function renderGuokuPanel() {
   html += '</section>';
 
   // ─── 税赋三数（沿用 renderTaxThreeNumberBlock）───
-  if (typeof renderTaxThreeNumberBlock === 'function' && g.monthlyIncome > 0) {
+  // cascade 跑过(GM._lastCascadeSummary 存在) 或 monthlyIncome > 0 即渲染·新版三数从 cascade 同源读
+  var _hasCascade = !!(typeof GM !== 'undefined' && GM._lastCascadeSummary && (GM._lastCascadeSummary.central.money > 0 || GM._lastCascadeSummary.localRetain.money > 0));
+  if (typeof renderTaxThreeNumberBlock === 'function' && (_hasCascade || g.monthlyIncome > 0)) {
     html += '<section class="tr-section">';
-    html +=   '<div class="tr-section-head"><span class="tr-section-name">税赋三数</span><span class="tr-section-badge">名义 / 官收 / 民缴 · 月入</span></div>';
-    html +=   renderTaxThreeNumberBlock(g.monthlyIncome, { label:'正赋钱粮 · 月入', unit:U.money });
+    html +=   '<div class="tr-section-head"><span class="tr-section-name">税赋三数</span><span class="tr-section-badge">名义 / 官收 / 民缴 · ' + (turnDays === 30 ? '月入' : '回合') + '</span></div>';
+    html +=   renderTaxThreeNumberBlock(g.monthlyIncome || 0, { label:'正赋钱粮 · ' + (turnDays === 30 ? '月入' : '回合'), unit:U.money });
     html += '</section>';
   }
 
