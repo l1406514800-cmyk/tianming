@@ -47,16 +47,17 @@ async function _endTurnCore(){
         eraName: GM.eraName || '',
         savedAt: Date.now()
       };
-      TM_SaveDB.save('pre_endturn', _preState, _preMeta).then(function() {
-        try {
-          localStorage.setItem('tm_pre_endturn_mark', JSON.stringify({
-            turn: GM.turn, timestamp: Date.now(),
-            scenarioName: _preMeta.scenarioName,
-            eraName: _preMeta.eraName,
-            saveName: GM.saveName || ''
-          }));
-        } catch(_lsE){try{window.TM&&TM.errors&&TM.errors.captureSilent(_lsE,'pre_endturn ls mark');}catch(_){}}
-      }).catch(function(e){
+      // 先同步写 localStorage mark·再异步写 IDB·防止 IDB 在途崩溃丢失恢复信号
+      // mark 存在但 IDB 缺失 → 恢复弹窗已有 fallback("过回合前快照已损坏·尝试加载常规自动存档")
+      try {
+        localStorage.setItem('tm_pre_endturn_mark', JSON.stringify({
+          turn: GM.turn, timestamp: Date.now(),
+          scenarioName: _preMeta.scenarioName,
+          eraName: _preMeta.eraName,
+          saveName: GM.saveName || ''
+        }));
+      } catch(_lsE){try{window.TM&&TM.errors&&TM.errors.captureSilent(_lsE,'pre_endturn ls mark');}catch(_){}}
+      TM_SaveDB.save('pre_endturn', _preState, _preMeta).catch(function(e){
         (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'PreEndTurnSave]') : console.warn('[PreEndTurnSave]', e);
       });
     }
