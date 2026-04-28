@@ -385,13 +385,16 @@ function openSaveManager() {
   TM_SaveDB.list().then(function(dbSaves) {
     // 将 IndexedDB 记录映射为 slot → save 对象
     var savesBySlot = {};
+    var preEndturnRec = null;
     dbSaves.forEach(function(s) {
-      // id 格式: 'slot_0' ~ 'slot_9' 或 'autosave'
+      // id 格式: 'slot_0' ~ 'slot_9' 或 'autosave' 或 'pre_endturn'(过回合前·独立槽)
       if (s.id === 'autosave') {
         savesBySlot[0] = { slotId: 0, name: s.name, turn: s.turn, timestamp: s.timestamp, scenarioName: s.scenarioName, eraName: s.eraName, date: s.date || '', dynastyPhase: s.dynastyPhase || '' };
       } else if (s.id && s.id.indexOf('slot_') === 0) {
         var idx = parseInt(s.id.replace('slot_', ''));
         if (!isNaN(idx)) savesBySlot[idx] = { slotId: idx, name: s.name, turn: s.turn, timestamp: s.timestamp, scenarioName: s.scenarioName, eraName: s.eraName, date: s.date || '', dynastyPhase: s.dynastyPhase || '' };
+      } else if (s.id === 'pre_endturn') {
+        preEndturnRec = { name: s.name, turn: s.turn, timestamp: s.timestamp, scenarioName: s.scenarioName, eraName: s.eraName };
       }
     });
     // 同时补充 localStorage 索引中的记录（兼容）
@@ -409,16 +412,16 @@ function openSaveManager() {
       if (savesBySlot[i]) saves.push(savesBySlot[i]);
     }
 
-    _renderSaveManagerUI(ov, saves);
+    _renderSaveManagerUI(ov, saves, preEndturnRec);
   }).catch(function(e) {
     (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'openSaveManager') : console.error('[openSaveManager] 加载失败:', e);
     // 降级：从 localStorage 索引读
     var saves = SaveManager.getAllSaves();
-    _renderSaveManagerUI(ov, saves);
+    _renderSaveManagerUI(ov, saves, null);
   });
 }
 
-function _renderSaveManagerUI(ov, saves) {
+function _renderSaveManagerUI(ov, saves, preEndturnRec) {
   var sc = GM.running ? findScenarioById(GM.sid) : null;
   var _ic = typeof tmIcon === 'function' ? tmIcon : function() { return ''; };
 
@@ -437,6 +440,22 @@ function _renderSaveManagerUI(ov, saves) {
   if (GM.running) {
     html += '<div style="margin-bottom:var(--space-3);padding:var(--space-2) var(--space-3);background:var(--color-elevated);border-left:3px solid var(--celadon-400);border-radius:var(--radius-md);font-size:var(--text-sm);color:var(--color-foreground-secondary);line-height:var(--leading-normal);">';
     html += _ic('scroll',14) + ' 当前推演：' + (sc ? sc.name : '未知') + ' · 第' + GM.turn + '回合 · ' + (typeof getTSText==='function'?getTSText(GM.turn):'');
+    html += '</div>';
+  }
+
+  // 过回合前自动快照·崩溃恢复用·与案卷目录分离展示
+  if (preEndturnRec && preEndturnRec.turn) {
+    var _preTime = preEndturnRec.timestamp ? new Date(preEndturnRec.timestamp).toLocaleString('zh-CN') : '';
+    html += '<div style="margin-bottom:var(--space-3);padding:var(--space-2) var(--space-3);background:rgba(192,64,48,0.08);border-left:3px solid var(--vermillion-400, #c04030);border-radius:var(--radius-md);font-size:var(--text-sm);color:var(--color-foreground-secondary);line-height:var(--leading-normal);">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);">';
+    html += '<div>';
+    html += '<span style="color:var(--vermillion-400, #c04030);font-weight:700;">⚑ 过回合前快照</span>';
+    html += ' · 第' + preEndturnRec.turn + '回合 · ' + (preEndturnRec.scenarioName || '');
+    if (preEndturnRec.eraName) html += ' · ' + preEndturnRec.eraName;
+    html += '<br><span style="font-size:var(--text-xs);color:var(--color-foreground-muted);">' + _preTime + ' · 崩溃恢复用·正常推演完成后自动覆盖</span>';
+    html += '</div>';
+    html += '<button class="bt bs bsm" onclick="loadPreEndturnSnapshot()" style="white-space:nowrap;">启封此卷</button>';
+    html += '</div>';
     html += '</div>';
   }
 
@@ -669,6 +688,37 @@ function loadSaveSlot(slotId) {
         SaveManager.loadFromSlot(slotId);
         closeSaveManager();
       }, 300);
+    }
+  });
+}
+
+// 启封过回合前快照·走 IDB 'pre_endturn' 槽位·走 fullLoadGame
+function loadPreEndturnSnapshot() {
+  showScrollConfirm({
+    title: '启封过回合前快照？',
+    body: '回到本回合<span class="rice-paper-emphasis">推演开始前</span>·诏令/批复/对话/调动保留·AI 推演需重新执行。',
+    okText: '启封御览',
+    onOk: function() {
+      toast('史官正在抄录副本……');
+      if (typeof TM_SaveDB === 'undefined' || typeof fullLoadGame !== 'function') {
+        toast('存档系统未就绪');
+        return;
+      }
+      TM_SaveDB.load('pre_endturn').then(function(record) {
+        if (record && record.gameState) {
+          try {
+            fullLoadGame({ gameState: record.gameState });
+            try { localStorage.removeItem('tm_pre_endturn_mark'); } catch(_){}
+            toast('已恢复至过回合前·第' + (record.turn || GM.turn) + '回合');
+            closeSaveManager();
+          } catch (_e) {
+            (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_e, 'loadPreEndturnSnapshot') : console.error('[loadPreEndturnSnapshot]', _e);
+            toast('恢复失败：' + (_e.message || _e));
+          }
+        } else {
+          toast('过回合前快照已损坏');
+        }
+      }).catch(function(e) { toast('恢复失败：' + (e && e.message || e)); });
     }
   });
 }

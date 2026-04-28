@@ -3,6 +3,18 @@
   "entries": [
     {
       "date": "2026-04-28",
+      "module": "邸报·过回合前快照在案卷目录可见 + 双存档落位审计",
+      "title": "用户指出『一回合两次自动保存是否都生效·别保存了但是在游戏存档界面没成功存入』。审计后发现：(1) 推演完成后的 autosave 写入 IDB 'autosave' + 'slot_0' 双键·案卷目录读 list() 后将 slot_0 映射到『案卷·零』·正常显示；(2) 过回合前快照写入 IDB 'pre_endturn' 独立键·原本 openSaveManager 仅识别 'autosave' / 'slot_*'·**忽略 pre_endturn**·UI 看不见。结果：保存确实生效·但用户无法验证。改为在案卷目录顶部增专用『过回合前快照』 banner·朱砂边框区分案卷·展示回合/剧本/时间·『启封此卷』按钮可手动恢复",
+      "items": [
+        { "what": "tm-save-manager.js openSaveManager() 在 dbSaves.forEach 中加 'pre_endturn' 分支·提取出独立 preEndturnRec 对象({name,turn,timestamp,scenarioName,eraName})·随 saves 数组一起传入 _renderSaveManagerUI(ov, saves, preEndturnRec)", "why": "原代码仅识别 'autosave'(映射 slot 0) 与 'slot_*'(映射 slotN)·pre_endturn 静默丢弃。这是 UI 不可见的根因" },
+        { "what": "_renderSaveManagerUI 增第 3 参数 preEndturnRec·若存在则在『当前推演信息』下方、卷宗网格上方插入朱砂边框 banner：『⚑ 过回合前快照 · 第X回合 · 剧本 · 朝代』+『启封此卷』按钮·副标『崩溃恢复用·正常推演完成后自动覆盖』。banner 只在 pre_endturn 存在时显示·零干扰", "why": "保留案卷目录的 10 卷网格设计(避免污染)·但用户能即时验证『过回合前自动存档已落地』·并提供手动启封路径(此前只能依赖崩溃后的启动期弹窗)" },
+        { "what": "新增 loadPreEndturnSnapshot() 函数·走 TM_SaveDB.load('pre_endturn') → fullLoadGame → 清 tm_pre_endturn_mark → toast『已恢复至过回合前·第X回合』·确认弹窗写明『诏令/批复/对话/调动保留·AI 推演需重新执行』·走 showScrollConfirm 复用案卷目录确认风格", "why": "玩家现在可主动调用过回合前快照(回退本回合 AI 推演结果·保留诏令草案)·不只是崩溃恢复用·实际成了 turn-level 撤销键" },
+        { "what": "tools/smoke-pre-endturn-save.js 扩容到 4 大 17 项 smoke check：T1 代码级标记(含 markSync/uiReadsPreEndturn/uiHasLoadButton 等 8 项)·T2 完整 cycle(模拟 pre-save→AI→post-save)·T3 UI mapping 验证 slot_0=T6/banner=T5 双显示·T4 race-condition 验证 mark 早于 IDB 落地。全过", "why": "用户问『是否都生效』·一项一项写在测试里·17 项 OK 后回答才有依据。同时锁定回归点：未来若 openSaveManager 再次过滤 pre_endturn·smoke 立刻黄牌" },
+        { "what": "index.html cache-bust → tm-save-manager.js v=2026042820c·node -c 通过·零字段迁移·零数据破坏·重启即生效。两次自动保存的 IDB 落位最终图：autosave(slot 0 案卷)·slot_0(同 slot 0 案卷·冗余备份)·pre_endturn(案卷目录顶部 banner)·三个键完全独立·互不覆盖", "why": "确保案卷目录内的『案卷·零』和顶部『过回合前快照』banner 同时可见·用户一开存档界面就能直观看到两次自动保存的落地状态" }
+      ]
+    },
+    {
+      "date": "2026-04-28",
       "module": "邸报·过回合前自动存档·防 AI 长推演崩溃丢失本回合操作",
       "title": "用户反馈：『目前结束回合推演·进入新回合后会自动保存·能否设置玩家过回合的时候也自动保存一下』·防止过长时间 AI 推演(2-5 分钟·并发 6+ AI 调用·任一崩溃即断流)期间·玩家本回合积累的诏令/奏疏批复/对话记录/军队调动/廷议结果全部失效。本次实施『写时存』+『启动时检』双闸·写在推演开始前·验在下次启动时·crash 信号 mark 留 localStorage 触发恢复弹窗",
       "items": [
