@@ -1193,6 +1193,9 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
         }));
       } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-endturn-render');}catch(_){}}
     }).catch(function(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'AutoSave] slot_0写入失败:') : console.warn('[AutoSave] slot_0写入失败:', e); });
+    // ★ 推演成功完成·清除 pre_endturn 标记(标记存在=崩溃信号·见 tm-endturn-core.js)
+    // IDB 中的 pre_endturn 不删·下次回合开始时自动覆盖·留作"上回合操作快照"应急
+    try { localStorage.removeItem('tm_pre_endturn_mark'); } catch(_rmE){}
   }
 
   // 13b. 写入每回合完整数据（多文件结构）

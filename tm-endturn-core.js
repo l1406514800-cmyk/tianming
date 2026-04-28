@@ -30,6 +30,40 @@ async function _endTurnCore(){
     showLoading("\u65F6\u79FB\u4E8B\u53BB",10);
   }
 
+  // ★ 过回合前自动存档·防 AI 长推演崩溃丢失本回合操作(诏令/奏疏批复/对话/调动)
+  // 写入独立 IDB key 'pre_endturn'·与正常 autosave/slot_0 分离·不污染案卷目录
+  // 写入 localStorage 标记 tm_pre_endturn_mark·页面刷新后可检测
+  // 异步·失败静默·不阻塞推演
+  try {
+    if (typeof TM_SaveDB !== 'undefined' && typeof _prepareGMForSave === 'function') {
+      _prepareGMForSave();
+      var _preState = { GM: deepClone(GM), P: deepClone(P) };
+      var _scPre = (typeof findScenarioById === 'function' && GM.sid) ? findScenarioById(GM.sid) : null;
+      var _preMeta = {
+        name: '过回合前·' + (typeof getTSText === 'function' ? getTSText(GM.turn) : 'T' + GM.turn),
+        type: 'pre_endturn',
+        turn: GM.turn,
+        scenarioName: _scPre ? _scPre.name : '',
+        eraName: GM.eraName || '',
+        savedAt: Date.now()
+      };
+      TM_SaveDB.save('pre_endturn', _preState, _preMeta).then(function() {
+        try {
+          localStorage.setItem('tm_pre_endturn_mark', JSON.stringify({
+            turn: GM.turn, timestamp: Date.now(),
+            scenarioName: _preMeta.scenarioName,
+            eraName: _preMeta.eraName,
+            saveName: GM.saveName || ''
+          }));
+        } catch(_lsE){try{window.TM&&TM.errors&&TM.errors.captureSilent(_lsE,'pre_endturn ls mark');}catch(_){}}
+      }).catch(function(e){
+        (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'PreEndTurnSave]') : console.warn('[PreEndTurnSave]', e);
+      });
+    }
+  } catch(_psE) {
+    (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_psE, 'PreEndTurnSave outer') : console.warn('[PreEndTurnSave outer]', _psE);
+  }
+
   await EndTurnHooks.execute('before');
 
   // Phase 0-A·情节弧兜底·若 >=4 回合未更新则触发后台推进(不等待·不阻塞)

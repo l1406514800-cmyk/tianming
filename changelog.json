@@ -3,6 +3,17 @@
   "entries": [
     {
       "date": "2026-04-28",
+      "module": "邸报·过回合前自动存档·防 AI 长推演崩溃丢失本回合操作",
+      "title": "用户反馈：『目前结束回合推演·进入新回合后会自动保存·能否设置玩家过回合的时候也自动保存一下』·防止过长时间 AI 推演(2-5 分钟·并发 6+ AI 调用·任一崩溃即断流)期间·玩家本回合积累的诏令/奏疏批复/对话记录/军队调动/廷议结果全部失效。本次实施『写时存』+『启动时检』双闸·写在推演开始前·验在下次启动时·crash 信号 mark 留 localStorage 触发恢复弹窗",
+      "items": [
+        { "what": "tm-endturn-core.js 在 showLoading('时移事去',10) 之后·EndTurnHooks.execute('before') 之前·新增 pre_endturn 自动存档块·调 _prepareGMForSave + deepClone 写入 IDB key 'pre_endturn'(独立槽位·与正常 autosave/slot_0 完全分离·不污染案卷目录)·同时写 localStorage 'tm_pre_endturn_mark' 带 turn/timestamp/scenarioName/eraName/saveName·异步 Promise·失败静默(走 TM.errors)·不阻塞推演主流程", "why": "崩溃信号设计：mark 存在=上次推演中断·mark 不存在=正常完成。IDB 数据是子弹·localStorage mark 是扳机。mark 走 localStorage 因为 IDB 异步打开慢·用户启动那一瞬还没就绪·而 localStorage 同步即读·适合做启动期 fast check" },
+        { "what": "tm-endturn-render.js 在 slot_0 存档成功 then 回调内·清除 localStorage 'tm_pre_endturn_mark'·IDB 中的 pre_endturn 数据保留(下次过回合时直接覆盖·留作上回合操作快照应急)。这样『推演成功完成』就把扳机收回·下次启动只检 mark 不存在·不会误弹『检测到上次推演中断』", "why": "正常流程：玩家点过回合 → 写 pre_endturn mark/IDB → AI 推演 → 写 autosave/slot_0 → 清 pre_endturn mark。崩溃流程：玩家点过回合 → 写 pre_endturn mark/IDB → AI 推演崩溃 → 进程退出 → mark 仍在·下次启动时检测到·提示恢复" },
+        { "what": "tm-office-editor.js _checkAutoRestore() IIFE 改为双源检测·先读 tm_pre_endturn_mark·若存在则优先弹『上次过回合推演中断·恢复至本回合操作前？』 confirm·确认后 TM_SaveDB.load('pre_endturn') 走 fullLoadGame·toast『已恢复至过回合前·第 X 回合』·失败 fallback 到 autosave·拒绝则清 mark 走 autosave 路径。autosave 路径维持原行为(确认 → load autosave → fullLoadGame)。抽 _tryLoadAutosave 内部 helper 复用", "why": "fullLoadGame(tm-save-lifecycle.js:649) 已正确处理 GM.busy=false (L682-683)·加载 pre_endturn 后玩家可重新过回合·诏令/批复/对话/调动全部回到推演前状态·无需重做。优先级：pre_endturn > autosave 因为 pre_endturn 更新(刚崩溃前) 且承载玩家未保存的本回合操作" },
+        { "what": "index.html cache-bust → tm-endturn-core / tm-endturn-render / tm-office-editor 三件套 v=2026042820a。三文件全过 node -c 校验·零字段迁移·零数据破坏·重启即生效·与正常 autosave 完全独立(IDB 不同槽位·localStorage 不同 key)·不影响任何已有存档", "why": "用户已有 autosave/手动存档全部继续工作·新功能仅在『过回合 → 推演崩溃 → 重启』极端 path 上触发·常态对玩家完全透明" }
+      ]
+    },
+    {
+      "date": "2026-04-28",
       "module": "邸报·税赋三数与钱账分项同源·终结 67 vs 201 撕裂",
       "title": "用户反馈帑廪面板『应征 67.1 万 / 官收 33 万 / 民缴 94.8 万』与下方『钱账本回 201 万』数字撕裂。审计发现两套财政模型并行：(A)旧 GuokuEngine 八源八支按 hukou × 0.3 户均田 × 4% 一刀切粗算·写 g.monthlyIncome；(B)新 CascadeTax 按 16 division × 11 税种 × 多重 penalty 链 × qiyun/cunliu 分账·写 GM.guoku.ledgers + GM._lastCascadeSummary。三数面板用 A·岁入分项用 B·两套都在跑互不知。本次保留三数概念·只把它的数据源从 A 切到 B·让面板与钱账分项同源",
       "items": [

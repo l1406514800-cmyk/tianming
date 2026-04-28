@@ -252,37 +252,87 @@ function openEditorHtml(scnId){
   }
 })();
 
-// ── 页面加载：检测IndexedDB中的autosave并提示恢复 ──
+// ── 页面加载：检测IndexedDB中的autosave/pre_endturn并提示恢复 ──
+// pre_endturn 优先：标记存在=上回合 AI 推演崩溃·本回合诏令/批复/对话/调动尚未保存
+// autosave 次之：上回合正常完成的快照
 (function _checkAutoRestore() {
   try {
-    var mark = localStorage.getItem('tm_autosave_mark');
-    if (!mark) return;
-    var info = JSON.parse(mark);
-    if (!info.turn) return;
+    var preMark = null;
+    var preInfo = null;
+    try {
+      preMark = localStorage.getItem('tm_pre_endturn_mark');
+      if (preMark) preInfo = JSON.parse(preMark);
+    } catch(_pmE) { preInfo = null; }
 
-    // 有自动存档标记——延迟弹窗（等IndexedDB打开）
+    var autoMark = localStorage.getItem('tm_autosave_mark');
+    var autoInfo = null;
+    if (autoMark) {
+      try { autoInfo = JSON.parse(autoMark); } catch(_amE) { autoInfo = null; }
+    }
+
+    if (!preInfo && (!autoInfo || !autoInfo.turn)) return;
+
+    // 延迟弹窗（等IndexedDB打开）
     setTimeout(function() {
       if (GM.running) return; // 已经在游戏中（从syncFromEditor恢复的）
-      var msg = '检测到上次推演（' + (info.scenarioName || '') + ' 第' + info.turn + '回合';
-      if (info.eraName) msg += ' · ' + info.eraName;
-      msg += '），是否恢复？';
-      if (confirm(msg)) {
-        showLoading('展卷恢复中……', 40);
-        TM_SaveDB.load('autosave').then(function(record) {
-          if (record && record.gameState) {
-            if (typeof fullLoadGame === 'function') {
-              try { fullLoadGame({ gameState: record.gameState }); toast('已恢复：第' + info.turn + '回合'); }
-              catch (_asE) { console.error('[autosave] 恢复失败', _asE); toast('恢复失败: ' + (_asE.message||_asE)); }
-              finally { hideLoading(); }
-            } else { hideLoading(); }
-          } else {
-            hideLoading();
-            toast('自动存档数据已损坏');
-          }
-        }).catch(function(e) { hideLoading(); toast('恢复失败: ' + (e && e.message || e)); });
+
+      // ── 优先处理 pre_endturn 崩溃信号 ──
+      if (preInfo && preInfo.turn) {
+        var preMsg = '上次过回合推演中断（' + (preInfo.scenarioName || '') + ' 第' + preInfo.turn + '回合';
+        if (preInfo.eraName) preMsg += ' · ' + preInfo.eraName;
+        preMsg += '）·恢复至本回合操作前？\n（本回合的诏令/批复/对话/调动将保留·AI推演需重新执行）';
+        if (confirm(preMsg)) {
+          showLoading('展卷恢复中……', 40);
+          TM_SaveDB.load('pre_endturn').then(function(record) {
+            if (record && record.gameState) {
+              if (typeof fullLoadGame === 'function') {
+                try {
+                  fullLoadGame({ gameState: record.gameState });
+                  toast('已恢复至过回合前·第' + preInfo.turn + '回合');
+                  try { localStorage.removeItem('tm_pre_endturn_mark'); } catch(_){}
+                } catch (_psrE) { console.error('[pre_endturn] 恢复失败', _psrE); toast('恢复失败: ' + (_psrE.message||_psrE)); }
+                finally { hideLoading(); }
+              } else { hideLoading(); }
+            } else {
+              hideLoading();
+              toast('过回合前快照已损坏·尝试加载常规自动存档');
+              try { localStorage.removeItem('tm_pre_endturn_mark'); } catch(_){}
+              _tryLoadAutosave(autoInfo);
+            }
+          }).catch(function(e) { hideLoading(); toast('恢复失败: ' + (e && e.message || e)); });
+          return;
+        } else {
+          // 用户拒绝 pre_endturn 恢复·清除标记·继续询问 autosave
+          try { localStorage.removeItem('tm_pre_endturn_mark'); } catch(_){}
+        }
       }
+
+      // ── fallback: 普通 autosave ──
+      _tryLoadAutosave(autoInfo);
     }, 500);
   } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-audio-theme');}catch(_){}}
+
+  function _tryLoadAutosave(info) {
+    if (!info || !info.turn) return;
+    var msg = '检测到上次推演（' + (info.scenarioName || '') + ' 第' + info.turn + '回合';
+    if (info.eraName) msg += ' · ' + info.eraName;
+    msg += '），是否恢复？';
+    if (confirm(msg)) {
+      showLoading('展卷恢复中……', 40);
+      TM_SaveDB.load('autosave').then(function(record) {
+        if (record && record.gameState) {
+          if (typeof fullLoadGame === 'function') {
+            try { fullLoadGame({ gameState: record.gameState }); toast('已恢复：第' + info.turn + '回合'); }
+            catch (_asE) { console.error('[autosave] 恢复失败', _asE); toast('恢复失败: ' + (_asE.message||_asE)); }
+            finally { hideLoading(); }
+          } else { hideLoading(); }
+        } else {
+          hideLoading();
+          toast('自动存档数据已损坏');
+        }
+      }).catch(function(e) { hideLoading(); toast('恢复失败: ' + (e && e.message || e)); });
+    }
+  }
 })();
 
 function _showOfficeStartModal(){
