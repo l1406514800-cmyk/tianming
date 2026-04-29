@@ -9132,21 +9132,27 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
             // 私访/宴请/切磋 → 问对（求见队列）
             if (!GM._pendingAudiences) GM._pendingAudiences = [];
             GM._pendingAudiences.push({ name: actor, reason: desc, turn: turn });
-          } else if (it.type === 'gift_present') {
-            // 馈赠 → 鸿雁（附礼信）
+          } else if (it.type === 'gift_present' || it.type === 'correspond_secret' || it.type === 'share_intelligence') {
+            // 馈赠/密信/通报 → 鸿雁（NPC 主动来书）
+            // R: 旧版只填 from/to/letterType/content/turn/status·缺 _npcInitiated/sentTurn/deliveryTurn/
+            //    fromLocation·导致 Section 3 不接管·UI 不显示「回书/摘入」按钮·日期渲染异常
             if (!GM.letters) GM.letters = [];
+            var _actorCh = (typeof findCharByName === 'function') ? findCharByName(actor) : null;
+            var _capital = GM._capital || '京城';
+            var _fromLoc = (_actorCh && _actorCh.location) || '远方';
+            var _dpv1 = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
+            var _nowD1 = (typeof getCurrentGameDay === 'function') ? getCurrentGameDay() : (turn-1)*_dpv1;
             GM.letters.push({
               id: 'letter_auto_'+Date.now()+'_'+Math.random().toString(36).slice(2,5),
-              from: actor, to: '陛下', letterType: 'gift',
-              content: desc, turn: turn, status: 'delivered'
-            });
-          } else if (it.type === 'correspond_secret' || it.type === 'share_intelligence') {
-            // 密信/通报 → 鸿雁
-            if (!GM.letters) GM.letters = [];
-            GM.letters.push({
-              id: 'letter_auto_'+Date.now()+'_'+Math.random().toString(36).slice(2,5),
-              from: actor, to: '陛下', letterType: 'intelligence',
-              content: desc, turn: turn, status: 'delivered'
+              from: actor, to: '玩家',
+              fromLocation: _fromLoc, toLocation: _capital,
+              letterType: it.type === 'gift_present' ? 'gift' : 'intelligence',
+              content: desc,
+              sentTurn: turn, deliveryTurn: turn,
+              _sentDay: _nowD1, _deliveryDay: _nowD1, _travelDays: 0,
+              status: 'delivered', urgency: 'normal',
+              _npcInitiated: true, _replyExpected: it.type !== 'gift_present',
+              _playerRead: false, _sendMode: 'multi_courier'
             });
           } else if (it.type === 'frame_up' || it.type === 'betray') {
             // 构陷/背叛 → 奏疏(警报) + 起居注
@@ -9260,12 +9266,22 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           var diplomaticTypes = ['send_envoy','demand_tribute','pay_tribute','royal_marriage','send_hostage','sue_for_peace','form_confederation','break_confederation','cultural_exchange','religious_mission','gift_treasure','pay_indemnity','open_market','trade_embargo','recognize_independence'];
           if (diplomaticTypes.indexOf(it.type) >= 0) {
             if (!GM.letters) GM.letters = [];
+            // R: 旧版缺 _npcInitiated/sentTurn/deliveryTurn·to 用"朝廷"与其它路径不一致·补齐
+            var _capital2 = GM._capital || '京城';
+            var _dpv2 = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
+            var _nowD2 = (typeof getCurrentGameDay === 'function') ? getCurrentGameDay() : (turn-1)*_dpv2;
             GM.letters.push({
               id: 'letter_diplomatic_'+Date.now()+'_'+Math.random().toString(36).slice(2,5),
-              from: from, to: '朝廷', letterType: 'diplomatic',
+              from: from, to: '玩家',
+              fromLocation: from + '·使节', toLocation: _capital2,
+              letterType: 'diplomatic',
               subtype: it.type,
               content: desc + (it.terms ? '\n条款：'+it.terms : '') + (it.tributeItems ? '\n贡物：'+it.tributeItems : ''),
-              turn: turn, status: 'delivered', urgency: 'normal'
+              sentTurn: turn, deliveryTurn: turn,
+              _sentDay: _nowD2, _deliveryDay: _nowD2, _travelDays: 0,
+              status: 'delivered', urgency: 'normal',
+              _npcInitiated: true, _replyExpected: true, _playerRead: false,
+              _sendMode: 'multi_courier'
             });
             // 需要玩家回应的重大外交（和亲/索贡/请和/联盟）→ 问对待接见
             var requireResponseTypes = ['royal_marriage','demand_tribute','sue_for_peace','form_confederation','send_envoy'];

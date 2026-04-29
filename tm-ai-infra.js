@@ -1739,6 +1739,20 @@ function getEraDisplay(y,mo,dy){
  *
  * @returns {{adYear,solarMonth,solarDay,lunarMonth,lunarDay,season,eraInfo,gzYearStr,gzDayStr,reignYear}}
  */
+/** 取当前游戏自开局累计天数·跨剧本统一时间标尺
+ *  · 用于鸿雁/驿递/续问/自愈等"按真实时间"判定的逻辑
+ *  · 与 calcDateFromTurn 内部的 (turn-1)*dpv 计算一致
+ *  · 开局 turn=1 → day=0
+ */
+function getCurrentGameDay(){
+  var dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
+  return ((GM.turn || 1) - 1) * dpv;
+}
+function turnToDay(turn){
+  var dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
+  return ((turn || 1) - 1) * dpv;
+}
+
 function calcDateFromTurn(turn){
   if(!P.time) return {adYear:0,solarMonth:1,solarDay:1,lunarMonth:1,lunarDay:1,season:'春',gzYearStr:'',gzDayStr:''};
   var t=P.time;

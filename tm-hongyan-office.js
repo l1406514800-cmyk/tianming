@@ -368,9 +368,16 @@ var LETTER_TYPES = {
   plea: { label: '陈情', css: 'lt-type-personal', icon: 'person', interceptWeight: 1, formal: false },
   warning: { label: '急报', css: 'lt-type-military', icon: 'troops', interceptWeight: 2.5, formal: false },
   intelligence: { label: '密信', css: 'lt-type-secret', icon: 'scroll', interceptWeight: 3, formal: false },
+  // R: AI prompt + tm-endturn-ai-infer.js emoMap 生产以下 4 种 type·此前未在字典里声明·UI 退化为"私函"
+  thanks: { label: '谢恩', css: 'lt-type-personal', icon: 'memorial', interceptWeight: 0.8, formal: true },
+  recommend: { label: '荐表', css: 'lt-type-personal', icon: 'person', interceptWeight: 1.2, formal: true },
+  impeach: { label: '密告', css: 'lt-type-secret', icon: 'memorial', interceptWeight: 2.5, formal: false },
+  condolence: { label: '吊唁', css: 'lt-type-personal', icon: 'memorial', interceptWeight: 0.5, formal: true },
   // 新增：馈赠、外交国书
   gift: { label: '附礼', css: 'lt-type-greeting', icon: 'treasury', interceptWeight: 0.5, formal: false },
-  diplomatic: { label: '国书', css: 'lt-type-proclamation', icon: 'scroll', interceptWeight: 2, formal: true }
+  diplomatic: { label: '国书', css: 'lt-type-proclamation', icon: 'scroll', interceptWeight: 2, formal: true },
+  // 跨势力自动诏令（tm-endturn-prep 给 _crossFaction 诏令派发）·走使节传递·和 diplomatic 同语义
+  diplomatic_dispatch: { label: '外交文书', css: 'lt-type-proclamation', icon: 'scroll', interceptWeight: 2, formal: true }
 };
 
 /** 信物凭证系统 */
@@ -397,18 +404,21 @@ function calcLetterDays(fromLoc, toLoc, urgency) {
   var speed = liPerDay[urgency] || 50;
   // 估算距离（里）——基于行政区划层级推断
   var li = 1000; // 默认中等距离
-  if (P.adminHierarchy) {
-    var _sameProv = _ltCheckSameProvince(fromLoc, toLoc);
-    if (_sameProv) li = 200;
-  }
+  if (_ltCheckSameProvince(fromLoc, toLoc)) li = 200;
   // 若两地名有共同前缀（同区域），距离近
   if (fromLoc.length >= 2 && toLoc.length >= 2 && fromLoc.slice(0,2) === toLoc.slice(0,2)) li = 150;
   return Math.max(1, Math.ceil(li / speed));
 }
-/** 检查两地是否在同一顶级行政区 */
+/** 检查两地是否在同一顶级行政区
+ * R: 优先读 GM.adminHierarchy（运行时·会反映领土得失/侨置等动态变迁）·
+ *    回退 P.adminHierarchy（剧本静态）·与 _renderDifangPanel 等模块一致
+ */
 function _ltCheckSameProvince(loc1, loc2) {
-  if (!P.adminHierarchy) return false;
-  var ah = P.adminHierarchy.player ? P.adminHierarchy.player : P.adminHierarchy[Object.keys(P.adminHierarchy)[0]];
+  var src = (typeof GM !== 'undefined' && GM.adminHierarchy) ? GM.adminHierarchy
+          : (typeof P !== 'undefined' && P.adminHierarchy) ? P.adminHierarchy
+          : null;
+  if (!src) return false;
+  var ah = src.player ? src.player : src[Object.keys(src)[0]];
   if (!ah || !ah.divisions) return false;
   var p1 = '', p2 = '';
   ah.divisions.forEach(function(d) {
@@ -453,14 +463,23 @@ function renderLetterPanel() {
 
   // ── 人物分组·按地域粗分 ──
   function _regionOf(loc) {
+    // R: \u65E7\u7248\u542B IME \u8BEF\u7801\u5B57\uFF08\u8FA3\u9633/\u5384\u95E8/\u6280\u6E7E/\u4EAC\u7B7B/\u8468/\u7B07/\u6E29\u90FD/\u7518\u590F/\u77F3\u5BAB/\u6CBF\u5DDE/\u96A9/\u8367/\u5BA7/\u7518\u76F4\uFF09
+    //    \u4E14 L457/L458 \u4E24\u6761\u90FD\u8FD4\u56DE"\u8FBD\u4E1C\u00B7\u5317\u5883"\u00B7\u628A"\u5BA3\u5927\u00B7\u5C71\u897F"\u8BEF\u5E76\u5165\u8FBD\u4E1C\u00B7\u6B64\u5904\u7EDF\u4E00\u66F4\u6B63\u5E76\u62C6\u51FA\u72EC\u7ACB\u7EC4
     if (!loc) return '\u5176\u4ED6';
-    if (/\u8FBD|\u5BA7|\u9526|\u7518\u76F4|\u76DB\u4EAC|\u8FA3\u9633|\u6C88\u9633|\u4EAC\u7B7B/.test(loc)) return '\u8FBD\u4E1C\u00B7\u5317\u5883';
-    if (/\u5927\u540C|\u5BA3|\u8367|\u592A\u539F|\u9695/.test(loc)) return '\u8FBD\u4E1C\u00B7\u5317\u5883';
-    if (/\u9655|\u897F\u5B89|\u5EF6|\u7518|\u5B81\u590F|\u5170\u5DDE|\u4E09\u8FB9|\u6C58\u5DDE|\u51C9/.test(loc)) return '\u897F\u9677\u00B7\u8FB9\u9547';
-    if (/\u56DB\u5DDD|\u91CD\u5E86|\u4E91|\u8D35|\u8568|\u7B47|\u77F3\u67F1|\u6210\u90FD/.test(loc)) return '\u897F\u5357\u00B7\u5DF4\u8700';
-    if (/\u798F\u5EFA|\u5E7F\u4E1C|\u5E7F\u897F|\u6D77|\u5384\u95E8|\u6280\u6E7E|\u6E29\u90FD|\u7518\u590F/.test(loc)) return '\u5357\u65B9\u00B7\u6D77\u7586';
-    if (/\u6C5F|\u676D|\u5357\u4EAC|\u82CF|\u6E56\u5E7F|\u77F3\u5BAE|\u6D59/.test(loc)) return '\u6C5F\u5357\u00B7\u6C5F\u6D59';
-    if (/\u6CB3\u5357|\u5C71\u4E1C|\u6CB3\u5317|\u5317\u76F4|\u9C81/.test(loc)) return '\u4E2D\u539F\u00B7\u9C81\u8C6B';
+    // \u8FBD\u4E1C\u00B7\u5317\u5883
+    if (/\u8FBD|\u5B81\u8FDC|\u9526|\u84DF|\u76DB\u4EAC|\u8FBD\u9633|\u6C88\u9633|\u5C71\u6D77\u5173|\u76AE\u5C9B/.test(loc)) return '\u8FBD\u4E1C\u00B7\u5317\u5883';
+    // \u5BA3\u5927\u00B7\u5C71\u897F\uFF08\u72EC\u7ACB\u51FA\u6765\uFF09
+    if (/\u5927\u540C|\u5BA3\u5E9C|\u5BA3\u9547|\u592A\u539F|\u4EE3\u5DDE|\u84B2\u5DDE|\u5C71\u897F|\u5F52\u5316/.test(loc)) return '\u5BA3\u5927\u00B7\u5C71\u897F';
+    // \u897F\u9672\u00B7\u8FB9\u9547
+    if (/\u9655|\u897F\u5B89|\u5EF6|\u7518|\u5B81\u590F|\u5170\u5DDE|\u4E09\u8FB9|\u51C9|\u6986\u6797|\u56FA\u539F|\u7C73\u8102|\u5B89\u585E|\u5E9C\u8C37/.test(loc)) return '\u897F\u9677\u00B7\u8FB9\u9547';
+    // \u897F\u5357\u00B7\u5DF4\u8700
+    if (/\u56DB\u5DDD|\u91CD\u5E86|\u4E91|\u8D35|\u8700|\u5DF4|\u77F3\u67F1|\u6210\u90FD/.test(loc)) return '\u897F\u5357\u00B7\u5DF4\u8700';
+    // \u5357\u65B9\u00B7\u6D77\u7586\uFF08\u542B\u5916\u85E9\uFF09
+    if (/\u798F\u5EFA|\u5E7F\u4E1C|\u5E7F\u897F|\u6D77|\u53A6\u95E8|\u53F0\u6E7E|\u743C|\u5E73\u6237|\u6C49\u57CE|\u671D\u9C9C/.test(loc)) return '\u5357\u65B9\u00B7\u6D77\u7586';
+    // \u6C5F\u5357\u00B7\u6C5F\u6D59
+    if (/\u6C5F|\u676D|\u5357\u4EAC|\u82CF|\u6E56\u5E7F|\u6D59|\u5357\u76F4|\u6B66\u9675|\u8861\u5DDE|\u5B89\u5E86/.test(loc)) return '\u6C5F\u5357\u00B7\u6C5F\u6D59';
+    // \u4E2D\u539F\u00B7\u9C81\u8C6B
+    if (/\u6CB3\u5357|\u5C71\u4E1C|\u6CB3\u5317|\u5317\u76F4|\u9C81|\u8C6B|\u4FDD\u5B9A|\u5927\u540D|\u957F\u5C71|\u5546\u4E18/.test(loc)) return '\u4E2D\u539F\u00B7\u9C81\u8C6B';
     return '\u5176\u4ED6';
   }
 
@@ -478,7 +497,8 @@ function renderLetterPanel() {
         if (!_groups[r]) _groups[r] = [];
         _groups[r].push(ch);
       });
-      var _grpOrder = ['\u8FBD\u4E1C\u00B7\u5317\u5883','\u897F\u9677\u00B7\u8FB9\u9547','\u4E2D\u539F\u00B7\u9C81\u8C6B','\u6C5F\u5357\u00B7\u6C5F\u6D59','\u897F\u5357\u00B7\u5DF4\u8700','\u5357\u65B9\u00B7\u6D77\u7586','\u5176\u4ED6'];
+      // \u987A\u5E8F\uFF1A\u8FBD\u4E1C\u00B7\u5317\u5883 / \u5BA3\u5927\u00B7\u5C71\u897F / \u897F\u9677\u00B7\u8FB9\u9547 / \u4E2D\u539F\u00B7\u9C81\u8C6B / \u6C5F\u5357\u00B7\u6C5F\u6D59 / \u897F\u5357\u00B7\u5DF4\u8700 / \u5357\u65B9\u00B7\u6D77\u7586 / \u5176\u4ED6
+      var _grpOrder = ['\u8FBD\u4E1C\u00B7\u5317\u5883','\u5BA3\u5927\u00B7\u5C71\u897F','\u897F\u9677\u00B7\u8FB9\u9547','\u4E2D\u539F\u00B7\u9C81\u8C6B','\u6C5F\u5357\u00B7\u6C5F\u6D59','\u897F\u5357\u00B7\u5DF4\u8700','\u5357\u65B9\u00B7\u6D77\u7586','\u5176\u4ED6'];
 
       function _cardClass(ch) {
         var t = (ch.title||'') + (ch.officialTitle||'');
@@ -602,8 +622,10 @@ function _ltRenderLetterCard(l, target) {
   var sentDate = (typeof getTSText === 'function') ? getTSText(l.sentTurn) : '第' + l.sentTurn + '回合';
   var urgLabels = { normal:'驿递', urgent:'加急', extreme:'八百里加急' };
   var typeInfo = LETTER_TYPES[l.letterType] || LETTER_TYPES.personal;
-  var _intercepted = (l.status === 'intercepted' || l.status === 'intercepted_forging');
-  var _inTransit = (l.status === 'traveling' || l.status === 'replying');
+  // R: intercepted_forging（敌方伪造回信中）应视觉伪装为"在途"·不能用红色截获样式·
+  //    否则玩家一眼看出被截·破坏伪造剧情·真相靠存疑/遣使核实流程后续暴露
+  var _intercepted = (l.status === 'intercepted');
+  var _inTransit = (l.status === 'traveling' || l.status === 'replying' || l.status === 'intercepted_forging');
   var _lost = (l.status === 'intercepted' || (l.status === 'traveling' && GM.turn > l.deliveryTurn + 1));
 
   // 外层 msg 类
@@ -665,6 +687,11 @@ function _ltRenderLetterCard(l, target) {
   if (l.status === 'traveling' && isOutgoing && !l._recallSent) {
     acts += '<button class="hy-filter-btn" onclick="_ltRecall(\'' + l.id + '\')" title="\u6D3E\u5FEB\u9A6C\u8FFD\u56DE\u4FE1\u4F7F">\u8FFD\u3000\u56DE</button>';
   }
+  // \u622A\u83B7/\u88AB\u52AB\u00B7\u5E94\u5BF9\u624B\u6BB5\uFF1A\u53E6\u6D3E\u5BC6\u4F7F\u91CD\u53D1 / \u516B\u767E\u91CC\u52A0\u6025\u518D\u4F20
+  if ((l.status === 'intercepted' || l.status === 'intercepted_forging') && isOutgoing && !l._resendIssued) {
+    acts += '<button class="hy-filter-btn" style="color:var(--gold-400);border-color:var(--gold-400);" onclick="_ltResend(\'' + l.id + '\',\'secret_agent\')" title="\u6539\u7528\u5BC6\u4F7F\u91CD\u53D1\u00B7\u622A\u83B7\u7387\u5927\u964D\uFF08\u00D70.3\uFF09">\u91CD\u53D1\u00B7\u5BC6\u4F7F</button>';
+    acts += '<button class="hy-filter-btn" style="color:var(--vermillion-400);border-color:var(--vermillion-400);" onclick="_ltResend(\'' + l.id + '\',\'multi_courier\')" title="\u591A\u8DEF\u516B\u767E\u91CC\u52A0\u6025\u00B7\u81F3\u5C11\u4E00\u8DEF\u5FC5\u8FBE">\u91CD\u53D1\u00B7\u591A\u8DEF\u52A0\u6025</button>';
+  }
   if ((l.status === 'returned' || l.status === 'intercepted_forging') && l.reply && isOutgoing) {
     if ((GM._letterSuspects||[]).indexOf(l.id) < 0) {
       acts += '<button class="hy-filter-btn" onclick="_ltSuspect(\'' + l.id + '\')" title="\u6807\u8BB0\u6B64\u56DE\u4FE1\u53EF\u7591">\u5B58\u3000\u7591</button>';
@@ -692,18 +719,27 @@ function _ltRenderLetterCard(l, target) {
   return html;
 }
 
-/** 信件状态文本 */
+/** 信件状态文本（日制） */
 function _ltGetStatusText(l) {
   if (l.status === 'traveling') {
-    var arrDate = (typeof getTSText === 'function') ? getTSText(l.deliveryTurn) : '第' + l.deliveryTurn + '回合';
+    var nowDay = (typeof getCurrentGameDay === 'function') ? getCurrentGameDay() : 0;
+    var dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
+    var arrDay = (typeof l._deliveryDay === 'number') ? l._deliveryDay
+                : (typeof l.deliveryTurn === 'number') ? (l.deliveryTurn-1)*dpv : null;
+    var arrDate = (typeof getTSText === 'function' && typeof l.deliveryTurn === 'number') ? getTSText(l.deliveryTurn) : '';
     if (l._recallSent) return '追回信使已派出';
-    if (GM.turn > l.deliveryTurn + 1) return '⚠ 信使逾期未归';
-    return '信使在途…… 预计' + arrDate + '送达';
+    if (arrDay !== null && nowDay > arrDay + 30) return '⚠ 信使逾期未归（已超 ' + Math.round(nowDay - arrDay) + ' 天）';
+    if (arrDay !== null) {
+      var _rem = arrDay - nowDay;
+      if (_rem <= 0) return '信使在途…… 即将抵达';
+      return '信使在途…… 约 ' + Math.ceil(_rem) + ' 天后送达' + (arrDate ? '（' + arrDate + '）' : '');
+    }
+    return '信使在途……';
   }
   if (l.status === 'delivered') return '已送达，等待回函……';
   if (l.status === 'replying') return '回函在途……';
-  if (l.status === 'intercepted') return '⚠ 信使失踪';
-  if (l.status === 'intercepted_forging') return '回函在途……';
+  if (l.status === 'intercepted') return '⚠ 信使失踪' + (l.interceptedBy ? '·疑为' + l.interceptedBy + '所为' : '');
+  if (l.status === 'intercepted_forging') return '回函在途……（按：原信使疑被' + (l.interceptedBy||'敌方') + '所截·此回函真伪存疑）';
   if (l.status === 'recalled') return '信使已追回';
   if (l.status === 'blocked') return '⚠ 中书门下阻止，未能下达';
   if (l.status === 'returned') {
@@ -785,6 +821,8 @@ function _ltRecall(letterId) {
 function _ltReplyToNpc(letterId) {
   var l = (GM.letters||[]).find(function(x){ return x.id === letterId; });
   if (!l) return;
+  // 守卫：仅 NPC 来函可调此函·防止误传玩家信件 id 把发信目标设成"玩家"自己
+  if (!l._npcInitiated || !l.from || l.from === '玩家') return;
   // 设置当前目标为该NPC，并在textarea中预填回复提示
   GM._pendingLetterTo = l.from;
   GM._ltReplyingTo = letterId;
@@ -822,6 +860,57 @@ function _ltExcerptToEdict(letterId) {
   if (typeof _renderEdictSuggestions === 'function') _renderEdictSuggestions();
 }
 
+/** 重发被截获的信件——选用更安全的传递方式（密使/多路加急）
+ *  · 不删除原 letter（保留情报泄露记录）·新建一封"重发"信
+ *  · 自动转为加急·可选 secret_agent / multi_courier·享受截获率折扣
+ */
+function _ltResend(letterId, mode) {
+  var l = (GM.letters||[]).find(function(x){ return x.id === letterId; });
+  if (!l) return;
+  if (l._resendIssued) { toast('此信已重发过·请到新条目操作'); return; }
+  var capital = GM._capital || '京城';
+  var ch = (typeof findCharByName === 'function') ? findCharByName(l.to) : null;
+  var toLoc = ch ? (ch.location || capital) : (l.toLocation || capital);
+  var _newUrgency = mode === 'multi_courier' ? 'extreme' : 'urgent';
+  var days = (typeof calcLetterDays === 'function') ? calcLetterDays(capital, toLoc, _newUrgency) : 5;
+  var dpv = _getDaysPerTurn();
+  var deliveryTurns = Math.max(1, Math.ceil(days / dpv));
+  var _nowDayR = (typeof getCurrentGameDay === 'function') ? getCurrentGameDay() : (GM.turn-1)*dpv;
+  var newLetter = {
+    id: (typeof uid === 'function') ? uid() : 'rs_' + Date.now() + '_' + Math.random().toString(36).slice(2,5),
+    from: '玩家', to: l.to,
+    fromLocation: capital, toLocation: toLoc,
+    content: '【重发·前函疑被劫】' + (l.content||''),
+    sentTurn: GM.turn,
+    deliveryTurn: GM.turn + deliveryTurns,
+    replyTurn: GM.turn + deliveryTurns + 1,
+    _sentDay: _nowDayR,
+    _deliveryDay: _nowDayR + days,
+    _replyDay: _nowDayR + days * 2 + 3,
+    _travelDays: days,
+    reply: '', status: 'traveling',
+    urgency: _newUrgency, letterType: l.letterType,
+    _cipher: 'cipher_substitution', // 重发自动加密·防再次被读
+    _sendMode: mode,
+    _replyExpected: true,
+    _resentFrom: letterId
+  };
+  if (!Array.isArray(GM.letters)) GM.letters = [];
+  GM.letters.push(newLetter);
+  l._resendIssued = true;
+  // 起居注 + 编年
+  var _date = (typeof getTSText === 'function') ? getTSText(GM.turn) : '';
+  if (Array.isArray(GM.qijuHistory)) {
+    GM.qijuHistory.unshift({
+      turn: GM.turn, date: _date,
+      content: '【鸿雁重发】致' + l.to + '的前函疑被劫·改' + (mode === 'secret_agent' ? '密使暗递' : '多路八百里加急') + '重发。'
+    });
+  }
+  if (typeof addEB === 'function') addEB('传书', '致' + l.to + '的信改' + (mode === 'secret_agent' ? '密使' : '多路加急') + '重发');
+  toast('已遣' + (mode === 'secret_agent' ? '密使' : '多路加急') + '重发·约' + days + '天可达');
+  if (typeof renderLetterPanel === 'function') renderLetterPanel();
+}
+
 /** 遣使核实 */
 function _ltVerify(letterId) {
   var l = (GM.letters||[]).find(function(x){ return x.id === letterId; });
@@ -831,14 +920,20 @@ function _ltVerify(letterId) {
   var toLoc = ch ? (ch.location || capital) : capital;
   var days = calcLetterDays(capital, toLoc, 'urgent');
   var dpv = _getDaysPerTurn();
+  var _nowDayV = (typeof getCurrentGameDay === 'function') ? getCurrentGameDay() : (GM.turn-1)*dpv;
   var verifyLetter = {
     id: uid(), from: '玩家', to: l.to,
     fromLocation: capital, toLocation: toLoc,
     content: '核实前函——朕遣使复核，卿是否曾收到前日来函并亲笔回书？',
     sentTurn: GM.turn, deliveryTurn: GM.turn + Math.max(1, Math.ceil(days / dpv)),
     replyTurn: GM.turn + Math.max(2, Math.ceil(days * 2 / dpv)),
+    _sentDay: _nowDayV,
+    _deliveryDay: _nowDayV + days,
+    _replyDay: _nowDayV + days * 2 + 3,
+    _travelDays: days,
     reply: '', status: 'traveling', urgency: 'urgent',
-    letterType: 'secret_decree', _verifyTarget: letterId
+    letterType: 'secret_decree', _verifyTarget: letterId,
+    _sendMode: 'multi_courier', _replyExpected: true
   };
   if (!GM.letters) GM.letters = [];
   GM.letters.push(verifyLetter);
@@ -873,8 +968,9 @@ function sendLetter() {
       if (_selfNm2 && tn === _selfNm2) { _drop.push(tn + '(自己)'); return false; }
       var _ch = (typeof findCharByName === 'function') ? findCharByName(tn) : null;
       if (_ch) {
-        var _loc = (_ch.location || '').replace(/\s/g,'');
-        var _atCap = !_loc || _loc === _capSelf || _loc.indexOf(_capSelf) >= 0 || /京|京城|京师|北京/.test(_loc);
+        // 用 _isSameLocation·走规范化别名表（京师/紫禁城/顺天府=京城）·
+        // 避免硬编码 /京/ 误伤 南京/京口/京广路 等含"京"字异地
+        var _atCap = !_ch.location || (typeof _isSameLocation === 'function' && _isSameLocation(_ch.location, _capSelf));
         if (_atCap && !_ch._travelTo) { _drop.push(tn + '(在京)'); return false; }
       }
       return true;
@@ -891,15 +987,17 @@ function sendLetter() {
   var multiCount = targets.length > 1 ? targets.length : 0;
 
   // 信物检查（征调令需虎符等）
+  // _tokenUsed 只在实际持有时填充——表示"此函确已加盖/附带此信物"·UI 据此显示徽标·
+  // 投递时 NPC 视角的"未见信物可拒"判断改由 letterType→needsToken 派生·见 _settleLettersAndTravel
   var tokenNeeded = (LETTER_TYPES[letterType]||{}).needsToken;
   var tokenUsed = '';
   if (tokenNeeded && typeof tokenNeeded === 'string') {
-    // 检查是否有此信物（物品系统）——若无则警告但仍可发（NPC可能不从）
     var _hasToken = (GM.items||[]).some(function(it) { return it.type === tokenNeeded || it.name === (LETTER_TOKENS[tokenNeeded]||{}).label; });
     if (!_hasToken) {
       toast('⚠ 未持有' + ((LETTER_TOKENS[tokenNeeded]||{}).label||'凭证') + '——对方可能疑诏不从');
+    } else {
+      tokenUsed = tokenNeeded;
     }
-    tokenUsed = tokenNeeded;
   }
 
   // 密使模式：选择一个NPC作为信使
@@ -920,13 +1018,17 @@ function sendLetter() {
     }
   }
 
+  // 默认多路信使——更真实（古代正式公文常派 2-3 路）·享受截获率折扣
+  if (!sendMode || sendMode === 'normal') sendMode = 'multi_courier';
+  var nowDay = (typeof getCurrentGameDay === 'function') ? getCurrentGameDay() : (GM.turn-1)*dpv;
+
   targets.forEach(function(target) {
     var ch = findCharByName(target);
     var toLoc = ch ? (ch.location || capital) : capital;
     var days = calcLetterDays(capital, toLoc, urgency);
     // 密使模式速度更慢但更安全
     if (sendMode === 'secret_agent') days = Math.ceil(days * 1.5);
-    // 多路信使增加冗余
+    // 回合数仍计算·UI/兼容用·但所有判定走 day
     var deliveryTurns = Math.max(1, Math.ceil(days / dpv));
     var replyDays = days * 2 + 3;
     var replyTurns = Math.max(deliveryTurns + 1, Math.ceil(replyDays / dpv));
@@ -937,12 +1039,18 @@ function sendLetter() {
       content: content, sentTurn: GM.turn,
       deliveryTurn: GM.turn + deliveryTurns,
       replyTurn: GM.turn + replyTurns,
+      // 时间制字段（权威·跨剧本一致）
+      _sentDay: nowDay,
+      _deliveryDay: nowDay + days,
+      _replyDay: nowDay + replyDays,
+      _travelDays: days,
       reply: '', status: _formalBlocked ? 'blocked' : 'traveling',
       urgency: urgency, letterType: letterType,
       _cipher: cipher, _sendMode: sendMode,
       _tokenUsed: tokenUsed, _agentName: agentName,
       _multiRecipients: multiCount > 0 ? multiCount : undefined,
-      _replyingTo: GM._ltReplyingTo || undefined
+      _replyingTo: GM._ltReplyingTo || undefined,
+      _replyExpected: true
     };
 
     // 如果是回复NPC来函，标记原函已回复
@@ -994,15 +1102,64 @@ function _ltFindPrimeMinister() {
   return null;
 }
 
-/** 每回合结算信件传递+角色赶路 (注册到SettlementPipeline) */
+/** 每回合结算信件传递+角色赶路 (注册到SettlementPipeline)
+ *  R: 时间制重构——所有"已等多久"判定均以"实际天数"为标尺·跨剧本一致
+ *     dpv=90 的剧本和 dpv=7 的剧本·"信件 30 天内焦虑续问"是同一行为
+ */
 function _settleLettersAndTravel() {
   var dpv = _getDaysPerTurn();
+  if (!Array.isArray(GM.letters)) GM.letters = [];
+  if (!Array.isArray(GM._pendingNpcLetters)) GM._pendingNpcLetters = [];
   if (!GM._courierStatus) GM._courierStatus = {};
   if (!GM._npcCorrespondence) GM._npcCorrespondence = [];
 
   var _gMode = (P.conf && P.conf.gameMode) || '';
   var _canIntercept = _gMode === 'strict_hist' || _gMode === 'light_hist';
   var _hostileFacs = (GM.facs||[]).filter(function(f){ return !f.isPlayer && (f.playerRelation||0) < -50; });
+  // 当前累计天数（跨剧本统一标尺）
+  var nowDay = (typeof getCurrentGameDay === 'function') ? getCurrentGameDay() : (GM.turn-1)*dpv;
+  // 取信件的"实际到达天"·兼容旧存档（仅有 deliveryTurn）
+  function _ltArrivalDay(l) {
+    if (typeof l._deliveryDay === 'number') return l._deliveryDay;
+    if (typeof l.deliveryTurn === 'number') return (l.deliveryTurn - 1) * dpv;
+    return Infinity; // 数据不全·永不到达·让自愈段兜底
+  }
+  function _ltReplyArrivalDay(l) {
+    if (typeof l._replyDay === 'number') return l._replyDay;
+    if (typeof l.replyTurn === 'number') return (l.replyTurn - 1) * dpv;
+    return _ltArrivalDay(l) + Math.max(7, dpv); // 兜底
+  }
+  function _ltInterceptDay(l) {
+    if (typeof l._interceptedDay === 'number') return l._interceptedDay;
+    if (typeof l._interceptedTurn === 'number') return (l._interceptedTurn - 1) * dpv;
+    return null;
+  }
+
+  // 0a·重度逾期自愈——超过到达日 60 天仍 traveling 视为驿递事故·强制送达
+  // （日制·跨剧本一致：dpv=7 的剧本里也是 60 天而非"5 回合 = 35 天"）
+  // intercepted 久未消化阈值：120 天
+  GM.letters.forEach(function(l) {
+    if (!l) return;
+    var _arr = _ltArrivalDay(l);
+    if (l.status === 'traveling' && nowDay > _arr + 60) {
+      l._autoHealed = true;
+      l._deliveryDay = nowDay; // 触发本轮 Section 1/Section 3 处理
+      l.deliveryTurn = GM.turn; // 同步保留兼容字段
+      if (typeof addEB === 'function') addEB('传书', '逾期信件自愈：致' + (l.to||l.from) + '的信件强制送达（驿递晚到）');
+    }
+    if (l.status === 'intercepted' && nowDay > _arr + 120) {
+      l._autoHealed = true;
+      l.status = 'returned';
+      if (!l.reply) l.reply = '（信使遗失多日·辗转送达·原文已部分残缺）';
+      GM._courierStatus[l.id] = '信使辗转归来·原信物大部完好';
+      if (Array.isArray(GM._undeliveredLetters)) {
+        GM._undeliveredLetters = GM._undeliveredLetters.filter(function(u){
+          return !(u && u.from === l.from && u.to === l.to && u.content === l.content);
+        });
+      }
+      if (typeof addEB === 'function') addEB('传书', '失踪信使归来：致' + (l.to||l.from) + '的旧信终于送达');
+    }
+  });
 
   // 0. 处理追回信使
   (GM.letters||[]).forEach(function(l) {
@@ -1018,11 +1175,11 @@ function _settleLettersAndTravel() {
     }
   });
 
-  // 1. 推进玩家信件
+  // 1. 推进玩家信件（日制判定·跨剧本一致）
   (GM.letters||[]).forEach(function(l) {
     if (l.status === 'blocked') return; // 被中书阻挠
     if (l.status === 'recalled') return;
-    if (l.status === 'traveling' && GM.turn >= l.deliveryTurn) {
+    if (l.status === 'traveling' && nowDay >= _ltArrivalDay(l)) {
       // 截获判定
       if (_canIntercept && !l._interceptChecked) {
         l._interceptChecked = true;
@@ -1032,6 +1189,10 @@ function _settleLettersAndTravel() {
           return;
         }
       }
+      // NPC 来函不在此推进状态——交给下方 Section 3（_npcInitiated 专属流水线）
+      // 否则状态会被改成 'delivered'·导致 Section 3 的 status==='traveling' 守卫失效·
+      // 进而漏发到达 toast/邸报/起居·并漏推 _suggestion 到诏书建议库
+      if (l._npcInitiated) return;
       l.status = 'delivered';
       if (typeof addEB === 'function') addEB('传书', '致' + (l.to||l.from) + '的信已送达' + (l.toLocation||''));
       // 收信者记忆（玩家→NPC 的信件，无论是否回信都记入记忆）
@@ -1065,7 +1226,7 @@ function _settleLettersAndTravel() {
       }
       if (!l._npcInitiated) _generateLetterReply(l);
     }
-    if (l.status === 'replying' && GM.turn >= l.replyTurn) {
+    if (l.status === 'replying' && nowDay >= _ltReplyArrivalDay(l)) {
       l.status = 'returned';
       var _replyNpc = findCharByName(l.to);
       var _dem = _replyNpc ? (_replyNpc.loyalty > 80 ? '恭敬拜读' : _replyNpc.loyalty < 30 ? '面色凝重' : _replyNpc.stress > 70 ? '神色疲惫' : '速具回书') : '已收函';
@@ -1098,10 +1259,11 @@ function _settleLettersAndTravel() {
           if (typeof addEB === 'function') addEB('传书', '⚠ ' + l.to + '证实前函回信系伪造！');
         }
       }
-      // 征调令/密旨未附信物→NPC可能不从
-      if (l._tokenUsed === 'tally' && l.letterType === 'military_order') {
-        var _hasIt = (GM.items||[]).some(function(it){ return it.type === 'tally' || it.name === '虎符'; });
-        if (!_hasIt && _replyNpc && _replyNpc.loyalty < 60) {
+      // 征调令未附信物→NPC可能不从
+      // 改以信件类型派生"是否需要虎符"·而非依赖 _tokenUsed（后者已改为"实际附带"语义）
+      var _needsTally = (LETTER_TYPES[l.letterType]||{}).needsToken === 'tally';
+      if (_needsTally && l.letterType === 'military_order' && l._tokenUsed !== 'tally') {
+        if (_replyNpc && (_replyNpc.loyalty||50) < 60) {
           l.reply = (l.reply||'') + '\n（按：' + l.to + '以未见虎符为由，暂未奉行征调。）';
         }
       }
@@ -1110,7 +1272,7 @@ function _settleLettersAndTravel() {
       if (GM.qijuHistory) GM.qijuHistory.unshift({ turn: GM.turn, date: replyDate, content: '【鸿雁传书】' + l.to + '回函到达。' + (l.reply||'') });
     }
     // 伪造回信
-    if (l.status === 'intercepted_forging' && GM.turn >= l.replyTurn) {
+    if (l.status === 'intercepted_forging' && nowDay >= _ltReplyArrivalDay(l)) {
       l.status = 'returned'; l._isForged = true;
       l.reply = '臣谨奉诏。诸事安好，请陛下放心。臣当继续勉力。';
       GM._courierStatus[l.id] = '信使回报：' + (l.to||'') + '已收函。';
@@ -1122,41 +1284,104 @@ function _settleLettersAndTravel() {
     }
   });
 
-  // 2. NPC主动来书入队
+  // 2. NPC主动来书入队（日制·默认多路驿递）
+  // R: 用 try/catch 隔离每条 nl·防止单条数据异常（缺 from/content/type）卡死整批
   if (GM._pendingNpcLetters && GM._pendingNpcLetters.length > 0) {
     var capital = GM._capital || '京城';
+    var _enqueued = 0, _skipped = 0;
     GM._pendingNpcLetters.forEach(function(nl) {
-      var fromCh = findCharByName(nl.from);
-      var fromLoc = fromCh ? (fromCh.location || '远方') : '远方';
-      var days = calcLetterDays(fromLoc, capital, nl.urgency || 'normal');
-      var letter = {
-        id: uid(), from: nl.from, to: '玩家', fromLocation: fromLoc, toLocation: capital,
-        content: nl.content||'', sentTurn: GM.turn,
-        deliveryTurn: GM.turn + Math.max(1, Math.ceil(days / dpv)),
-        reply: '', status: 'traveling', urgency: nl.urgency||'normal',
-        letterType: nl.type||'report', _npcInitiated: true,
-        _replyExpected: nl.replyExpected !== false, _playerRead: false,
-        _suggestion: nl.suggestion || ''
-      };
-      if (_canIntercept && nl.type !== 'proclamation') {
-        var _r2 = _ltCalcInterceptRate(letter, _hostileFacs);
-        if (Math.random() < _r2) { _ltDoIntercept(letter, _hostileFacs); }
+      try {
+        if (!nl || !nl.from) { _skipped++; return; }
+        var fromCh = findCharByName(nl.from);
+        var fromLoc = fromCh ? (fromCh.location || '远方') : '远方';
+        var days = (typeof calcLetterDays === 'function') ? calcLetterDays(fromLoc, capital, nl.urgency || 'normal') : 5;
+        if (!isFinite(days) || days < 1) days = 5;
+        var letter = {
+          id: uid(), from: nl.from, to: '玩家', fromLocation: fromLoc, toLocation: capital,
+          content: nl.content||'', sentTurn: GM.turn,
+          deliveryTurn: GM.turn + Math.max(1, Math.ceil(days / dpv)),
+          // 时间制·权威字段
+          _sentDay: nowDay,
+          _deliveryDay: nowDay + days,
+          _travelDays: days,
+          reply: '', status: 'traveling', urgency: nl.urgency||'normal',
+          letterType: nl.type||'report', _npcInitiated: true,
+          _replyExpected: nl.replyExpected !== false, _playerRead: false,
+          _suggestion: nl.suggestion || '',
+          _sendMode: 'multi_courier' // NPC 默认多路驿递（更真实·享 ×0.15 截获折扣）
+        };
+        if (_canIntercept && nl.type !== 'proclamation') {
+          var _r2 = _ltCalcInterceptRate(letter, _hostileFacs);
+          if (Math.random() < _r2) { _ltDoIntercept(letter, _hostileFacs); }
+        }
+        // NPC记住自己写了什么（防止续奏/来函前后矛盾）
+        if (nl.from && typeof NpcMemorySystem !== 'undefined' && NpcMemorySystem.remember) {
+          var _typeLabels = {report:'奏报',plea:'陈情',warning:'急报',intelligence:'密信',personal:'私函'};
+          NpcMemorySystem.remember(nl.from, '向天子上' + (_typeLabels[nl.type]||'书') + '：' + (nl.content||'').slice(0,60), '平', 5);
+        }
+        if (!GM.letters) GM.letters = [];
+        GM.letters.push(letter);
+        _enqueued++;
+      } catch(_nlE) {
+        _skipped++;
+        try { (window.TM && TM.errors && TM.errors.captureSilent) && TM.errors.captureSilent(_nlE, 'pendingNpcLetter enqueue'); } catch(_){}
       }
-      // NPC记住自己写了什么（防止续奏/来函前后矛盾）
-      if (nl.from && typeof NpcMemorySystem !== 'undefined' && NpcMemorySystem.remember) {
-        var _typeLabels = {report:'奏报',plea:'陈情',warning:'急报',intelligence:'密信',personal:'私函'};
-        NpcMemorySystem.remember(nl.from, '向天子上' + (_typeLabels[nl.type]||'书') + '：' + (nl.content||'').slice(0,60), '平', 5);
-      }
-      if (!GM.letters) GM.letters = [];
-      GM.letters.push(letter);
     });
+    if (_skipped > 0) console.warn('[settleLetters] NPC pending 队列：入队 ' + _enqueued + '·跳过 ' + _skipped);
     GM._pendingNpcLetters = [];
   }
 
+  // 2b. NPC 焦虑续问：被截"皇帝→NPC"信件·30 天后 NPC 主动来函询问
+  // 设计意图：让"截获"成为真正的双向事件——NPC 等不到旨意会焦虑·会续问
+  // 触发条件：letter._npcInitiated=false（皇帝→NPC）+ status=intercepted + 截获已 30 天 + 未触发过续问
+  // 日制·跨剧本一致（dpv=7 的剧本里也是 30 天而非"3 回合 = 21 天"）
+  (GM.letters||[]).forEach(function(l) {
+    if (!l || l._npcInitiated) return;
+    var _icpDay = _ltInterceptDay(l);
+    if (_icpDay === null) return;
+    if (l.status !== 'intercepted' && l.status !== 'intercepted_forging') return;
+    if (l._followupSent) return;
+    var _waited = nowDay - _icpDay;
+    if (_waited < 30) return;
+    // 该 NPC 是否已收到玩家其他指令（同期送达的别的信）·是则不续问
+    var _hasOtherDelivered = (GM.letters||[]).some(function(o) {
+      return o && o !== l && o.from === '玩家' && o.to === l.to
+        && (o.status === 'delivered' || o.status === 'returned' || o.status === 'replying')
+        && o.sentTurn >= l._interceptedTurn;
+    });
+    if (_hasOtherDelivered) { l._followupSent = true; return; }
+    // 让该 NPC 写来函·内容由 letterType 决定语气
+    var _ch = (typeof findCharByName === 'function') ? findCharByName(l.to) : null;
+    if (!_ch || _ch.alive === false) { l._followupSent = true; return; }
+    var _loyalty = _ch.loyalty || 50;
+    var _stress = _ch.stress || 0;
+    var _typeWord = (LETTER_TYPES[l.letterType]||{}).label || '前函';
+    var _txt;
+    if (_loyalty >= 70 && _stress < 60) {
+      _txt = '臣' + l.to + '惶恐顿首：闻陛下曾遣使示下，然臣久候不至。或途中有变。臣谨守本职，未敢轻擅，伏望陛下复降明诏，臣即奉行。';
+    } else if (_loyalty < 35 || _stress >= 70) {
+      _txt = '臣' + l.to + '冒死陈奏：陛下前所遣' + _typeWord + '迄未见达，臣进退失据·此地形势万变，臣不得不暂依旧例处置·若所行违陛下意，伏乞早赐明示。';
+    } else {
+      _txt = '臣' + l.to + '谨奏：闻有圣谕颁下，然驿信迟迟未到，恐有阻滞·臣暂仍按前旨守职·伏乞陛下复降明诏，以释臣心。';
+    }
+    if (!Array.isArray(GM._pendingNpcLetters)) GM._pendingNpcLetters = [];
+    GM._pendingNpcLetters.push({
+      from: l.to, type: 'plea', urgency: l.urgency === 'extreme' ? 'urgent' : 'normal',
+      content: _txt,
+      suggestion: '速降复诏·或召' + l.to + '面陈',
+      replyExpected: true,
+      _triggeredByIntercept: true, _origLetterId: l.id
+    });
+    l._followupSent = true;
+    if (typeof addEB === 'function') addEB('传书', l.to + '久不见旨·遣使来京续问');
+  });
+
   // 3. NPC来信到达 → 自动推入诏书建议库
+  // 同时认 traveling/delivered 两种入口·后者用于自愈历史存档（旧版 Section 1 误吞了状态推进·
+  // 把 NPC 来函卡死在 delivered 上·导致整条到达流水线静默断掉）
   var _npcArrived = 0;
   (GM.letters||[]).forEach(function(l) {
-    if (l._npcInitiated && l.status === 'traveling' && GM.turn >= l.deliveryTurn) {
+    if (l._npcInitiated && (l.status === 'traveling' || l.status === 'delivered') && nowDay >= _ltArrivalDay(l)) {
       l.status = 'returned';
       _npcArrived++;
       var ad = (typeof getTSText === 'function') ? getTSText(GM.turn) : '';
@@ -1230,45 +1455,98 @@ function _settleLettersAndTravel() {
 }
 
 /** AI生成回信 */
-/** 计算截获概率（基于地理、势力范围、驿路、加密、信件类型） */
+/** 判定一封信是否走"安全路径"——双方均不在敌方实控区·驿路未阻·未围城
+ *  在安全路径上·截获率应极低（≤5%）·只剩极小的"民间盗匪/沿途劫掠"概率
+ */
+function _ltIsSafePath(l) {
+  var _from = l.fromLocation, _to = l.toLocation;
+  // 端点检测：是否在敌方实控领土
+  function _inEnemyTerr(loc) {
+    if (!loc) return false;
+    return (GM.facs||[]).some(function(f) {
+      if (f.isPlayer || (f.playerRelation||0) >= -20) return false;
+      var _fTerr = f.territories || f.territory || [];
+      if (typeof _fTerr === 'string') _fTerr = [_fTerr];
+      return _fTerr.indexOf(loc) >= 0;
+    });
+  }
+  if (_inEnemyTerr(_from) || _inEnemyTerr(_to)) return false;
+  // 围城
+  var _besieged = (GM._sieges||[]).some(function(s) { return s.target === _from || s.target === _to; });
+  if (_besieged) return false;
+  // 驿路阻断
+  if (_ltIsRouteBlocked(_from, _to)) return false;
+  return true;
+}
+
+/** 计算截获概率（基于地理、势力范围、驿路、加密、信件类型）
+ *  R: 时间制 + 安全路径双重重构
+ *  设计原则：
+ *    1. 同省内/同地→零截获（在自家驿站网覆盖范围）
+ *    2. 安全路径（无敌占区·无路阻·无围城）→ 上限 5%（仅模拟民间偶发劫掠）
+ *    3. light_hist 整体 ×0.3·strict_hist 维持基础值
+ *    4. formal_edict / military_order 走官方驿递·×0.6 朝廷招牌保护
+ *    5. 默认 multi_courier 模式·×0.15·真实模拟"派多路信使"
+ *    6. 仅在真正穿越敌占区或被围困时才有可观察的截获率（最高 50%）
+ */
 function _ltCalcInterceptRate(l, hostileFacs) {
   if (l.letterType === 'proclamation') return 0; // 檄文公开
-  // 基础概率
-  var rate = l.urgency === 'extreme' ? 0.02 : l.urgency === 'urgent' ? 0.05 : 0.10;
+  var _from = l.fromLocation, _to = l.toLocation;
+  // 同省/同地·零截获（在自家驿站网内）
+  if (typeof _ltCheckSameProvince === 'function' && _ltCheckSameProvince(_from, _to)) return 0;
+  if (typeof _isSameLocation === 'function' && _isSameLocation(_from, _to)) return 0;
+
+  var _safe = _ltIsSafePath(l);
+
+  // 基础概率（降低基线·让远方信件默认能到）
+  var rate = l.urgency === 'extreme' ? 0.01 : l.urgency === 'urgent' ? 0.03 : 0.05;
   // 信件类型权重
   var tw = (LETTER_TYPES[l.letterType]||{}).interceptWeight;
   if (tw !== undefined) rate *= (tw || 0.1);
-  // 敌对势力加成
-  if (hostileFacs && hostileFacs.length > 0) rate += 0.10;
-  // 地理因素：目标地是否在敌对势力控制区
-  if (l.toLocation || l.fromLocation) {
-    var _loc = l.toLocation || l.fromLocation;
-    var _inHostile = (GM.facs||[]).some(function(f) {
+  // 敌对势力存在·安全路径不加成；不安全路径才加
+  if (!_safe && hostileFacs && hostileFacs.length > 0) rate += 0.03;
+  // 地理因素：目标地/起点是否在敌方实控区（已在 _safe 中检测·这里再加权）
+  var _inHostile = !_safe && (function(){
+    var _loc = _to || _from;
+    return (GM.facs||[]).some(function(f) {
       if (f.isPlayer || (f.playerRelation||0) >= -20) return false;
       var _fTerr = f.territories || f.territory || [];
       if (typeof _fTerr === 'string') _fTerr = [_fTerr];
       return _fTerr.indexOf(_loc) >= 0;
     });
-    if (_inHostile) rate += 0.25; // 途经敌占区
-  }
-  // 围城中的信更难出去
-  var _besieged = (GM._sieges||[]).some(function(s) { return s.target === l.fromLocation || s.target === l.toLocation; });
-  if (_besieged) rate += 0.40;
+  })();
+  if (_inHostile) rate += 0.15;
+  // 围城（沟死）
+  var _besieged = (GM._sieges||[]).some(function(s) { return s.target === _from || s.target === _to; });
+  if (_besieged) rate += 0.25;
   // 驿路阻断
-  if (_ltIsRouteBlocked(l.fromLocation, l.toLocation)) rate += 0.30;
+  if (_ltIsRouteBlocked(_from, _to)) rate += 0.10;
   // 加密降低截获内容可读性（但不降低截获率——只降低情报价值）
-  // 密使模式降低截获率
+  // 密使模式·走暗线·截获率显著降低
   if (l._sendMode === 'secret_agent') rate *= 0.3;
-  // 多路信使降低截获率（至少一路成功）
+  // 多路信使·至少一路成功（默认模式·真实模拟）
   if (l._sendMode === 'multi_courier') rate *= 0.15;
-  return Math.min(0.9, Math.max(0, rate));
+  // 官方驿递·朝廷招牌·驿站给优待
+  if (l._sendMode === 'courier_official') rate *= 0.4;
+  // formal/military_order 是国家公文·走官方驿递保护
+  if (l.letterType === 'formal_edict' || l.letterType === 'military_order') rate *= 0.6;
+
+  // 模式调节：light_hist 总体*0.3·strict_hist 维持基础值
+  var _gMode = (P.conf && P.conf.gameMode) || '';
+  if (_gMode === 'light_hist') rate *= 0.3;
+
+  // 上限：安全路径 5%·有路阻/敌占区/围城 50%
+  var _cap = _safe ? 0.05 : 0.5;
+  return Math.min(_cap, Math.max(0, rate));
 }
 
-/** 执行截获 */
+/** 执行截获——同步触发四条反应链：情报泄露·叙事记账·NPC 焦虑续问·UI 可知截获方 */
 function _ltDoIntercept(l, hostileFacs) {
   l.status = 'intercepted';
   var _int = hostileFacs && hostileFacs.length > 0 ? hostileFacs[Math.floor(Math.random()*hostileFacs.length)].name : '不明势力';
   l.interceptedBy = _int;
+  l._interceptedTurn = GM.turn; // 兼容字段
+  l._interceptedDay = (typeof getCurrentGameDay === 'function') ? getCurrentGameDay() : ((GM.turn-1)*((P.time && P.time.daysPerTurn)||30)); // 权威·NPC 焦虑/续问按天判定
   // 加密影响情报价值
   var _cipherInfo = LETTER_CIPHERS[l._cipher] || LETTER_CIPHERS.none;
   var _canRead = Math.random() < _cipherInfo.interceptReadChance;
@@ -1283,17 +1561,60 @@ function _ltDoIntercept(l, hostileFacs) {
     diplomaticRelated: _canRead && ((l.content||'').indexOf('盟') >= 0 || (l.content||'').indexOf('使') >= 0)
   });
   if (GM._interceptedIntel.length > 30) GM._interceptedIntel.shift();
-  if (!GM._undeliveredLetters) GM._undeliveredLetters = [];
-  GM._undeliveredLetters.push({ to: l._npcInitiated ? '皇帝' : l.to, content: l.content, turn: GM.turn, interceptor: _int });
-  GM._courierStatus[l.id] = '⚠ 信使逾期未归——去向不明';
-  // 伪造回信
+
+  // ── 反应链 1：玩家信被截·NPC 不知旨意·进入"未送达指令"队列（AI prompt 让 NPC 按"没收到"行事）──
+  if (!l._npcInitiated) {
+    if (!GM._undeliveredLetters) GM._undeliveredLetters = [];
+    GM._undeliveredLetters.push({ from: l.from, to: l.to, content: l.content, turn: GM.turn, interceptor: _int, letterType: l.letterType, letterId: l.id });
+  }
+
+  // ── 反应链 2：UI 状态条立即显示截获方（不再只说"失踪"）──
+  GM._courierStatus[l.id] = '⚠ 信使于 ' + _int + ' 控制区遇袭·去向不明';
+
+  // ── 反应链 3：伪造回信·让玩家可能上当（已有机制·维持）──
   if (!l._npcInitiated) {
     var _iFac = (GM.facs||[]).find(function(f){ return f.name === _int; });
     if (_iFac && Math.random() < 0.3) {
       l._forgedReply = true; l.status = 'intercepted_forging'; l.replyTurn = GM.turn + 1;
     }
   }
-  if (typeof addEB === 'function') addEB('传书', (l._npcInitiated ? l.from + '的来函' : '致' + l.to + '的') + '信使逾期未归');
+
+  // ── 反应链 4：叙事记账·让玩家通过多个渠道知情 ──
+  var _isMilitary = l.letterType === 'military_order' || (_canRead && ((l.content||'').indexOf('兵') >= 0 || (l.content||'').indexOf('军') >= 0));
+  var _isDiplomatic = l.letterType === 'diplomatic' || l.letterType === 'diplomatic_dispatch';
+  var _date = (typeof getTSText === 'function') ? getTSText(GM.turn) : '';
+  // 起居注：玩家几乎一定能看到
+  if (Array.isArray(GM.qijuHistory)) {
+    var _qijuTxt = l._npcInitiated
+      ? '【鸿雁遇险】' + l.from + '自' + (l.fromLocation||'远方') + '的来函中途被劫·疑为' + _int + '所为'
+      : '【鸿雁遇险】致' + l.to + '的' + (LETTER_TYPES[l.letterType]||{label:'书函'}).label + '于驿道遇袭·疑为' + _int + '所为';
+    GM.qijuHistory.unshift({ turn: GM.turn, date: _date, content: _qijuTxt });
+  }
+  // 重大政令/军令被截·入编年史
+  if (!l._npcInitiated && (_isMilitary || l.letterType === 'formal_edict' || _isDiplomatic)) {
+    if (!Array.isArray(GM._chronicle)) GM._chronicle = [];
+    GM._chronicle.unshift({
+      turn: GM.turn, date: _date, type: '鸿雁遇险',
+      title: '致' + l.to + '的' + (_isMilitary ? '军令' : _isDiplomatic ? '国书' : '诏令') + '被劫',
+      content: '驿使于' + (l.toLocation||'远途') + '附近遇袭·疑为' + _int + '所为' + (_canRead ? '·原文已落敌方' : '·所幸密函未破译') + '。',
+      tags: ['鸿雁','截获', _int, l.to]
+    });
+  }
+  // 风闻系统：让玩家通过其他渠道在后续回合"听说"信件被劫
+  try {
+    if (typeof PhaseD !== 'undefined' && PhaseD.addFengwen) {
+      PhaseD.addFengwen({
+        type: '驿事', turn: GM.turn,
+        text: (l._npcInitiated ? l.from + '上书' : '朝廷致' + l.to) + '之信使在' + (l.toLocation||l.fromLocation||'远方') + '失踪·或为' + _int + '所截',
+        credibility: _int === '不明势力' ? 0.5 : 0.75,
+        source: 'courier_loss',
+        actors: [l.from, l.to, _int].filter(Boolean)
+      });
+    }
+  } catch(_){}
+
+  // 事件总线（旧机制·保留）
+  if (typeof addEB === 'function') addEB('传书', (l._npcInitiated ? l.from + '的来函' : '致' + l.to + '的') + '信使遇袭·疑为' + _int + '所为');
 }
 
 function _generateLetterReply(letter) {
@@ -1356,7 +1677,7 @@ function _generateLetterReply(letter) {
       }
     } catch(_){}
 
-    var cipherLabel = (LETTER_CIPHERS && LETTER_CIPHERS[letter.cipher] && LETTER_CIPHERS[letter.cipher].label) || '不加密';
+    var cipherLabel = (LETTER_CIPHERS && LETTER_CIPHERS[letter._cipher] && LETTER_CIPHERS[letter._cipher].label) || '不加密';
     var prompt = '你是' + ch.name + '·' + (ch.officialTitle||ch.title||'') + '·当前在' + (ch.location||'远方') + '。\n性格：' + brief;
     if (ch.stance) prompt += '\n政治立场：' + ch.stance;
     if (ch.party) prompt += '\n党派：' + ch.party + (ch.partyRank?'·'+ch.partyRank:'');
@@ -1408,7 +1729,12 @@ function getLocationPromptInjection() {
   var capital = GM._capital || '京城';
   var remote = (GM.chars||[]).filter(function(c) { return c.alive !== false && c.location && !_isSameLocation(c.location, capital); });
   var allLetters = GM.letters || [];
-  var pendingLetters = allLetters.filter(function(l) { return l.status !== 'returned' && l.status !== 'intercepted'; });
+  // 排除：returned(已回)/intercepted(已截)/recalled(已追回)/blocked(被阻于中书)
+  // 这四类都不是"还在驿路上等结果"·不应作为在途态势喂给 AI prompt
+  var pendingLetters = allLetters.filter(function(l) {
+    return l.status !== 'returned' && l.status !== 'intercepted'
+        && l.status !== 'recalled' && l.status !== 'blocked';
+  });
   var suspectedIds = GM._letterSuspects || [];
 
   if (remote.length === 0 && allLetters.length === 0) return '';
@@ -1817,9 +2143,11 @@ function renderGameState(){
               var _name = lt.to || '';
               if (lt.status === 'traveling') return _name + ':信使在途';
               if (lt.status === 'delivered' || lt.status === 'replying') return _name + ':已送达';
-              if (lt.status === 'returned') return _name + ':已送达且回函';
+              if (lt.status === 'returned') return _name + (lt._isForged ? ':⚠回函(伪)' : ':已送达且回函');
               if (lt.status === 'intercepted') return _name + ':⚠信使失踪';
+              if (lt.status === 'intercepted_forging') return _name + ':⚠信使失踪(回函伪造中)';
               if (lt.status === 'recalled') return _name + ':已追回';
+              if (lt.status === 'blocked') return _name + ':⚠中书阻挠未下达';
               return _name + ':' + (lt.status||'?');
             }).filter(Boolean);
             if (_ltStatuses.length > 0) {
@@ -2798,3 +3126,165 @@ if (typeof window !== 'undefined') {
   window.canPerformAction = canPerformAction;
   window._findPositionByCharName = _findPositionByCharName;
 }
+
+// 注册结算步骤（top-level·使存档加载路径也生效——
+// 历史问题：原先放在 startGame 内·loadFromSlot/fullLoadGame 不会走 startGame·
+// 导致存档玩家全部信件永远卡 traveling·UI 显示"信使逾期/失踪"。）
+if (typeof SettlementPipeline !== 'undefined') {
+  SettlementPipeline.register('letters', '鸿雁传书', function() { _settleLettersAndTravel(); }, 42, 'perturn');
+  SettlementPipeline.register('office_mourning', '丁忧/考课结算', function() { _settleOfficeMourning(); }, 45, 'perturn');
+}
+
+/** 控制台·信件医生：一键修复存量卡死信件
+ *  用法：在 DevTools 控制台执行 letterDoctor() 即可
+ *  · 消费 _pendingNpcLetters 待入队的 NPC 来信·防止永远积压
+ *  · traveling 且 GM.turn>=deliveryTurn 的所有信·立刻送达
+ *  · intercepted 的信·若 deliveryTurn 已过·转 returned 并附驿递备注·同步清 _undeliveredLetters
+ *  · _npcInitiated 的 delivered/traveling 已到期信·转 returned
+ *  · 输出修复明细
+ */
+function letterDoctor() {
+  if (typeof GM === 'undefined' || !GM) { console.warn('[letterDoctor] GM 未初始化'); return; }
+  if (!Array.isArray(GM.letters)) GM.letters = [];
+  if (!Array.isArray(GM._pendingNpcLetters)) GM._pendingNpcLetters = [];
+  if (!GM._courierStatus) GM._courierStatus = {};
+  var fixed = { delivered: 0, replied: 0, returned: 0, npcArrived: 0, interceptedHealed: 0, pendingFlushed: 0 };
+  var nowTurn = GM.turn || 0;
+  var _dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
+  var nowDay = (typeof getCurrentGameDay === 'function') ? getCurrentGameDay() : (nowTurn-1)*_dpv;
+  function _arrDay(l){ return (typeof l._deliveryDay === 'number') ? l._deliveryDay : (typeof l.deliveryTurn === 'number') ? (l.deliveryTurn-1)*_dpv : Infinity; }
+  function _replyDay(l){ return (typeof l._replyDay === 'number') ? l._replyDay : (typeof l.replyTurn === 'number') ? (l.replyTurn-1)*_dpv : _arrDay(l)+_dpv; }
+
+  // 0·先把 pending NPC 队列消费成 letters（直接 returned·跳过 traveling 周期·让玩家立即看到）
+  if (GM._pendingNpcLetters.length > 0) {
+    var _capital = GM._capital || '京城';
+    var _nlBatch = GM._pendingNpcLetters.slice();
+    GM._pendingNpcLetters = [];
+    _nlBatch.forEach(function(nl) {
+      try {
+        if (!nl || !nl.from) return;
+        var fromCh = (typeof findCharByName === 'function') ? findCharByName(nl.from) : null;
+        var fromLoc = fromCh ? (fromCh.location || '远方') : '远方';
+        GM.letters.push({
+          id: (typeof uid === 'function') ? uid() : 'doc_' + Date.now() + '_' + Math.random().toString(36).slice(2,5),
+          from: nl.from, to: '玩家', fromLocation: fromLoc, toLocation: _capital,
+          content: nl.content||'', sentTurn: nowTurn, deliveryTurn: nowTurn,
+          _sentDay: nowDay, _deliveryDay: nowDay, _travelDays: 0,
+          reply: '', status: 'returned', urgency: nl.urgency||'normal',
+          letterType: nl.type||'report', _npcInitiated: true,
+          _replyExpected: nl.replyExpected !== false, _playerRead: false,
+          _suggestion: nl.suggestion || '', _sendMode: 'multi_courier',
+          _doctorFlushed: true
+        });
+        fixed.pendingFlushed++;
+      } catch(_){}
+    });
+  }
+
+  GM.letters.forEach(function(l) {
+    if (!l) return;
+    var _arr = _arrDay(l);
+    var _rep = _replyDay(l);
+    // 玩家信·卡 traveling 且已到期 → delivered → replying → returned
+    if (!l._npcInitiated && l.status === 'traveling' && nowDay >= _arr) {
+      l.status = 'delivered'; fixed.delivered++;
+      try { if (typeof _generateLetterReply === 'function') _generateLetterReply(l); fixed.replied++; } catch(_){ }
+    }
+    // 玩家信·卡 replying 且已到期 → returned
+    if (!l._npcInitiated && l.status === 'replying' && nowDay >= _rep) {
+      l.status = 'returned'; fixed.returned++;
+      if (!l.reply) l.reply = '臣已拜读圣函·当尽心承命·容详察具复。';
+      GM._courierStatus[l.id] = '信使回报：' + (l.to||'') + '已收函';
+    }
+    // NPC 来信·卡 traveling/delivered 且已到期 → returned
+    if (l._npcInitiated && (l.status === 'traveling' || l.status === 'delivered') && nowDay >= _arr) {
+      l.status = 'returned'; fixed.npcArrived++;
+    }
+    // intercepted 已久 → returned 并附备注·同步清 _undeliveredLetters（90 天阈值）
+    if (l.status === 'intercepted' && nowDay > _arr + 90) {
+      l.status = 'returned'; fixed.interceptedHealed++;
+      if (!l.reply) l.reply = '（信使遗失·辗转送达·原文已部分残缺）';
+      GM._courierStatus[l.id] = '信使辗转归来';
+      if (Array.isArray(GM._undeliveredLetters)) {
+        GM._undeliveredLetters = GM._undeliveredLetters.filter(function(u){
+          return !(u && u.from === l.from && u.to === l.to && u.content === l.content);
+        });
+      }
+    }
+    // intercepted_forging 久未触发回信 → 强制 returned 并标记伪造（60 天阈值）
+    if (l.status === 'intercepted_forging' && nowDay > _arr + 60) {
+      l.status = 'returned'; l._isForged = true; fixed.interceptedHealed++;
+      if (!l.reply) l.reply = '（伪造回函·内容可疑）';
+      GM._courierStatus[l.id] = '伪造回函·疑窦';
+    }
+  });
+  if (typeof renderLetterPanel === 'function') {
+    try { renderLetterPanel(); } catch(_){}
+  }
+  console.log('[letterDoctor] 修复完成:', fixed,
+    '| 当前 letters 状态分布:',
+    GM.letters.reduce(function(a, l){ a[l.status] = (a[l.status]||0) + 1; return a; }, {}));
+  if (typeof toast === 'function') {
+    var n = fixed.delivered + fixed.returned + fixed.npcArrived + fixed.interceptedHealed + fixed.pendingFlushed;
+    toast('信件医生：修复 ' + n + ' 封'
+      + (fixed.pendingFlushed ? '·NPC 待入队 ' + fixed.pendingFlushed : '')
+      + (fixed.npcArrived ? '·NPC来函 ' + fixed.npcArrived : '')
+      + (fixed.delivered ? '·玩家信送达 ' + fixed.delivered : '')
+      + (fixed.interceptedHealed ? '·失踪信归 ' + fixed.interceptedHealed : ''));
+  }
+  return fixed;
+}
+if (typeof window !== 'undefined') window.letterDoctor = letterDoctor;
+
+/** 控制台·信件诊断：不修改任何状态·只输出当前信件系统的健康报告
+ *  用法：letterDiag()
+ *  返回详细分布·让玩家自查 + 直接发开发者排错
+ */
+function letterDiag() {
+  if (typeof GM === 'undefined' || !GM) return console.warn('[letterDiag] GM 未初始化');
+  var letters = GM.letters || [];
+  var nowTurn = GM.turn || 0;
+  var byStatus = {}, npcInit = 0, playerSent = 0;
+  var stuckTraveling = [], stuckIntercepted = [];
+  letters.forEach(function(l) {
+    if (!l) return;
+    byStatus[l.status||'?'] = (byStatus[l.status||'?']||0) + 1;
+    if (l._npcInitiated) npcInit++; else if (l.from === '玩家') playerSent++;
+    if (l.status === 'traveling' && typeof l.deliveryTurn === 'number' && nowTurn > l.deliveryTurn + 1) {
+      stuckTraveling.push({id:l.id, to:l.to, from:l.from, sentTurn:l.sentTurn, deliveryTurn:l.deliveryTurn, overdue: nowTurn - l.deliveryTurn});
+    }
+    if (l.status === 'intercepted' && typeof l.deliveryTurn === 'number' && nowTurn > l.deliveryTurn + 3) {
+      stuckIntercepted.push({id:l.id, to:l.to, from:l.from, by:l.interceptedBy, deliveryTurn:l.deliveryTurn});
+    }
+  });
+  var pipelineHasLetters = (typeof SettlementPipeline !== 'undefined') &&
+    SettlementPipeline.list().some(function(s){ return s.id === 'letters'; });
+  var report = {
+    turn: nowTurn,
+    capital: GM._capital,
+    gameMode: (P.conf && P.conf.gameMode) || 'yanyi',
+    canIntercept: (P.conf && (P.conf.gameMode === 'strict_hist' || P.conf.gameMode === 'light_hist')),
+    pipelineHasLetters: pipelineHasLetters,
+    lettersTotal: letters.length,
+    byStatus: byStatus,
+    npcInitiated: npcInit,
+    playerSent: playerSent,
+    pendingNpcLetters: (GM._pendingNpcLetters||[]).length,
+    pendingMemorialDeliveries: (GM._pendingMemorialDeliveries||[]).length,
+    routeDisruptions: ((GM._routeDisruptions||[]).filter(function(d){return !d.resolved;})).length,
+    interceptedIntel: (GM._interceptedIntel||[]).length,
+    undeliveredLetters: (GM._undeliveredLetters||[]).length,
+    stuckTravelingCount: stuckTraveling.length,
+    stuckInterceptedCount: stuckIntercepted.length,
+    stuckTravelingSample: stuckTraveling.slice(0,3),
+    stuckInterceptedSample: stuckIntercepted.slice(0,3)
+  };
+  console.log('═══════ 鸿雁传书诊断报告 ═══════');
+  console.log(report);
+  if (!pipelineHasLetters) console.warn('⚠ letters 步骤未注册到 SettlementPipeline·结算永不会跑·请重启 app');
+  if (stuckTraveling.length > 0) console.warn('⚠ ' + stuckTraveling.length + ' 封信卡 traveling 已逾期·建议执行 letterDoctor()');
+  if (stuckIntercepted.length > 0) console.warn('⚠ ' + stuckIntercepted.length + ' 封信卡 intercepted 久未处理·建议执行 letterDoctor()');
+  if ((GM._pendingNpcLetters||[]).length > 0) console.warn('⚠ ' + GM._pendingNpcLetters.length + ' 条 NPC 来信待入队·下回合结算时入队·或执行 letterDoctor() 立即消费');
+  return report;
+}
+if (typeof window !== 'undefined') window.letterDiag = letterDiag;

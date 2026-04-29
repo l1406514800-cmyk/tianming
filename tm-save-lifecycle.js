@@ -92,6 +92,19 @@ function _ensureGMDefaults() {
   if (!GM.monthlyChronicles) GM.monthlyChronicles = [];
   if (!GM.yearlyChronicles) GM.yearlyChronicles = [];
   if (!GM._aiMemorySummaries) GM._aiMemorySummaries = [];
+  // 鸿雁传书系列字段——_prepareGMForSave 仅在 length>0 时才会写入 _savedXXX·
+  // 若旧档/新开档此处空数组未存盘·load 后会缺字段·_settleLettersAndTravel 虽 (||[])
+  // 兜底·但下游 push 路径会向 undefined 推数据→空指针。
+  if (!Array.isArray(GM.letters)) GM.letters = [];
+  if (!Array.isArray(GM._pendingNpcLetters)) GM._pendingNpcLetters = [];
+  if (!Array.isArray(GM._letterSuspects)) GM._letterSuspects = [];
+  if (!GM._courierStatus || typeof GM._courierStatus !== 'object') GM._courierStatus = {};
+  if (!Array.isArray(GM._routeDisruptions)) GM._routeDisruptions = [];
+  if (!Array.isArray(GM._npcCorrespondence)) GM._npcCorrespondence = [];
+  if (!Array.isArray(GM._pendingNpcCorrespondence)) GM._pendingNpcCorrespondence = [];
+  if (!Array.isArray(GM._pendingMemorialDeliveries)) GM._pendingMemorialDeliveries = [];
+  if (!Array.isArray(GM._interceptedIntel)) GM._interceptedIntel = [];
+  if (!Array.isArray(GM._undeliveredLetters)) GM._undeliveredLetters = [];
 }
 
 // 确保 P 所有字段存在默认值

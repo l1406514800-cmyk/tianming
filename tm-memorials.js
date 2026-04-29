@@ -723,6 +723,7 @@ function _memorialSendReply(m, actionLabel) {
   var dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 15;
   var deliveryTurns = Math.max(1, Math.ceil(days / dpv));
   var replyContent = '【朱批回传】' + actionLabel + '。' + (m.reply ? '御批：' + m.reply : '');
+  var _nowDay = (typeof getCurrentGameDay === 'function') ? getCurrentGameDay() : (GM.turn-1)*dpv;
   var letter = {
     id: (typeof uid === 'function') ? uid() : 'lt_' + Date.now(),
     from: '玩家', to: m.from,
@@ -731,8 +732,13 @@ function _memorialSendReply(m, actionLabel) {
     sentTurn: GM.turn,
     deliveryTurn: GM.turn + deliveryTurns,
     replyTurn: GM.turn + deliveryTurns + 1,
+    _sentDay: _nowDay,
+    _deliveryDay: _nowDay + days,
+    _replyDay: _nowDay + days * 2 + 3,
+    _travelDays: days,
     reply: '', status: 'traveling',
     urgency: 'urgent', letterType: 'formal_edict',
+    _sendMode: 'multi_courier', _replyExpected: true,
     _memorialReply: true, _memorialId: m.id
   };
   if (!GM.letters) GM.letters = [];
@@ -929,6 +935,7 @@ function _summonRecall(name) {
   ch._travelFrom = ch.location;
   ch._travelArrival = GM.turn + travelTurns;
   // 先派信使通知
+  var _nowDay2 = (typeof getCurrentGameDay === 'function') ? getCurrentGameDay() : (GM.turn-1)*dpv;
   var letter = {
     id: (typeof uid === 'function') ? uid() : 'lt_' + Date.now(),
     from: '玩家', to: name,
@@ -936,7 +943,12 @@ function _summonRecall(name) {
     content: '着' + name + '即刻回京面圣，所奏之事当面详禀。',
     sentTurn: GM.turn, deliveryTurn: GM.turn + Math.max(1, Math.ceil(days / dpv)),
     replyTurn: GM.turn + travelTurns,
+    _sentDay: _nowDay2,
+    _deliveryDay: _nowDay2 + days,
+    _replyDay: _nowDay2 + travelTurns * dpv,
+    _travelDays: days,
     reply: '', status: 'traveling', urgency: 'urgent', letterType: 'formal_edict',
+    _sendMode: 'multi_courier', _replyExpected: true,
     _recallOrder: true
   };
   if (!GM.letters) GM.letters = [];

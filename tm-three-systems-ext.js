@@ -1012,7 +1012,8 @@
         toLocation: tpl.toLocation || '京师',
         letterType: tpl.letterType || 'personal',
         urgency: tpl.urgency || 'normal',
-        cipher: tpl.cipher || 'none',
+        // R: 字段名统一为 _cipher（渲染端读 l._cipher，下划线开头表"非剧情字段"惯例）
+        _cipher: tpl.cipher || tpl._cipher || 'none',
         subjectLine: tpl.subjectLine || '',
         content: tpl.content || '',
         suggestion: tpl.suggestion || '',
@@ -1020,7 +1021,7 @@
         sentDate: GM._gameDate || '',
         deliveryTurn: 1,  // 开局即送达·无需等驿
         status: 'delivered',
-        replyExpected: tpl.replyExpected !== false,
+        _replyExpected: tpl.replyExpected !== false,
         _npcInitiated: true,
         _fromOpeningLetter: true,
         _historicalRef: tpl._historicalRef || '',

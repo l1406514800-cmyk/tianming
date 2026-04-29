@@ -349,6 +349,7 @@ function _endTurn_collectInput() {
         var days = (typeof calcLetterDays === 'function') ? calcLetterDays(_capital, toLoc, _urgency) : 5;
         var dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 15;
         var deliveryTurns = Math.max(1, Math.ceil(days / dpv));
+        var nowDay = (typeof getCurrentGameDay === 'function') ? getCurrentGameDay() : (GM.turn-1)*dpv;
         var letter = {
           id: (typeof uid === 'function') ? uid() : 'lt_' + Date.now() + '_' + Math.random(),
           from: '玩家', to: ch.name,
@@ -357,11 +358,18 @@ function _endTurn_collectInput() {
           sentTurn: GM.turn,
           deliveryTurn: GM.turn + deliveryTurns,
           replyTurn: GM.turn + deliveryTurns + Math.max(1, Math.ceil(days / dpv)),
+          // 时间制·权威
+          _sentDay: nowDay,
+          _deliveryDay: nowDay + days,
+          _replyDay: nowDay + days * 2 + 3,
+          _travelDays: days,
           reply: '', status: 'traveling',
           urgency: _urgency,
           letterType: _ltType,
           _edictId: et.id, // 关联诏令
-          _autoFromEdict: true // 标记为诏令自动生成
+          _autoFromEdict: true, // 标记为诏令自动生成
+          _sendMode: 'multi_courier', // 默认多路驿递·更真实·享 ×0.15
+          _replyExpected: true
         };
         if (!GM.letters) GM.letters = [];
         GM.letters.push(letter);

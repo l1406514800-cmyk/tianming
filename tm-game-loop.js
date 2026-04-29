@@ -1031,11 +1031,8 @@ if (sc.culturalConfig && sc.culturalConfig.enabled && Array.isArray(sc.culturalC
   // 初始化 NPC Engine
   NpcEngine.initialize();
 
-  // 注册鸿雁传书+角色赶路结算
-  if (typeof SettlementPipeline !== 'undefined') {
-    SettlementPipeline.register('letters', '鸿雁传书', function() { _settleLettersAndTravel(); }, 42, 'perturn');
-    SettlementPipeline.register('office_mourning', '丁忧/考课结算', function() { _settleOfficeMourning(); }, 45, 'perturn');
-  }
+  // 鸿雁传书+丁忧考课的 SettlementPipeline 注册已迁移至 tm-hongyan-office.js 文件末尾（top-level）·
+  // 修复存档加载路径不走 startGame·导致信件永远不结算的问题。
 
   // 初始化确定性随机系统
   initRng(sid + '_' + Date.now());
