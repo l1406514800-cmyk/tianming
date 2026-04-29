@@ -1136,48 +1136,40 @@ function _ty3_phase1_openSeating(topic, meta) {
   var proposerCh = proposerName ? (typeof findCharByName === 'function' ? findCharByName(proposerName) : null) : null;
   var proposerParty = proposerCh && proposerCh.party ? proposerCh.party : '';
 
-  // 召集所有在京 + 同势力 + 三品以上 + 非缺席
-  var capital = GM._capital || '京城';
-  var attendees = (GM.chars||[]).filter(function(c){
+  // 召集"在京 + 玩家势力 + 有官职 + 合品级"的廷臣
+  // 严格：必须有 officialTitle（剔除后宫/外戚/无官者）+ 在京 + 同势力·廷议是廷臣之议
+  function _ty3_isEligibleOfficial(c) {
     if (!c || c.alive === false || c.isPlayer) return false;
     if (c._imprisoned || c._exiled || c._retired || c._fled || c._mourning) return false;
     if (c._sick && (c.health||50) <= 20) return false;
+    var rawTitle = c.officialTitle || c.title || '';
+    if (!rawTitle) return false; // 必须有官职·剔除无职者
+    if (typeof _ty3_isHaremTitle === 'function' && _ty3_isHaremTitle(rawTitle)) return false;
     if (typeof _isAtCapital === 'function' && !_isAtCapital(c)) return false;
     if (typeof _isPlayerFactionChar === 'function' && !_isPlayerFactionChar(c)) return false;
-    var rankLv = (typeof getRankLevel === 'function' && typeof _cyGetRank === 'function')
-      ? getRankLevel(_cyGetRank(c)) : 99;
-    return rankLv <= 12;
+    return true;
+  }
+  function _ty3_rankOf(c) {
+    if (typeof getRankLevel === 'function' && typeof _cyGetRank === 'function') {
+      return getRankLevel(_cyGetRank(c));
+    }
+    return 99;
+  }
+  // 第一道·三品以上京官（廷议正式与议者）
+  var attendees = (GM.chars||[]).filter(function(c){
+    return _ty3_isEligibleOfficial(c) && _ty3_rankOf(c) <= 12;
   });
+  // 第二道·若三品不足 5 人·放宽到五品（仍要求在京 + 玩家势力 + 有官职）
   if (attendees.length < 5) {
-    // 放宽到五品
     attendees = (GM.chars||[]).filter(function(c){
-      if (!c || c.alive === false || c.isPlayer) return false;
-      if (typeof _isAtCapital === 'function' && !_isAtCapital(c)) return false;
-      if (typeof _isPlayerFactionChar === 'function' && !_isPlayerFactionChar(c)) return false;
-      var rankLv = (typeof getRankLevel === 'function' && typeof _cyGetRank === 'function')
-        ? getRankLevel(_cyGetRank(c)) : 99;
-      return rankLv <= 14;
+      return _ty3_isEligibleOfficial(c) && _ty3_rankOf(c) <= 14;
     });
   }
-  // 二次兜底：去掉 _isPlayerFactionChar / _isAtCapital 过滤·只剩存活+非玩家+合理品级
+  // 不再放宽过滤——宁可不开议·也不让无职/外籍/不在京者参与
   if (attendees.length === 0) {
-    attendees = (GM.chars||[]).filter(function(c){
-      if (!c || c.alive === false || c.isPlayer) return false;
-      if (c._imprisoned || c._exiled || c._fled) return false;
-      var rankLv = (typeof getRankLevel === 'function' && typeof _cyGetRank === 'function')
-        ? getRankLevel(_cyGetRank(c)) : 99;
-      return rankLv <= 16; // 七品之内皆可
-    });
-  }
-  // 三次兜底：极端情况·任何活人 NPC
-  if (attendees.length === 0) {
-    attendees = (GM.chars||[]).filter(function(c){
-      return c && c.alive !== false && !c.isPlayer;
-    }).slice(0, 12);
-  }
-  if (attendees.length === 0) {
-    if (typeof toast === 'function') toast('朝中无人·廷议无法召开');
+    if (typeof toast === 'function') toast('京中无可议之臣·廷议未开');
     var bg0 = document.getElementById('ty3-preaudit-bg'); if (bg0) bg0.remove();
+    if (typeof closeChaoyi === 'function') closeChaoyi();
     return;
   }
 
@@ -1360,6 +1352,58 @@ function _ty3_phase1_startDebate() {
 //   第四轮·中立权衡(中班 + prestige>=70 老臣)
 // 每轮完成后 _ty2_render 更新立场板·所有发言通过 _ty2_genOneSpeech 调 AI
 
+/** 后宫/外戚/宗女称号识别——这类角色虽有 title 但不参政
+ *  覆盖明清常见称号：皇后/贵妃/妃嫔/夫人/才人/选侍/常在/答应/乳母/公主/太后/外戚封爵等
+ *  注：明清确有女官（如尚宫/宫正）·此处仅过滤"明确的后宫/宗女"称号·不按性别一刀切
+ */
+var TY3_HAREM_TITLE_RE = /(皇后|皇贵妃|贵妃|淑妃|德妃|贤妃|皇妃|王妃|侧妃|嫔|妾|才人|选侍|淑人|常在|答应|宫人|乳母|奉圣夫人|国夫人|郡夫人|县君|乡君|公主|郡主|县主|太后|皇太后|太妃|王太妃)/;
+function _ty3_isHaremTitle(title) {
+  if (!title) return false;
+  return TY3_HAREM_TITLE_RE.test(String(title));
+}
+
+/** 渲染/更新"群臣讨论中 N/M"进度条（紧贴立场板下方） */
+function _ty3_progRender(done, total, label) {
+  var body = (typeof _$ === 'function') ? _$('cy-body') : document.getElementById('cy-body');
+  if (!body) return;
+  var pct = total > 0 ? Math.round(done / total * 100) : 0;
+  var prog = document.getElementById('ty3-prog');
+  var html = ''
+    + '<div style="color:var(--gold-400);font-size:0.7rem;margin-bottom:3px;">'
+    + '⌛ ' + escHtml(label || '群臣讨论中') + ' · ' + done + ' / ' + total
+    + '</div>'
+    + '<div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">'
+    + '<div style="height:100%;width:' + pct + '%;background:linear-gradient(90deg,var(--celadon-400),var(--gold-400));transition:width 0.3s ease;"></div>'
+    + '</div>';
+  if (!prog) {
+    prog = document.createElement('div');
+    prog.id = 'ty3-prog';
+    prog.style.cssText = 'position:sticky;top:42px;z-index:9;background:var(--color-elevated);border:1px solid var(--color-border-subtle);border-radius:var(--radius-sm);padding:6px 10px;margin-bottom:6px;';
+    var board = document.getElementById('ty2-stance-board');
+    if (board && board.parentNode) board.parentNode.insertBefore(prog, board.nextSibling);
+    else if (body.firstChild) body.insertBefore(prog, body.firstChild);
+    else body.appendChild(prog);
+  }
+  prog.innerHTML = html;
+}
+function _ty3_progClear() {
+  var prog = document.getElementById('ty3-prog');
+  if (prog && prog.parentNode) prog.parentNode.removeChild(prog);
+}
+
+/** 兜底选人：当三班分坐选不出人时（议题无主奏党/全员中立等）·按 prestige 取核心廷臣
+ *  避免出现"4 轮 0 人发言→直接结束"的尴尬
+ */
+function _ty3_pickFallbackSpeakers(excludeNames, n) {
+  if (!CY._ty3 || !Array.isArray(CY._ty3.attendees)) return [];
+  var ex = (excludeNames||[]).slice();
+  var pool = CY._ty3.attendees
+    .map(function(nm){ return (typeof findCharByName === 'function') ? findCharByName(nm) : null; })
+    .filter(function(c){ return c && c.alive !== false && ex.indexOf(c.name) < 0; })
+    .sort(function(a,b){ return (b.prestige||50) - (a.prestige||50); });
+  return pool.slice(0, n||5).map(function(c){ return c.name; });
+}
+
 async function _ty3_phase2_run() {
   if (!CY._ty3 || !CY._ty2) return;
   var body = (typeof _$ === 'function') ? _$('cy-body') : document.getElementById('cy-body');
@@ -1381,58 +1425,84 @@ async function _ty3_phase2_run() {
 
   var prevSpeeches = [];
 
+  // 预扫四轮选人·提前算总数·用于进度条 + 兜底判定
+  var alliedSpeakers = _ty3_pickAlliedSpeakers();
+  var enemySpeakers  = _ty3_pickEnemySpeakers();
+  var arbiterSpeakers = _ty3_pickArbiterSpeakers();
+  var benchSpeakerCount = (CY._ty3.proposer ? 1 : 0) + alliedSpeakers.length + enemySpeakers.length + arbiterSpeakers.length;
+  // 兜底：三班分坐选出 < 3 人时·从 attendees 按 prestige 取 5 人补充
+  var fallbackSpeakers = [];
+  if (benchSpeakerCount < 3) {
+    var _used = [].concat(CY._ty3.proposer ? [CY._ty3.proposer] : [], alliedSpeakers, enemySpeakers, arbiterSpeakers);
+    fallbackSpeakers = _ty3_pickFallbackSpeakers(_used, Math.max(5, 8 - benchSpeakerCount));
+    if (fallbackSpeakers.length > 0 && typeof addCYBubble === 'function') {
+      addCYBubble('内侍', '〔 议题党争未明·循资历召核心廷臣 ' + fallbackSpeakers.length + ' 员陈议 〕', true);
+    }
+  }
+  var totalSpeakers = benchSpeakerCount + fallbackSpeakers.length;
+  var doneSpeakers = 0;
+  _ty3_progRender(doneSpeakers, totalSpeakers, '群臣讨论中');
+
+  async function _runOneSpeaker(name, roundNum) {
+    if (!name) return;
+    if (await _ty3_handlePlayerInterject(prevSpeeches)) { /* 插言已处理 */ }
+    var nm = CY._ty3_pendingSummon || name;
+    CY._ty3_pendingSummon = null;
+    var r = await _ty3_safeGenSpeech(nm, roundNum, prevSpeeches);
+    if (r) prevSpeeches.push({ name: nm, stance: r.stance, line: r.line });
+    doneSpeakers++;
+    _ty3_progRender(doneSpeakers, totalSpeakers, '群臣讨论中');
+  }
+
   // ─── 第一轮·主奏陈情 ───
   CY._ty2.roundNum = 1;
   if (typeof addCYBubble === 'function') addCYBubble('内侍', '〔 第一轮·主奏陈情 〕', true);
   if (CY._ty3.proposer && typeof _ty2_genOneSpeech === 'function') {
-    var r1 = await _ty3_safeGenSpeech(CY._ty3.proposer, 1, prevSpeeches);
-    if (r1) prevSpeeches.push({ name: CY._ty3.proposer, stance: r1.stance, line: r1.line });
+    await _runOneSpeaker(CY._ty3.proposer, 1);
   }
-  if (CY._abortChaoyi) return _ty3_phase2_finalize(prevSpeeches);
+  if (CY._abortChaoyi) { _ty3_progClear(); return _ty3_phase2_finalize(prevSpeeches); }
 
   // ─── 第二轮·同党附议 ───
   CY._ty2.roundNum = 2;
   if (typeof _ty2_render === 'function') _ty2_render();
   if (typeof addCYBubble === 'function') addCYBubble('内侍', '〔 第二轮·同党附议 〕', true);
-  var alliedSpeakers = _ty3_pickAlliedSpeakers();
   for (var i = 0; i < alliedSpeakers.length; i++) {
     if (CY._abortChaoyi) break;
-    if (await _ty3_handlePlayerInterject(prevSpeeches)) {/* 插言已处理 */}
-    var nm = CY._ty3_pendingSummon || alliedSpeakers[i];
-    CY._ty3_pendingSummon = null;
-    var r2 = await _ty3_safeGenSpeech(nm, 2, prevSpeeches);
-    if (r2) prevSpeeches.push({ name: nm, stance: r2.stance, line: r2.line });
+    await _runOneSpeaker(alliedSpeakers[i], 2);
   }
-  if (CY._abortChaoyi) return _ty3_phase2_finalize(prevSpeeches);
+  if (CY._abortChaoyi) { _ty3_progClear(); return _ty3_phase2_finalize(prevSpeeches); }
 
   // ─── 第三轮·敌党驳议 ───
   CY._ty2.roundNum = 3;
   if (typeof _ty2_render === 'function') _ty2_render();
   if (typeof addCYBubble === 'function') addCYBubble('内侍', '〔 第三轮·敌党驳议 〕', true);
-  var enemySpeakers = _ty3_pickEnemySpeakers();
   for (var j = 0; j < enemySpeakers.length; j++) {
     if (CY._abortChaoyi) break;
-    if (await _ty3_handlePlayerInterject(prevSpeeches)) {/* 插言已处理 */}
-    var em = CY._ty3_pendingSummon || enemySpeakers[j];
-    CY._ty3_pendingSummon = null;
-    var r3 = await _ty3_safeGenSpeech(em, 3, prevSpeeches);
-    if (r3) prevSpeeches.push({ name: em, stance: r3.stance, line: r3.line });
+    await _runOneSpeaker(enemySpeakers[j], 3);
   }
-  if (CY._abortChaoyi) return _ty3_phase2_finalize(prevSpeeches);
+  if (CY._abortChaoyi) { _ty3_progClear(); return _ty3_phase2_finalize(prevSpeeches); }
 
   // ─── 第四轮·中立权衡 ───
   CY._ty2.roundNum = 4;
   if (typeof _ty2_render === 'function') _ty2_render();
   if (typeof addCYBubble === 'function') addCYBubble('内侍', '〔 第四轮·中立权衡 〕', true);
-  var arbiterSpeakers = _ty3_pickArbiterSpeakers();
   for (var k = 0; k < arbiterSpeakers.length; k++) {
     if (CY._abortChaoyi) break;
-    if (await _ty3_handlePlayerInterject(prevSpeeches)) {/* 插言已处理 */}
-    var ab = CY._ty3_pendingSummon || arbiterSpeakers[k];
-    CY._ty3_pendingSummon = null;
-    var r4 = await _ty3_safeGenSpeech(ab, 4, prevSpeeches);
-    if (r4) prevSpeeches.push({ name: ab, stance: r4.stance, line: r4.line });
+    await _runOneSpeaker(arbiterSpeakers[k], 4);
   }
+
+  // ─── 兜底轮·三班选不出时·核心廷臣按资历陈议 ───
+  if (fallbackSpeakers.length > 0 && !CY._abortChaoyi) {
+    CY._ty2.roundNum = 5;
+    if (typeof _ty2_render === 'function') _ty2_render();
+    if (typeof addCYBubble === 'function') addCYBubble('内侍', '〔 兜底轮·核心廷臣循资陈议 〕', true);
+    for (var m = 0; m < fallbackSpeakers.length; m++) {
+      if (CY._abortChaoyi) break;
+      await _runOneSpeaker(fallbackSpeakers[m], 5);
+    }
+  }
+
+  _ty3_progClear();
   return _ty3_phase2_finalize(prevSpeeches);
 }
 
@@ -1526,6 +1596,77 @@ function _ty3_pickArbiterSpeakers() {
   return arbs.slice(0, 3).map(function(x){return x.name;});
 }
 
+/** 判断是否分歧严重：支持与反对都 ≥ 25%（两端拉锯）·或 待定 ≥ 40%（说明发言不充分） */
+function _ty3_isControversial() {
+  if (!CY._ty2 || !CY._ty2.stances) return false;
+  var st = CY._ty2.stances;
+  var counts = { support:0, oppose:0, neutral:0, mediate:0, pending:0 };
+  Object.keys(st).forEach(function(n) {
+    var s = st[n].current || '待定';
+    if (s === '待定') counts.pending++;
+    else if (/支持/.test(s)) counts.support++;
+    else if (/反对/.test(s)) counts.oppose++;
+    else if (s === '折中' || s === '另提议') counts.mediate++;
+    else counts.neutral++;
+  });
+  var total = counts.support + counts.oppose + counts.neutral + counts.mediate + counts.pending;
+  if (total === 0) return false;
+  // 待定 >= 40% 说明发言不充分·应再议
+  if (counts.pending / total >= 0.4) return true;
+  var spoken = total - counts.pending;
+  if (spoken === 0) return false;
+  // 两端都 >= 25%·拉锯分歧
+  return (counts.support / spoken >= 0.25) && (counts.oppose / spoken >= 0.25);
+}
+
+/** 玩家点"再议一轮"·从 attendees 中取尚未发言或 prestige 高的 5 人再发一轮 */
+async function _ty3_continueDebate() {
+  if (!CY._ty3 || !CY._ty2) return;
+  var btn = document.getElementById('ty3-continue-btn');
+  if (btn && btn.parentNode) btn.parentNode.removeChild(btn);
+  var st = CY._ty2.stances || {};
+  // 优先 still 待定者·其次 prestige 高者
+  var pending = (CY._ty3.attendees||[]).filter(function(n){ return st[n] && st[n].current === '待定'; });
+  var prevSpeeches = [];
+  CY._ty2.roundNum = (CY._ty2.roundNum||4) + 1;
+  if (typeof _ty2_render === 'function') _ty2_render();
+  if (typeof addCYBubble === 'function') addCYBubble('内侍', '〔 续 议 ' + (CY._ty2.roundNum - 4) + ' 轮 〕', true);
+  var pickList = pending.length > 0
+    ? pending.slice(0, 5)
+    : _ty3_pickFallbackSpeakers([], 5);
+  var total = pickList.length;
+  var done = 0;
+  if (total > 0) _ty3_progRender(done, total, '续议中');
+  for (var i = 0; i < pickList.length; i++) {
+    if (CY._abortChaoyi) break;
+    var nm = pickList[i];
+    var r = await _ty3_safeGenSpeech(nm, CY._ty2.roundNum, prevSpeeches);
+    if (r) prevSpeeches.push({ name: nm, stance: r.stance, line: r.line });
+    done++;
+    _ty3_progRender(done, total, '续议中');
+  }
+  _ty3_progClear();
+  // 续议毕·再次走 finalize·若仍分歧·按钮再现
+  return _ty3_phase2_finalize(prevSpeeches);
+}
+
+/** 在 cy-body 插入"再议一轮"按钮（仅分歧严重时）*/
+function _ty3_renderContinueBtn() {
+  var body = (typeof _$ === 'function') ? _$('cy-body') : document.getElementById('cy-body');
+  if (!body) return;
+  // 已有按钮则先移除
+  var old = document.getElementById('ty3-continue-btn');
+  if (old && old.parentNode) old.parentNode.removeChild(old);
+  var div = document.createElement('div');
+  div.id = 'ty3-continue-btn';
+  div.style.cssText = 'text-align:center;margin:12px 0;padding:8px;background:rgba(255,200,80,0.06);border:1px dashed var(--gold-400);border-radius:6px;';
+  div.innerHTML = ''
+    + '<div style="font-size:0.7rem;color:var(--ink-200);margin-bottom:6px;">百官立场分歧·或仍多人未陈奏</div>'
+    + '<button class="bt bp" onclick="_ty3_continueDebate()" style="margin-right:8px;">⚔ 再 议 一 轮</button>'
+    + '<button class="bt" onclick="(function(){var el=document.getElementById(\'ty3-continue-btn\');if(el&&el.parentNode)el.parentNode.removeChild(el);if(typeof _ty2_enterDecide===\'function\')_ty2_enterDecide();_ty3_checkConsensusEvent();})()">径取圣裁</button>';
+  body.appendChild(div);
+}
+
 function _ty3_phase2_finalize(prevSpeeches) {
   CY._abortChaoyi = false;
   // 修复 2·人事议题先进廷推·再进决议
@@ -1549,9 +1690,14 @@ function _ty3_phase2_finalize(prevSpeeches) {
     }, 400);
     return;
   }
-  // 非人事议题·直接进决议
+  // 非人事议题·分歧严重时先给"再议一轮"·否则直接进决议
+  if (_ty3_isControversial()) {
+    if (typeof addCYBubble === 'function') addCYBubble('内侍', '〔 廷议未决·百官分歧·陛下可命再议或径裁 〕', true);
+    _ty3_renderContinueBtn();
+    return;
+  }
   if (typeof _ty2_enterDecide === 'function') {
-    if (typeof addCYBubble === 'function') addCYBubble('内侍', '〔 四轮辩议毕·请陛下圣裁 〕', true);
+    if (typeof addCYBubble === 'function') addCYBubble('内侍', '〔 议毕·请陛下圣裁 〕', true);
     _ty2_enterDecide();
   }
   _ty3_checkConsensusEvent();
@@ -1785,6 +1931,15 @@ if (typeof window !== 'undefined') {
   window._ty3_phase5_pick = _ty3_phase5_pick;
   window._ty3_phase5_pickFree = _ty3_phase5_pickFree;
   window._ty3_phase5_skip = _ty3_phase5_skip;
+  // 续议按钮 / 兜底选人 / 进度条·供 onclick 与续议链路调用
+  window._ty3_continueDebate = _ty3_continueDebate;
+  window._ty3_pickFallbackSpeakers = _ty3_pickFallbackSpeakers;
+  window._ty3_progRender = _ty3_progRender;
+  window._ty3_progClear = _ty3_progClear;
+  window._ty3_isControversial = _ty3_isControversial;
+  window._ty3_isHaremTitle = _ty3_isHaremTitle;
+  window._ty2_enterDecide = window._ty2_enterDecide || _ty2_enterDecide; // 续议中"径取圣裁"按钮 onclick 用
+  window._ty3_checkConsensusEvent = window._ty3_checkConsensusEvent || _ty3_checkConsensusEvent;
 }
 
 // escAttr 兜底(若全局无)

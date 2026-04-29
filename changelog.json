@@ -3,6 +3,22 @@
   "entries": [
     {
       "date": "2026-04-29",
+      "module": "邸报·廷议三修：参会范围限定·AI 兜底循环·续议机制",
+      "title": "用户实测廷议反馈三大问题：(1) 廷议依旧不会自动调用 API·一进入立刻『四轮辩议毕』·12 人全『待定』；(2) 范围不对·张皇后/袁贵妃/客氏/田尔耕等不应参加廷议的人都进来了；(3) 玩家主动提起的廷议没『群臣讨论中』进度条·结束后无法判定立场继续展开。审计后定位：(a) `_ty3_phase1_openSeating` 三层兜底·第二第三次取消了在京/玩家势力/三品过滤·导致后宫外戚混入；(b) `_ty3_phase2_run` 4 轮全靠『按党派三班分坐』的 pickAllied/pickEnemy/pickArbiter 选人·当 proposerParty 为空（玩家自由议题）时 left/right 全空·arbiter 又只挑『中班党魁 + prestige≥70 老臣』·若中班全无党则三类全为 0 → 4 轮空跑直接 finalize；(c) 没有进度条 UI 也没有续议机制",
+      "items": [
+        { "what": "tm-tinyi-v3.js _ty3_phase1_openSeating 重写参会过滤：抽出 _ty3_isEligibleOfficial(c)·必须 `c.officialTitle 或 c.title` 非空 + 在京 + 玩家势力 + 非缺席（_imprisoned/_exiled/_retired/_fled/_mourning/重病）。第一道三品·第二道五品（仍要求所有过滤通过）·删第三道『七品取消所有过滤』+ 第四道『任何活人 NPC』兜底·改为 toast『京中无可议之臣·廷议未开』直接关闭", "why": "用户『范围有问题·理论上应该只能在京官员能够参加』。原三层兜底为了避免空议·把过滤越放越松·最终连后宫客氏都进来。改为宁可议不开·不让无关人混入·这是廷议的政治严肃性根本要求" },
+        { "what": "tm-tinyi-v3.js 新增 _ty3_isHaremTitle(title) 模块级 helper·正则识别后宫/外戚/宗女称号：皇后/皇贵妃/贵妃/淑妃/德妃/贤妃/嫔/才人/选侍/淑人/常在/答应/宫人/乳母/奉圣夫人/国夫人/郡夫人/县君/乡君/公主/郡主/县主/太后/太妃/王太妃。在 _ty3_isEligibleOfficial 中调用·这些角色虽剧本里有 officialTitle（如客氏=『奉圣夫人』）但不参政·必过滤", "why": "剧本里客氏 officialTitle='奉圣夫人'·周皇后/张懿安/袁贵妃也有正式 title·原过滤『!c.officialTitle return false』反而让这些后宫通过。需要语义识别后宫专用称号——明清确有女官（尚宫/宫正等）但常见后宫与外戚封爵能正则覆盖·不按性别一刀切" },
+        { "what": "tm-tinyi-v3.js _ty3_phase2_run 加 AI 兜底循环：开议前预扫四轮 pickAllied + pickEnemy + pickArbiter 总人数·若 < 3 人（议题党争未明/全员中立）则调 _ty3_pickFallbackSpeakers·从 attendees 按 prestige 取 5-8 人·走『第五轮·核心廷臣循资陈议』。proposer + 三班 + 兜底 = 总发言人数·进度条按这个总数计算", "why": "这是『廷议直接结束』的根因——v3 的『按党派三班分坐』机制依赖 proposerParty·一旦玩家自由议题没明确主奏党就崩盘。兜底循环保证『有人发言』·不再依赖党派分坐成功。N>=5 让讨论有质感·不会一个人说完就结束" },
+        { "what": "tm-tinyi-v3.js 新增 _ty3_progRender(done, total, label) + _ty3_progClear() · 在立场板下方插 sticky 进度条·渐变色 bar + 『⌛ 群臣讨论中 · N / M』。每位 NPC 发言完调 _runOneSpeaker 内部更新·完议时 _ty3_progClear()。续议时 label 改为『续议中』", "why": "用户『进入「群臣讨论中」的类似名字的进度条』·让 4 轮辩议有可视反馈·避免『静默闪过』的体感。sticky 顶部·跟随滚动·永远可见" },
+        { "what": "tm-tinyi-v3.js 新增 _ty3_isControversial() 分歧判定：支持与反对都 ≥ 25%（两端拉锯）·或 待定 ≥ 40%（发言不充分）·返回 true。在 _ty3_phase2_finalize 末尾调用·分歧严重时不直接进决议·而调 _ty3_renderContinueBtn 加按钮『⚔ 再议一轮』+『径取圣裁』", "why": "用户『结束后判定 NPC 立场·可以继续展开廷议』。分歧严重就不该一锤定音·让玩家选『再议』追加发言或『径裁』按当前立场板下旨。两端 25% 阈值是『拉锯』的语义底线·小于此即一边倒不算分歧" },
+        { "what": "tm-tinyi-v3.js 新增 _ty3_continueDebate() 续议入口：从 attendees 中优先取『当前仍待定者』·没有则调 _ty3_pickFallbackSpeakers 取 5 人·按当前 roundNum+1 走 _ty3_safeGenSpeech 一轮·完后再调 _ty3_phase2_finalize（若仍分歧则按钮再现·形成可循环续议）", "why": "续议是廷议的真实历史形态——明代多次同议题反复廷议直至形成共识。代码层让 controversy 阈值持续降低（每轮人都说话后待定减少）·自然走向『径裁』分支·不会无限循环" },
+        { "what": "tm-tinyi-v3.js 暴露新 API 到 window：_ty3_continueDebate / _ty3_pickFallbackSpeakers / _ty3_progRender / _ty3_progClear / _ty3_isControversial / _ty3_isHaremTitle。续议按钮 onclick 直接调用·无需绕 module 边界", "why": "保持与既有 _ty3_phase1_* 系列的暴露风格一致·让 UI HTML 中 onclick 字符串直接可用" },
+        { "what": "scripts/smoke-tinyi-fix.js 新增 5 套 smoke：T1 _ty3_pickFallbackSpeakers 按 prestige 排序+排除指定人·T2 _ty3_isControversial 4 场景验证（拉锯/共识/全待定/极少人都不同立场）·T3 _ty3_progRender/progClear 不抛·T4 _ty3_isHaremTitle 14 个用例（皇后/贵妃/公主/乳母 命中·吏部尚书/翰林侍读/锦衣卫指挥使 不命中）·T5 剧本天启七年 1627 角色集真实测试（客氏·奉圣夫人 被识别 + 正常廷臣 ≥ 30 人）。全过", "why": "回归点锁定：未来若有人改三班选人逻辑·或剧本作者把后宫 officialTitle 改成奇怪写法·smoke 立刻黄牌。T5 用真实剧本数据验证语义·比合成 fixture 更稳" },
+        { "what": "index.html cache-bust → tm-tinyi-v3.js v=2026042903·node -c 通过·零字段迁移·零数据破坏·重启即生效。旧存档廷议状态字段（CY._ty3 等）结构不变·新逻辑只增不删·已有进行中的廷议无影响（重新开议时走新流程）", "why": "用户重启后立即看到新进度条 + 续议按钮 + 后宫被剔除·不需要清存档·不需要迁移" }
+      ]
+    },
+    {
+      "date": "2026-04-29",
       "module": "邸报·鸿雁传书第二轮调参：截获率上限收紧·国势四象调节·日制阈值大幅缩短",
       "title": "用户审计第一轮(同日早些)的截获率与时间阈值·明确反馈：(1)『安全路径上限应为 3%·且受玩家皇权/皇威/民心/吏治影响可能更低』；(2)『非安全 30%·受吏治、皇威和别的影响』；(3)『日制的时间太长·应该缩短』。修法：把 cap 从 5%/50% 收紧到 3%/30%·新加 _ltStateMultiplier 国势四象加权·所有日制阈值减半",
       "items": [
