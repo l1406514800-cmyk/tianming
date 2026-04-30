@@ -145,6 +145,7 @@ function openSettings(){
 
     // P15: 性能·成本控制 section
     (function(){
+      try { console.log('[P15 settings] 性能·成本控制 段渲染中·v=2026050102'); } catch(_){}
       var _gateOn = !!(P.conf && P.conf.recallGateEnabled === true); // 默认 false
       var _consolOn = !(P.conf && P.conf.consolidationEnabled === false); // 默认 true
       var _semOn = !(P.conf && P.conf.semanticRecallAutoload === false); // 默认 true
