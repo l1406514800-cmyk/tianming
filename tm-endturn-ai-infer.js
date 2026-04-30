@@ -3167,6 +3167,30 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         {id:'sc28', name:'世界快照', minDepth:'full', order:280}
       ];
 
+      // ★ 静默 loading 辅助（2026-04-30）：post-turn 队列触发的子调用·不再弹 loading 蒙层
+      // post-turn 任务运行时玩家已在看史记/操作下回合·此时若 showLoading 会错误打断 UI
+      // GM._postTurnJobs 由 _ensurePostTurnJobQueue 创建·flush 后保持到下回合开始 await
+      function _quietLoad(label, pct) {
+        if (GM && GM._postTurnJobs) return; // 后台静默
+        if (typeof showLoading === 'function') showLoading(label, pct);
+      }
+
+      // ★ Prompt cache 统一辅助（2026-04-30）：双重门控·只为原生 Anthropic 启用 cache_control
+      // 兼容性：OpenAI/GPT/Gemini/DeepSeek/OpenRouter/国内中转站等所有走 /chat/completions 的接口
+      //         一律返回原字符串·完全 no-op·因为 (1) provider 不是 anthropic 或 (2) URL 不是 api.anthropic.com
+      // 使用：messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tpX}]
+      function _maybeCacheSys(sysContent) {
+        try {
+          var _provider = (typeof _detectAIProvider === 'function') ? _detectAIProvider() : '';
+          var _native = (P.ai && P.ai.url && /api\.anthropic\.com/i.test(P.ai.url));
+          // 必须两个条件同时满足：provider 检测为 anthropic + URL 是官方域名（防中转站 400）
+          if (_provider === 'anthropic' && _native && typeof sysContent === 'string' && sysContent.length > 1500) {
+            return [{ type: 'text', text: sysContent, cache_control: { type: 'ephemeral' } }];
+          }
+        } catch(_mcsE) {}
+        return sysContent;
+      }
+
       // 3.3: Sub-call执行包装器——统一计时/错误处理/重试 + AI调度统计
       if (!GM._aiDispatchStats) GM._aiDispatchStats = { totalCalls:0, totalTime:0, errors:0, byId:{}, errorLog:[] };
       async function _runSubcall(id, name, minDepth, fn) {
@@ -3265,7 +3289,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         '\u8FD9\u662F\u4F60\u7684\u6DF1\u5EA6\u601D\u8003\u8FC7\u7A0B\uFF0C\u4E0D\u663E\u793A\u7ED9\u73A9\u5BB6\u3002\u8BF7\u5145\u5206\u601D\u8003\uFF0C\u4E0D\u8981\u5401\u60DC\u5B57\u6570\u3002\n' +
         '【memoryQueries】如需要回忆更早的具体事件·在此列出 1-4 条检索查询·系统将从永久档案中检索并注入后续推演·否则留空数组。';
       var resp0 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
-        body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:sysP},{role:"user",content:tp0}], temperature:0.6, max_tokens:_tok(12000)})});
+        body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp0}], temperature:0.6, max_tokens:_tok(12000)})});
       if (resp0.ok) {
         var data0 = await resp0.json();
         _checkTruncated(data0, '局势分析');
@@ -3459,7 +3483,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           tp05 += '\u8BF7\u8FD4\u56DEJSON\uFF1A\n{"causal_chains":"\u8FD1\u671F\u4E8B\u4EF6\u4E4B\u95F4\u7684\u5B8C\u6574\u56E0\u679C\u5173\u7CFB\u94FE(200\u5B57)","unresolved":"\u5C1A\u672A\u89E3\u51B3\u7684\u7EBF\u7D22\u548C\u60AC\u5FF5\u2014\u2014\u54EA\u4E9B\u4F0F\u7B14\u5E94\u8BE5\u5F15\u7206(150\u5B57)","patterns":"\u53CD\u590D\u51FA\u73B0\u7684\u6A21\u5F0F\u548C\u52A0\u901F\u7684\u8D8B\u52BF(100\u5B57)","player_impact":"\u73A9\u5BB6\u8FD1\u671F\u51B3\u7B56\u7684\u7D2F\u79EF\u5F71\u54CD\u2014\u2014\u54EA\u4E9B\u540E\u679C\u5373\u5C06\u663E\u73B0(150\u5B57)","npc_memories":"\u5404NPC\u5BF9\u8FD1\u671F\u4E8B\u4EF6\u7684\u8BB0\u5FC6\u548C\u60C5\u7EEA\u53D8\u5316(100\u5B57)","momentum":"\u5F53\u524D\u4E16\u754C\u7684\u60EF\u6027\u65B9\u5411\u2014\u2014\u5982\u679C\u6CA1\u6709\u5E72\u9884\uFF0C\u4E8B\u60C5\u4F1A\u5F80\u54EA\u4E2A\u65B9\u5411\u53D1\u5C55(80\u5B57)"}\n';
           tp05 += '\u8FD9\u662F\u4F60\u7684\u6DF1\u5EA6\u5185\u90E8\u5206\u6790\u3002\u8BF7\u5145\u5206\u601D\u8003\u6BCF\u4E00\u6761\u56E0\u679C\u94FE\u3002';
           var resp05 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
-            body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:sysP},{role:"user",content:tp05}], temperature:0.5, max_tokens:_tok(5000)})});
+            body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp05}], temperature:0.5, max_tokens:_tok(5000)})});
           if (resp05.ok) {
             var data05 = await resp05.json();
             _checkTruncated(data05, '因果合成');
@@ -4471,7 +4495,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           }
         }
       } catch(_tokE) {}
-      var _sc1Body = {model:P.ai.model||"gpt-4o",messages:[{role:"system",content:sysP},{role:"user",content:tp1}],temperature:_sc1Temp,max_tokens:_tok(_sc1BaseTok)};
+      var _sc1Body = {model:P.ai.model||"gpt-4o",messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp1}],temperature:_sc1Temp,max_tokens:_tok(_sc1BaseTok)};
       if (_modelFamily === 'openai') _sc1Body.response_format = { type: 'json_object' };
       var _streamSC1 = (P.ai && P.ai.stream_sc1 !== false);  // 默认开·可通过 P.ai.stream_sc1=false 关闭
       var c1 = "";
@@ -9651,8 +9675,15 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
 
       // ═══════════════════════════════════════════════════════════
       // §5 sc15-sc27 后续子调用 + 收尾（NPC 深度·势力·财政·军事·审计·丰化·叙事）
+      // ★ 并行优化（2026-04-30）：sc1 完成后扇出三路并行
+      //   Branch A: sc15 → sc_memwrite（memwrite 消费 sc15 的 hidden_moves）
+      //   Branch B: sc16/17/18 batch（已是 _runSubcallBatch 内部并发=3）
+      //   Branch C: sc2 → sc27（sc27 修饰 sc2 的 zhengwen）
+      //   三路无交集字段·下游消费者均通过 GM/p1 全局，立即可见
       // ═══════════════════════════════════════════════════════════
 
+      // ── Branch A · NPC 深度推演 + 记忆回写 ──
+      var _branchA = (async function() {
       // --- Sub-call 1.5: NPC全面深度推演 --- [standard+full]
       await _runSubcall('sc15', 'NPC深度推演', 'standard', async function() {
       showLoading("NPC\u5168\u9762\u63A8\u6F14",60);
@@ -9741,7 +9772,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         tp15 += '■ relationship_changes: NPC之间的关系变动（不只是NPC与玩家的关系）。';
 
         var resp15 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
-          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:sysP},{role:"user",content:tp15}], temperature:P.ai.temp||0.8, max_tokens:_tok(12000)})});
+          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp15}], temperature:P.ai.temp||0.8, max_tokens:_tok(12000)})});
         if (resp15.ok) {
           var data15 = await resp15.json();
           _checkTruncated(data15, '人物关系');
@@ -9953,7 +9984,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           headers: { "Content-Type": "application/json", "Authorization": "Bearer " + P.ai.key },
           body: JSON.stringify({
             model: P.ai.model || "gpt-4o",
-            messages: [{ role: "system", content: sysP }, { role: "user", content: tpMW }],
+            messages: [{ role: "system", content: _maybeCacheSys(sysP) }, { role: "user", content: tpMW }],
             temperature: 0.5,
             max_tokens: _mwBudget
           })
@@ -10024,9 +10055,11 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         }
       } catch(eMW) { _dbg('[MemWrite] 失败:', eMW); throw eMW; }
       }); // end SC_MEMWRITE
+      })(); // ── end Branch A IIFE ──
 
-      // --- Sub-call 1.6: 势力自主推演 --- [full only]
-      await _runSubcallBatch('full-specialty', [
+      // ── Branch B · 势力·经济·军事专项（_runSubcallBatch 已内部 concurrency=3）──
+      // --- Sub-call 1.6/1.7/1.8 batch --- [full only]
+      var _branchB = _runSubcallBatch('full-specialty', [
       function(){ return _runSubcall('sc16', '势力推演', 'full', async function() {
       showLoading("\u52BF\u529B\u81EA\u4E3B\u63A8\u6F14",63);
       try {
@@ -10057,7 +10090,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         tp16 += '\n\u8BF7\u8FD4\u56DEJSON\uFF1A{"faction_actions":[{"faction":"\u52BF\u529B\u540D","action":"\u5177\u4F53\u884C\u52A8(50\u5B57)","target":"\u5BF9\u8C01","motive":"\u52A8\u673A","impact":"\u5F71\u54CD"}],"diplomatic_shifts":[{"from":"","to":"","old_relation":"","new_relation":"","reason":""}],"territorial_changes":"\u9886\u571F\u53D8\u5316\u63CF\u8FF0(100\u5B57)","power_balance_shift":"\u529B\u91CF\u5BF9\u6BD4\u53D8\u5316(100\u5B57)"}\n';
         tp16 += '\u6BCF\u4E2A\u52BF\u529B\u90FD\u5E94\u6709\u884C\u52A8\u3002\u5305\u62EC\u6218\u4E89\u3001\u8054\u76DF\u3001\u8D38\u6613\u3001\u5185\u90E8\u6574\u5408\u3001\u6269\u5F20\u3001\u9632\u5FA1\u7B49\u3002';
         var resp16 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
-          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:sysP},{role:"user",content:tp16}], temperature:P.ai.temp||0.8, max_tokens:_tok(8000)})});
+          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp16}], temperature:P.ai.temp||0.8, max_tokens:_tok(8000)})});
         if (resp16.ok) {
           var j16 = await resp16.json(); _checkTruncated(j16, '势力行动'); var c16 = j16.choices&&j16.choices[0]?j16.choices[0].message.content:'';
           var p16 = extractJSON(c16);
@@ -10093,7 +10126,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         if (p1 && p1.resource_changes) tp17 += '\u672C\u56DE\u5408\u8D44\u6E90\u53D8\u5316\uFF1A' + JSON.stringify(p1.resource_changes) + '\n';
         tp17 += '\n\u8BF7\u8FD4\u56DEJSON\uFF1A{"fiscal_analysis":"\u8D22\u653F\u5B8C\u6574\u5206\u6790\u2014\u2014\u6536\u5165\u6765\u6E90\u3001\u652F\u51FA\u538B\u529B\u3001\u76C8\u4E8F\u72B6\u51B5(200\u5B57)","trade_dynamics":"\u8D38\u6613\u548C\u5546\u4E1A\u52A8\u6001(100\u5B57)","inflation_pressure":"\u901A\u80C0/\u7269\u4EF7\u538B\u529B(80\u5B57)","resource_forecast":"\u4E0B\u56DE\u5408\u8D44\u6E90\u9884\u6D4B(100\u5B57)","economic_advice":"\u7ECF\u6D4E\u5EFA\u8BAE\u2014\u2014\u5E94\u8BE5\u505A\u4EC0\u4E48\u4E0D\u5E94\u8BE5\u505A\u4EC0\u4E48(100\u5B57)","supplementary_resource_changes":{"\u53D8\u91CF\u540D":\u8865\u5145\u53D8\u5316\u91CF}}';
         var resp17 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
-          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:sysP},{role:"user",content:tp17}], temperature:0.6, max_tokens:_tok(12000)})});
+          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp17}], temperature:0.6, max_tokens:_tok(12000)})});
         if (resp17.ok) {
           var j17 = await resp17.json(); _checkTruncated(j17, '资源变动'); var c17 = j17.choices&&j17.choices[0]?j17.choices[0].message.content:'';
           var p17 = extractJSON(c17);
@@ -10145,7 +10178,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         tp18 += '· 每个非玩家势力本回合应至少 1 条 faction_military_actions 条目（兵力调动/作战/备战/征募等）\n';
         tp18 += '\n请返回JSON：{"military_situation":"全局军事态势分析(200字)","border_threats":"边境威胁评估(150字)","army_morale_analysis":"各军士气分析和风险(100字)","supplementary_army_changes":[{"name":"部队","faction":"所属","soldiers_delta":0,"morale_delta":0,"reason":""}],"faction_military_actions":[{"faction":"势力名","action":"军事行动30字","targetFaction":"目标势力可空","casualties":0,"outcome":"结果30字","rationale":"动机30字"}],"war_probability":"下回合爆发战争的概率和方向(80字)"}';
         var resp18 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
-          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:sysP},{role:"user",content:tp18}], temperature:0.7, max_tokens:_tok(12000)})});
+          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp18}], temperature:0.7, max_tokens:_tok(12000)})});
         if (resp18.ok) {
           var j18 = await resp18.json(); _checkTruncated(j18, '军事变动'); var c18 = j18.choices&&j18.choices[0]?j18.choices[0].message.content:'';
           var p18 = extractJSON(c18);
@@ -10196,8 +10229,9 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
 
       // --- SC_CONSISTENCY_AUDIT: 深化数据一致性审核（方向7扩展·S3） ---
       // 扫描 SC16/17/18 彼此的输出是否冲突·auto-patch 或 rerun
-      await _runSubcall('sc_audit', '数据一致性审核', 'lite', async function() {
-      showLoading("\u6570\u636E\u4E00\u81F4\u6027\u5BA1\u6838", 66);
+      // ★ 后台化（2026-04-30）：审核仅修改 _turnAiResults 缓存与 _turnReport·不影响 GM 核心；下回合开始前 _awaitPostTurnJobs 等齐
+      _queuePostTurnSubcall('sc_audit', function(){ return _runSubcall('sc_audit', '数据一致性审核', 'lite', async function() {
+      _quietLoad("\u6570\u636E\u4E00\u81F4\u6027\u5BA1\u6838", 66);
       try {
         var _tres = GM._turnAiResults || {};
         var tpAu = '【任务·跨 sub-call 数据一致性审核】\n\n';
@@ -10293,10 +10327,12 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           }
         }
       } catch(eAu) { _dbg('[Consistency Audit] fail:', eAu); }
-      }); // end SC_CONSISTENCY_AUDIT
+      }); }); // end SC_CONSISTENCY_AUDIT (queued post-turn)
 
       // --- Sub-call 1.9: 新实体丰化（复用编辑器 AI 级 schema，填充骨架） ---
-      await _runSubcall('sc19', '新实体丰化', 'lite', async function() {
+      // ★ 后台化（2026-04-30）：丰化仅填充 GM.facs/classes/parties/chars 已存在骨架的空字段；
+      //   不影响当回合叙事；_RETRY_WINDOW=3 回合保护未完成情况
+      _queuePostTurnSubcall('sc19', function(){ return _runSubcall('sc19', '新实体丰化', 'lite', async function() {
         try {
           var _RETRY_WINDOW = 3; // 失败后 3 回合内可重试
           var _sparseFacs = (GM.facs||[]).filter(function(f) {
@@ -10318,7 +10354,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           var _totalSparse = _sparseFacs.length + _sparseClasses.length + _sparseParties.length + _sparseChars.length;
           if (_totalSparse === 0) return; // 无新实体，跳过
 
-          showLoading('AI 丰化新实体（' + _totalSparse + '项）', 68);
+          _quietLoad('AI 丰化新实体（' + _totalSparse + '项）', 68);
           _dbg('[Enrich] 丰化 ' + _totalSparse + ' 项：facs' + _sparseFacs.length + ' classes' + _sparseClasses.length + ' parties' + _sparseParties.length + ' chars' + _sparseChars.length);
 
           var dynasty = sc.dynasty || sc.era || '';
@@ -10487,8 +10523,10 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           addEB('\u4E30\u5316', '\u672C\u56DE\u5408\u4E30\u5316\u65B0\u5B9E\u4F53 ' + _totalSparse + ' \u9879');
           _dbg('[Enrich] 完成 ' + _totalSparse + ' 项丰化');
         } catch (eE) { _dbg('[Enrich] fail:', eE); }
-      }); // end Sub-call 1.9
+      }); }); // end Sub-call 1.9 (queued post-turn)
 
+      // ── Branch C · 后人戏说 → 叙事审查 ──
+      var _branchC = (async function() {
       // --- Sub-call 2: 后人戏说（场景叙事，完整生活进程） --- [always runs]
       await _runSubcall('sc2', '后人戏说', 'lite', async function() {
       showLoading("AI撰写后人戏说",70);
@@ -10632,7 +10670,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         + "\n返回纯JSON：\n"
         + "{\"houren_xishuo\":\"...(场景叙事正文)\",\"new_activities\":[{\"name\":\"...\",\"duration\":3,\"desc\":\"...\",\"effect\":{}}]}";
       // R104·给 AI 完整对话（GM.conv 已由 P.conf.convKeep 设置截断过，用户在设置里改 convKeep 即控制总量）
-      var msgs2=[{role:"system",content:sysP}].concat(GM.conv);
+      var msgs2=[{role:"system",content:_maybeCacheSys(sysP)}].concat(GM.conv);
       msgs2.push({role:"user",content:tp2});
       var resp2=await fetch(url,{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},body:JSON.stringify({model:P.ai.model||"gpt-4o",messages:msgs2,temperature:P.ai.temp||0.8,max_tokens:_tok(16000)})});
       if(!resp2.ok) throw new Error('HTTP ' + resp2.status);
@@ -10731,7 +10769,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         tp25 += 'memory\u5FC5\u987B\u5305\u542B\u6240\u6709\u5173\u952E\u53D8\u5316\uFF0C\u8FD9\u662F\u4E0B\u56DE\u5408AI\u7684\u552F\u4E00\u56DE\u5FC6\u6765\u6E90\u3002';
 
         var resp25 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
-          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:sysP},{role:"user",content:tp25}], temperature:0.7, max_tokens:_tok(12000)})});
+          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp25}], temperature:0.7, max_tokens:_tok(12000)})});
         if (resp25.ok) {
           var data25 = await resp25.json();
           _checkTruncated(data25, '伏笔记忆');
@@ -10849,7 +10887,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         if (_charNames27.length > 0) tp27 += '\u3010\u5728\u4E16\u89D2\u8272\u540D\u5355\uFF08\u6B63\u6587\u4E2D\u63D0\u5230\u7684\u4EBA\u540D\u5FC5\u987B\u5728\u6B64\u5217\u8868\u4E2D\uFF09\u3011' + _charNames27.join('\u3001') + '\n';
         tp27 += '\u8BF7\u8FD4\u56DEJSON\uFF1A{"anachronisms":"\u53D1\u73B0\u7684\u65F6\u4EE3\u9519\u8BEF\u2014\u2014\u7528\u8BCD\u3001\u79F0\u8C13\u3001\u5236\u5EA6\u4E0D\u7B26\u5408\u65F6\u4EE3(100\u5B57)","name_errors":"\u6B63\u6587\u4E2D\u51FA\u73B0\u4F46\u4E0D\u5728\u89D2\u8272\u5217\u8868\u4E2D\u7684\u4EBA\u540D(\u5982\u6709)","enhancement":"\u53EF\u4EE5\u589E\u5F3A\u7684\u90E8\u5206\u2014\u2014\u54EA\u91CC\u53EF\u4EE5\u52A0\u5165\u66F4\u591A\u611F\u5B98\u7EC6\u8282\u3001\u5178\u6545\u5F15\u7528\u3001\u60C5\u611F\u6E32\u67D3(150\u5B57)","rewritten_passages":"\u91CD\u5199\u7684\u6BB5\u843D\u2014\u2014\u5C06\u6700\u5F31\u76842-3\u6BB5\u91CD\u5199\u5F97\u66F4\u597D(300\u5B57)","added_details":"\u5E94\u8865\u5145\u7684\u7EC6\u8282\u2014\u2014\u73AF\u5883\u63CF\u5199\u3001\u4EBA\u7269\u795E\u6001\u3001\u6C14\u6C1B\u70D8\u6258(200\u5B57)"}';
         var resp27 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
-          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:sysP},{role:"user",content:tp27}], temperature:0.6, max_tokens:_tok(12000)})});
+          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp27}], temperature:0.6, max_tokens:_tok(12000)})});
         if (resp27.ok) {
           var j27 = await resp27.json(); _checkTruncated(j27, '人名校验'); var c27 = j27.choices&&j27.choices[0]?j27.choices[0].message.content:'';
           var p27 = extractJSON(c27);
@@ -10863,14 +10901,20 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         }
       } catch(e27) { _dbg('[Narrative Review] fail:', e27); throw e27; }
       }); // end Sub-call 2.7 _runSubcall
+      })(); // ── end Branch C IIFE ──
+
+      // ★ 等待三路并行子调用全部完成（Branch A: sc15→memwrite · Branch B: sc16/17/18 batch · Branch C: sc2→sc27）
+      try { await Promise.all([_branchA, _branchB, _branchC]); }
+      catch(_pBranchE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_pBranchE, 'sc1后扇出三路并行') : console.warn('[sc1后扇出三路并行]', _pBranchE); }
 
       // --- Sub-call 0.7: NPC 认知整合 ---
       //   · 位置：所有推演完成之后，世界快照之前
       //   · 职责：为每个关键 NPC 生成"当下此刻的信息掌握画像"
       //   · 持久化：GM._npcCognition（与 GM 同命周期·随存档）
-      //   · 消费者：问对/朝议/科议/奏疏回复等回合内 AI 调用（通过 getNpcCognitionSnippet）
-      await _runSubcall('sc07', 'NPC认知整合', 'lite', async function() {
-      showLoading("NPC \u8BA4\u77E5\u6574\u5408", 89);
+      //   · 消费者：问对/朝议/科议/奏疏回复等"下回合"AI 调用（通过 getNpcCognitionSnippet）
+      // ★ 后台化（2026-04-30）：消费者本就是下回合的 AI 调用·post-turn 队列在下回合开始前 _awaitPostTurnJobs 会等齐
+      _queuePostTurnSubcall('sc07', function(){ return _runSubcall('sc07', 'NPC认知整合', 'lite', async function() {
+      _quietLoad("NPC \u8BA4\u77E5\u6574\u5408", 89);
       try {
         var _liveCharsCog = (GM.chars||[]).filter(function(c){return c && c.alive!==false && !c.isPlayer;});
         _liveCharsCog.sort(function(a,b){return (a.rank||99)-(b.rank||99);});
@@ -11002,7 +11046,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         tp07 += '\u00B7 unspokenConcern \u8981\u771F\u7684\u85CF\u7740\u2014\u2014\u5982\u201C\u6016\u67D0\u67D0\u7690\u5BB3\u81EA\u5DF1\u4FDD\u5929\u5B50\u201D/\u201C\u5BB6\u4E2D\u7236\u8001\u75C5\u91CD\u5374\u65E0\u6CD5\u56DE\u9645\u201D\n';
         tp07 += '\u00B7 \u5C3D\u91CF\u6840\u5356\u201C\u6211\u77E5\u9053\u67D0\u4EBA\u5728\u7B79\u5212\u67D0\u4E8B\u300C\u4F46\u540C\u50DA\u4E0D\u77E5\u300D\u201D\u7684\u8F7D\u5FC3\u4E0D\u5BF9\u79F0\n';
 
-        var _sc07Body = {model:P.ai.model||'gpt-4o', messages:[{role:'system',content:sysP},{role:'user',content:tp07}], temperature:_modelTemp, max_tokens:_tok(12000)};
+        var _sc07Body = {model:P.ai.model||'gpt-4o', messages:[{role:'system',content:_maybeCacheSys(sysP)},{role:'user',content:tp07}], temperature:_modelTemp, max_tokens:_tok(12000)};
         if (_modelFamily === 'openai') _sc07Body.response_format = { type:'json_object' };
 
         var resp07 = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+P.ai.key}, body:JSON.stringify(_sc07Body)});
@@ -11056,7 +11100,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           console.warn('[sc07] HTTP', resp07.status);
         }
       } catch(e07) { _dbg('[NPC Cognition] fail:', e07); }
-      }); // end Sub-call 0.7 _runSubcall
+      }); }); // end Sub-call 0.7 (queued post-turn)
 
       // --- Sub-call 2.8: 世界状态深度快照 --- [full only]
       _queuePostTurnSubcall('sc28', function(){ return _runSubcall('sc28', '世界快照', 'full', async function() {
@@ -11074,7 +11118,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         tp28 += '\n\u8BF7\u751F\u6210\u4E00\u4EFD\u6781\u9AD8\u5BC6\u5EA6\u7684\u4E16\u754C\u72B6\u6001\u5FEB\u7167\uFF0C\u4F9B\u4E0B\u56DE\u5408AI\u4F5C\u4E3A\u8BB0\u5FC6\u8D77\u70B9\u3002\u8FD4\u56DEJSON\uFF1A\n';
         tp28 += '{"world_snapshot":"\u5F53\u524D\u4E16\u754C\u7684\u5B8C\u6574\u72B6\u6001\u538B\u7F29\u2014\u2014\u5305\u542B\u6240\u6709\u5173\u952E\u53D8\u5316\u3001\u4EBA\u7269\u72B6\u6001\u3001\u52BF\u529B\u683C\u5C40\u3001\u7ECF\u6D4E\u519B\u4E8B\u3001\u793E\u4F1A\u77DB\u76FE(400\u5B57)","next_turn_seeds":"\u4E0B\u56DE\u5408\u5E94\u53D1\u5C55\u7684\u79CD\u5B50\u2014\u2014\u54EA\u4E9B\u4E8B\u60C5\u6B63\u5728\u915D\u917F\u3001\u54EA\u4E9B\u4EBA\u5373\u5C06\u884C\u52A8(200\u5B57)","tension_level":"\u5F53\u524D\u7D27\u5F20\u5EA6\u7B49\u7EA7(1-10)\u53CA\u539F\u56E0(50\u5B57)"}';
         var resp28 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
-          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:sysP},{role:"user",content:tp28}], temperature:0.5, max_tokens:_tok(4000)})});
+          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp28}], temperature:0.5, max_tokens:_tok(4000)})});
         if (resp28.ok) {
           var j28 = await resp28.json(); _checkTruncated(j28, '世界快照'); var c28 = j28.choices&&j28.choices[0]?j28.choices[0].message.content:'';
           var p28 = extractJSON(c28);
@@ -11121,7 +11165,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           var _oldMemText = _oldMem.map(function(m){ return 'T'+(m.turn||'?')+': '+(m.content||m.text||m); }).join('\n');
           var _compP1 = _compressPrompt + '【AI记忆条目（共'+_oldMem.length+'条）】\n' + _oldMemText + '\n\n';
           _compP1 += '请返回JSON：{"compressed_memory":"将以上全部记忆压缩为一段连贯的高密度摘要('+_compressSummaryLen+'字，保留所有关键因果链和人物动态)","key_threads":"仍在发展中的关键线索(200字)"}';
-          showLoading("压缩AI记忆",89);
+          _quietLoad("压缩AI记忆",89);
           var _compResp1 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
             body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:"你是记忆压缩专家。必须保留所有关键信息。"},{role:"user",content:_compP1}], temperature:0.3, max_tokens:_tok(6000)})});
           if (_compResp1.ok) {
@@ -11145,7 +11189,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           var _oldForeText = _oldFore.map(function(f){ return 'T'+(f.turn||'?')+': '+(f.content||f.text||f); }).join('\n');
           var _compP2 = _compressPrompt + '【伏笔条目（共'+_oldFore.length+'条）】\n' + _oldForeText + '\n\n';
           _compP2 += '请判断哪些伏笔已被回收（已实现/已失效），哪些仍然活跃。返回JSON：{"active_foreshadows":"仍然活跃的伏笔汇总('+_compressForeSummaryLen+'字)","resolved":"已回收的伏笔简述(100字)","still_pending_count":数字}';
-          showLoading("整理伏笔",90);
+          _quietLoad("整理伏笔",90);
           var _compResp2 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
             body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:"你是叙事顾问。判断伏笔是否已被回收。"},{role:"user",content:_compP2}], temperature:0.3, max_tokens:_tok(4000)})});
           if (_compResp2.ok) {
@@ -11175,7 +11219,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           var _compP3 = '以下是早期的对话历史（玩家与AI的交互记录）：\n' + _oldConvText + '\n\n';
           _compP3 += '请压缩为一段摘要，保留：玩家的关键决策、AI给出的重要建议、双方达成的共识、未解决的议题。\n';
           _compP3 += '返回JSON：{"conversation_summary":"对话历史压缩摘要(300-500字)"}';
-          showLoading("压缩对话",91);
+          _quietLoad("压缩对话",91);
           var _compResp3 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
             body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:"你是对话压缩专家。"},{role:"user",content:_compP3}], temperature:0.3, max_tokens:_tok(4000)})});
           if (_compResp3.ok) {

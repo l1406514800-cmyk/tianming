@@ -185,9 +185,18 @@ async function _endTurnCore(){
   var queueResult = await _endTurn_updateSystems(timeRatio, zhengwen);
 
   // Phase 3.5·御批回听·对玩家诏令执行情况问责(post-inference·2000 tokens)
+  // ★ 后台化（2026-04-30）：玩家通常先看史记结果·御批回听面板按需查看·此调用挪到后台
+  // 结果写入 GM._edictEfficacyReport·下回合开始前 _awaitPostTurnJobs 会等齐·若提前打开面板则显示"生成中…"
   try {
     if (typeof aiEdictEfficacyAudit === 'function' && P.ai && P.ai.key) {
-      await aiEdictEfficacyAudit(aiResult, edicts);
+      if (typeof _enqueuePostTurnJob === 'function') {
+        _enqueuePostTurnJob('edict_efficacy', function(){
+          return aiEdictEfficacyAudit(aiResult, edicts).catch(function(e){ console.warn('[endTurn] 御批回听后台失败', e); });
+        });
+      } else {
+        // 降级·无 post-turn 系统时仍同步跑(防 hook 未加载)
+        await aiEdictEfficacyAudit(aiResult, edicts);
+      }
     }
   } catch(_efE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_efE, 'endTurn] 御批回听失败') : console.warn('[endTurn] 御批回听失败', _efE); }
 
@@ -644,35 +653,136 @@ EndTurnHooks.register('after', function() {
   }
 }, '恢复prompt-规则');
 
-// 钩子 9: 历史检查（原 _origEndTurn7）
-EndTurnHooks.register('after', async function() {
+// 钩子 9: 历史检查（重设计 2026-04-30）
+//   ★ 定位修正：不当语法警察纠正玩家·而当现实顾问预测后果
+//   ★ 玩家诏令字面执行不变·AI 此处只识别"不合时代逻辑的行为"+预测"现实里应有的反噬"
+//   ★ 输出写到 GM._historicalDeviations·下回合 before-hook 注入推演 prompt
+//      让 AI 在 sc1 等推演里自然演绎这些反噬·而非修改玩家原意
+EndTurnHooks.register('after', function() {
   var mode=P.conf.gameMode||"yanyi";
   if(mode==="yanyi"||!P.ai.key)return;
 
   var sc=findScenarioById(GM.sid);
   if(!sc)return;
 
-  showLoading("历史检查...",50);
-  try{
-    var checkPrompt="检查以下推演是否符合历史。时代:"+sc.era+" 角色:"+sc.role+"\n";
-    if(GM.shijiHistory&&GM.shijiHistory.length>0){
-      var latest=GM.shijiHistory[GM.shijiHistory.length-1];
-      checkPrompt+="\u63A8\u6F14: "+(latest.zhengwen||"");
-    }
-    if(mode==="strict_hist"&&P.conf.refText)checkPrompt+="\n\u53C2\u8003: "+P.conf.refText;
-    checkPrompt+="\n返回JSON:{\"accurate\":true/false,\"issues\":[],\"historical_note\":\"\"}";
+  // 快照本回合史记最新条目 + 玩家诏令（避免后台 fire 时 shijiHistory 已被改写）
+  var _histSnapshot = '';
+  var _edictSnapshot = null;
+  var _turnSnapshot = (GM.turn || 1) - 1;
+  if (GM.shijiHistory && GM.shijiHistory.length > 0) {
+    var _last = GM.shijiHistory[GM.shijiHistory.length-1];
+    _histSnapshot = (_last.zhengwen || _last.shizhengji || '');
+    _edictSnapshot = _last.edicts || null;
+    _turnSnapshot = _last.turn || _turnSnapshot;
+  }
 
-    var resp=await callAISmart(checkPrompt,500,{temperature:0.3,maxRetries:2,validator:function(c){try{var j=extractJSON(c);return j&&typeof j.accurate==='boolean';}catch(e){return false;}}});
-    var parsed=extractJSON(resp);
-    if(parsed&&!parsed.accurate){
-      var msg="历史偏离: "+(parsed.historical_note||"");
-      if(parsed.issues&&parsed.issues.length>0)msg+="\n问题: "+parsed.issues.join("; ");
-      addEB("史实检查",msg);
+  function _doHistCheck(){ return (async function(){
+  try{
+    // 收集本回合诏令原文
+    var _edictText = '（无明确诏令）';
+    if (_edictSnapshot) {
+      var _eL = [];
+      if (_edictSnapshot.political) _eL.push('政:' + _edictSnapshot.political);
+      if (_edictSnapshot.military) _eL.push('军:' + _edictSnapshot.military);
+      if (_edictSnapshot.diplomatic) _eL.push('外:' + _edictSnapshot.diplomatic);
+      if (_edictSnapshot.economic) _eL.push('经:' + _edictSnapshot.economic);
+      if (_edictSnapshot.other) _eL.push('其他:' + _edictSnapshot.other);
+      if (_eL.length) _edictText = _eL.join('\n  ');
     }
+
+    var checkPrompt = '你是历史顾问 AI·剧本：' + (sc.era||'') + '·' + (sc.role||'') + '\n\n';
+    checkPrompt += '【任务·识别玩家本回合诏令/行为里·与该时代历史逻辑相悖之处·并预测现实必然引起的反噬】\n';
+    checkPrompt += '【铁律】\n';
+    checkPrompt += '· 不修改玩家任何决定·玩家有权在剧本里行使任何选择\n';
+    checkPrompt += '· 你的输出不会改写已下诏令·只用于"下回合让 AI 自然演绎其后果"\n';
+    checkPrompt += '· 反噬要具体到主体（哪个朝臣/哪个党派/哪个外族/哪个阶层）和方式（弹劾/兵变/民变/叛盟/物议/经济失序/瘟疫等）\n';
+    checkPrompt += '· 现实合理>戏剧化夸张·后果烈度要匹配偏离程度（小逾矩→朝议哗然·大违制→社稷动摇）\n\n';
+
+    checkPrompt += '【T' + _turnSnapshot + '玩家诏令原文】\n  ' + _edictText + '\n\n';
+    if (_histSnapshot) checkPrompt += '【本回合推演叙事节选】\n' + _histSnapshot.slice(0, 1800) + '\n\n';
+    if(mode==="strict_hist" && P.conf.refText) checkPrompt += '【时代参考资料】\n' + P.conf.refText.slice(0, 1500) + '\n\n';
+
+    checkPrompt += '【返回 JSON】\n';
+    checkPrompt += '{\n';
+    checkPrompt += '  "deviations": [\n';
+    checkPrompt += '    {\n';
+    checkPrompt += '      "playerAction": "玩家具体哪条诏令/行为(原文摘录·30字内)",\n';
+    checkPrompt += '      "historicalContext": "为什么不合该时代逻辑(具体到制度/惯例/势力格局·40字)",\n';
+    checkPrompt += '      "realisticConsequence": "现实中朝堂/民间/外族应当如何反应·涉及哪些具体主体·以何种方式·后果烈度(50字)",\n';
+    checkPrompt += '      "manifestIn": 1-3 (后果应在多少回合内显现·1=立刻·2=本季·3=本年)\n';
+    checkPrompt += '    }\n';
+    checkPrompt += '  ]\n';
+    checkPrompt += '}\n';
+    checkPrompt += '若玩家诏令完全合史·deviations 返回空数组 []·不要硬找问题。';
+
+    var resp = await callAISmart(checkPrompt, 1500, {
+      temperature: 0.3, maxRetries: 2,
+      validator: function(c){ try{ var j=extractJSON(c); return j && Array.isArray(j.deviations); } catch(e){ return false; } }
+    });
+    var parsed = extractJSON(resp);
+    if (!parsed || !Array.isArray(parsed.deviations)) return;
+    if (parsed.deviations.length === 0) return; // 完全合史·无须注入
+
+    // 持久化·下回合 before-hook 拾取
+    if (!GM._historicalDeviations) GM._historicalDeviations = [];
+    parsed.deviations.slice(0, 6).forEach(function(d){
+      if (!d || !d.playerAction || !d.realisticConsequence) return;
+      GM._historicalDeviations.push({
+        sourceTurn: _turnSnapshot,
+        playerAction: String(d.playerAction).slice(0, 80),
+        historicalContext: String(d.historicalContext || '').slice(0, 100),
+        realisticConsequence: String(d.realisticConsequence || '').slice(0, 150),
+        ttl: Math.max(1, Math.min(3, parseInt(d.manifestIn, 10) || 2))
+      });
+    });
+    // 上限：保留最近 12 条
+    if (GM._historicalDeviations.length > 12) GM._historicalDeviations = GM._historicalDeviations.slice(-12);
+
+    // 入大事记中性提醒（不批评·不修正）
+    addEB('史实预警', parsed.deviations.length + ' 条偏离·后果将在 1-3 回合内自然显现');
   }catch(e){
-    console.warn("历史检查失败:",e);
+    console.warn('历史检查失败:', e);
+  }
+  })(); }
+
+  if (typeof _enqueuePostTurnJob === 'function') {
+    _enqueuePostTurnJob('hist_check', _doHistCheck);
+  } else {
+    _doHistCheck();
   }
 }, '历史检查');
+
+// 钩子 9b: AI上下文注入 - 史实偏离待演绎（每回合 before·消费上回合 hist_check 产出）
+EndTurnHooks.register('before', function() {
+  if (!P.ai || !P.ai.key) return;
+  if (!Array.isArray(GM._historicalDeviations) || GM._historicalDeviations.length === 0) return;
+
+  var pending = GM._historicalDeviations.filter(function(d){ return d && d.ttl > 0; });
+  if (pending.length === 0) return;
+
+  var devText = '\n\n=== 史实偏离·待演绎自然后果（玩家诏令字面照旧执行·你只需让"现实必然反应"在本回合或后续自然显现）===\n';
+  devText += '【铁律】不得改写玩家原诏；只在叙事/NPC行动/势力反应/民意/外族动向中演出后果\n';
+  pending.forEach(function(d){
+    devText += '· T' + d.sourceTurn + '玩家：' + d.playerAction + '\n';
+    if (d.historicalContext) devText += '  时代背景：' + d.historicalContext + '\n';
+    devText += '  应演后果：' + d.realisticConsequence + '（剩 ' + d.ttl + ' 回合内显现）\n';
+  });
+  if (!GM._origPromptHist) GM._origPromptHist = P.ai.prompt;
+  P.ai.prompt = (P.ai.prompt || '') + devText;
+}, 'AI上下文-史实偏离演绎');
+
+EndTurnHooks.register('after', function() {
+  // 恢复 prompt
+  if (GM._origPromptHist !== undefined) {
+    P.ai.prompt = GM._origPromptHist;
+    delete GM._origPromptHist;
+  }
+  // TTL 衰减·清理已耗尽条目
+  if (Array.isArray(GM._historicalDeviations) && GM._historicalDeviations.length > 0) {
+    GM._historicalDeviations.forEach(function(d){ if (d && typeof d.ttl === 'number') d.ttl--; });
+    GM._historicalDeviations = GM._historicalDeviations.filter(function(d){ return d && d.ttl > 0; });
+  }
+}, '恢复prompt-史实偏离+TTL衰减');
 
 // 钩子 10: 音效（原 _origEndTurn - 音频系统）
 EndTurnHooks.register('after', function() {
