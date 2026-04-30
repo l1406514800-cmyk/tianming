@@ -58,6 +58,28 @@ jsFiles.forEach(f => {
   });
 });
 
+// package.json scripts 里的 Node 工具入口也是有效引用，例如:
+//   "prepare-vendor": "node tools/download-bge-model.js"
+const packageJsonPath = path.join(ROOT, 'package.json');
+if (fs.existsSync(packageJsonPath)) {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+    const scripts = pkg && pkg.scripts && typeof pkg.scripts === 'object' ? pkg.scripts : {};
+    Object.values(scripts).forEach(cmd => {
+      if (typeof cmd !== 'string') return;
+      const re = /(?:^|[\s;&|])node(?:\.exe)?(?:\s+--?[A-Za-z0-9:_=./\\-]+)*\s+(?:"([^"]+\.js)"|'([^']+\.js)'|([^\s;&|]+\.js))/g;
+      let m;
+      while ((m = re.exec(cmd))) {
+        const rel = m[1] || m[2] || m[3];
+        if (!rel || /^https?:/.test(rel)) continue;
+        referencedSrcs.add(path.resolve(ROOT, rel));
+      }
+    });
+  } catch (e) {
+    console.warn('[find-orphans] package.json scripts 扫描失败:', e.message);
+  }
+}
+
 // 过滤 .gitignore 里标注为非生产的文件 (dev-only scripts)
 const gitignorePath = path.join(ROOT, '.gitignore');
 const devOnly = new Set();

@@ -3774,6 +3774,56 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       // ★ 长期约束（Phase 4.2 ReNovel-AI affects_future 范式）
       var _futureC = '';
       try { if (typeof _mtBuildFuture === 'function') _futureC = _mtBuildFuture() || ''; } catch(_fc){}
+      // ★ P11.2C-full 审核收件箱·必须在 sc1 注入前完成，否则 rejected 推测会多漏进一回合
+      function _reviewConsolidatedInboxForSc1() {
+        try {
+          if (!Array.isArray(GM._consolidatedMemory) || GM._consolidatedMemory.length === 0) return;
+          var _curTurnReview = (GM.turn || 1);
+          var _recentShijiText = '';
+          if (Array.isArray(GM.shijiHistory)) {
+            GM.shijiHistory.slice(-3).forEach(function(sh) {
+              _recentShijiText += (sh.shizhengji || '') + ' ' + (sh.shilu || '') + ' ' + (sh.zhengwen || '');
+            });
+          }
+          var _approvedCnt = 0, _rejectedCnt = 0;
+          GM._consolidatedMemory.forEach(function(cm) {
+            if (!cm || !cm._pendingTurn) cm._pendingTurn = cm.turn;
+            var age = _curTurnReview - cm.turn;
+            if (age < 2) return; // 不足 2 回合·继续 pending
+            (cm.key_threads || []).forEach(function(th) {
+              if (th._status !== 'pending') return;
+              var threadText = (th.thread || '') + ' ' + (th.actors || '');
+              var keywords = threadText.split(/[·、，,。\s]/).filter(function(s){ return s.length >= 2; }).slice(0, 3);
+              var hit = keywords.some(function(k) { return _recentShijiText.indexOf(k) >= 0; });
+              th._status = hit ? 'approved' : 'rejected';
+              th._reviewedTurn = _curTurnReview;
+              if (hit) _approvedCnt++; else _rejectedCnt++;
+            });
+            (cm.unresolved_tensions || []).forEach(function(t) {
+              if (typeof t !== 'object' || t._status !== 'pending') return;
+              var tText = t.text || '';
+              var tWords = tText.split(/[·、，,。\s]/).filter(function(s){ return s.length >= 2; }).slice(0, 3);
+              var hit = tWords.some(function(k) { return _recentShijiText.indexOf(k) >= 0; });
+              t._status = hit ? 'approved' : 'rejected';
+              t._reviewedTurn = _curTurnReview;
+              if (hit) _approvedCnt++; else _rejectedCnt++;
+            });
+            (cm.next_turn_focus || []).forEach(function(f) {
+              if (typeof f !== 'object' || f._status !== 'pending') return;
+              var fText = f.text || '';
+              var fWords = fText.split(/[·、，,。\s]/).filter(function(s){ return s.length >= 2; }).slice(0, 3);
+              var hit = fWords.some(function(k) { return _recentShijiText.indexOf(k) >= 0; });
+              f._status = hit ? 'approved' : 'rejected';
+              f._reviewedTurn = _curTurnReview;
+              if (hit) _approvedCnt++; else _rejectedCnt++;
+            });
+          });
+          if (_approvedCnt + _rejectedCnt > 0) {
+            _dbg('[InboxReview:pre-sc1] approved=' + _approvedCnt + ' rejected=' + _rejectedCnt);
+          }
+        } catch(_invE) { _dbg('[InboxReview:pre-sc1] fail:', _invE); }
+      }
+      _reviewConsolidatedInboxForSc1();
       // ★ P12.1 state_board 注入（KokoroMemo state_renderer 范式·按 priority 排序·~1200 字预算）
       // 4 类轻量会话状态——朝堂氛围/未解线索/近期摘要/未兑现承诺
       // 优先级：mood（最即时） > unfulfilled_promises（玩家责任） > open_loops（待推进） > recent_summary（背景）
@@ -4946,58 +4996,6 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       p1=extractJSON(c1);
       GM._turnAiResults.subcall1_raw = c1;
       GM._turnAiResults.subcall1 = p1;
-      // ★ P11.2C-full 审核收件箱·解决 pending 条目（KokoroMemo review_policy 范式·完整版）
-      // 逻辑：pending 条目超 2 回合·检查后续 shijiHistory 是否提及→approved；否则 rejected
-      try {
-        if (Array.isArray(GM._consolidatedMemory) && GM._consolidatedMemory.length > 0) {
-          var _curTurnReview = (GM.turn || 1);
-          var _recentShijiText = '';
-          if (Array.isArray(GM.shijiHistory)) {
-            GM.shijiHistory.slice(-3).forEach(function(sh) {
-              _recentShijiText += (sh.shizhengji || '') + ' ' + (sh.shilu || '') + ' ' + (sh.zhengwen || '');
-            });
-          }
-          var _approvedCnt = 0, _rejectedCnt = 0;
-          GM._consolidatedMemory.forEach(function(cm) {
-            if (!cm || !cm._pendingTurn) cm._pendingTurn = cm.turn;
-            var age = _curTurnReview - cm.turn;
-            if (age < 2) return; // 不足 2 回合·继续 pending
-            // 检查 key_threads
-            (cm.key_threads || []).forEach(function(th) {
-              if (th._status !== 'pending') return;
-              // 用线索关键词匹配 shijiHistory
-              var threadText = (th.thread || '') + ' ' + (th.actors || '');
-              var keywords = threadText.split(/[·、，,。\s]/).filter(function(s){ return s.length >= 2; }).slice(0, 3);
-              var hit = keywords.some(function(k) { return _recentShijiText.indexOf(k) >= 0; });
-              th._status = hit ? 'approved' : 'rejected';
-              th._reviewedTurn = _curTurnReview;
-              if (hit) _approvedCnt++; else _rejectedCnt++;
-            });
-            // 检查 unresolved_tensions / next_turn_focus 同理
-            (cm.unresolved_tensions || []).forEach(function(t) {
-              if (typeof t !== 'object' || t._status !== 'pending') return;
-              var tText = t.text || '';
-              var tWords = tText.split(/[·、，,。\s]/).filter(function(s){ return s.length >= 2; }).slice(0, 3);
-              var hit = tWords.some(function(k) { return _recentShijiText.indexOf(k) >= 0; });
-              t._status = hit ? 'approved' : 'rejected';
-              t._reviewedTurn = _curTurnReview;
-              if (hit) _approvedCnt++; else _rejectedCnt++;
-            });
-            (cm.next_turn_focus || []).forEach(function(f) {
-              if (typeof f !== 'object' || f._status !== 'pending') return;
-              var fText = f.text || '';
-              var fWords = fText.split(/[·、，,。\s]/).filter(function(s){ return s.length >= 2; }).slice(0, 3);
-              var hit = fWords.some(function(k) { return _recentShijiText.indexOf(k) >= 0; });
-              f._status = hit ? 'approved' : 'rejected';
-              f._reviewedTurn = _curTurnReview;
-              if (hit) _approvedCnt++; else _rejectedCnt++;
-            });
-          });
-          if (_approvedCnt + _rejectedCnt > 0) {
-            _dbg('[InboxReview] approved=' + _approvedCnt + ' rejected=' + _rejectedCnt);
-          }
-        }
-      } catch(_invE) { _dbg('[InboxReview] fail:', _invE); }
 
       // ★ P11.2B 诏令冲突链消费端（KokoroMemo graph.py 范式）
       try {
