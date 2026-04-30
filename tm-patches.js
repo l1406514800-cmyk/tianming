@@ -134,6 +134,39 @@ openSettings=function(){
         "</div>";
     })()+
 
+    // P15: 性能·成本控制（KokoroMemo 借鉴）
+    (function(){
+      try { console.log('[P15 settings] 性能·成本控制 段渲染中·v=2026050103'); } catch(_){}
+      var _gateOn = !!(P.conf && P.conf.recallGateEnabled === true);
+      var _consolOn = !(P.conf && P.conf.consolidationEnabled === false);
+      var _semOn = !(P.conf && P.conf.semanticRecallAutoload === false);
+      return '<div class="settings-section" style="border-left:3px solid #6b9eff;background:rgba(107,158,255,0.03);">' +
+        '<h4 style="color:#9bbfff;">⚡ 性能·成本控制</h4>' +
+        '<div style="font-size:0.72rem;color:var(--txt-d);margin:-0.3rem 0 0.6rem;line-height:1.55;">这些开关控制 AI 调用频率与本地资源使用·默认设置面向"质量优先"。</div>' +
+        '<label style="display:flex;align-items:flex-start;gap:0.5rem;padding:0.4rem 0;border-bottom:1px dotted var(--bdr);cursor:pointer;">' +
+          '<input type="checkbox" id="s-recall-gate" ' + (_gateOn?'checked ':'') + 'onchange="_togglePConf(\'recallGateEnabled\',this.checked)" style="margin-top:0.15rem;flex-shrink:0;">' +
+          '<div style="flex:1;">' +
+            '<div style="font-size:0.82rem;color:var(--gold);font-weight:600;">启用召回节流（省 API）</div>' +
+            '<div style="font-size:0.7rem;color:var(--txt-d);line-height:1.55;margin-top:0.15rem;">开启后·常规回合跳过 SC_RECALL 5 源召回·节省 40-60% API 成本。关闭时（默认）每回合都跑全量召回·AI 记忆富度最高。</div>' +
+          '</div>' +
+        '</label>' +
+        '<label style="display:flex;align-items:flex-start;gap:0.5rem;padding:0.4rem 0;border-bottom:1px dotted var(--bdr);cursor:pointer;">' +
+          '<input type="checkbox" id="s-consol" ' + (_consolOn?'checked ':'') + 'onchange="_togglePConf(\'consolidationEnabled\',this.checked)" style="margin-top:0.15rem;flex-shrink:0;">' +
+          '<div style="flex:1;">' +
+            '<div style="font-size:0.82rem;color:var(--gold);font-weight:600;">后台记忆固化 sc_consolidate（默认启用）</div>' +
+            '<div style="font-size:0.7rem;color:var(--txt-d);line-height:1.55;margin-top:0.15rem;">每回合后台追加一次记忆整合调用（优先走次要 API）·不阻塞玩家·增加约 20% API 成本。关闭后 AI 记忆连贯性会减低。</div>' +
+          '</div>' +
+        '</label>' +
+        '<label style="display:flex;align-items:flex-start;gap:0.5rem;padding:0.4rem 0;cursor:pointer;">' +
+          '<input type="checkbox" id="s-sem" ' + (_semOn?'checked ':'') + 'onchange="_togglePConf(\'semanticRecallAutoload\',this.checked)" style="margin-top:0.15rem;flex-shrink:0;">' +
+          '<div style="flex:1;">' +
+            '<div style="font-size:0.82rem;color:var(--gold);font-weight:600;">本地语义检索自动加载（默认启用）</div>' +
+            '<div style="font-size:0.7rem;color:var(--txt-d);line-height:1.55;margin-top:0.15rem;">游戏开始 5 秒后后台加载 bge-small-zh 模型（23 MB）·提供 SC_RECALL 第 5 源语义同义召回（"叛变"匹配"举旗/起兵/造反"等）。Electron 预打包后秒开·网页端从 hf-mirror 缓存。关闭可省 23 MB 下载·但失去语义同义匹配能力。</div>' +
+          '</div>' +
+        '</label>' +
+      '</div>';
+    })()+
+
     // 回合读取
     "<div class=\"settings-section\"><h4>\u56DE\u5408\u8BFB\u53D6</h4>"+
     "<div class=\"rw\"><div class=\"fd\"><label>\u8D77\u5C45\u6CE8\u8BFB\u53D6</label><input type=\"number\" id=\"s-qlb\" value=\""+(P.conf.qijuLookback||5)+"\"></div><div class=\"fd\"><label>\u53F2\u8BB0\u8BFB\u53D6</label><input type=\"number\" id=\"s-slb\" value=\""+(P.conf.shijiLookback||5)+"\"></div><div class=\"fd\"><label>\u6BCF N \u56DE\u5408\u5B58\u6863</label><input type=\"number\" id=\"s-as-turns\" value=\""+(P.conf.autoSaveTurns||5)+"\" min=\"0\" style=\"width:60px\"></div></div>"+
