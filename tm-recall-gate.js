@@ -10,12 +10,15 @@
 //   - Vector 是 onnx 推理·每查询 ~50-100ms·5 个查询 = 250-500ms
 //   - 累积到长游戏 100 回合·CPU 时间是显著开销
 //
-// 触发条件（OR）：
+// 【P14.5 用户决策】默认关闭节流·API 调用不省的好。仅 P.conf.recallGateEnabled === true 时才启用门控。
+//
+// 触发条件（OR·当门控启用时）：
 //   1. 新游戏首回合（GM.turn <= 1）
 //   2. AI 思考输出含触发关键词："前朝/旧诏/先帝/上回/卷宗/史载/曾经/此前"等
 //   3. 每 6 回合周期刷新（GM.turn % 6 === 0）
-//   4. 玩家本回合下了重大诏令（_thisTurnEdicts 非空）·新政可能与旧档冲突
+//   4. 玩家本回合任何非空诏令（P14.6 取消字数判定·每条诏令都重要）
 //   5. 上回合发生重要事件（_aiMemory 最新条目 importance >= 7 或含"死亡/政变/即位/退位"）
+//   6. 上回合 eventHistory 表存在 weight<0.65 的低置信度事件（P13.5）
 //
 // 不触发时·SC_RECALL 5 源全部跳过·sc05 仅靠 _recentHistory + sc_consolidate 摘要进入 sc1。
 // ============================================================
@@ -49,9 +52,10 @@
     ctx = ctx || {};
     if (typeof GM === 'undefined' || !GM) return { shouldRecall: true, reason: 'GM 未就绪·默认开' };
 
-    // 玩家可禁用（默认开启节流）
-    if (typeof P !== 'undefined' && P && P.conf && P.conf.recallGateEnabled === false) {
-      return { shouldRecall: true, reason: 'gate disabled by player' };
+    // P14.5 默认关闭节流：API 调用不省的好·只在玩家明确启用时才节流
+    // 改判：默认 always recall·仅 P.conf.recallGateEnabled === true 时才走门控逻辑
+    if (typeof P === 'undefined' || !P || !P.conf || P.conf.recallGateEnabled !== true) {
+      return { shouldRecall: true, reason: 'gate 未启用·默认全跑（玩家可设 P.conf.recallGateEnabled=true 启用节流）' };
     }
 
     // 1. 新游戏首回合
@@ -74,18 +78,14 @@
       return { shouldRecall: true, reason: '6 回合周期刷新' };
     }
 
-    // 4. 玩家本回合下了重大诏令（数量 >= 3 或某条 > 100 字）
+    // 4. 玩家本回合有任何诏令 — P14.6 取消字数判定·每条诏令都重要
     if (ctx.currentEdicts && typeof ctx.currentEdicts === 'object') {
-      var totalLen = 0, hasLong = false;
-      Object.keys(ctx.currentEdicts).forEach(function(k) {
+      var hasAnyEdict = Object.keys(ctx.currentEdicts).some(function(k) {
         var v = ctx.currentEdicts[k];
-        if (typeof v === 'string') {
-          totalLen += v.length;
-          if (v.length > 100) hasLong = true;
-        }
+        return typeof v === 'string' && v.trim().length > 0;
       });
-      if (hasLong || totalLen > 200) {
-        return { shouldRecall: true, reason: '玩家重大诏令·可能与旧档冲突' };
+      if (hasAnyEdict) {
+        return { shouldRecall: true, reason: '玩家本回合下诏·每条诏令都重要·必跑全召回' };
       }
     }
 

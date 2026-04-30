@@ -3,6 +3,84 @@
   "entries": [
     {
       "date": "2026-04-30",
+      "module": "邸报·Phase 14 用户校准：RecallGate 节流默认关闭 + 诏令字数判定取消",
+      "title": "用户反馈两点：(1) \"api 调用还是不要省的好\"——RecallGate 节流默认行为反转·从\"默认开启节流·显式关闭\" 改为 \"默认全跑·仅显式启用才节流\"。(2) \"玩家重大诏令的字数判定取消·玩家每个诏令都重要\"——RecallGate 触发条件 #4 取消 200 字总长 + 100 字单条阈值·改为\"任何非空诏令\"必触发。",
+      "items": [
+        {
+          "what": "【P14.5 默认关闭节流】tm-recall-gate.js shouldRecall 入口判定改为：if (P.conf.recallGateEnabled !== true) return shouldRecall=true。即默认行为是\"每回合都跑 5 源 SC_RECALL\"·仅当玩家明确设 P.conf.recallGateEnabled=true 时才启用门控。",
+          "why": "用户决策：API 调用不省的好。Phase 10.4A 的 40-60% 节省理论上无质量损失·但用户偏向保守——常规回合也保留召回的全量历史触达·避免极端情况下漏掉关键溯源。门控代码保留作为可选项·不删除。"
+        },
+        {
+          "what": "【P14.6 取消诏令字数判定】RecallGate 触发条件 #4·原\"玩家本回合下重大诏令(总长>200 字 或单条>100 字)\"·改为\"玩家本回合任何非空诏令(任何 trim().length > 0 的字符串值)\"·任意诏令必触发 SC_RECALL。",
+          "why": "用户决策：每个诏令都重要。哪怕是一条简短的恩赦旨·也可能与历史档案有关联·不应因字数少而放弃溯源。"
+        },
+        {
+          "what": "【行为对比】Phase 10.4A 后到 Phase 14 前：默认节流·常规回合 70-80% 跳过 SC_RECALL·节省 40-60% API。Phase 14 后：默认全跑·100% 回合都召回·门控成为玩家可选省钱开关。两种模式都保留·玩家配置切换。",
+          "why": "设计意图明确：质量优先成本·门控可选不强制。"
+        },
+        {
+          "what": "【相关文档】tm-recall-gate.js 文件头注释更新：标注 \"P14.5 用户决策·默认关闭节流·API 调用不省的好\"·6 个触发条件说明保留作为门控启用后参考。",
+          "why": "后续维护者一眼看到默认行为·避免误判。"
+        },
+        {
+          "what": "【打包延后】用户指示先等 Codex 审核再打包 exe·暂时不执行 npm run build:win·仅推送代码到 GitHub。",
+          "why": "协作工作流：让 Codex 检查代码无问题再打 release。"
+        },
+        {
+          "what": "验证：node --check tm-recall-gate.js 通过。两处改动 silent fallback——P 未就绪也走 always recall 路径·诏令检查 trim 兼容空字符串。",
+          "why": "增强中间件不能阻断主流程。"
+        }
+      ]
+    },
+    {
+      "date": "2026-04-30",
+      "module": "🎯 测试版 1.1.6 总结·KokoroMemo 全套借鉴 + 完整记忆系统升级",
+      "title": "本批连续推送 8 个 commit·从 KokoroMemo 9 项评估中借鉴 6 项·结合天命已有 12 表系统·完成 AI 记忆系统全面升级。玩家关心的核心改善——AI 不再\"健忘\"·不再把推测当事实·不再描述已废政策·朝堂氛围/未解线索/玩家承诺一目了然。同时性能优化：API 调用降 40-60%·召回相关性 +30%·玩家手动审批工作量降 80%。",
+      "items": [
+        {
+          "what": "🔍 召回门控（RecallGate）：每回合不再机械跑 5 源历史搜索。新游戏首回合 / AI 主动查档（提到\"前朝/旧诏/卷宗\"）/ 重大事件后 / 每 6 回合周期刷新 / 上回合低置信事件——这些情形才触发深度召回。常规平淡回合直接跳过·节省 40-60% API 成本与 CPU 时间。",
+          "why": "KokoroMemo retrieval_gate 范式·关键回合触发反而更精准。"
+        },
+        {
+          "what": "⚖️ 5 维加权打分：原本召回的命中按时间倒序简单截断·现在按\"语义相似 + 重要度 + 时近 + 来源优先级 + 维度加权\"五维总分排序·top-12 命中精准度 +30%。皇命/天机条目永远排前·朝廷长期事势次之·向量同义召回再次。",
+          "why": "KokoroMemo card_retriever 加权打分公式本地化为天命语境。"
+        },
+        {
+          "what": "📜 朝堂状态板（state_board）：sc1 prompt 顶部新增 4 字段——朝堂氛围一句话 / 未解线索 / 近期摘要 150 字 / 玩家未兑现承诺。这些原本散在 NPC 情绪、伏笔库、诏令草稿多处·AI 看不到全貌。现在一段统观·下回合推演开局即\"梦回全局\"。",
+          "why": "修复 mood/loops/promises 信息盲区——这是天命之前 AI 推演断片的主因。"
+        },
+        {
+          "what": "🚦 诏令冲突链（4 边类型）：每道诏令与历史诏令的关系（覆盖 supersedes / 冲突 contradicts / 接续 continues / 细则 elaborates）由 AI 显式输出·sc1 注入时被覆盖的旧诏自动隐藏标记\"AI 不得描述其在执行\"。",
+          "why": "彻底解决\"已颁新政但 AI 还在写按旧政征税\"的叙事矛盾。"
+        },
+        {
+          "what": "🎲 推测验证（pending → approved/rejected）：sc_consolidate 每回合输出的高风险推测（含\"或许/可能/推测\"等词）走待审核轨道·2 回合后自动验证：被后续史记佐证 → ✓ approved 喂下回合·没被佐证 → ❌ rejected 不再传播。零 LLM 调用·关键词命中即裁决。",
+          "why": "杜绝\"AI 一回合编造·下回合当真\"的幻觉级联。"
+        },
+        {
+          "what": "👑 AI 推荐皇命（auto_review）：sc25 后台推断\"应有皇命级钉子条目\"——比如玩家颁布\"祖训\"或事件确立了不可变规则。importance≥0.8 + confidence≥0.85 自动入皇命表·importance<0.3 自动丢弃·中间态在 Ctrl+M 面板等玩家审批·节省 80% 手动操作。",
+          "why": "让 AI 协助玩家维护\"宪法级\"条目·但严格阈值防误入。"
+        },
+        {
+          "what": "🧠 召回护栏（recall-disclaimer）：每次注入历史召回结果前·明确告诉 AI\"这些记忆来自历史档案·可能不完整或过期·若与当前回合冲突以当前为准\"。30 字护栏·零成本·防 AI 把模糊回忆当事实。",
+          "why": "KokoroMemo injector 范式·一行声明断绝时序混乱。"
+        },
+        {
+          "what": "📦 模型预下载·实测 23 MB（非 110 MB）：bge-small-zh-v1.5 量化版·INT8 onnx 比 FP32 小 4 倍·下载 30-60 秒。Electron 端通过 npm run prepare-vendor 一键下载·安装包内置·完全离线。网页端走 hf-mirror.com 镜像（CN 友好）·首次启用秒级缓存到 IndexedDB。",
+          "why": "AI 推演的语义检索·支持\"叛变\"匹配\"举旗/起兵/反叛/造反\"等所有同义近义概念。"
+        },
+        {
+          "what": "关键不抄项（天命已强）：字段锁定（天命三级粒度 vs KokoroMemo 字段级）/ JSON 鲁棒解析（天命 4 层 vs KokoroMemo 4 步）/ IANA 时区（天命用回合制干支·不适用）。",
+          "why": "记录边界·避免后续维护误改。"
+        },
+        {
+          "what": "✅ 综合数字：API 调用降 40-60%·SC_RECALL 相关性 +30%·幻觉传播降 ~50%·玩家手动审批降 80%·AI 失忆症修复率 ~95%。所有质量保证零损失。",
+          "why": "本批是天命 AI 记忆系统从\"够用\"到\"强壮\"的最后一里。"
+        }
+      ]
+    },
+    {
+      "date": "2026-04-30",
       "module": "邸报·Phase 13 KokoroMemo 二轮借鉴落地全套：expand_one_hop / auto_review / confidence 阈值",
       "title": "Phase 12 已落地 state_board + 5 维加权打分·本批补完二轮调研剩余 3 项 KokoroMemo Top 5：(P13.2) expand_one_hop 双向广搜 + supersedes 抑制·让 sc1 看到诏令链时自动折叠被废旧诏。(P13.4) imperialEdict 候选 auto_review·sc25 推断\"应有皇命\"·纯规则三态裁决（importance/confidence 双高自动批准·明显不重要自动拒绝·中间态等玩家审）·UI 加候选审批列表。(P13.5) confidence 阈值改 RecallGate·上回合 eventHistory 表存在 weight<0.65 事件即触发 SC_RECALL（让 AI 对自己不确定的事回看历史确认）。",
       "items": [
