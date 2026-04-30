@@ -10797,7 +10797,17 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         if (typeof _buildDeadPin === 'function') _ws2 += _buildDeadPin();
         if (typeof _buildPriorTurnBrief === 'function') _ws2 += _buildPriorTurnBrief();
       } catch(_wse2){ _dbg('[WorldSnap sc2] fail:', _wse2); }
-      var tp2 = _ws2 + p1Summary + _basisBrief + _chronCtx2
+      // 12 表注入·sc2 仅看公开皇命·不看天机
+      var _mt2 = '';
+      try {
+        if (window.MemTables && MemTables.buildTablesInjection) {
+          _mt2 = MemTables.buildTablesInjection({ include: ['imperialEdict', 'curStatus'], hideSecret: true }) || '';
+        }
+      } catch(_e){}
+      // 时间参考块（Phase 4.1）
+      var _tr2 = '';
+      try { if (typeof _buildTimeRef === 'function') _tr2 = _buildTimeRef() || ''; } catch(_e){}
+      var tp2 = _tr2 + _ws2 + _mt2 + p1Summary + _basisBrief + _chronCtx2
         + (aiThinking ? '【AI分析】' + aiThinking.substring(0, 200) + '\n' : '')
         + "\n基于上述全部资料，撰写《后人戏说》——这是玩家角色本回合的完整生活进程，核心目的是**完整、立体地呈现玩家角色的日常生活**，让玩家看见自己的角色如何度过这一段时光。\n"
         + "【核心要义——叙事性第一】\n"
