@@ -349,13 +349,290 @@
            lines.join('\n') + '\n=== NPC 推演行为应与此当下状态一致 ===\n';
   }
 
+  // ────── 5. 关系突变图谱（近 N 回合有变动的人物关系） ──────
+  function buildRelationDeltas(maxEntries, lookbackTurns) {
+    if (!GM || !Array.isArray(GM.chars)) return '';
+    maxEntries = maxEntries || 12;
+    lookbackTurns = lookbackTurns || 10;
+    var curT = GM.turn || 1;
+
+    // 收集所有 chars[*].relations[*].history 中近 N 回合的事件
+    var deltas = [];
+    var seen = {}; // 双向去重
+
+    GM.chars.forEach(function(c) {
+      if (!c || c.alive === false || !c.relations) return;
+      Object.keys(c.relations).forEach(function(targetName) {
+        var r = c.relations[targetName];
+        if (!r || !Array.isArray(r.history) || r.history.length === 0) return;
+        // 取近 N 回合内的事件
+        var recent = r.history.filter(function(h) { return h && h.turn && (curT - h.turn) <= lookbackTurns; });
+        if (recent.length === 0) return;
+
+        // 用规范化 key 去重（A→B 与 B→A 视为同一对）
+        var key = [c.name, targetName].sort().join('||');
+        if (seen[key]) return;
+        seen[key] = true;
+
+        // 取最近一条作为代表性事件
+        var latest = recent[recent.length - 1];
+        deltas.push({
+          a: c.name,
+          b: targetName,
+          turn: latest.turn,
+          event: latest.event || '',
+          emotion: latest.emotion || '',
+          weight: latest.weight || 0,
+          // 当前关系强度
+          affinity: r.affinity,
+          hostility: r.hostility,
+          labels: Array.isArray(r.labels) ? r.labels.slice(-3) : []
+        });
+      });
+    });
+
+    // 也合并 sc1/sc15 的 affinity_changes（如果本回合 _turnAiResults 已有数据）
+    if (GM._turnAiResults && GM._turnAiResults.subcall1 && Array.isArray(GM._turnAiResults.subcall1.affinity_changes)) {
+      GM._turnAiResults.subcall1.affinity_changes.forEach(function(ac) {
+        if (!ac || !ac.a || !ac.b) return;
+        var key = [ac.a, ac.b].sort().join('||');
+        if (seen[key]) return; // 已经在 history 里
+        seen[key] = true;
+        deltas.push({
+          a: ac.a, b: ac.b, turn: curT,
+          event: ac.reason || '关系变动',
+          emotion: '',
+          weight: ac.delta || 0,
+          relType: ac.relType || ''
+        });
+      });
+    }
+
+    if (deltas.length === 0) return '';
+
+    // 按 turn 倒序，取 top maxEntries
+    deltas.sort(function(a, b) { return (b.turn || 0) - (a.turn || 0) || Math.abs(b.weight || 0) - Math.abs(a.weight || 0); });
+    var capped = deltas.slice(0, maxEntries);
+
+    var lines = capped.map(function(d) {
+      // 关系类型推断
+      var rel = '';
+      if (d.labels && d.labels.length) rel = d.labels.join('/');
+      else if (d.relType) rel = d.relType;
+      else if (d.affinity != null && d.hostility != null) {
+        if (d.hostility > 50) rel = '仇敌';
+        else if (d.affinity > 75) rel = '亲厚';
+        else if (d.affinity < 25) rel = '疏远';
+        else rel = '中立';
+      }
+      var weightTag = d.weight ? (d.weight > 0 ? '+' + Math.round(d.weight) : Math.round(d.weight)) : '';
+      var line = '· T' + d.turn + ' ' + d.a + ' ↔ ' + d.b;
+      if (rel) line += '【' + rel + '】';
+      if (d.event) line += '：' + String(d.event).slice(0, 60);
+      if (d.emotion) line += '·情:' + d.emotion;
+      if (weightTag) line += '(' + weightTag + ')';
+      return line;
+    });
+
+    return '\n=== 近 ' + lookbackTurns + ' 回合关系突变（NPC 行为应受这些已发生的关系变动驱动） ===\n' +
+           lines.join('\n') + '\n=== 这些关系不可"凭空回到从前"·必须延续推演 ===\n';
+  }
+
+  // ────── 6. 上回合 → 本回合 Brief（自动凝练前情提要） ──────
+  function buildPriorTurnBrief() {
+    if (!GM) return '';
+    // 从上一回合的 _turnAiResults 残余 + shijiHistory 末条提取关键发生
+    var prior = (GM.shijiHistory && GM.shijiHistory.length > 0) ? GM.shijiHistory[GM.shijiHistory.length - 1] : null;
+    if (!prior) return '';
+
+    var bullets = [];
+
+    // (a) NPC 重大行动（从上一回合的 subcall1.npc_actions 取，但通常已被清理；从 shiji 摘要里提）
+    // 简化版：从 prior.shilu 或 shizhengji 提取前 3 句话
+    var src = prior.shilu || prior.shizhengji || '';
+    if (src && typeof src === 'string') {
+      // 抽前 3 句（按句号/惊叹号/问号切）
+      var sentences = src.split(/[。！？\n]/).filter(function(s) { return s && s.trim().length > 8; }).slice(0, 3);
+      sentences.forEach(function(s) { bullets.push('· ' + s.trim().slice(0, 80)); });
+    }
+
+    // (b) 上回合死亡角色（从 _epitaphs 取 turn === prior.turn 的）
+    if (Array.isArray(GM._epitaphs)) {
+      var priorDeaths = GM._epitaphs.filter(function(ep) { return ep && ep.diedTurn === prior.turn; });
+      if (priorDeaths.length > 0) {
+        bullets.push('· 上回合薨逝：' + priorDeaths.map(function(ep) { return ep.char + (ep.reason ? '(' + ep.reason + ')' : ''); }).join('、'));
+      }
+    }
+
+    // (c) 上回合人事变动
+    if (Array.isArray(prior.personnel) && prior.personnel.length > 0) {
+      var pn = prior.personnel.slice(0, 4).map(function(p) { return p.name + '→' + (p.change || ''); }).join('；');
+      bullets.push('· 上回合人事：' + pn);
+    }
+
+    // (d) 上回合玩家诏令（前 2 条）
+    if (prior.edicts) {
+      var ed = [];
+      ['political', 'military', 'diplomatic', 'economic'].forEach(function(cat) {
+        if (prior.edicts[cat]) ed.push(String(prior.edicts[cat]).split('\n')[0].slice(0, 50));
+      });
+      if (ed.length > 0) bullets.push('· 上回合玩家诏：' + ed.slice(0, 2).join(' | '));
+    }
+
+    // (e) 即将爆发的 schemes（progress=即将发动）
+    if (Array.isArray(GM.activeSchemes)) {
+      var imminent = GM.activeSchemes.filter(function(s) { return s && s.progress === '即将发动'; }).slice(0, 2);
+      imminent.forEach(function(s) {
+        bullets.push('· 暗流将爆：' + (s.schemer || '?') + ' 谋 ' + (s.target || '?') + '·' + String(s.plan || '').slice(0, 30));
+      });
+    }
+
+    // (f) 跨回合关系最新突变（top 2）
+    if (Array.isArray(GM.chars)) {
+      var topRelDelta = null;
+      var maxAbsWeight = 0;
+      GM.chars.forEach(function(c) {
+        if (!c || !c.relations) return;
+        Object.keys(c.relations).forEach(function(t) {
+          var r = c.relations[t];
+          if (!r || !Array.isArray(r.history) || r.history.length === 0) return;
+          var latest = r.history[r.history.length - 1];
+          if (!latest || latest.turn !== prior.turn) return;
+          var w = Math.abs(latest.weight || 0);
+          if (w > maxAbsWeight) {
+            maxAbsWeight = w;
+            topRelDelta = { a: c.name, b: t, event: latest.event, weight: latest.weight };
+          }
+        });
+      });
+      if (topRelDelta) {
+        bullets.push('· 关系突变：' + topRelDelta.a + ' ↔ ' + topRelDelta.b + '·' + (topRelDelta.event || ''));
+      }
+    }
+
+    if (bullets.length === 0) return '';
+
+    return '\n=== 上回合 → 本回合 Brief（前情提要·本回合应延续） ===\n' +
+           bullets.join('\n') + '\n=== 本回合推演必须延续上述线索·不可遗忘 ===\n';
+  }
+
+  // ────── 7. 已确立事实清单（共识漂移防御） ──────
+  // 思路：把"近 X 回合内发生的不可逆 fact"列出·让 AI 看到"这些已经板上钉钉"
+  // 涵盖：死亡（不能复活）·任免（现任职位）·重大事件（不能否认）
+  function buildCanonicalFacts(lookbackTurns) {
+    if (!GM) return '';
+    lookbackTurns = lookbackTurns || 15;
+    var curT = GM.turn || 1;
+    var facts = [];
+
+    // (a) 不可逆死亡（last lookbackTurns 回合内的）
+    if (Array.isArray(GM._epitaphs)) {
+      GM._epitaphs.forEach(function(ep) {
+        if (!ep || !ep.char) return;
+        var t = ep.diedTurn || 0;
+        if (curT - t > lookbackTurns) return;
+        facts.push({
+          type: '死亡',
+          turn: t,
+          fact: ep.char + ' 已殁' + (ep.reason ? '(' + ep.reason + ')' : '') + (ep.positionAtDeath ? '·卒时任' + ep.positionAtDeath : '')
+        });
+      });
+    }
+
+    // (b) 现任要职（top 8）—— 当前事实，不带回合
+    var currentOffices = _collectTopOfficials(8);
+    currentOffices.filter(function(o) { return o.holder; }).forEach(function(o) {
+      facts.push({
+        type: '现任',
+        turn: 0,
+        fact: o.dept + '·' + o.position + ' = ' + o.holder
+      });
+    });
+
+    // (c) 已完成的诏令（最近 lookbackTurns 内）
+    if (Array.isArray(GM._edictTracker)) {
+      GM._edictTracker.forEach(function(et) {
+        if (!et || et.status !== 'completed') return;
+        var t = et.completedTurn || et.turn || 0;
+        if (curT - t > lookbackTurns) return;
+        facts.push({
+          type: '诏成',
+          turn: t,
+          fact: '【' + (et.category || '诏') + '】' + String(et.content || '').slice(0, 50) + ' 已成'
+        });
+      });
+    }
+
+    // (d) ChronicleTracker 长期事势中已 completed 的（如果有）
+    if (typeof ChronicleTracker !== 'undefined' && ChronicleTracker.getAll) {
+      try {
+        var chronAll = ChronicleTracker.getAll({ statusFilter: 'completed' }) || [];
+        chronAll.slice(0, 8).forEach(function(c) {
+          if (!c || curT - (c.completedTurn || c.startTurn || 0) > lookbackTurns) return;
+          facts.push({
+            type: '事成',
+            turn: c.completedTurn || c.startTurn || 0,
+            fact: (c.title || c.name || '?') + ' 已' + (c.result || '成')
+          });
+        });
+      } catch(_chronE) {}
+    }
+
+    // (e) 玩家近期重大决定（已下且不可撤回的诏）
+    if (GM.shijiHistory && GM.shijiHistory.length > 0) {
+      var recentShiji = GM.shijiHistory.slice(-Math.min(5, lookbackTurns));
+      recentShiji.forEach(function(sh) {
+        if (!sh || !sh.edicts) return;
+        ['political', 'military', 'diplomatic', 'economic'].forEach(function(cat) {
+          var v = sh.edicts[cat];
+          if (!v || typeof v !== 'string') return;
+          var firstLine = v.split('\n')[0].trim();
+          if (firstLine && firstLine.length > 8) {
+            facts.push({
+              type: '玩家诏',
+              turn: sh.turn || 0,
+              fact: firstLine.slice(0, 60)
+            });
+          }
+        });
+      });
+    }
+
+    if (facts.length === 0) return '';
+
+    // 按 type 分组（死亡/现任/诏成/事成/玩家诏）
+    var grouped = {};
+    facts.forEach(function(f) {
+      if (!grouped[f.type]) grouped[f.type] = [];
+      grouped[f.type].push(f);
+    });
+
+    var sections = [];
+    var typeOrder = ['死亡', '现任', '诏成', '事成', '玩家诏'];
+    typeOrder.forEach(function(t) {
+      if (!grouped[t]) return;
+      var items = grouped[t].slice(0, 6);
+      sections.push('【' + t + '】 ' + items.map(function(f) {
+        return f.turn ? 'T' + f.turn + ': ' + f.fact : f.fact;
+      }).join('；'));
+    });
+
+    if (sections.length === 0) return '';
+
+    return '\n=== 已确立的不可逆事实（漂移防御·近 ' + lookbackTurns + ' 回合内已成事实） ===\n' +
+           sections.join('\n') + '\n=== 推演内容不得与以上事实矛盾·若需引用须保持一致 ===\n';
+  }
+
   // ────── 总入口（一站式调用） ──────
   function buildAllSnapshots(opts) {
     opts = opts || {};
     var parts = [];
     if (opts.snapshot !== false) parts.push(buildWorldStateSnapshot());
     if (opts.deadPin !== false) parts.push(buildDeadPin());
+    if (opts.canonical !== false) parts.push(buildCanonicalFacts(opts.canonicalLookback));
+    if (opts.priorBrief !== false) parts.push(buildPriorTurnBrief());
     if (opts.edicts !== false) parts.push(buildEdictProgressCards());
+    if (opts.relations !== false) parts.push(buildRelationDeltas(opts.maxRelations, opts.relationsLookback));
     if (opts.npcs !== false) parts.push(buildNpcOneLiners(opts.maxNpcs));
     return parts.filter(Boolean).join('\n');
   }
@@ -366,6 +643,9 @@
     buildDeadPin: buildDeadPin,
     buildEdictProgressCards: buildEdictProgressCards,
     buildNpcOneLiners: buildNpcOneLiners,
+    buildRelationDeltas: buildRelationDeltas,
+    buildPriorTurnBrief: buildPriorTurnBrief,
+    buildCanonicalFacts: buildCanonicalFacts,
     buildAll: buildAllSnapshots
   };
   // 兼容裸函数调用
@@ -373,5 +653,8 @@
   global._buildDeadPin = buildDeadPin;
   global._buildEdictProgressCards = buildEdictProgressCards;
   global._buildNpcOneLiners = buildNpcOneLiners;
+  global._buildRelationDeltas = buildRelationDeltas;
+  global._buildPriorTurnBrief = buildPriorTurnBrief;
+  global._buildCanonicalFacts = buildCanonicalFacts;
   global._buildAllSnapshots = buildAllSnapshots;
 })(typeof window !== 'undefined' ? window : this);

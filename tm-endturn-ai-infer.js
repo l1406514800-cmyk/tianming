@@ -3287,7 +3287,10 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       var tp0 = tp + '\n\u8BF7\u6781\u5176\u6DF1\u5165\u5730\u5206\u6790\u5F53\u524D\u5C40\u52BF\uFF0C\u8FD4\u56DEJSON\uFF1A\n' +
         '{"tensions":"\u5F53\u524D5\u4E2A\u6700\u5927\u77DB\u76FE/\u5371\u673A\u53CA\u5176\u4E25\u91CD\u7A0B\u5EA6(150\u5B57)","consequences":"\u73A9\u5BB6\u672C\u56DE\u5408\u6BCF\u4E2A\u884C\u52A8\u7684\u8BE6\u7EC6\u540E\u679C\u5206\u6790(150\u5B57)","npc_spotlight":"\u672C\u56DE\u5408\u6700\u53EF\u80FD\u6709\u52A8\u4F5C\u76845\u4E2ANPC\u53CA\u5176\u52A8\u673A\u548C\u884C\u52A8\u65B9\u5F0F(200\u5B57)","faction_dynamics":"\u975E\u73A9\u5BB6\u52BF\u529B\u672C\u56DE\u5408\u7684\u81EA\u4E3B\u884C\u52A8\u8BE6\u7EC6\u63A8\u6F14(200\u5B57)","family_dynamics":"\u5BB6\u65CF/\u540E\u5BAB/\u5A5A\u59FB\u5C42\u9762\u7684\u6F5C\u5728\u53D8\u5316(100\u5B57)","class_unrest":"\u5404\u9636\u5C42\u7684\u4E0D\u6EE1\u60C5\u7EEA\u548C\u53EF\u80FD\u7684\u6C11\u53D8(100\u5B57)","economic_pressure":"\u8D22\u653F\u538B\u529B\u548C\u7ECF\u6D4E\u8D70\u5411(80\u5B57)","foreshadow":"\u5E94\u57CB\u4E0B\u76843\u4E2A\u4F0F\u7B14\u53CA\u5176\u5C06\u5728\u4F55\u65F6\u5F15\u7206(100\u5B57)","mood":"\u672C\u56DE\u5408\u53D9\u4E8B\u5E94\u8425\u9020\u7684\u60C5\u611F\u57FA\u8C03(50\u5B57)","memoryQueries":[{"keywords":["关键词1","关键词2"],"turnRange":[起始回合,结束回合],"participant":"相关人物名(可空)","minImportance":5,"purpose":"为何要检索"}]}\n' +
         '\u8FD9\u662F\u4F60\u7684\u6DF1\u5EA6\u601D\u8003\u8FC7\u7A0B\uFF0C\u4E0D\u663E\u793A\u7ED9\u73A9\u5BB6\u3002\u8BF7\u5145\u5206\u601D\u8003\uFF0C\u4E0D\u8981\u5401\u60DC\u5B57\u6570\u3002\n' +
-        '【memoryQueries】如需要回忆更早的具体事件·在此列出 1-4 条检索查询·系统将从永久档案中检索并注入后续推演·否则留空数组。';
+        '【memoryQueries】如需要回忆更早的具体事件·在此列出 1-4 条检索查询·系统将从四源永久档案中检索并注入后续推演·否则留空数组。\n' +
+        '  · 四个检索源：(1) NPC 个人记忆 (2) 长期事势(ChronicleTracker) (3) 史记本传(shijiHistory) (4) 已埋伏笔(_foreshadows)\n' +
+        '  · 适合查询的场景：「此人是否真在那回合背叛过」「某改革当年具体推进到哪里」「玩家曾埋下何种伏笔」「某事件距今多少回合」\n' +
+        '  · keywords 用具体名词(角色名/事件关键词/政策名)·turnRange 可选(若不填则全档案)·participant 仅 NPC 记忆源使用·minImportance 仅 NPC 记忆源使用';
       var resp0 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
         body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp0}], temperature:0.6, max_tokens:_tok(12000)})});
       if (resp0.ok) {
@@ -3302,30 +3305,105 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       }); // end Sub-call 0 _runSubcall
 
       // --- SC_RECALL: 按 SC0 生成的 memoryQueries 从永久档检索·注入到后续 prompt ---
-      // 方向 6：RAG 式按需检索
+      // 方向 6：RAG 式按需检索（2026-04-30 扩展：四源——NPC记忆/Chronicle/史记/伏笔）
       var _recallResults = [];
       try {
         var _think = aiThinking || '';
         var _thinkJson = extractJSON(_think);
-        if (_thinkJson && Array.isArray(_thinkJson.memoryQueries) && _thinkJson.memoryQueries.length > 0 && typeof NpcMemorySystem !== 'undefined' && NpcMemorySystem.recallMemory) {
+        if (_thinkJson && Array.isArray(_thinkJson.memoryQueries) && _thinkJson.memoryQueries.length > 0) {
           _thinkJson.memoryQueries.slice(0, 4).forEach(function(q) {
             if (!q || typeof q !== 'object') return;
-            var res = NpcMemorySystem.recallMemory({
-              keywords: q.keywords,
-              turnRange: q.turnRange,
-              participant: q.participant,
-              minImportance: q.minImportance
-            }, { limit: 8 });
-            if (res && res.length > 0) {
+            var allHits = [];
+            var keywords = Array.isArray(q.keywords) ? q.keywords : (q.keywords ? [q.keywords] : []);
+            var keywordRe = keywords.length > 0 ? new RegExp(keywords.map(function(k){return String(k).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}).join('|'), 'i') : null;
+
+            // 源 1: NpcMemorySystem 人物记忆（精准）
+            if (typeof NpcMemorySystem !== 'undefined' && NpcMemorySystem.recallMemory) {
+              try {
+                var npcHits = NpcMemorySystem.recallMemory({
+                  keywords: keywords,
+                  turnRange: q.turnRange,
+                  participant: q.participant,
+                  minImportance: q.minImportance
+                }, { limit: 6 });
+                if (npcHits && npcHits.length > 0) {
+                  npcHits.forEach(function(h) {
+                    allHits.push({ source: 'npc', char: h.char, turn: h.turn, text: h.event, importance: h.importance });
+                  });
+                }
+              } catch(_e1) {}
+            }
+
+            // 源 2: ChronicleTracker 长期事势（关键词过滤）
+            if (typeof ChronicleTracker !== 'undefined' && ChronicleTracker.getAll && keywordRe) {
+              try {
+                var chronAll = ChronicleTracker.getAll({}) || [];
+                var chronHits = chronAll.filter(function(c) {
+                  if (!c) return false;
+                  var hay = (c.title || '') + ' ' + (c.description || c.summary || '') + ' ' + (c.result || '');
+                  return keywordRe.test(hay);
+                }).slice(0, 4);
+                chronHits.forEach(function(c) {
+                  allHits.push({ source: 'chronicle', turn: c.startTurn || c.completedTurn || 0, text: (c.title || '') + (c.description ? '·' + String(c.description).slice(0, 80) : ''), status: c.status });
+                });
+              } catch(_e2) {}
+            }
+
+            // 源 3: shijiHistory 史记（关键词过滤·近 30 回合）
+            if (Array.isArray(GM.shijiHistory) && keywordRe) {
+              try {
+                var sjLook = GM.shijiHistory.slice(-30);
+                // 若 turnRange 限制，进一步过滤
+                if (Array.isArray(q.turnRange) && q.turnRange.length === 2) {
+                  sjLook = sjLook.filter(function(sh) { return sh.turn >= q.turnRange[0] && sh.turn <= q.turnRange[1]; });
+                }
+                var sjHits = sjLook.filter(function(sh) {
+                  if (!sh) return false;
+                  var hay = (sh.shizhengji || '') + ' ' + (sh.zhengwen || '') + ' ' + (sh.shilu || '');
+                  return keywordRe.test(hay);
+                }).slice(-4); // 取最近 4 条
+                sjHits.forEach(function(sh) {
+                  // 提取包含关键词的句子
+                  var combined = (sh.shilu || sh.shizhengji || '').replace(/\s+/g, ' ');
+                  var sentences = combined.split(/[。！？]/).filter(function(s) { return s && keywordRe.test(s); });
+                  var snippet = sentences.slice(0, 2).join('。').slice(0, 120);
+                  allHits.push({ source: 'shiji', turn: sh.turn, text: snippet || combined.slice(0, 100) });
+                });
+              } catch(_e3) {}
+            }
+
+            // 源 4: _foreshadows 伏笔（关键词过滤）
+            if (Array.isArray(GM._foreshadows) && keywordRe) {
+              try {
+                var foreHits = GM._foreshadows.filter(function(f) {
+                  if (!f) return false;
+                  var hay = (f.content || f.text || '') + (f.context || '');
+                  return keywordRe.test(hay);
+                }).slice(-3);
+                foreHits.forEach(function(f) {
+                  allHits.push({ source: 'foreshadow', turn: f.turn || 0, text: String(f.content || f.text || '').slice(0, 100) });
+                });
+              } catch(_e4) {}
+            }
+
+            if (allHits.length > 0) {
               _recallResults.push({
                 query: q,
-                hits: res
+                hits: allHits.slice(0, 12)  // 单查询命中上限 12 条（防 prompt 爆炸）
               });
             }
           });
+
           if (_recallResults.length > 0) {
             GM._turnAiResults.recallResults = _recallResults;
-            _dbg('[SC_RECALL] 检索', _thinkJson.memoryQueries.length, '条查询·命中', _recallResults.reduce(function(s,r){return s+r.hits.length;},0), '条记忆');
+            var _totalHits = _recallResults.reduce(function(s,r){return s+r.hits.length;},0);
+            // 按源分类计数
+            var _bySrc = {};
+            _recallResults.forEach(function(r) {
+              r.hits.forEach(function(h) { _bySrc[h.source] = (_bySrc[h.source]||0) + 1; });
+            });
+            var _srcSummary = Object.keys(_bySrc).map(function(k){return k+':'+_bySrc[k];}).join(' ');
+            _dbg('[SC_RECALL] 4 源检索:', _thinkJson.memoryQueries.length, '查询·总命中', _totalHits, '条·分布', _srcSummary);
           }
         }
       } catch(_rcE) { _dbg('[SC_RECALL] 失败:', _rcE); }
@@ -3405,14 +3483,24 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
             _recentHistory += '</scene-summaries>\n';
           }
         }
-        // —— SC_RECALL 检索结果注入（XML 格式·转义）——
+        // —— SC_RECALL 检索结果注入（XML 格式·转义·支持多源 hit 格式：npc/chronicle/shiji/foreshadow）——
         if (_recallResults && _recallResults.length > 0) {
           var _xE3 = (typeof _escXML === 'function') ? _escXML : function(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); };
           _recentHistory += '\n<recalled-memories>\n';
           _recallResults.forEach(function(rr) {
             _recentHistory += '  <recall purpose="' + _xE3((rr.query.purpose||'').substring(0,40)) + '">\n';
-            rr.hits.slice(0, 5).forEach(function(hit) {
-              _recentHistory += '    <hit char="' + _xE3(hit.char||'') + '" turn="' + (hit.turn||0) + '" importance="' + Math.round(hit.importance||5) + '">' + _xE3((hit.event||'').substring(0, 80)) + '</hit>\n';
+            rr.hits.slice(0, 8).forEach(function(hit) {
+              // 兼容两种 hit 格式：旧 (char/event/importance) + 新多源 (source/text/turn[/char][/importance])
+              var _hitText = hit.text || hit.event || '';
+              var _hitChar = hit.char || '';
+              var _hitSource = hit.source || (hit.char ? 'npc' : 'unknown');
+              var _hitImportance = Math.round(hit.importance || 5);
+              var _hitStatus = hit.status || '';
+              _recentHistory += '    <hit source="' + _xE3(_hitSource) + '"';
+              if (_hitChar) _recentHistory += ' char="' + _xE3(_hitChar) + '"';
+              _recentHistory += ' turn="' + (hit.turn||0) + '" importance="' + _hitImportance + '"';
+              if (_hitStatus) _recentHistory += ' status="' + _xE3(_hitStatus) + '"';
+              _recentHistory += '>' + _xE3(String(_hitText).substring(0, 100)) + '</hit>\n';
             });
             _recentHistory += '  </recall>\n';
           });
@@ -9693,11 +9781,13 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       await _runSubcall('sc15', 'NPC深度推演', 'standard', async function() {
       showLoading("NPC\u5168\u9762\u63A8\u6F14",60);
       try {
-        // \u2605 \u4E16\u754C\u72B6\u6001\u5FEB\u7167\u6CE8\u5165\uFF08sc15 \u91CD\u70B9\uFF1A\u9632\u6B7B\u8005\u590D\u6D3B\u00B7\u63D0\u793A\u8FDB\u884C\u4E2D\u8BCF\u4EE4\uFF09
+        // \u2605 \u4E16\u754C\u72B6\u6001\u5FEB\u7167\u6CE8\u5165\uFF08sc15 \u91CD\u70B9\uFF1A\u9632\u6B7B\u8005\u590D\u6D3B\u00B7\u63D0\u793A\u8FDB\u884C\u4E2D\u8BCF\u4EE4\u00B7\u5173\u7CFB\u7A81\u53D8\u00B7\u5DF2\u786E\u7ACB\u4E8B\u5B9E\uFF09
         var _ws15 = '';
         try {
           if (typeof _buildDeadPin === 'function') _ws15 += _buildDeadPin();
+          if (typeof _buildCanonicalFacts === 'function') _ws15 += _buildCanonicalFacts();
           if (typeof _buildEdictProgressCards === 'function') _ws15 += _buildEdictProgressCards();
+          if (typeof _buildRelationDeltas === 'function') _ws15 += _buildRelationDeltas();
         } catch(_wse15){ _dbg('[WorldSnap sc15] fail:', _wse15); }
         var tp15 = _ws15 + '\u57FA\u4E8E\u672C\u56DE\u5408\u53D1\u751F\u7684\u4E8B\u4EF6\uFF1A\n';
         if (shizhengji) tp15 += '\u65F6\u653F\u8BB0\uFF1A' + shizhengji + '\n'; // 完整不截断
@@ -10639,11 +10729,12 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         }
       }
 
-      // ★ 世界状态快照注入（sc2 重点：叙事接地·防身份漂移与死者复活）
+      // ★ 世界状态快照注入（sc2 重点：叙事接地·防身份漂移与死者复活·前情提要）
       var _ws2 = '';
       try {
         if (typeof _buildWorldStateSnapshot === 'function') _ws2 += _buildWorldStateSnapshot();
         if (typeof _buildDeadPin === 'function') _ws2 += _buildDeadPin();
+        if (typeof _buildPriorTurnBrief === 'function') _ws2 += _buildPriorTurnBrief();
       } catch(_wse2){ _dbg('[WorldSnap sc2] fail:', _wse2); }
       var tp2 = _ws2 + p1Summary + _basisBrief + _chronCtx2
         + (aiThinking ? '【AI分析】' + aiThinking.substring(0, 200) + '\n' : '')
