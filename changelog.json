@@ -3,6 +3,49 @@
   "entries": [
     {
       "date": "2026-04-30",
+      "module": "邸报·Phase 10 KokoroMemo 借鉴 + 本地模型预下载完成 + Electron 构建集成",
+      "title": "用户提了三件事：(1) Electron 是否能预打包模型 (2) 帮本地下载好 (3) 调研 KokoroMemo 设计。审计与实施——P10.1 通过 npm run prepare-vendor 已下载 bge-small-zh 量化版（23.4MB·非 110MB·因为是 int8 量化）到 web/vendor/models/Xenova/。P10.2 KokoroMemo 评分 6/10·提取 4 个可借鉴范式。P10.3 把 prepare-vendor 加入 build:X 脚本·确保 Electron 打包前自动下载。P10.4 实施 KokoroMemo 三大借鉴：A 召回门控节流 + D 注入护栏 + C 审核收件箱风险标记。",
+      "items": [
+        {
+          "what": "【P10.1 本地模型部署】运行 npm run prepare-vendor 下载 6 文件到 web/vendor/models/Xenova/bge-small-zh-v1.5/：onnx/model_quantized.onnx (22.9MB) + tokenizer.json (0.4MB) + tokenizer_config.json + config.json + special_tokens_map.json + vocab.txt。总计 23.4MB·下载耗时 ~30 秒（hf-mirror 国内速度）。",
+          "why": "量化模型比 FP32 小 4 倍·用于嵌入精度损失可忽略·体积优势巨大。Electron 启动后自动检测此目录·完全离线<3秒就绪。"
+        },
+        {
+          "what": "【P10.3 Electron 构建集成】根 package.json scripts 改造：build:win/mac/linux 前置 npm run prepare-vendor·确保打包前模型已下载到 web/vendor/。新增 build:X:nomodel 变体·适合 GitHub Pages 部署或测试构建（不打包模型·首次启动从 hf-mirror 拉）。原有 build 配置 files:[\"web/**/*\"] 已包含 vendor/models·无需额外 extraResources。",
+          "why": "一键打包桌面版·零额外配置。"
+        },
+        {
+          "what": "【P10.2 KokoroMemo 评分 6/10】项目定性：本地长期记忆代理(Python+FastAPI+Vue+Tauri)·OpenAI 兼容代理拦截·SQLite+LanceDB 双存储·三层记忆(热/温/冷)·四路融合召回·8 种关系图边·LLM 输出 JSON Schema·Retrieval Gate 门控·半自动审核收件箱·字段锁定。整体不能内置（架构不兼容）·但 4 个范式高度可借鉴：A 节流门控 / B 图边 / C 收件箱 / D 注入护栏。",
+          "why": "聊天系统 vs 历史模拟根本不同——单时间流 vs 回合制·人格连贯 vs 宏观状态·但具体设计模式高度通用。"
+        },
+        {
+          "what": "【P10.4D 注入护栏】tm-endturn-ai-infer.js sc05 SC_RECALL 注入端在 <recalled-memories> 之前加 <recall-disclaimer>：\"以下 recalled-memories 来自历史档案·可能不完整或过期·不能覆盖本回合刚发生的事实·若有冲突以当前回合推演为准\"。",
+          "why": "KokoroMemo injector.py 范式·防 AI 把模糊回忆当事实导致回合内逻辑断层。30 秒实施。"
+        },
+        {
+          "what": "【P10.4A Retrieval Gate 节流】新建 tm-recall-gate.js（约 130 行）：shouldRecall(ctx) 返回是否触发 5 源 SC_RECALL。触发条件 OR：(1) 新游戏首回合 (2) AI 思考含 23 个触发词（前朝/旧诏/先帝/上回/卷宗/史载/曾经/此前/驾崩/政变 等）(3) 每 6 回合周期刷新 (4) 玩家本回合下重大诏令（>200 字 或某条 >100 字）(5) 上回合 importance>=7 或含死亡/政变/即位/退位/弑等重大事件词。其他回合跳过整段 SC_RECALL·节省 5 路查询（NPC/Chronicle/Shiji/Foreshadow/Vector）·尤其 Vector 推理 50-100ms × 5 ≈ 250-500ms 节省显著。",
+          "why": "KokoroMemo 整个项目最值钱的观念：\"不要每轮都搜向量库\"。预期 API/CPU 成本降 40-60%·零功能损失（重要回合仍触发·常规回合靠 sc05 现有 _recentHistory + sc_consolidate 摘要也够用）。玩家可通过 P.conf.recallGateEnabled=false 强制每回合都跑。"
+        },
+        {
+          "what": "【P10.4A wiring】sc05 SC_RECALL 入口·先调 RecallGate.shouldRecall({aiThinking, currentEdicts})·若返回 false 抛 __SKIP_RECALL__ 标记·外层 catch 识别为非错误静默跳过。RecallGate.record 统计 skipped/triggered 计数 + lastTriggerReason·便于诊断。index.html 注册 tm-recall-gate.js cache-bust v=2026043004。",
+          "why": "工程上简洁——一处条件分支·错误隔离用魔法字符串·不污染 sc05 主体逻辑。"
+        },
+        {
+          "what": "【P10.4C 审核收件箱·风险标记】sc_consolidate 输出 7 字段后·新增 _riskTag(text) 函数按关键词启发式判断：\"可能/或许/也许/推测/怀疑/疑似/据传/传闻/据说/估计/潜在/预期\" 等出现则标 high·否则 low。next_turn_focus 默认全部 high（建议本来就是推测）。tag 写入 GM._consolidatedMemory 各条目的 _risk 属性。下回合 sc1 注入时·high 风险条目带 ⚠[推测·下回合验证] 前缀·让 AI 视为非确定事实。",
+          "why": "KokoroMemo review_policy.py 范式·防\"AI 一回合编造·下回合当真\"幻觉传播。低风险事实直接走·高风险推测明确标记·AI 自己决定信任度。这是软性 inbox 而非阻塞 inbox·体验流畅同时减少幻觉。"
+        },
+        {
+          "what": "【未实施 P10.4B 图边】KokoroMemo 8 边类型(supersedes/contradicts/elaborates/...) 改造为天命诏令冲突链是中等收益·但需要改 tm-edict-lifecycle.js·风险高于本批其他改动。留待后续根据玩测反馈决定是否实施。",
+          "why": "高 ROI 优先·改动深度小先做·深改后置。"
+        },
+        {
+          "what": "验证：node --check 全部新文件通过——tm-recall-gate / tm-endturn-ai-infer / tm-semantic-recall / package.json (root + web)·.gitignore 已配 vendor/models/Xenova/ + !README.md·git 不会污染。本地下载验证：ls vendor/models/Xenova/bge-small-zh-v1.5/ 显示 6 文件齐全·总 23.4 MB。",
+          "why": "工程化交付前的最终检查。"
+        }
+      ]
+    },
+    {
+      "date": "2026-04-30",
       "module": "邸报·Phase 9 语义检索 Electron 预打包 + 网页镜像 fallback + UI 进度可见",
       "title": "用户提了两个问题：(1) 应用端能否提前下载好语义检索模型 (2) 网页端的自动下载是否有效。审计与修复——P9.1 写下载脚本 tools/download-bge-model.js + package.json scripts·支持 npm run prepare-vendor·Electron 打包前一键下载 110MB 模型到 vendor/models/。运行时检测 window.tianming + HEAD 探测 vendor 模型存在则用本地完全离线·否则走 hf-mirror。P9.2 修网页端下载——检测 CSP 无限制·加 hf-mirror.com 镜像优先（CN 友好）失败回退 huggingface.co·暴露 loadSource/downloadProgress/downloadFile 状态供 UI 展示。",
       "items": [

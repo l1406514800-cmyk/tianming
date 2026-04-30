@@ -3317,9 +3317,30 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       }); // end Sub-call 0 _runSubcall
 
       // --- SC_RECALL: 按 SC0 生成的 memoryQueries 从永久档检索·注入到后续 prompt ---
-      // 方向 6：RAG 式按需检索（2026-04-30 扩展：四源——NPC记忆/Chronicle/史记/伏笔）
+      // 方向 6：RAG 式按需检索（2026-04-30 扩展：四源——NPC记忆/Chronicle/史记/伏笔）+ Phase 2.2 第 5 源向量
+      // P10.4A：KokoroMemo 范式·Retrieval Gate 节流——非必要回合跳过·节省 API/CPU 开销 40-60%
       var _recallResults = [];
+      var _gateDecision = { shouldRecall: true, reason: 'gate 未加载' };
       try {
+        if (typeof RecallGate !== 'undefined' && RecallGate.shouldRecall) {
+          _gateDecision = RecallGate.shouldRecall({
+            aiThinking: aiThinking,
+            currentEdicts: edicts
+          });
+          RecallGate.record(_gateDecision);
+          if (!_gateDecision.shouldRecall) {
+            _dbg('[RecallGate] 跳过 SC_RECALL·reason:', _gateDecision.reason);
+          } else {
+            _dbg('[RecallGate] 触发 SC_RECALL·reason:', _gateDecision.reason);
+          }
+        }
+      } catch(_gateE) { _dbg('[RecallGate] fail·默认跑 SC_RECALL:', _gateE); }
+
+      try {
+        if (!_gateDecision.shouldRecall) {
+          // gate 节流·跳过整段 SC_RECALL·_recallResults 保持空数组
+          throw '__SKIP_RECALL__';
+        }
         var _think = aiThinking || '';
         var _thinkJson = extractJSON(_think);
         if (_thinkJson && Array.isArray(_thinkJson.memoryQueries) && _thinkJson.memoryQueries.length > 0) {
@@ -3436,7 +3457,13 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
             _dbg('[SC_RECALL] 4 源检索:', _thinkJson.memoryQueries.length, '查询·总命中', _totalHits, '条·分布', _srcSummary);
           }
         }
-      } catch(_rcE) { _dbg('[SC_RECALL] 失败:', _rcE); }
+      } catch(_rcE) {
+        if (_rcE === '__SKIP_RECALL__') {
+          // P10.4A gate 决定跳过·非错误·静默
+        } else {
+          _dbg('[SC_RECALL] 失败:', _rcE);
+        }
+      }
 
       // --- Sub-call 0.5: 深度记忆回顾 ---
       await _runSubcall('sc05', '记忆回顾', 'standard', async function() {
@@ -3567,9 +3594,11 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
             _recentHistory += '</scene-summaries>\n';
           }
         }
-        // —— SC_RECALL 检索结果注入（XML 格式·转义·支持多源 hit 格式：npc/chronicle/shiji/foreshadow）——
+        // —— SC_RECALL 检索结果注入（XML 格式·转义·支持多源 hit 格式：npc/chronicle/shiji/foreshadow/vector）——
         if (_recallResults && _recallResults.length > 0) {
           var _xE3 = (typeof _escXML === 'function') ? _escXML : function(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); };
+          // P10.4D 护栏（KokoroMemo injector.py 范式）：明确告知 AI 这些是历史记忆·可能不完整或过期
+          _recentHistory += '\n<recall-disclaimer>以下 recalled-memories 来自历史档案·可能不完整或过期·不能覆盖本回合刚发生的事实·若有冲突以当前回合推演为准。</recall-disclaimer>\n';
           _recentHistory += '\n<recalled-memories>\n';
           _recallResults.forEach(function(rr) {
             _recentHistory += '  <recall purpose="' + _xE3((rr.query.purpose||'').substring(0,40)) + '">\n';
@@ -3728,8 +3757,10 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
             _consolidated = '\n=== 上回合记忆固化（sc_consolidate 后台输出·下回合主推演必读） ===\n';
             if (_lastC.consolidated) _consolidated += '【整合摘要】\n' + _lastC.consolidated + '\n\n';
             if (Array.isArray(_lastC.key_threads) && _lastC.key_threads.length > 0) {
+              // P10.4C 风险标记·high 风险条目带 ⚠ 提醒 AI 视为推测
               _consolidated += '【关键线索】\n' + _lastC.key_threads.map(function(t) {
-                return '· [' + (t.status||'?') + '·张力' + (t.tension||'?') + '/10] ' + (t.thread||'') + '·参与:' + (t.actors||'?') + '·下一步:' + (t.next||'?');
+                var riskMark = (t._risk === 'high') ? '⚠[推测·下回合验证] ' : '';
+                return '· ' + riskMark + '[' + (t.status||'?') + '·张力' + (t.tension||'?') + '/10] ' + (t.thread||'') + '·参与:' + (t.actors||'?') + '·下一步:' + (t.next||'?');
               }).join('\n') + '\n\n';
             }
             if (Array.isArray(_lastC.npc_trajectories) && _lastC.npc_trajectories.length > 0) {
@@ -3743,7 +3774,12 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
               }).join('\n') + '\n\n';
             }
             if (Array.isArray(_lastC.unresolved_tensions) && _lastC.unresolved_tensions.length > 0) {
-              _consolidated += '【未解张力（下回合可能引爆）】\n' + _lastC.unresolved_tensions.map(function(t) { return '· ' + t; }).join('\n') + '\n\n';
+              _consolidated += '【未解张力（下回合可能引爆）】\n' + _lastC.unresolved_tensions.map(function(t) {
+                // P10.4C 兼容老格式（字符串）+ 新格式（{text, _risk}）
+                if (typeof t === 'string') return '· ' + t;
+                var rmk = (t._risk === 'high') ? '⚠[推测] ' : '';
+                return '· ' + rmk + (t.text || '');
+              }).join('\n') + '\n\n';
             }
             if (Array.isArray(_lastC.player_reputation_drift) && _lastC.player_reputation_drift.length > 0) {
               _consolidated += '【玩家声望漂移】\n' + _lastC.player_reputation_drift.map(function(p) {
@@ -3751,7 +3787,11 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
               }).join('\n') + '\n\n';
             }
             if (Array.isArray(_lastC.next_turn_focus) && _lastC.next_turn_focus.length > 0) {
-              _consolidated += '【下回合演绎建议（参考·非命令）】\n' + _lastC.next_turn_focus.map(function(f) { return '· ' + f; }).join('\n') + '\n';
+              _consolidated += '【下回合演绎建议（参考·非命令·全部为推测）】\n' + _lastC.next_turn_focus.map(function(f) {
+                // P10.4C 兼容老格式（字符串）+ 新格式（{text, _risk}）
+                if (typeof f === 'string') return '· ' + f;
+                return '· ⚠[建议] ' + (f.text || '');
+              }).join('\n') + '\n';
             }
             _consolidated += '=== 记忆固化结束·此段是下回合 sc1 推演的最高优先级输入 ===\n\n';
           }
@@ -11714,16 +11754,37 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           var pC = extractJSON(cC);
           if (pC && (pC.consolidated || pC.key_threads || pC.next_turn_focus)) {
             if (!Array.isArray(GM._consolidatedMemory)) GM._consolidatedMemory = [];
+            // P10.4C 审核收件箱（KokoroMemo review_policy 范式）：自动 risk-tag 高风险条目
+            // 用 keyword heuristic 判断"推断/猜测"vs"明确事实"
+            var _riskTag = function(text) {
+              if (!text || typeof text !== 'string') return 'low';
+              var t = text;
+              // 高风险关键词：表示推测/不确定
+              var hi = ['可能', '或许', '也许', '推测', '怀疑', '疑似', '据传', '传闻', '据说', '据报', '若', '若是', '估计', '潜在', '预期', '料想'];
+              for (var i = 0; i < hi.length; i++) if (t.indexOf(hi[i]) >= 0) return 'high';
+              return 'low';
+            };
+            var _taggedThreads = (pC.key_threads || []).map(function(th) {
+              var combined = (th.thread || '') + ' ' + (th.next || '');
+              return Object.assign({}, th, { _risk: _riskTag(combined) });
+            });
+            var _taggedTensions = (pC.unresolved_tensions || []).map(function(s) {
+              return { text: s, _risk: _riskTag(s) };
+            });
+            var _taggedFocus = (pC.next_turn_focus || []).map(function(s) {
+              // next_turn_focus 默认全部 high·因为是建议而非事实·下回合 sc1 应自行判断
+              return { text: s, _risk: 'high' };
+            });
             GM._consolidatedMemory.push({
               turn: _ptTurnC,
               ts: Date.now(),
               consolidated: pC.consolidated || '',
-              key_threads: pC.key_threads || [],
+              key_threads: _taggedThreads,
               npc_trajectories: pC.npc_trajectories || [],
               faction_vectors: pC.faction_vectors || [],
-              unresolved_tensions: pC.unresolved_tensions || [],
+              unresolved_tensions: _taggedTensions,
               player_reputation_drift: pC.player_reputation_drift || [],
-              next_turn_focus: pC.next_turn_focus || []
+              next_turn_focus: _taggedFocus
             });
             // 保留最近 50 条
             if (GM._consolidatedMemory.length > 50) {
