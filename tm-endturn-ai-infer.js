@@ -3706,7 +3706,46 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       // ★ 长期约束（Phase 4.2 ReNovel-AI affects_future 范式）
       var _futureC = '';
       try { if (typeof _mtBuildFuture === 'function') _futureC = _mtBuildFuture() || ''; } catch(_fc){}
-      var tp1 = _timeRef + _futureC + _wsSnap + _memTblInj + tp + _preAnalysis + _hardConstraints + "\n请仅返回绝JSON，包含:\n"+
+      // ★ 上回合记忆固化（Phase 7 sc_consolidate 后台输出·密度最高·应排在最前）
+      var _consolidated = '';
+      try {
+        if (Array.isArray(GM._consolidatedMemory) && GM._consolidatedMemory.length > 0) {
+          var _lastC = GM._consolidatedMemory[GM._consolidatedMemory.length - 1];
+          if (_lastC && _lastC.turn === (GM.turn || 1) - 1) {
+            // 仅当上回合刚刚整合·才注入（避免重复读老条目）
+            _consolidated = '\n=== 上回合记忆固化（sc_consolidate 后台输出·下回合主推演必读） ===\n';
+            if (_lastC.consolidated) _consolidated += '【整合摘要】\n' + _lastC.consolidated + '\n\n';
+            if (Array.isArray(_lastC.key_threads) && _lastC.key_threads.length > 0) {
+              _consolidated += '【关键线索】\n' + _lastC.key_threads.map(function(t) {
+                return '· [' + (t.status||'?') + '·张力' + (t.tension||'?') + '/10] ' + (t.thread||'') + '·参与:' + (t.actors||'?') + '·下一步:' + (t.next||'?');
+              }).join('\n') + '\n\n';
+            }
+            if (Array.isArray(_lastC.npc_trajectories) && _lastC.npc_trajectories.length > 0) {
+              _consolidated += '【NPC 轨迹】\n' + _lastC.npc_trajectories.map(function(n) {
+                return '· ' + (n.name||'?') + '·心境:' + (n.mood||'?') + '·' + (n.arc||'') + '·对玩家:' + (n.commitment||'');
+              }).join('\n') + '\n\n';
+            }
+            if (Array.isArray(_lastC.faction_vectors) && _lastC.faction_vectors.length > 0) {
+              _consolidated += '【势力走向】\n' + _lastC.faction_vectors.map(function(f) {
+                return '· ' + (f.faction||'?') + '·' + (f.trajectory||'稳定') + '·驱动:' + (f.driver||'?') + '·风险:' + (f.risk||'');
+              }).join('\n') + '\n\n';
+            }
+            if (Array.isArray(_lastC.unresolved_tensions) && _lastC.unresolved_tensions.length > 0) {
+              _consolidated += '【未解张力（下回合可能引爆）】\n' + _lastC.unresolved_tensions.map(function(t) { return '· ' + t; }).join('\n') + '\n\n';
+            }
+            if (Array.isArray(_lastC.player_reputation_drift) && _lastC.player_reputation_drift.length > 0) {
+              _consolidated += '【玩家声望漂移】\n' + _lastC.player_reputation_drift.map(function(p) {
+                return '· ' + (p.group||'?') + '·' + (p.direction||'稳定') + '·当前印象:' + (p.perception||'?') + '·主因:' + (p.cause||'');
+              }).join('\n') + '\n\n';
+            }
+            if (Array.isArray(_lastC.next_turn_focus) && _lastC.next_turn_focus.length > 0) {
+              _consolidated += '【下回合演绎建议（参考·非命令）】\n' + _lastC.next_turn_focus.map(function(f) { return '· ' + f; }).join('\n') + '\n';
+            }
+            _consolidated += '=== 记忆固化结束·此段是下回合 sc1 推演的最高优先级输入 ===\n\n';
+          }
+        }
+      } catch(_consE){ _dbg('[sc1 consolidate inject] fail:', _consE); }
+      var tp1 = _consolidated + _timeRef + _futureC + _wsSnap + _memTblInj + tp + _preAnalysis + _hardConstraints + "\n请仅返回绝JSON，包含:\n"+
         "{\"turn_summary\":\"一句话概括本回合最重要的变化(30-50字，如:北境叛乱平定，国库因军费骤降三成)\","+
         // 实录：纯文言史官体，仿资治通鉴/历代实录
         "\"shilu_text\":\"实录"+_shiluMin+"-"+_shiluMax+"字——纯文言文(仿《资治通鉴》《明实录》)，以干支月份/日为单位，记事不评论。只记可验证事实：诏令、任免、战事、灾异、人事大变。句式仿实录：'某月某日，上诏……'/'是月，某地……'/'上命某官……'。禁止白话词汇，禁止主观评论。\","+
@@ -11495,6 +11534,175 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         }
       } catch(e28) { _dbg('[World Snapshot] fail:', e28); throw e28; }
       }); }); // end Sub-call 2.8 _runSubcall (queued post-turn)
+
+      // --- Sub-call ConsolidateMemory: 后台记忆固化（Phase 7） ---
+      // 用户需求：后台增加一次 API 调用·读更多历史（时政记/编年长期/御批回听/NPC势力暗流/后人戏说）·
+      //   整合成高密度摘要供下回合 sc1 注入。次要 API tier 优先·完全后台·不阻塞玩家。
+      // 在 sc28 之后跑·确保能看到其输出（next_turn_seeds 等）。
+      _queuePostTurnSubcall('sc_consolidate', function(){ return _runSubcall('sc_consolidate', '记忆固化整合', 'lite', async function() {
+      _dbg('[PostTurn] sc_consolidate start');
+      try {
+        // 玩家可禁用：P.conf.consolidationEnabled === false
+        if (P.conf && P.conf.consolidationEnabled === false) {
+          _dbg('[Consolidate] disabled by P.conf.consolidationEnabled=false');
+          return;
+        }
+        var _ptTurnC = (GM._postTurnJobs && GM._postTurnJobs.turn) || GM.turn || 0;
+
+        // 收集宽口径历史·近 7 回合时政记/实录/正文 + 远端依赖压缩层
+        var _hist = '';
+        if (Array.isArray(GM.shijiHistory) && GM.shijiHistory.length > 0) {
+          _hist += '【近 7 回合·时政记/实录/正文/玩家诏令】\n';
+          GM.shijiHistory.slice(-7).forEach(function(sh) {
+            _hist += '\n────── T' + sh.turn + ' ──────\n';
+            if (sh.shizhengji) _hist += '[时政] ' + sh.shizhengji + '\n';
+            if (sh.shilu) _hist += '[实录] ' + sh.shilu + '\n';
+            if (sh.zhengwen) _hist += '[正文] ' + sh.zhengwen.substring(0, 800) + '\n';
+            if (sh.houren) _hist += '[后人戏说] ' + sh.houren.substring(0, 500) + '\n';
+            if (sh.edicts && typeof sh.edicts === 'object') {
+              var _ec = [];
+              Object.keys(sh.edicts).forEach(function(cat) {
+                var v = sh.edicts[cat];
+                if (typeof v === 'string' && v.trim()) _ec.push('[' + cat + '] ' + v.split(/[\n；;]/)[0].slice(0, 50));
+              });
+              if (_ec.length > 0) _hist += '[玩家诏] ' + _ec.join(' · ') + '\n';
+            }
+          });
+        }
+
+        // 编年长期行动（全部 active 含 hidden）
+        var _chronStr = '';
+        try {
+          if (typeof ChronicleTracker !== 'undefined' && ChronicleTracker.getAIContextString) {
+            _chronStr = ChronicleTracker.getAIContextString() || '';
+          }
+        } catch(_e){}
+
+        // 御批回听·近 5 回合
+        var _efficacyStr = '';
+        if (Array.isArray(GM._edictEfficacyHistory) && GM._edictEfficacyHistory.length > 0) {
+          _efficacyStr = '【御批回听·近 5 回合】\n';
+          GM._edictEfficacyHistory.slice(-5).forEach(function(eh) {
+            _efficacyStr += '  T' + (eh.turn||'?') + ' 兑现率 ' + (eh.overallEfficacy||'?') + '%';
+            if (eh.efficacyByDimension) {
+              var _dims = Object.keys(eh.efficacyByDimension).map(function(k){return k+':'+eh.efficacyByDimension[k]+'%';}).join('·');
+              if (_dims) _efficacyStr += '（' + _dims + '）';
+            }
+            _efficacyStr += '\n';
+          });
+          if (GM._edictEfficacyReport && Array.isArray(GM._edictEfficacyReport.ignoredOrDelayed)) {
+            _efficacyStr += '【上回合未落实诏令】\n';
+            GM._edictEfficacyReport.ignoredOrDelayed.slice(0, 8).forEach(function(r) {
+              _efficacyStr += '  · 「' + String(r.content||'').slice(0, 60) + '」 ' + (r.status||'?') + '·' + String(r.reason||'').slice(0, 40) + '\n';
+            });
+          }
+        }
+
+        // NPC 阴谋（含玩家不可见的）
+        var _schemesStr = '';
+        if (Array.isArray(GM.activeSchemes) && GM.activeSchemes.length > 0) {
+          _schemesStr = '【活跃阴谋（含玩家不可见）】\n';
+          GM.activeSchemes.slice(-15).forEach(function(s) {
+            _schemesStr += '  T' + (s.startTurn||'?') + ' ' + (s.schemer||'?') + '→' + (s.target||'?') + '：' + String(s.plan||'').slice(0, 60) + '（' + (s.progress||'酝酿') + '·' + (s.allies||'独行') + '）\n';
+          });
+        }
+
+        // 势力暗流（上回合 sc15 输出）
+        var _underStr = '';
+        if (Array.isArray(GM._factionUndercurrents) && GM._factionUndercurrents.length > 0) {
+          _underStr = '【势力内部暗流】\n';
+          GM._factionUndercurrents.slice(0, 10).forEach(function(u) {
+            _underStr += '  ' + (u.faction||'?') + '：' + (u.situation||'') + '（趋势 ' + (u.trend||'稳定') + '·下一步:' + (u.nextMove||'') + '）\n';
+          });
+        }
+
+        // 上回合 sc25 输出（伏笔/趋势/NPC 情绪）
+        var _sc25Str = '';
+        if (GM._turnAiResults && GM._turnAiResults.subcall25) {
+          var _p25 = GM._turnAiResults.subcall25;
+          if (_p25.trend) _sc25Str += '【sc25 趋势】' + _p25.trend + '\n';
+          if (_p25.npc_mood_snapshot) _sc25Str += '【sc25 NPC 情绪】' + _p25.npc_mood_snapshot + '\n';
+          if (_p25.contradiction_evolution) _sc25Str += '【sc25 矛盾演化】' + _p25.contradiction_evolution + '\n';
+        }
+
+        // 上回合 sc28 输出（世界快照）
+        var _sc28Str = '';
+        if (GM._turnAiResults && GM._turnAiResults.subcall28) {
+          var _p28 = GM._turnAiResults.subcall28;
+          if (_p28.world_snapshot) _sc28Str += '【sc28 世界快照】' + _p28.world_snapshot + '\n';
+          if (_p28.next_turn_seeds) _sc28Str += '【sc28 种子】' + _p28.next_turn_seeds + '\n';
+        }
+
+        // 玩家本回合决策
+        var _decStr = '';
+        if (Array.isArray(GM.playerDecisions)) {
+          var _curDec = GM.playerDecisions.filter(function(d){return d && d.turn === _ptTurnC;});
+          if (_curDec.length > 0) {
+            _decStr = '【本回合玩家决策】\n' + _curDec.map(function(d){return '  ' + d.type + ': ' + (d.content||'').slice(0, 80);}).join('\n') + '\n';
+          }
+        }
+
+        var tpC = '【任务·本回合记忆固化整合】你是史官+军机大臣的合体·任务是把本回合海量原始信息·浓缩成下回合主推演 AI 必须先读的"高密度记忆固化报告"。\n\n';
+        tpC += _hist + '\n\n' + _chronStr + '\n\n' + _efficacyStr + '\n\n' + _schemesStr + '\n\n' + _underStr + '\n\n' + _sc25Str + '\n\n' + _sc28Str + '\n\n' + _decStr + '\n\n';
+        tpC += '\n请输出严格 JSON：\n';
+        tpC += '{\n';
+        tpC += '  "consolidated":"800-1500 字超高密度整合摘要——把本回合的核心剧情、关键转折、玩家决策意图、NPC 主要行动、势力变化、未解张力·浓缩为可读叙事段落（含 T<turn> 锚点·便于追溯）",\n';
+        tpC += '  "key_threads":[{"thread":"线索名","status":"酝酿/推进/高潮/濒解/已解","actors":"参与者","tension":1-10,"next":"预期下一步发展(40字)"}],\n';
+        tpC += '  "npc_trajectories":[{"name":"NPC名","arc":"近期弧线轨迹(60字)","mood":"心境","commitment":"对玩家的承诺/抵抗(30字)"}],\n';
+        tpC += '  "faction_vectors":[{"faction":"势力名","trajectory":"上升/稳定/动荡/衰落","driver":"驱动力","risk":"主要风险(40字)"}],\n';
+        tpC += '  "unresolved_tensions":["未解决的张力 1(50字·必须含潜在引爆点)","张力2","张力3"],\n';
+        tpC += '  "player_reputation_drift":[{"group":"群体名(党派/阶层/民间/边军/宗室等)","perception":"当前印象(40字)","direction":"上升/下降/稳定","cause":"主因(30字)"}],\n';
+        tpC += '  "next_turn_focus":["下回合 AI 应重点演绎的 1·建议(50字)","建议2","建议3"]\n';
+        tpC += '}\n';
+        tpC += '\n要求：\n';
+        tpC += '  · consolidated 必须涵盖时政记叙事核心 + 实录关键事件 + 御批回听结论 + 关键 NPC 动作 + 势力暗流·密度极高·下回合 sc1 看此一段就能进入故事流。\n';
+        tpC += '  · key_threads 应识别活跃的多线叙事（5-10 条），不要重复 ChronicleTracker 已有的，要找叙事级线索。\n';
+        tpC += '  · npc_trajectories 只列重要的（5-15 个），按近期变化幅度排序。\n';
+        tpC += '  · faction_vectors 每个非玩家势力一条·覆盖全部势力。\n';
+        tpC += '  · unresolved_tensions 找出 3-5 条最危险的悬而未决·下回合可能引爆。\n';
+        tpC += '  · player_reputation_drift 列出对玩家有显著观感变化的 4-8 个群体。\n';
+        tpC += '  · next_turn_focus 是建议而非命令·下回合 AI 可参考可不采纳。\n';
+
+        // 次要 API tier 优先·没配则回退主要
+        var _tCons = (typeof _useSecondaryTier === 'function' && _useSecondaryTier()) ? 'secondary' : 'primary';
+        var _cCons = (typeof _getAITier === 'function') ? _getAITier(_tCons) : { key: P.ai.key, url: url, model: P.ai.model || 'gpt-4o' };
+        var _uCons = (typeof _buildAIUrlForTier === 'function') ? _buildAIUrlForTier(_tCons) : url;
+        _dbg('[sc_consolidate] using tier:', _cCons.tier || _tCons, 'model:', _cCons.model);
+
+        var respC = await fetch(_uCons, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+_cCons.key},
+          body:JSON.stringify({model:_cCons.model, messages:[
+            {role:"system",content:"你是天命游戏的记忆固化引擎·把回合海量信息整合为高密度摘要供下回合 AI 推演读取。"},
+            {role:"user",content:tpC}
+          ], temperature:0.5, max_tokens:_tok(8000)})});
+        if (respC.ok) {
+          var dataC = await respC.json();
+          _checkTruncated(dataC, '记忆固化');
+          var cC = '';
+          if (dataC.choices && dataC.choices[0] && dataC.choices[0].message) cC = dataC.choices[0].message.content;
+          var pC = extractJSON(cC);
+          if (pC && (pC.consolidated || pC.key_threads || pC.next_turn_focus)) {
+            if (!Array.isArray(GM._consolidatedMemory)) GM._consolidatedMemory = [];
+            GM._consolidatedMemory.push({
+              turn: _ptTurnC,
+              ts: Date.now(),
+              consolidated: pC.consolidated || '',
+              key_threads: pC.key_threads || [],
+              npc_trajectories: pC.npc_trajectories || [],
+              faction_vectors: pC.faction_vectors || [],
+              unresolved_tensions: pC.unresolved_tensions || [],
+              player_reputation_drift: pC.player_reputation_drift || [],
+              next_turn_focus: pC.next_turn_focus || []
+            });
+            // 保留最近 50 条
+            if (GM._consolidatedMemory.length > 50) {
+              GM._consolidatedMemory = GM._consolidatedMemory.slice(-50);
+            }
+            GM._turnAiResults.subcallConsolidate = pC;
+            _dbg('[sc_consolidate] 完成·threads:', (pC.key_threads||[]).length, '·tensions:', (pC.unresolved_tensions||[]).length);
+          }
+        }
+      } catch(eC) { _dbg('[sc_consolidate] 失败:', eC); /* 不抛·后台静默失败 */ }
+      }); }); // end sc_consolidate
 
       // --- 记忆压缩系统：根据模型上下文窗口自适应压缩（动态探测，无写死） ---
       try {
