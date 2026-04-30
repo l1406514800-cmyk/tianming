@@ -3227,6 +3227,26 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         _dbg('[SubcallBatch] ' + label + ' finished ' + tasks.length + ' tasks in ' + ((Date.now() - _started) / 1000).toFixed(1) + 's, concurrency=' + _limit);
       }
 
+      var _queuedPostTurnSubcalls = [];
+      function _queuePostTurnSubcall(id, fn) {
+        _queuedPostTurnSubcalls.push({ id: id, fn: fn });
+      }
+      function _flushQueuedPostTurnSubcalls() {
+        if (!_queuedPostTurnSubcalls.length) return;
+        var _q = _queuedPostTurnSubcalls.slice();
+        _queuedPostTurnSubcalls.length = 0;
+        _q.forEach(function(job) {
+          if (typeof _enqueuePostTurnJob === 'function') return _enqueuePostTurnJob(job.id, job.fn);
+          _enqueueLocalPostTurnJob(job.id, job.fn);
+        });
+      }
+      function _enqueueLocalPostTurnJob(id, fn) {
+        if (!GM._postTurnJobs || !Array.isArray(GM._postTurnJobs.pending)) GM._postTurnJobs = { pending: [], launchedAt: Date.now() };
+        var p = Promise.resolve().then(fn).catch(function(e){ _dbg('[PostTurn]' + id + ' failed:', e); });
+        GM._postTurnJobs.pending.push({ id: id, promise: p });
+        return p;
+      }
+
       // --- 预处理：等待上回合 post-turn 任务 + 同步本地记忆保鲜 ---
       try {
         if (typeof _awaitPostTurnJobs === 'function') await _awaitPostTurnJobs();
@@ -10671,9 +10691,10 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       }); // end Sub-call 2 _runSubcall
 
       // --- Sub-call 2.5: 深度伏笔种植 + 回合记忆压缩 + NPC情绪快照 ---
-      await _runSubcall('sc25', '伏笔记忆', 'lite', async function() {
-      showLoading("\u57CB\u4E0B\u4F0F\u7B14",80);
+      _queuePostTurnSubcall('sc25', function(){ return _runSubcall('sc25', '伏笔记忆', 'lite', async function() {
+      _dbg('[PostTurn] sc25 start');
       try {
+        var _ptTurn25 = (GM._postTurnJobs && GM._postTurnJobs.turn) || GM.turn || 0;
         var _turnSummary = '\u672C\u56DE\u5408\u5B8C\u6574\u6458\u8981\uFF1A\n';
         _turnSummary += '\u65F6\u653F\u8BB0\uFF1A' + (shizhengji || '') + '\n';
         _turnSummary += '\u6B63\u6587\uFF1A' + (zhengwen || '').substring(0, 600) + '\n';
@@ -10688,7 +10709,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         if (_changeSummary.length > 0) _turnSummary += '\u5168\u90E8\u53D8\u52A8\uFF1A' + _changeSummary.join('\uFF1B') + '\n';
         // 玩家本回合决策
         if (GM.playerDecisions && GM.playerDecisions.length > 0) {
-          var _lastDecs = GM.playerDecisions.filter(function(d){return d.turn===GM.turn;});
+          var _lastDecs = GM.playerDecisions.filter(function(d){return d.turn===_ptTurn25;});
           if (_lastDecs.length) _turnSummary += '\u73A9\u5BB6\u51B3\u7B56\uFF1A' + _lastDecs.map(function(d){return d.type+':'+d.content;}).join('\uFF1B') + '\n';
         }
 
@@ -10722,7 +10743,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
             if (p25.foreshadow && Array.isArray(p25.foreshadow)) {
               if (!GM._foreshadows) GM._foreshadows = [];
               p25.foreshadow.forEach(function(f) {
-                if (f) GM._foreshadows.push({ turn: GM.turn, text: f });
+                if (f) GM._foreshadows.push({ turn: _ptTurn25, text: f });
               });
               // 硬上限保护（正常由压缩系统管理，此为兜底；上限随模型动态调整）
               var _foreHardLim = getCompressionParams().foreHardLimit || 60;
@@ -10731,7 +10752,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
             // 存储AI压缩记忆
             if (p25.memory) {
               if (!GM._aiMemory) GM._aiMemory = [];
-              GM._aiMemory.push({ turn: GM.turn, text: p25.memory });
+              GM._aiMemory.push({ turn: _ptTurn25, text: p25.memory });
               // 硬上限保护（正常由压缩系统管理，此为兜底；上限随模型动态调整）
               var _memHardLim = getCompressionParams().memHardLimit || 100;
               if (GM._aiMemory.length > _memHardLim) GM._aiMemory = GM._aiMemory.slice(-Math.round(_memHardLim * 0.8));
@@ -10750,26 +10771,26 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
                   if (!existing) {
                     GM._plotThreads.push({
                       id: uid(), title: pu.title, description: pu.update || '',
-                      participants: [], startTurn: GM.turn, lastUpdateTurn: GM.turn,
+                      participants: [], startTurn: _ptTurn25, lastUpdateTurn: _ptTurn25,
                       status: pu.status || 'active', priority: 3,
                       threadType: pu.threadType || 'political',
-                      updates: [{ turn: GM.turn, text: pu.update || '' }]
+                      updates: [{ turn: _ptTurn25, text: pu.update || '' }]
                     });
                   }
                 } else {
                   // 更新已有线
                   var thread = GM._plotThreads.find(function(t) { return t.id === pu.threadId || t.title === pu.title; });
                   if (thread) {
-                    thread.lastUpdateTurn = GM.turn;
+                    thread.lastUpdateTurn = _ptTurn25;
                     if (pu.status) thread.status = pu.status;
-                    if (pu.update) thread.updates.push({ turn: GM.turn, text: pu.update });
+                    if (pu.update) thread.updates.push({ turn: _ptTurn25, text: pu.update });
                     if (thread.updates.length > 20) thread.updates = thread.updates.slice(-20);
                   }
                 }
               });
               // 清理已完结超过5回合的线
               GM._plotThreads = GM._plotThreads.filter(function(t) {
-                return t.status !== 'resolved' || GM.turn - t.lastUpdateTurn < 5;
+                return t.status !== 'resolved' || _ptTurn25 - t.lastUpdateTurn < 5;
               });
               // 上限15条
               if (GM._plotThreads.length > 15) GM._plotThreads = GM._plotThreads.slice(-15);
@@ -10782,20 +10803,20 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
                 if (!de.content || !de.echoDesc) return;
                 var delay = parseInt(de.delayTurns) || ((typeof turnsForDuration === 'function') ? turnsForDuration('year') : 12);
                 GM._decisionEchoes.push({
-                  id: uid(), content: de.content, turn: GM.turn,
-                  echoTurn: GM.turn + delay, echoType: de.echoType || 'mixed',
+                  id: uid(), content: de.content, turn: _ptTurn25,
+                  echoTurn: _ptTurn25 + delay, echoType: de.echoType || 'mixed',
                   echoDesc: de.echoDesc, applied: false
                 });
               });
               // 清理已应用的和过期的
-              GM._decisionEchoes = GM._decisionEchoes.filter(function(e) { return !e.applied || GM.turn - e.echoTurn < 3; });
+              GM._decisionEchoes = GM._decisionEchoes.filter(function(e) { return !e.applied || _ptTurn25 - e.echoTurn < 3; });
               if (GM._decisionEchoes.length > 20) GM._decisionEchoes = GM._decisionEchoes.slice(-20);
             }
 
             // 标记到期的决策回声为已应用
             if (GM._decisionEchoes) {
               GM._decisionEchoes.forEach(function(e) {
-                if (!e.applied && e.echoTurn <= GM.turn) e.applied = true;
+                if (!e.applied && e.echoTurn <= _ptTurn25) e.applied = true;
               });
             }
 
@@ -10809,7 +10830,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           }
         }
       } catch(e25) { _dbg('[Foreshadow] \u5931\u8D25:', e25); throw e25; }
-      }); // end Sub-call 2.5 _runSubcall
+      }); }); // end Sub-call 2.5 _runSubcall (queued post-turn)
 
       // --- Sub-call 2.7: 叙事质量审查与增强 --- [standard+full]
       await _runSubcall('sc27', '叙事审查', 'standard', async function() {
@@ -11038,9 +11059,10 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       }); // end Sub-call 0.7 _runSubcall
 
       // --- Sub-call 2.8: 世界状态深度快照 --- [full only]
-      await _runSubcall('sc28', '世界快照', 'full', async function() {
-      showLoading("\u4E16\u754C\u72B6\u6001\u5FEB\u7167",88);
+      _queuePostTurnSubcall('sc28', function(){ return _runSubcall('sc28', '世界快照', 'full', async function() {
+      _dbg('[PostTurn] sc28 start');
       try {
+        var _ptTurn28 = (GM._postTurnJobs && GM._postTurnJobs.turn) || GM.turn || 0;
         var tp28 = '\u672C\u56DE\u5408\u7ED3\u675F\u540E\u7684\u4E16\u754C\u5B8C\u6574\u72B6\u6001\uFF1A\n';
         tp28 += '\u65F6\u653F\u8BB0\uFF1A' + (shizhengji||'') + '\n';
         tp28 += '\u6B63\u6587\u6458\u8981\uFF1A' + (zhengwen||'').substring(0,400) + '\n';
@@ -11060,17 +11082,17 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
             // 存入AI记忆（高优先级）
             if (p28.world_snapshot) {
               if (!GM._aiMemory) GM._aiMemory = [];
-              GM._aiMemory.push({ turn: GM.turn, content: p28.world_snapshot, type: 'snapshot', priority: 'high' });
+              GM._aiMemory.push({ turn: _ptTurn28, content: p28.world_snapshot, type: 'snapshot', priority: 'high' });
             }
             if (p28.next_turn_seeds) {
               if (!GM._foreshadows) GM._foreshadows = [];
-              GM._foreshadows.push({ turn: GM.turn, content: '\u3010\u4E0B\u56DE\u5408\u79CD\u5B50\u3011' + p28.next_turn_seeds, priority: 'high' });
+              GM._foreshadows.push({ turn: _ptTurn28, content: '\u3010\u4E0B\u56DE\u5408\u79CD\u5B50\u3011' + p28.next_turn_seeds, priority: 'high' });
             }
             GM._turnAiResults.subcall28 = p28;
           }
         }
       } catch(e28) { _dbg('[World Snapshot] fail:', e28); throw e28; }
-      }); // end Sub-call 2.8 _runSubcall
+      }); }); // end Sub-call 2.8 _runSubcall (queued post-turn)
 
       // --- 记忆压缩系统：根据模型上下文窗口自适应压缩（动态探测，无写死） ---
       try {
@@ -11350,6 +11372,10 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         });
         _dbg('[3.3 Pipeline] ' + _timingParts.join(' | '));
       }
+
+      // Start queued next-turn memory/snapshot jobs only after foreground cleanup
+      // has finished, so compression cannot overwrite their late writes.
+      try { _flushQueuedPostTurnSubcalls(); } catch(_qptE) { _dbg('[PostTurn] queued subcall launch failed:', _qptE); }
 
       // S2：启动 post-turn 异步任务（L2_AI/L3_CONDENSE/REFLECT/factionArcs）
       //   不 await·让玩家看结果时后台运行·下回合开始前 _awaitPostTurnJobs 会等齐

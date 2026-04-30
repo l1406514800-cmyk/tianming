@@ -3,6 +3,22 @@
   "entries": [
     {
       "date": "2026-04-30",
+      "module": "邸报·过回合 AI 提速二修：后台记忆快照与顺序护栏",
+      "title": "在不减少 API 调用次数、不改 sc07 NPC 认知的前提下，把 sc25 伏笔记忆与 sc28 世界快照移出玩家等待链路，放入 post-turn 后台队列；随后按实测补齐顺序护栏，确保反思、五回合摘要、三十回合纲要不会因为回合号递增或临时上下文清理而漏读本回合结果。",
+      "items": [
+        { "what": "tm-endturn-ai-infer.js：sc25 伏笔记忆、sc28 世界快照由前台 await 改为先登记到本地 post-turn 队列，等前台叙事审查、NPC 认知、记忆压缩、历史索引、逻辑检查全部完成后再 flush 启动。", "why": "玩家看到回合结果不再等待这两项下回合上下文任务；同时避免它们与前台记忆压缩互相覆盖。" },
+        { "what": "tm-post-turn-jobs.js：新增 _ensurePostTurnJobQueue / _enqueuePostTurnJob / _awaitPostTurnJobsById / _awaitPostTurnJobsForSave。_launchPostTurnJobs 不再重置已存在队列，而是把标准后台任务追加进去。", "why": "让 sc25/sc28 可以和原有 L2/L3/reflect 共用一条可等待队列，并保留保存前、下回合前的统一 join 点。" },
+        { "what": "顺序护栏：l2_ai 必须等 sc25 + sc28，reflect 必须等 sc25，同回合 l3_condense 必须等 l2_ai。", "why": "reflect 会读取 GM._turnAiResults.subcall25；l2_ai 会读取 GM._aiMemory；l3_condense 会读取 L2。串联改后台后若不显式声明依赖，会出现先读后写、摘要漏掉本回合记忆的问题。" },
+        { "what": "回合号快照：GM._postTurnJobs 记录启动时 turn；sc25/sc28/reflect/l2_ai/l3_condense 的写入、bucket 判断、turnRange、createdAt 都按这个启动回合号执行。", "why": "post-turn 任务可能在 _endTurn_updateSystems 之后才真正执行，此时 GM.turn 已经递增。若继续读取实时 GM.turn，会让 T30 应触发的 L2/L3 在 T31 被跳过。" },
+        { "what": "tm-endturn-core.js：若 post-turn 队列仍有 pending，不再立刻 delete GM._turnAiResults；tm-post-turn-jobs.js 在 _awaitPostTurnJobs() 等完全部后台任务后再统一清理。", "why": "后台 reflect/L2 仍需要读取 thinking、subcall25 等本回合临时结果。过早清理会让后台任务失去依据。" },
+        { "what": "tm-endturn-render.js / tm-save-lifecycle.js / tm-save-manager.js：自动存档、桌面自动存档、手动保存、槽位保存会先等待 post-turn 队列，再做 _prepareGMForSave。", "why": "_prepareGMForSave 会删除 promise 队列以便序列化；保存前必须先等后台记忆/快照/反思落入 GM，否则存档可能缺少本回合后处理结果。" },
+        { "what": "后台 sc25/sc28 不再调用 showLoading，只写调试日志。", "why": "避免玩家已经看到结算弹窗后，又被后台伏笔/世界快照的加载遮罩盖住。" },
+        { "what": "逻辑测试：先用假异步队列验证顺序 sc28 -> sc25 -> l2 -> reflect -> l3 满足依赖；再用实际 tm-post-turn-jobs.js 模拟 T30 排队、可见回合推进到 T31，确认 L2 写成 26-30、L3 写成 1-30、reflection 仍记为 turn 30，且最终清理 _postTurnJobs 与 _turnAiResults。", "why": "专门覆盖用户担心的『串联改并联后读取顺序变化导致前后矛盾』问题；不是只做语法检查。" },
+        { "what": "验证：node --check 相关文件、git diff --check、node scripts\\verify-all.js 全部通过；verify-all 9 项全绿，headless smoke 维持 212 passed / 0 failed。", "why": "确认语法、引用、官方剧本、信件链、廷议链、headless smoke 均未出现回归。" }
+      ]
+    },
+    {
+      "date": "2026-04-30",
       "module": "邸报·过回合 AI 推演提速：调用次数不变·受控并行调度",
       "title": "本次更新不削减任何过回合 AI 子调用，不改变推演内容与自由度，只把原本无硬依赖的等待链路改为受控并行。前置的三系统 NPC 预规划与长期行动摘要改为同时启动并在主推演前汇合；full 深度下的势力、经济、军事三项专项推演改为同批并行，数据一致性审核仍在三项全部完成后执行。默认并发为 3，并支持 P.conf.aiSubcallConcurrency 调整。",
       "items": [

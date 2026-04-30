@@ -54,13 +54,14 @@ var SaveManager = {
   },
 
   // 保存游戏到指定槽位
-  saveToSlot: function(slotId, saveName) {
+  saveToSlot: async function(slotId, saveName) {
     if (slotId < 0 || slotId >= this.maxSlots) {
       toast('❌ 无效的存档槽位');
       return false;
     }
 
     // 序列化全局系统到 GM
+    if (typeof _awaitPostTurnJobsForSave === 'function') await _awaitPostTurnJobsForSave();
     if (typeof _prepareGMForSave === 'function') _prepareGMForSave();
 
     var _sc = typeof findScenarioById === 'function' ? findScenarioById(GM.sid) : null;
@@ -813,4 +814,3 @@ function importSaveFileToSlot() {
     setTimeout(function() { closeSaveManager(); openSaveManager(); }, 800);
   }
 }
-

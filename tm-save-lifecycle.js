@@ -409,6 +409,7 @@ function _prepareGMForSave() {
 
 doSaveGame=async function(){
   if(!GM.running){toast("\u8BF7\u5148\u5F00\u59CB\u6E38\u620F");return;}
+  if (typeof _awaitPostTurnJobsForSave === 'function') await _awaitPostTurnJobsForSave();
   _prepareGMForSave();
 
   if(window.tianming&&window.tianming.isDesktop){
@@ -460,6 +461,7 @@ window.desktopDoSave=async function(){
   var name=(_$("save-name-inp").value||"").trim();
   if(!name){toast("\u8BF7\u8F93\u5165\u5B58\u6863\u540D");return;}
   var sc=findScenarioById(GM.sid);
+  if (typeof _awaitPostTurnJobsForSave === 'function') await _awaitPostTurnJobsForSave();
   _prepareGMForSave(); // 序列化所有系统数据+确保GM/P字段默认值
   var saveData=deepClone(P);
   saveData.gameState=deepClone(GM);
@@ -935,6 +937,7 @@ if(window.tianming&&window.tianming.isDesktop){
   // 每60秒自动存档（始终保存P，游戏运行时附带GM） (timer-leak-ok·文件顶层一次性·桌面端生命周期)
   setInterval(async function(){
     try{
+      if(GM.running && typeof _awaitPostTurnJobsForSave === 'function') await _awaitPostTurnJobsForSave();
       if(GM.running && typeof _prepareGMForSave === 'function') _prepareGMForSave();
       var saveData=deepClone(P);
       if(GM.running){saveData.gameState=deepClone(GM);saveData._saveMeta={turn:GM.turn,scenario:findScenarioById(GM.sid)||{name:''},saveName:GM.saveName,date:new Date().toISOString()};}
@@ -1000,4 +1003,3 @@ generateMemorials=function(){
 
 // 10. 查漏：游戏模式（史实检查）
 // 注意：此包装层已废弃，功能已迁移到 EndTurnHooks 系统（钩子9）
-

@@ -26,20 +26,21 @@
 // ════════════════════════════════════════════════════════════════════════
 
 /** 方向 8：SC_L2_AI·每 5 回合 AI 语义化情景摘要 */
-async function _scL2AIGenerate() {
+async function _scL2AIGenerate(turnOverride) {
   if (!GM || !P || !P.ai || !P.ai.key) return;
-  if ((GM.turn || 0) % 5 !== 0) return;
+  var jobTurn = turnOverride || (GM._postTurnJobs && GM._postTurnJobs.turn) || GM.turn || 0;
+  if (jobTurn % 5 !== 0) return;
   if (!GM._memoryLayers) GM._memoryLayers = { L1: [], L2: [], L3: [] };
   // 检查本 bucket 是否已生成（防重复）
-  var existAI = (GM._memoryLayers.L2 || []).find(function(x){ return x.turnBucket === GM.turn && x.aiGenerated; });
+  var existAI = (GM._memoryLayers.L2 || []).find(function(x){ return x.turnBucket === jobTurn && x.aiGenerated; });
   if (existAI) return;
-  var bucketStart = GM.turn - 4;
+  var bucketStart = jobTurn - 4;
   // 收集数据
-  var bucketMems = (GM._aiMemory || []).filter(function(m){ return m && m.turn >= bucketStart && m.turn <= GM.turn; });
-  var bucketShiji = (GM.shijiHistory || []).filter(function(s){ return s.turn >= bucketStart && s.turn <= GM.turn; });
+  var bucketMems = (GM._aiMemory || []).filter(function(m){ return m && m.turn >= bucketStart && m.turn <= jobTurn; });
+  var bucketShiji = (GM.shijiHistory || []).filter(function(s){ return s.turn >= bucketStart && s.turn <= jobTurn; });
   if (bucketMems.length === 0 && bucketShiji.length === 0) return;
   var tpL2 = '【任务·将过去5回合的事件语义化压缩为情景摘要】\n';
-  tpL2 += '时间范围：T' + bucketStart + '-T' + GM.turn + '\n\n';
+  tpL2 += '时间范围：T' + bucketStart + '-T' + jobTurn + '\n\n';
   if (bucketShiji.length) {
     tpL2 += '<shiji-history>\n';
     bucketShiji.forEach(function(s){
@@ -70,36 +71,37 @@ async function _scL2AIGenerate() {
     var parsedL2 = extractJSON(respL2);
     if (parsedL2 && parsedL2.summary) {
       // 替换或新增
-      GM._memoryLayers.L2 = (GM._memoryLayers.L2 || []).filter(function(x){ return x.turnBucket !== GM.turn || !x.aiGenerated; });
+      GM._memoryLayers.L2 = (GM._memoryLayers.L2 || []).filter(function(x){ return x.turnBucket !== jobTurn || !x.aiGenerated; });
       GM._memoryLayers.L2.push({
-        turnBucket: GM.turn,
-        turnRange: bucketStart + '-' + GM.turn,
+        turnBucket: jobTurn,
+        turnRange: bucketStart + '-' + jobTurn,
         summary: parsedL2.summary,
         mood: parsedL2.mood || '',
         keyCharacters: parsedL2.keyCharacters || [],
         themes: parsedL2.themes || [],
         turning_points: parsedL2.turning_points || [],
         aiGenerated: true,
-        createdAt: GM.turn
+        createdAt: jobTurn
       });
       if (GM._memoryLayers.L2.length > 12) GM._memoryLayers.L2 = GM._memoryLayers.L2.slice(-12);
-      _dbg('[SC_L2_AI] 生成 AI 情景摘要 T' + bucketStart + '-T' + GM.turn);
+      _dbg('[SC_L2_AI] 生成 AI 情景摘要 T' + bucketStart + '-T' + jobTurn);
     }
   } catch(e) { _dbg('[SC_L2_AI] 失败:', e); }
 }
 
 /** 方向 9：SC_L3_CONDENSE·每 30 回合 AI 年代纲要 */
-async function _scL3Condense() {
+async function _scL3Condense(turnOverride) {
   if (!GM || !P || !P.ai || !P.ai.key) return;
-  if ((GM.turn || 0) % 30 !== 0) return;
+  var jobTurn = turnOverride || (GM._postTurnJobs && GM._postTurnJobs.turn) || GM.turn || 0;
+  if (jobTurn % 30 !== 0) return;
   if (!GM._memoryLayers) GM._memoryLayers = { L1: [], L2: [], L3: [] };
-  var existAI = (GM._memoryLayers.L3 || []).find(function(x){ return x.turnBucket === GM.turn && x.aiGenerated; });
+  var existAI = (GM._memoryLayers.L3 || []).find(function(x){ return x.turnBucket === jobTurn && x.aiGenerated; });
   if (existAI) return;
-  var l3Start = GM.turn - 29;
-  var bucketL2 = (GM._memoryLayers.L2 || []).filter(function(x){ return x.turnBucket >= l3Start && x.turnBucket <= GM.turn; });
+  var l3Start = jobTurn - 29;
+  var bucketL2 = (GM._memoryLayers.L2 || []).filter(function(x){ return x.turnBucket >= l3Start && x.turnBucket <= jobTurn; });
   if (bucketL2.length === 0) return;
   var tpL3 = '【任务·将过去30回合压缩为年代纲要·史书级压缩】\n';
-  tpL3 += '时间范围：T' + l3Start + '-T' + GM.turn + '\n\n';
+  tpL3 += '时间范围：T' + l3Start + '-T' + jobTurn + '\n\n';
   tpL3 += '<scene-summaries>\n';
   bucketL2.forEach(function(x){
     tpL3 += '  <scene range="' + x.turnRange + '" mood="' + (x.mood||'') + '">' + (x.summary||'').substring(0, 400) + '</scene>\n';
@@ -121,10 +123,10 @@ async function _scL3Condense() {
     ], 4000);
     var parsedL3 = extractJSON(respL3);
     if (parsedL3 && parsedL3.theme) {
-      GM._memoryLayers.L3 = (GM._memoryLayers.L3 || []).filter(function(x){ return x.turnBucket !== GM.turn || !x.aiGenerated; });
+      GM._memoryLayers.L3 = (GM._memoryLayers.L3 || []).filter(function(x){ return x.turnBucket !== jobTurn || !x.aiGenerated; });
       GM._memoryLayers.L3.push({
-        turnBucket: GM.turn,
-        turnRange: l3Start + '-' + GM.turn,
+        turnBucket: jobTurn,
+        turnRange: l3Start + '-' + jobTurn,
         theme: parsedL3.theme,
         atmosphere: parsedL3.atmosphere || '',
         highlights: parsedL3.highlights || [],
@@ -133,7 +135,7 @@ async function _scL3Condense() {
         keyCharacters: parsedL3.keyCharacters || [],
         summary: parsedL3.theme + '·' + (parsedL3.atmosphere || ''),  // 向后兼容字段
         aiGenerated: true,
-        createdAt: GM.turn
+        createdAt: jobTurn
       });
       _dbg('[SC_L3_CONDENSE] 生成 AI 年代纲要 T' + l3Start + '-T' + GM.turn);
     }
@@ -141,22 +143,23 @@ async function _scL3Condense() {
 }
 
 /** 方向 12：SC_REFLECT·对比上回合预测 vs 本回合实际·生成反省记录 */
-async function _scReflect() {
+async function _scReflect(turnOverride) {
   if (!GM || !P || !P.ai || !P.ai.key) return;
+  var jobTurn = turnOverride || (GM._postTurnJobs && GM._postTurnJobs.turn) || GM.turn || 0;
   if (!GM._turnAiResults || !GM._turnAiResults.thinking) return;
   // 需要上回合存下的 predictions（来自 SC25 的 predictions 字段·新增）
   var lastPredictions = GM._lastTurnPredictions;
   if (!lastPredictions) {
     // 首次·保存本回合 thinking 为下次对比基准
     GM._lastTurnPredictions = {
-      turn: GM.turn,
+      turn: jobTurn,
       thinking: (GM._turnAiResults.thinking || '').substring(0, 1500)
     };
     return;
   }
   var tpR = '【任务·对比上回合预测与本回合实际·提炼经验教训】\n\n';
   tpR += '<last-turn-predictions turn="' + lastPredictions.turn + '">\n' + lastPredictions.thinking + '\n</last-turn-predictions>\n\n';
-  tpR += '<this-turn-actual turn="' + GM.turn + '">\n';
+  tpR += '<this-turn-actual turn="' + jobTurn + '">\n';
   tpR += ((GM._turnAiResults && GM._turnAiResults.subcall25 && GM._turnAiResults.subcall25.memory) || '').substring(0, 1500) + '\n';
   tpR += '</this-turn-actual>\n\n';
   tpR += '【输出 JSON】\n';
@@ -176,7 +179,7 @@ async function _scReflect() {
     if (parsedR && parsedR.lesson) {
       if (!GM._aiReflections) GM._aiReflections = [];
       GM._aiReflections.push({
-        turn: GM.turn,
+        turn: jobTurn,
         predictedLast: parsedR.predictedLast || '',
         actualThis: parsedR.actualThis || '',
         divergence: parsedR.divergence || 'mid',
@@ -188,7 +191,7 @@ async function _scReflect() {
     }
     // 保存本回合为下次对比基准
     GM._lastTurnPredictions = {
-      turn: GM.turn,
+      turn: jobTurn,
       thinking: (GM._turnAiResults.thinking || '').substring(0, 1500)
     };
   } catch(e) { _dbg('[SC_REFLECT] 失败:', e); }
@@ -263,21 +266,54 @@ function _updateFactionArcs() {
  * 启动 post-turn 异步任务·不 await·玩家看结果时后台运行
  * 下回合开始前由 _ensureMemoryFreshness 先 await 所有 pending
  */
+function _ensurePostTurnJobQueue() {
+  if (!GM) return;
+  if (!GM._postTurnJobs || !Array.isArray(GM._postTurnJobs.pending)) {
+    GM._postTurnJobs = { pending: [], launchedAt: Date.now(), turn: GM.turn || 0 };
+  }
+  return GM._postTurnJobs;
+}
+
+function _enqueuePostTurnJob(id, fn) {
+  var q = _ensurePostTurnJobQueue();
+  if (!q || typeof fn !== 'function') return null;
+  var p = Promise.resolve().then(fn).catch(function(e){ _dbg('[PostTurn]' + id + ' failed:', e); });
+  q.pending.push({ id: id, promise: p });
+  return p;
+}
+
+async function _awaitPostTurnJobsById(ids) {
+  if (!GM || !GM._postTurnJobs || !Array.isArray(GM._postTurnJobs.pending)) return;
+  if (!Array.isArray(ids) || !ids.length) return;
+  var waiting = GM._postTurnJobs.pending.filter(function(job) {
+    return job && ids.indexOf(job.id) >= 0;
+  });
+  if (!waiting.length) return;
+  await Promise.all(waiting.map(function(job) { return job.promise; }));
+}
+
 function _launchPostTurnJobs() {
   if (!GM) return;
-  GM._postTurnJobs = { pending: [], launchedAt: Date.now() };
+  var q = _ensurePostTurnJobQueue();
+  var jobTurn = q.turn || GM.turn || 0;
   var jobs = [];
   // 同步任务（不涉及 AI 调用）
   try { _updateFactionArcs(); } catch(e) { _dbg('[PostTurn] factionArcs:', e); }
   // 异步 AI 任务
-  if ((GM.turn || 0) % 5 === 0) jobs.push({ id: 'l2_ai', fn: _scL2AIGenerate });
-  if ((GM.turn || 0) % 30 === 0) jobs.push({ id: 'l3_condense', fn: _scL3Condense });
-  jobs.push({ id: 'reflect', fn: _scReflect });
-  jobs.forEach(function(j) {
-    var p = Promise.resolve().then(j.fn).catch(function(e){ _dbg('[PostTurn]' + j.id + ' 失败:', e); });
-    GM._postTurnJobs.pending.push({ id: j.id, promise: p });
-  });
-  _dbg('[PostTurn] 启动', jobs.length, '个异步任务');
+  if (jobTurn % 5 === 0) jobs.push({ id: 'l2_ai', fn: async function() {
+    await _awaitPostTurnJobsById(['sc25', 'sc28']);
+    return _scL2AIGenerate(jobTurn);
+  } });
+  if (jobTurn % 30 === 0) jobs.push({ id: 'l3_condense', fn: async function() {
+    await _awaitPostTurnJobsById(['l2_ai']);
+    return _scL3Condense(jobTurn);
+  } });
+  jobs.push({ id: 'reflect', fn: async function() {
+    await _awaitPostTurnJobsById(['sc25']);
+    return _scReflect(jobTurn);
+  } });
+  jobs.forEach(function(j) { _enqueuePostTurnJob(j.id, j.fn); });
+  _dbg('[PostTurn] launch', jobs.length, 'jobs; pending=', q.pending.length);
 }
 
 /** 等待所有 post-turn jobs 完成（下回合开始时调用） */
@@ -290,9 +326,21 @@ async function _awaitPostTurnJobs() {
     await Promise.all(pending.map(function(p) { return p.promise; }));
   } catch(_e) { /* 已被单任务 catch */ }
   GM._postTurnJobs = null;
+  delete GM._turnAiResults;
 }
 
 /** 压缩最旧的归档为一条综合总纲（超出上限时调用） */
+async function _awaitPostTurnJobsForSave(ids) {
+  if (!GM || !GM._postTurnJobs || !Array.isArray(GM._postTurnJobs.pending)) return;
+  var wanted = GM._postTurnJobs.pending.slice();
+  if (Array.isArray(ids) && ids.length) {
+    wanted = wanted.filter(function(job) { return job && ids.indexOf(job.id) >= 0; });
+  }
+  if (!wanted.length) return;
+  _dbg('[PostTurn] wait before save:', wanted.map(function(job) { return job.id || '?'; }).join(','));
+  await Promise.all(wanted.map(function(job) { return job.promise; }));
+}
+
 function _compressOldArchives(limit) {
   if (!GM.memoryArchive || GM.memoryArchive.length <= limit) return;
   // 将超出部分合并为一条"远古纪要"

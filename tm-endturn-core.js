@@ -380,7 +380,9 @@ async function _endTurnCore(){
   // 清理回合临时上下文
   delete GM._turnContext;
   delete GM._turnTyrantActivities;
-  delete GM._turnAiResults;
+  if (!GM._postTurnJobs || !Array.isArray(GM._postTurnJobs.pending) || GM._postTurnJobs.pending.length === 0) {
+    delete GM._turnAiResults;
+  }
 
   // 玩家角色死亡 → 显示游戏结束画面
   if (GM._playerDead) {

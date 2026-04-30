@@ -1170,7 +1170,10 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
 
   // 13a. 每回合自动存档到IndexedDB（静默，不弹toast）
   if (typeof TM_SaveDB !== 'undefined' && typeof _prepareGMForSave === 'function') {
-    _prepareGMForSave();
+    (async function() {
+      try {
+        if (typeof _awaitPostTurnJobsForSave === 'function') await _awaitPostTurnJobsForSave();
+        _prepareGMForSave();
     var _autoState = { GM: deepClone(GM), P: deepClone(P) };
     var _sc3 = typeof findScenarioById === 'function' ? findScenarioById(GM.sid) : null;
     var _autoMeta = {
@@ -1195,6 +1198,8 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
     }).catch(function(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'AutoSave] slot_0写入失败:') : console.warn('[AutoSave] slot_0写入失败:', e); });
     // ★ 推演成功完成·清除 pre_endturn 标记(标记存在=崩溃信号·见 tm-endturn-core.js)
     // IDB 中的 pre_endturn 不删·下次回合开始时自动覆盖·留作"上回合操作快照"应急
+      } catch(e) { console.warn('[AutoSave] post-turn save failed:', e); }
+    })();
     try { localStorage.removeItem('tm_pre_endturn_mark'); } catch(_rmE){}
   }
 
@@ -1235,13 +1240,16 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
     // 自动存档
     var _asTurns=(P.conf&&P.conf.autoSaveTurns)||5;
     if(_asTurns>0&&GM.turn%_asTurns===0){
-      try{
-        if (typeof _prepareGMForSave === 'function') _prepareGMForSave();
-        var _asd=deepClone(P);
-        _asd.gameState=deepClone(GM);
-        _asd._saveMeta={turn:GM.turn,gameMode:(P.conf&&P.conf.gameMode)||'',saveName:GM.saveName};
-        window.tianming.autoSave(_asd).catch(function(e){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'catch] async:') : console.warn('[catch] async:', e); });
-      }catch(e){ console.warn("[catch] \u9759\u9ED8\u5F02\u5E38:", e.message || e); }
+      (async function(){
+        try{
+          if (typeof _awaitPostTurnJobsForSave === 'function') await _awaitPostTurnJobsForSave();
+          if (typeof _prepareGMForSave === 'function') _prepareGMForSave();
+          var _asd=deepClone(P);
+          _asd.gameState=deepClone(GM);
+          _asd._saveMeta={turn:GM.turn,gameMode:(P.conf&&P.conf.gameMode)||'',saveName:GM.saveName};
+          window.tianming.autoSave(_asd).catch(function(e){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'catch] async:') : console.warn('[catch] async:', e); });
+        }catch(e){ console.warn("[catch] \u9759\u9ED8\u5F02\u5E38:", e.message || e); }
+      })();
     }
   }
 
@@ -2001,4 +2009,3 @@ function _renderPersonnelChanges(personnelChanges) {
   html += '</div></div>';
   return html;
 }
-
