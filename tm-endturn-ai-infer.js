@@ -3526,7 +3526,12 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         _hardConstraints += '⑥ 角色归属铁律：c.faction 决定角色阵营——非玩家势力角色（敌对/附属/外邦）不得作为本朝官员任命（如不能让皇太极当明朝主考官/宰相/将军）。只有投降/归顺（先改 faction·再任命）才能跨势力任官。任命 office_assignments/任命类 changes 必须先检查 faction 与玩家同·否则视为荒唐诏令按字面执行+剧烈混乱+皇威暴跌。\n';
         _hardConstraints += '═════════════════════════════════════════════\n';
       } catch(_hcE) { _dbg('[HardConstraints] build failed', _hcE); }
-      var tp1=tp+_preAnalysis + _hardConstraints + "\n请仅返回绝JSON，包含:\n"+
+
+      // ★ 世界状态快照注入（2026-04-30 记忆增强）：把"事实"以结构化卡片形式置于 prompt 顶部
+      // 让 AI 一眼看到客观局势（玩家/国势/要职/死者/进行中诏令/NPC 当下状态），降低叙事漂移
+      var _wsSnap = '';
+      try { if (typeof _buildAllSnapshots === 'function') _wsSnap = _buildAllSnapshots() || ''; } catch(_wsE){ _dbg('[WorldSnap sc1] fail:', _wsE); }
+      var tp1 = _wsSnap + tp + _preAnalysis + _hardConstraints + "\n请仅返回绝JSON，包含:\n"+
         "{\"turn_summary\":\"一句话概括本回合最重要的变化(30-50字，如:北境叛乱平定，国库因军费骤降三成)\","+
         // 实录：纯文言史官体，仿资治通鉴/历代实录
         "\"shilu_text\":\"实录"+_shiluMin+"-"+_shiluMax+"字——纯文言文(仿《资治通鉴》《明实录》)，以干支月份/日为单位，记事不评论。只记可验证事实：诏令、任免、战事、灾异、人事大变。句式仿实录：'某月某日，上诏……'/'是月，某地……'/'上命某官……'。禁止白话词汇，禁止主观评论。\","+
@@ -9688,7 +9693,13 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       await _runSubcall('sc15', 'NPC深度推演', 'standard', async function() {
       showLoading("NPC\u5168\u9762\u63A8\u6F14",60);
       try {
-        var tp15 = '\u57FA\u4E8E\u672C\u56DE\u5408\u53D1\u751F\u7684\u4E8B\u4EF6\uFF1A\n';
+        // \u2605 \u4E16\u754C\u72B6\u6001\u5FEB\u7167\u6CE8\u5165\uFF08sc15 \u91CD\u70B9\uFF1A\u9632\u6B7B\u8005\u590D\u6D3B\u00B7\u63D0\u793A\u8FDB\u884C\u4E2D\u8BCF\u4EE4\uFF09
+        var _ws15 = '';
+        try {
+          if (typeof _buildDeadPin === 'function') _ws15 += _buildDeadPin();
+          if (typeof _buildEdictProgressCards === 'function') _ws15 += _buildEdictProgressCards();
+        } catch(_wse15){ _dbg('[WorldSnap sc15] fail:', _wse15); }
+        var tp15 = _ws15 + '\u57FA\u4E8E\u672C\u56DE\u5408\u53D1\u751F\u7684\u4E8B\u4EF6\uFF1A\n';
         if (shizhengji) tp15 += '\u65F6\u653F\u8BB0\uFF1A' + shizhengji + '\n'; // 完整不截断
         if (p1 && p1.npc_actions && p1.npc_actions.length > 0) {
           tp15 += '\u5DF2\u77E5NPC\u884C\u52A8\uFF1A' + p1.npc_actions.map(function(a) { return a.name + ':' + a.action + (a.result?'\u2192'+a.result:''); }).join('\uFF1B') + '\n';
@@ -10229,8 +10240,8 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
 
       // --- SC_CONSISTENCY_AUDIT: 深化数据一致性审核（方向7扩展·S3） ---
       // 扫描 SC16/17/18 彼此的输出是否冲突·auto-patch 或 rerun
-      // ★ 后台化（2026-04-30）：审核仅修改 _turnAiResults 缓存与 _turnReport·不影响 GM 核心；下回合开始前 _awaitPostTurnJobs 等齐
-      _queuePostTurnSubcall('sc_audit', function(){ return _runSubcall('sc_audit', '数据一致性审核', 'lite', async function() {
+      // 保持前台收束：审计可能修正 _turnAiResults 中被 sc2 摘要读取的对象引用。
+      var _runConsistencyAudit = async function(){ return _runSubcall('sc_audit', '数据一致性审核', 'lite', async function() {
       _quietLoad("\u6570\u636E\u4E00\u81F4\u6027\u5BA1\u6838", 66);
       try {
         var _tres = GM._turnAiResults || {};
@@ -10327,7 +10338,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           }
         }
       } catch(eAu) { _dbg('[Consistency Audit] fail:', eAu); }
-      }); }); // end SC_CONSISTENCY_AUDIT (queued post-turn)
+      }); }; // end SC_CONSISTENCY_AUDIT
 
       // --- Sub-call 1.9: 新实体丰化（复用编辑器 AI 级 schema，填充骨架） ---
       // ★ 后台化（2026-04-30）：丰化仅填充 GM.facs/classes/parties/chars 已存在骨架的空字段；
@@ -10526,7 +10537,8 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       }); }); // end Sub-call 1.9 (queued post-turn)
 
       // ── Branch C · 后人戏说 → 叙事审查 ──
-      var _branchC = (async function() {
+      // 会读取 GM/p1 当前世界状态，必须等 sc16/17/18 的补充变动和一致性审计收束后再跑。
+      var _runBranchC = async function() {
       // --- Sub-call 2: 后人戏说（场景叙事，完整生活进程） --- [always runs]
       await _runSubcall('sc2', '后人戏说', 'lite', async function() {
       showLoading("AI撰写后人戏说",70);
@@ -10627,7 +10639,13 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         }
       }
 
-      var tp2 = p1Summary + _basisBrief + _chronCtx2
+      // ★ 世界状态快照注入（sc2 重点：叙事接地·防身份漂移与死者复活）
+      var _ws2 = '';
+      try {
+        if (typeof _buildWorldStateSnapshot === 'function') _ws2 += _buildWorldStateSnapshot();
+        if (typeof _buildDeadPin === 'function') _ws2 += _buildDeadPin();
+      } catch(_wse2){ _dbg('[WorldSnap sc2] fail:', _wse2); }
+      var tp2 = _ws2 + p1Summary + _basisBrief + _chronCtx2
         + (aiThinking ? '【AI分析】' + aiThinking.substring(0, 200) + '\n' : '')
         + "\n基于上述全部资料，撰写《后人戏说》——这是玩家角色本回合的完整生活进程，核心目的是**完整、立体地呈现玩家角色的日常生活**，让玩家看见自己的角色如何度过这一段时光。\n"
         + "【核心要义——叙事性第一】\n"
@@ -10901,20 +10919,24 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         }
       } catch(e27) { _dbg('[Narrative Review] fail:', e27); throw e27; }
       }); // end Sub-call 2.7 _runSubcall
-      })(); // ── end Branch C IIFE ──
+      }; // ── end Branch C runner ──
 
-      // ★ 等待三路并行子调用全部完成（Branch A: sc15→memwrite · Branch B: sc16/17/18 batch · Branch C: sc2→sc27）
-      try { await Promise.all([_branchA, _branchB, _branchC]); }
-      catch(_pBranchE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_pBranchE, 'sc1后扇出三路并行') : console.warn('[sc1后扇出三路并行]', _pBranchE); }
+      // ★ 稳妥并行：先并行完成无直接读写冲突的 A/B，再做一致性审计，最后生成玩家可见叙事。
+      try {
+        await Promise.all([_branchA, _branchB]);
+        await _runConsistencyAudit();
+        await _runBranchC();
+      }
+      catch(_pBranchE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_pBranchE, 'sc1后稳妥并行收束') : console.warn('[sc1后稳妥并行收束]', _pBranchE); }
 
       // --- Sub-call 0.7: NPC 认知整合 ---
       //   · 位置：所有推演完成之后，世界快照之前
       //   · 职责：为每个关键 NPC 生成"当下此刻的信息掌握画像"
       //   · 持久化：GM._npcCognition（与 GM 同命周期·随存档）
-      //   · 消费者：问对/朝议/科议/奏疏回复等"下回合"AI 调用（通过 getNpcCognitionSnippet）
-      // ★ 后台化（2026-04-30）：消费者本就是下回合的 AI 调用·post-turn 队列在下回合开始前 _awaitPostTurnJobs 会等齐
-      _queuePostTurnSubcall('sc07', function(){ return _runSubcall('sc07', 'NPC认知整合', 'lite', async function() {
-      _quietLoad("NPC \u8BA4\u77E5\u6574\u5408", 89);
+      //   · 消费者：问对/朝议/科议/奏疏回复等回合内 AI 调用（通过 getNpcCognitionSnippet）
+      // 按既定约束保留前台执行，不放入 post-turn 队列。
+      await _runSubcall('sc07', 'NPC认知整合', 'lite', async function() {
+      showLoading("NPC \u8BA4\u77E5\u6574\u5408", 89);
       try {
         var _liveCharsCog = (GM.chars||[]).filter(function(c){return c && c.alive!==false && !c.isPlayer;});
         _liveCharsCog.sort(function(a,b){return (a.rank||99)-(b.rank||99);});
@@ -11100,7 +11122,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
           console.warn('[sc07] HTTP', resp07.status);
         }
       } catch(e07) { _dbg('[NPC Cognition] fail:', e07); }
-      }); }); // end Sub-call 0.7 (queued post-turn)
+      }); // end Sub-call 0.7 _runSubcall
 
       // --- Sub-call 2.8: 世界状态深度快照 --- [full only]
       _queuePostTurnSubcall('sc28', function(){ return _runSubcall('sc28', '世界快照', 'full', async function() {

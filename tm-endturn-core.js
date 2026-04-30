@@ -30,6 +30,14 @@ async function _endTurnCore(){
     showLoading("\u65F6\u79FB\u4E8B\u53BB",10);
   }
 
+  // 上回合 post-turn 任务必须先收束，再进入本回合 before hooks。
+  // 否则后台生成的历史偏离、NPC认知、世界快照等上下文可能晚于 prompt 注入。
+  try {
+    if (typeof _awaitPostTurnJobs === 'function') await _awaitPostTurnJobs();
+  } catch(_ptStartE) {
+    (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ptStartE, 'endTurn] await previous post-turn') : console.warn('[endTurn] await previous post-turn', _ptStartE);
+  }
+
   // ★ 过回合前自动存档·防 AI 长推演崩溃丢失本回合操作(诏令/奏疏批复/对话/调动)
   // 写入独立 IDB key 'pre_endturn'·与正常 autosave/slot_0 分离·不污染案卷目录
   // 写入 localStorage 标记 tm_pre_endturn_mark·页面刷新后可检测

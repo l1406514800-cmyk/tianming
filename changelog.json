@@ -3,6 +3,37 @@
   "entries": [
     {
       "date": "2026-04-30",
+      "module": "邸报·推演 AI 记忆增强：状态优先注入（世界快照·死者图钉·诏令进度·NPC 一句话）",
+      "title": "针对 AI 长游戏失忆症（身份漂移/关系丢失/因果断裂/事实矛盾/死者复活/自创设定丢失/回合数感漂移），新增 tm-world-snapshot.js 模块——把『事实』以结构化卡片形式注入推演 prompt 顶部，与现有『叙事文本』压缩层互补。AI 不再需要二次提取就能拿到客观世界模型。四大快照覆盖玩家身份+国势/已死要员名单/进行中诏令进度/关键 NPC 当下行为画像。",
+      "items": [
+        { "what": "新增 tm-world-snapshot.js 模块（约 270 行）：四个纯函数 helper——_buildWorldStateSnapshot / _buildDeadPin / _buildEdictProgressCards / _buildNpcOneLiners + 总入口 _buildAllSnapshots。每个 helper 数据缺失时返回空字符串，不抛异常。注册到 window 全局也注册到 WorldSnapshot 命名空间。", "why": "把『AI 必须立刻拿到』的客观事实从压缩文本里抽出来，独立成结构化卡片。这跟原 _aiMemorySummaries / _memoryLayers / shijiHistory 等『叙事压缩』机制是互补的——前者保 fact 准确，后者保 narrative 连贯。" },
+        { "what": "buildWorldStateSnapshot：玩家身份（名/朝代/年龄/在位回合数+换算年份/精力/荒淫）+ 国势四象（皇权/皇威/民心/吏治+趋势↑↓）+ 财政变量（内帑/外帑/国库/帑廪/军饷/岁入 前4个）+ 关键要职（top 6 一二三品）+ 当前 quadrant 态势 + 危机清单（unrest>60 省份 + 即将发动 schemes）。", "why": "AI 在推演时最容易忘的就是『我现在是谁/治国几年了/手下要员是谁』。一个 50-150 字的状态卡比读 50 回合 shizhengji 信息密度高 20 倍。趋势箭头让 AI 看到『国库在连降 6 回合』而不是只看一个孤立数值。" },
+        { "what": "buildDeadPin：合并 GM._epitaphs（精确死亡记录）+ chars[].alive===false（兜底防漏写）。按死亡回合倒序（近期前置吸引注意力）。上限 25 条，超出标『…及更早 N 名死者』。每行格式：· 角色名（T死亡回合·死因·卒时官职）。", "why": "原 epitaphs 仅在 sc05 注入 last 8 条，sc1 主推演看不到。AI 偶尔让魏忠贤（T-12 已诛）在 T+5 重新行动。新版独立成『图钉』段，铁律措辞『如下名单中任何人不得在叙事/动作/对话中出现为活人；若需提及，须用 故 XX 或追忆口吻』。注入 sc1+sc15+sc2 三处。" },
+        { "what": "buildEdictProgressCards：从 GM._edictTracker 抽取 status≠completed 且非自动缺员通知的诏令，按 turn 倒序取最近 8 条。每行包含：[类目] 内容简述·阶段(stage/reformPhase)·进度%·剩余 ETA 回合·阻力来源。", "why": "长期诏令最容易被 AI 忘记——比如玩家 T10 下了清算阉党改革，T50 AI 完全不提它在做什么。结构化进度卡明确告诉 AI『这件事还在进行·剩 N 回合·阻力来自 X·应当在叙事中自然涉及』。注入 sc1+sc15。" },
+        { "what": "buildNpcOneLiners：从 GM.chars 中按优先级评分（mood 异常+5/近 3 回合 scar+8/loyalty 极端+4/stress 高+3/高品官+6 或 +3/势力领袖+5/党魁+4/玩家近 3 回合鸿雁+3）选 top 18 人，每行格式：· 名·官职·[势力]{党派} 数值短码 | _npcCognition.currentFocus / 最新 scar / 当前情绪。", "why": "原 sc15 注入『全部存活角色当前数值』——AI 看到的是『忠70 智85 政80』，没有『此刻在做什么』。一句话状态从 _npcCognition.currentFocus 直接喂出『袁崇焕：辽督·下狱中·上回合擅杀毛文龙触怒陛下·处境凶险』，AI 立刻知道这个角色本回合应当如何反应。注入 sc1。" },
+        { "what": "注入位置：sc1 主推演 prepend buildAll（四件套全套）·sc15 NPC 深度推演 prepend deadPin+edictCards（防复活+诏令记忆）·sc2 后人戏说 prepend snapshot+deadPin（叙事接地+防复活）。每处 try-catch 包裹·失败 silent fallback 不影响主流程。", "why": "三处分工：sc1 是 AI 看到的第一个完整 prompt，给最全的客观视角；sc15 推演 NPC 行为时最易引起死者复活+忘记诏令在进行，针对性补；sc2 写叙事最易出『虚构事实』的漂移，给现实锚点。" },
+        { "what": "tm-world-snapshot.js 加载顺序：放在 tm-edict-lifecycle.js 之后、tm-endturn-* 之前（tm-edict-lifecycle 提供 EDICT_TYPES/EDICT_STAGES/getEdictLifecycleTurns，是 buildEdictProgressCards 的依赖）。index.html cache-bust 更新到 v=2026043001（同步本日所有 endturn 改动）。", "why": "保证函数在被引用时已加载。运行时降级用 typeof check，所以即便加载顺序有问题也不会致命错误。" },
+        { "what": "验证：node --check tm-world-snapshot.js + tm-endturn-ai-infer.js + tm-endturn-core.js 全部通过。Function 构造器解析 5 个相关文件全部 OK。注入点 grep 确认 sc1/sc15/sc2 各注入一次。", "why": "重大新模块上线前必须语法+引用确认。helper 内部多源回退（multi-path read）保证存档变量在不同结构（authority-engines 对象 vs GM.vars）下都能读到。" }
+      ]
+    },
+    {
+      "date": "2026-04-30",
+      "module": "邸报·过回合 AI 提速三修：sc1 后扇出三路并行 + 后台化非主路径 + 历史检查重设计",
+      "title": "在不削减任何 AI 子调用、不改推演内容的前提下，把 sc1 主推演完成后的 sc15→memwrite / sc16-18 batch / sc2→sc27 三条独立链路改为 IIFE+Promise.all 三路并行；把 sc_audit / sc19 / sc07 / 御批回听 / 历史检查从主等待链路移到 post-turn 后台队列；同时重设计历史检查——从『纠错语法警察』改为『现实顾问预测后果』，输出结构化偏离清单注入下回合 prompt 让 AI 自然演绎反噬，而不修改玩家任何决定。估算典型回合从 80-150s 降至 35-80s。",
+      "items": [
+        { "what": "tm-endturn-ai-infer.js §5 sc1 后子调用层：sc15→sc_memwrite 包成 var _branchA = (async function(){...})(); sc16/17/18 batch 由 await _runSubcallBatch 改为 var _branchB = _runSubcallBatch(...);  sc2→sc27 包成 var _branchC = (async function(){...})(); 三路结束后统一 await Promise.all([_branchA, _branchB, _branchC])，外层 try/catch 捕获任一分支 reject。", "why": "三路之间互无字段依赖（branchA 写 hidden_moves+memory，branchB 写 faction_events/army/fiscal supplementary，branchC 写 zhengwen+narrative review），唯一硬依赖（sc_memwrite 等 sc15 / sc_audit 读 sc16-18 / sc27 读 sc2）已在 IIFE 内部串好。原来的串行让三路加和等待，并行后取最长分支的 wall-clock，省 20-35s/回合。" },
+        { "what": "tm-endturn-ai-infer.js：sc_audit / sc19 / sc07 由 await _runSubcall 改为 _queuePostTurnSubcall + 内部 _runSubcall 包装（沿用 sc25/sc28 既有模式）。下回合开始前 _awaitPostTurnJobs 会等齐，玩家不会感知。", "why": "sc_audit 仅修改 _turnAiResults 缓存与 _turnReport（不影响 GM 核心数据）；sc19 仅填充新实体的空字段（_RETRY_WINDOW=3 回合保护，本回合漏掉下回合补）；sc07 NPC 认知输出本就是给『下回合』的问对/朝议/科议消费。三者的成果都不影响当回合 UI 的史记/时政记/后人戏说显示，没必要堵在主等待链路里。再省 15-30s/回合。" },
+        { "what": "tm-endturn-core.js Phase 3.5 御批回听：await aiEdictEfficacyAudit(...) 改 _enqueuePostTurnJob('edict_efficacy', ...)；hook 系统未加载时降级同步执行。", "why": "御批回听结果写入 GM._edictEfficacyReport 由 UI 面板按需读取，玩家通常先看史记弹窗、再点开御批回听面板查看（5-10s 已经足够后台跑完）。即使玩家秒开面板看到『生成中』也比主等待少了 5-10s。" },
+        { "what": "tm-endturn-core.js 钩子 9 历史检查：从同步 await callAISmart 改为 _enqueuePostTurnJob('hist_check', ...)；hook 入口同步快照 latest.zhengwen 与 edicts，避免后台 fire 时 shijiHistory 已被新回合改写。", "why": "原历史检查仅写 addEB('史实检查', ...)，纯信息提示，无任何当回合 UI 依赖；放后台无任何用户可感知差异，再省 5-10s（仅 light_hist/strict_hist 模式触发）。" },
+        { "what": "tm-endturn-ai-infer.js 引入 _quietLoad(label, pct) helper：检测 GM._postTurnJobs 存在则静默返回；同步替换 sc_audit / sc19 / sc07 / sc25 内 3 处压缩调用共 6 处 showLoading，避免后台任务在玩家看史记/操作下回合时错误弹回 loading 蒙层。", "why": "post-turn 任务成功就该悄悄跑。原来这些 showLoading 在前台流程里是合理进度提示，挪到后台后会出现『玩家正在阅读后人戏说，蒙层突然弹回』的 UI 错乱。" },
+        { "what": "tm-endturn-ai-infer.js 引入 _maybeCacheSys(sysContent) helper：双重门控（provider==='anthropic' 且 URL===api.anthropic.com）才把 system 内容包成 [{type:'text',text:..., cache_control:{type:'ephemeral'}}] 数组格式；其余一切（OpenAI/GPT/Gemini/DeepSeek/OpenRouter/中转站等所有走 /chat/completions 的接口）一律返回原字符串完全 no-op。同步替换 12 处 raw fetch 的 system message。", "why": "原生 Anthropic API 用户享 90% 折扣 + 服务端缓存命中省 200-500ms。其它 provider 走数组格式会 400 错误，所以必须双重门控。OpenAI 自身有自动 prompt caching（>1024 tokens 自动启用），无需 API 改动。" },
+        { "what": "tm-endturn-core.js 历史检查重设计：钩子 9 从『检查叙事是否符合历史→addEB 史实检查』改为『识别玩家诏令偏离时代逻辑→预测现实必然反噬→输出结构化 deviations[]→持久化到 GM._historicalDeviations』。新增钩子 9b before-hook：每回合开始把 pending deviations 注入 P.ai.prompt，明确铁律『不得改写玩家原诏；只在叙事/NPC 行动/势力反应/民意/外族动向中演出后果』。新增钩子 9c after-hook：恢复 prompt + TTL 衰减+清理过期项。", "why": "用户明确指出历史检查的定位错了——不应该是『纠正玩家措辞与行为的语法警察』，而是『让 AI 在推演中演绎玩家不合史实操作必然引起的后果』。现在玩家诏令字面照旧执行，AI 推演下回合时看到具体反噬指令，自然在叙事里演绎弹劾奏疏与威望折损。manifestIn=1-3 控制 TTL，玩家可见层用『史实预警』中性措辞而非『史实检查』。" },
+        { "what": "deviations 数据结构：{sourceTurn, playerAction(80字), historicalContext(100字), realisticConsequence(150字), ttl(1-3)}。上限保留最近 12 条，超出滑窗丢弃；TTL 时序设计为『写入回合不衰减（hist_check 是 post-turn 后台），下回合 before-hook 注入→同回合 after-hook 衰减』，给到 manifestIn 个回合的演绎窗口。完全合史时 deviations=[] 不注入任何 prompt 干扰。", "why": "TTL 时序保证 manifestIn=2 真的能演 2 个回合（不会因为同回合写入+衰减导致只演 1 个回合）。上限 12 条避免历史偏离堆积污染 prompt。" },
+        { "what": "验证：node --check 两文件零语法错误；new Function(src) 5 个相关文件全部 parse 成功；naming 检查 _origPromptHist / _historicalDeviations / _maybeCacheSys / _quietLoad 与现有代码零冲突；post-turn 范围逐一精确扫描确认 6 处 showLoading 全替换为 _quietLoad，sc28 内零残留。", "why": "重大并行/异步重构必须验证语法+引用+命名+UI 行为四项，已全部通过。" }
+      ]
+    },
+    {
+      "date": "2026-04-30",
       "module": "邸报·过回合 AI 提速二修：后台记忆快照与顺序护栏",
       "title": "在不减少 API 调用次数、不改 sc07 NPC 认知的前提下，把 sc25 伏笔记忆与 sc28 世界快照移出玩家等待链路，放入 post-turn 后台队列；随后按实测补齐顺序护栏，确保反思、五回合摘要、三十回合纲要不会因为回合号递增或临时上下文清理而漏读本回合结果。",
       "items": [
