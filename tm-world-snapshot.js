@@ -129,13 +129,11 @@
 
   // ────── 收集顶级官位的辅助 ──────
   function _collectTopOfficials(limit) {
-    if (!GM || !GM.officeTree) return [];
+    if (typeof GM === 'undefined' || !GM || !GM.officeTree) return [];
     var results = [];
     function walk(nodes, depth) {
       (nodes || []).forEach(function(n) {
-        if (results.length >= limit) return;
         (n.positions || []).forEach(function(p) {
-          if (results.length >= limit) return;
           // 优先 rank<=2 的
           var rank = parseInt(p.rank, 10);
           if (isNaN(rank) || rank > 3) return;
@@ -152,7 +150,7 @@
 
   // ────── 2. 已死要员图钉（防复活） ──────
   function buildDeadPin() {
-    if (!GM) return '';
+    if (typeof GM === 'undefined' || !GM) return '';
     var deadList = [];
 
     // 来源 A: GM._epitaphs（精确死亡记录）
@@ -205,7 +203,7 @@
 
   // ────── 3. 长期诏令进度卡 ──────
   function buildEdictProgressCards() {
-    if (!GM) return '';
+    if (typeof GM === 'undefined' || !GM) return '';
     var cards = [];
 
     // 来源 A: _edictTracker 中 status≠'completed' 的条目
@@ -252,7 +250,7 @@
 
   // ────── 4. NPC 一句话当下状态卡 ──────
   function buildNpcOneLiners(maxN) {
-    if (!GM || !Array.isArray(GM.chars)) return '';
+    if (typeof GM === 'undefined' || !GM || !Array.isArray(GM.chars)) return '';
     maxN = maxN || 18;
 
     // 优先级：玩家关注的人 > 有近期突变的 > 高品级官员 > 其他
@@ -351,7 +349,7 @@
 
   // ────── 5. 关系突变图谱（近 N 回合有变动的人物关系） ──────
   function buildRelationDeltas(maxEntries, lookbackTurns) {
-    if (!GM || !Array.isArray(GM.chars)) return '';
+    if (typeof GM === 'undefined' || !GM || !Array.isArray(GM.chars)) return '';
     maxEntries = maxEntries || 12;
     lookbackTurns = lookbackTurns || 10;
     var curT = GM.turn || 1;
@@ -440,7 +438,7 @@
 
   // ────── 6. 上回合 → 本回合 Brief（自动凝练前情提要） ──────
   function buildPriorTurnBrief() {
-    if (!GM) return '';
+    if (typeof GM === 'undefined' || !GM) return '';
     // 从上一回合的 _turnAiResults 残余 + shijiHistory 末条提取关键发生
     var prior = (GM.shijiHistory && GM.shijiHistory.length > 0) ? GM.shijiHistory[GM.shijiHistory.length - 1] : null;
     if (!prior) return '';
@@ -520,7 +518,7 @@
   // 思路：把"近 X 回合内发生的不可逆 fact"列出·让 AI 看到"这些已经板上钉钉"
   // 涵盖：死亡（不能复活）·任免（现任职位）·重大事件（不能否认）
   function buildCanonicalFacts(lookbackTurns) {
-    if (!GM) return '';
+    if (typeof GM === 'undefined' || !GM) return '';
     lookbackTurns = lookbackTurns || 15;
     var curT = GM.turn || 1;
     var facts = [];

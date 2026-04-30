@@ -3315,6 +3315,7 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
             if (!q || typeof q !== 'object') return;
             var allHits = [];
             var keywords = Array.isArray(q.keywords) ? q.keywords : (q.keywords ? [q.keywords] : []);
+            keywords = keywords.map(function(k) { return String(k || '').trim().slice(0, 40); }).filter(Boolean).slice(0, 6);
             var keywordRe = keywords.length > 0 ? new RegExp(keywords.map(function(k){return String(k).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}).join('|'), 'i') : null;
 
             // 源 1: NpcMemorySystem 人物记忆（精准）
@@ -11014,7 +11015,15 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
 
       // ★ 稳妥并行：先并行完成无直接读写冲突的 A/B，再做一致性审计，最后生成玩家可见叙事。
       try {
-        await Promise.all([_branchA, _branchB]);
+        var _branchSettled = await Promise.all([
+          _branchA.then(function(){ return null; }, function(e){ return e; }),
+          _branchB.then(function(){ return null; }, function(e){ return e; })
+        ]);
+        _branchSettled.forEach(function(e, i) {
+          if (!e) return;
+          var _ctx = i === 0 ? 'sc1后稳妥并行收束:branchA' : 'sc1后稳妥并行收束:branchB';
+          (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, _ctx) : console.warn('[' + _ctx + ']', e);
+        });
         await _runConsistencyAudit();
         await _runBranchC();
       }
