@@ -3,6 +3,52 @@
   "entries": [
     {
       "date": "2026-04-30",
+      "module": "邸报·Phase 5 关键审计 + 致命 bug 修复 + 三模型解耦 + 事件溯源重建",
+      "title": "用户提出关键审计请求：检查记忆系统是否真在影响推演而非空中楼阁。审计发现致命 bug——sc1 用了 OpenAI response_format=json_object·这强制 AI 只输出纯 JSON·导致我之前设计的 <tableEdit>...</tableEdit> 标签输出永远被屏蔽——OpenAI 用户的 12 表系统等于只能初始化一次再也不更新。立即修复：sc1 JSON schema 加 table_updates 字段·走结构化 JSON 通道而非 XML 标签。同时完成两个剩余设计：(P5.1) 三模型解耦·sc_audit + sc25 优先用次要 API 配置·没配则回退主要——使用了已存在的 _useSecondaryTier/_getAITier/_buildAIUrlForTier 助手。(P5.2) Horae 轻版 chat[0] 事件溯源·MemTables.rebuildFromHistory() 从 shijiHistory + evtLog + ChronicleTracker 反向重建 curStatus/eventHistory/majorEventsBrief 三张表·UI 加重建按钮·用于损坏修复或老存档迁移。",
+      "items": [
+        {
+          "what": "【P5.0 审计】系统性核查 8 个维度——(1) sc1 注入路径✓ (2) syncFromGM 启动初始化✓ (3) applyAIOps 解析✓ (4) endTurn 自动快照✓ (5) Ctrl+M UI✓ (6) hideSecret sc15/sc2 过滤✓ (7) cellHistory push✓ (8) sc1 response_format 屏蔽 <tableEdit> 致命 bug 🚨。",
+          "why": "记忆系统价值的核心在于\"真在跑\"·不只在\"代码存在\"。审计是上线前必做。"
+        },
+        {
+          "what": "【P5.3 致命 bug 修复】sc1 JSON schema 末尾追加 \"table_updates\":[{\"sheet\":\"...\",\"op\":\"insert/update/delete\",\"rowIdx\":N,\"values\":{}}]。tm-endturn-ai-infer.js 的 sc1 后置消费者改为三通道兼容：(A) p1.table_updates 数组（OpenAI json_object 唯一可走通道·结构化最稳）(B) p1.tableEdit 字符串（部分模型可能输出文本字段）(C) c1 文本中嵌入的 <tableEdit> 块（Anthropic/Gemini 兜底）。三个通道的 ops 合并后统一调 applyAIOps·_dbg 报告 channels: json=N xml=y/n。",
+          "why": "OpenAI 用户的 12 表如果只能 syncFromGM 初始化·之后永不更新·就是空中楼阁。三通道兼容确保所有 LLM 厂商都能写表·覆盖 OpenAI/Anthropic/Gemini/中转站。"
+        },
+        {
+          "what": "【P5.1 三模型解耦】sc_audit (Reviewer 角色) 与 sc25 (Analyzer 角色) 改用 _useSecondaryTier()/_getAITier()/_buildAIUrlForTier() 三个助手——次要 API 配置完整(P.ai.secondary.key + url)且未显式禁用(P.conf.secondaryEnabled !== false)时·走次要 tier；否则回退主要。sc1 (Writer 角色) 保持主要 API。配套 _dbg 输出 [sc_audit/sc25] using tier:secondary/primary model:X。",
+          "why": "ReNovel-AI 三模型解耦范式·让审核与分析任务用更便宜/更小的次要 API（如 GPT-4o-mini 处理 sc_audit·主 API 跑 GPT-4o 处理 sc1）。降本 + 隔离风险（一个 API 抽风不影响另一个）。原本 _useSecondaryTier 已存在但 sc25/sc_audit 没接·属于功能未启用。"
+        },
+        {
+          "what": "【P5.2 事件溯源重建（Horae 轻版 chat[0]）】tm-memory-tables.js 加 rebuildFromHistory(opts)：opts.clear=true 默认清空三张表再重建——curStatus 单行（剧本 dynasty + 玩家名 + 年号 + 当前回合）·eventHistory 从 GM.evtLog 全量重建（每条挂 T<turn>-E<seq> 编码与 0.5 默认权重）·majorEventsBrief 从 GM.shijiHistory 抽 shilu/shizhengji 摘要 + ChronicleTracker.getAll() 完成项。返回 {stats:{curStatus,eventHistory,majorEventsBrief}, totalRows}。",
+          "why": "Horae 的 event-sourcing 范式核心价值不是日常用·是损坏修复——存档迁移/表数据丢失/想重新基线化时·从已有\"历史事实\"（shijiHistory/evtLog/Chronicle 是不会丢的核心源）反推出表的当前态。这是 swipe 快照的补充。"
+        },
+        {
+          "what": "tm-memory-ui.js header 加 🔧 重建按钮·调 _onRebuild() 弹 confirm 对话——警示会清空三张表后重建·其他 9 张表保持不变。重建后弹 alert 显示重建条数。",
+          "why": "UI 必须暴露·否则功能等于不存在。但用 confirm 拦截避免误触·因为这是\"清空+重建\"的破坏性操作。"
+        },
+        {
+          "what": "验证：node --check 全部通过（tm-endturn-ai-infer / tm-memory-tables / tm-memory-ui）。响应路径 sc1/sc15/sc2 + sc25 + sc_audit 主路径无 syntax error。三通道兼容向下兼容——p1.table_updates 不存在则跳过 A 路径·p1.tableEdit 不存在则跳过 B 路径·c1 无 <tableEdit> 标签则跳过 C 路径。",
+          "why": "记忆增强中间件的基本契约：出错降级·永远不阻断主推演。"
+        },
+        {
+          "what": "【已完成的低 ROI 评估】Horae 的 chat[0] 全局聚合 event-sourcing：本批以 rebuildFromHistory 形式实现轻版（仅修复路径·不在每回合重放），完整版与 _stateSnapshots 冗余故不做。ReNovel-AI 三模型解耦：本批已落地（sc25/sc_audit 用次要）。",
+          "why": "记录边际收益判断·避免后续重复评估。"
+        }
+      ]
+    },
+    {
+      "date": "2026-04-30",
+      "module": "邸报·12 表写回通道补丁：sc1 table_updates + 历史重建 + 后台模型分工",
+      "title": "修复 OpenAI response_format=json_object 场景下 <tableEdit> 文本块可能无法稳定进入返回内容的问题：sc1 schema 新增 table_updates 数组，AI 可直接在 JSON 里提交 12 表增量更新；原有 p1.tableEdit 字符串通道和正文 <tableEdit> 通道继续兼容。同时补上三表历史重建按钮，并让 sc_audit/sc25 优先走次 API 承担 Reviewer/Analyzer 后台角色。",
+      "items": [
+        { "what": "tm-endturn-ai-infer.js 的 sc1 返回 schema 增加 table_updates:[{sheet,op,rowIdx,values}]，并在 sc1 返回后统一汇总 JSON 通道、p1.tableEdit 字符串通道、c1 正文 <tableEdit> 通道，再走 MemTables.applyAIOps({actor:'ai'})。", "why": "不同 API 对 JSON 强制模式和文本块的处理不一致。把表格增量写回放进正式 JSON 字段后，OpenAI/兼容接口不再因为 response_format 屏蔽 XML/HTML 风格块而丢失记忆表更新。" },
+        { "what": "update/delete 的 table_updates 若缺 rowIdx 或 rowIdx 非法会被跳过，不再默认落到第 0 行；insert 仍不需要 rowIdx。", "why": "避免 AI 漏填行号时误改第一行，尤其是 curStatus、courtNpc 这类高影响表。" },
+        { "what": "tm-memory-tables.js 新增 rebuildFromHistory({clear:true})，可从 shijiHistory、evtLog、ChronicleTracker 反向重建 curStatus/eventHistory/majorEventsBrief 三张关键表；Ctrl+M 面板新增『重建』按钮。", "why": "旧存档迁移或记忆表损坏时，玩家可以用既有史料重新生成基础事实表，不需要手工清表重开。" },
+        { "what": "sc_audit 和 sc25 调用改为优先使用已配置的次 API，未配置时回退主 API；日志输出实际 tier/model。", "why": "把审核/分析类后台任务从主写作模型上分离，降低主 API 排队压力，也为后续 Writer/Reviewer/Analyzer 分工铺路。" }
+      ]
+    },
+    {
+      "date": "2026-04-30",
       "module": "邸报·9 插件横向对比 + Phase 4 综合借鉴：时间一等公民 / 未来约束 / 隐藏天机 / cellHistory / 标准适配器",
       "title": "继 Phase 1-3 后并行研究 SillyTavern-Horae（时间感知）/ ReNovel-AI（未来约束）/ muyoou/st-memory-enhancement（hash-based 历史 + 外部适配器）三个新插件·结合之前 5 个综合 9 维矩阵对比·提取 5 项尚未抄的高 ROI 设计落地：(P4.1) tm-time-utils.js Horae 风格时间工具（干支/12 地支时辰/季节/相对时间口语化）·sc1/sc15/sc2 prompt 顶部注入时间参考段防 AI 把三天前说成昨天。(P4.2) eventHistory 加未来约束列·sc25 评分时 AI 二元标记 affects_future·sc1 prompt 提取构成长期约束段。(P4.3) imperialEdict 加隐藏列·勾选后仅 sc1 可见·配编辑器/UI 双勾选·剧本作者可埋定时炸弹。(P4.4) updateRow 改为不可变历史·UI 加史按钮看修改时间线。(P4.5) tm-memory-adapter.js 暴露 TianmingMemoryAdapter 标准外部入口。(P4.8) 扫描确认无越狱串污染。",
       "items": [

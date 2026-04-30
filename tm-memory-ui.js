@@ -85,6 +85,7 @@
           '<button id="mem-snapshot-btn" title="生成穿越快照">📸 快照</button> ' +
           '<button id="mem-timetravel-btn" title="穿越回某回合">⏪ 穿越</button> ' +
           '<button id="mem-semantic-btn" title="启用本地语义检索">🔍 语义</button> ' +
+          '<button id="mem-rebuild-btn" title="从 shijiHistory/evtLog/Chronicle 反向重建关键表（损坏修复用）">🔧 重建</button> ' +
           '<button id="mem-close-btn">×</button>' +
         '</div>' +
       '</div>' +
@@ -100,8 +101,22 @@
     panel.querySelector('#mem-snapshot-btn').addEventListener('click', _onSnapshot);
     panel.querySelector('#mem-timetravel-btn').addEventListener('click', _onTimeTravel);
     panel.querySelector('#mem-semantic-btn').addEventListener('click', _onSemanticToggle);
+    var _rb = panel.querySelector('#mem-rebuild-btn');
+    if (_rb) _rb.addEventListener('click', _onRebuild);
     panel.querySelector('#mem-commit-deletes-btn').addEventListener('click', _onCommitDeletes);
     return panel;
+  }
+
+  function _onRebuild() {
+    if (!window.MemTables || !MemTables.rebuildFromHistory) { alert('重建模块不可用'); return; }
+    if (!confirm('从 shijiHistory + evtLog + ChronicleTracker 反向重建『当前局势』『事件历史』『大事记摘要』三张表？\n\n此操作会清空这三张表的当前数据再用历史重建·其他 9 张表保持不变。\n\n（用于：旧存档迁移 / 表损坏 / 想重新基线化时）')) return;
+    var r = MemTables.rebuildFromHistory({ clear: true });
+    if (r.ok) {
+      alert('重建完成：\n  当前局势 ' + r.stats.curStatus + ' 行\n  事件历史 ' + r.stats.eventHistory + ' 行\n  大事记摘要 ' + r.stats.majorEventsBrief + ' 行\n\n共 ' + r.totalRows + ' 行');
+      _renderBody();
+    } else {
+      alert('重建失败：' + (r.reason || ''));
+    }
   }
 
   function _renderNav() {

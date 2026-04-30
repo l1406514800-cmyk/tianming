@@ -3890,7 +3890,9 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         // 长期工程/商队/学堂·跨回合追踪
         "\"project_updates\":[{\"name\":\"工程名\",\"type\":\"工程/商队/学堂/道路/造船\",\"status\":\"planning/active/completed/abandoned\",\"cost\":10000,\"progress\":30,\"leader\":\"负责人\",\"region\":\"地点\",\"description\":\"概述\",\"endTurn\":50}],"+
         // 兜底·可用 dotted.path 改任意字段（除禁区：P.ai P.conf GM.saveName turn/year/month/day/sid _开头）
-        "\"anyPathChanges\":[{\"path\":\"GM.任意嵌套路径\",\"op\":\"set/push/delta/merge/delete\",\"value\":\"值\",\"reason\":\"原因\"}]" +
+        "\"anyPathChanges\":[{\"path\":\"GM.任意嵌套路径\",\"op\":\"set/push/delta/merge/delete\",\"value\":\"值\",\"reason\":\"原因\"}]," +
+        // ★ 12 表结构化记忆增量更新（Phase 5.3 修 OpenAI response_format='json_object' 屏蔽 <tableEdit> 的致命 bug）
+        "\"table_updates\":[{\"sheet\":\"courtNpc/charProfile/edictsActive/specialMeans/importantItems/organizations/importantPlaces/relationNet/curStatus 之一\",\"op\":\"insert/update/delete\",\"rowIdx\":\"update/delete 时填行号\",\"values\":{\"colIdx数字\":\"值\"}}]" +
         "}";
       // 注入待追踪诏令（让AI知道本回合有哪些诏令需要反馈）
       if (GM._edictTracker) {
@@ -4661,18 +4663,45 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
       p1=extractJSON(c1);
       GM._turnAiResults.subcall1_raw = c1;
       GM._turnAiResults.subcall1 = p1;
-      // ★ 解析 sc1 输出末尾的 <tableEdit> 块·应用到 12 表（Phase 1）
+      // ★ 应用 12 表更新·三通道兼容（Phase 5.3 修 OpenAI response_format='json_object' 屏蔽 <tableEdit> 的致命 bug）
       try {
-        if (window.MemTables && c1) {
+        if (window.MemTables) {
+          var _mtTotalOps = [];
+          // 通道 A：sc1 JSON 字段 p1.table_updates 数组（OpenAI 强制 json_object 时唯一可走通道·结构化最稳）
+          if (p1 && Array.isArray(p1.table_updates) && p1.table_updates.length > 0) {
+            p1.table_updates.forEach(function(d) {
+              if (!d || !d.sheet) return;
+              var def = MemTables.SHEET_BY_KEY[d.sheet] || MemTables.SHEET_BY_IDX[d.sheet];
+              if (!def) return;
+              var cmd = (d.op || d.cmd || 'insert').toLowerCase();
+              var rowIdx = (typeof d.rowIdx === 'number') ? d.rowIdx : parseInt(d.rowIdx, 10);
+              if ((cmd === 'update' || cmd === 'delete') && (isNaN(rowIdx) || rowIdx < 0)) return;
+              _mtTotalOps.push({
+                cmd: cmd,
+                tableIdx: def.idx,
+                rowIdx: isNaN(rowIdx) ? null : rowIdx,
+                values: d.values || {}
+              });
+            });
+          }
+          // 通道 B：p1.tableEdit 字符串（AI 输出 JSON 中带 tableEdit 字段）
+          // 通道 C：c1 文本中嵌入 <tableEdit> 块（Anthropic/Gemini 无 response_format 限制时可走）
           var _mtEditText = (p1 && typeof p1.tableEdit === 'string') ? p1.tableEdit : c1;
-          var _mtParsed = MemTables.parseTableEdit(_mtEditText);
-          if (_mtParsed && _mtParsed.ops && _mtParsed.ops.length > 0) {
-            var _mtStats = MemTables.applyAIOps(_mtParsed.ops, {});
-            _dbg('[MemTables sc1] applied:', _mtStats);
+          if (_mtEditText && (_mtEditText.indexOf('<tableEdit>') >= 0 || _mtEditText.indexOf('insertRow(') >= 0)) {
+            var _mtParsed = MemTables.parseTableEdit(_mtEditText);
+            if (_mtParsed && _mtParsed.ops && _mtParsed.ops.length > 0) {
+              _mtTotalOps = _mtTotalOps.concat(_mtParsed.ops);
+            }
+          }
+          if (_mtTotalOps.length > 0) {
+            var _mtStats = MemTables.applyAIOps(_mtTotalOps, { actor: 'ai' });
+            _dbg('[MemTables sc1] applied:', _mtStats,
+                 '·channels: json=' + ((p1 && p1.table_updates) ? p1.table_updates.length : 0) +
+                 ' xml=' + ((_mtEditText && _mtEditText.indexOf('<tableEdit>') >= 0) ? 'y' : 'n'));
           }
           // 一致性哨兵·sc1 之后扫一遍
           if (MemTables.runConsistencySentinel) {
-            var _mtWarns = MemTables.runConsistencySentinel(GM.turn || 1);
+            var _mtWarns = MemTables.runConsistencySentinel((typeof GM !== 'undefined' && GM && GM.turn) || 1);
             if (_mtWarns && _mtWarns.length) _dbg('[MemTables sentinel]', _mtWarns.length, 'warnings');
           }
         }
@@ -10428,11 +10457,16 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         tpAu += '}\n';
         tpAu += '如无冲突·全部字段返回空数组 []。';
 
-        var respAu = await fetch(url, {
+        // Phase 5.1 三模型解耦：sc_audit (Reviewer 角色) 优先用次要 API·没配则回退主要
+        var _auTier = (typeof _useSecondaryTier === 'function' && _useSecondaryTier()) ? 'secondary' : 'primary';
+        var _auCfg = (typeof _getAITier === 'function') ? _getAITier(_auTier) : { key: P.ai.key, url: url, model: P.ai.model || 'gpt-4o' };
+        var _auUrl = (typeof _buildAIUrlForTier === 'function') ? _buildAIUrlForTier(_auTier) : url;
+        _dbg('[sc_audit] using tier:', _auCfg.tier || _auTier, 'model:', _auCfg.model);
+        var respAu = await fetch(_auUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + P.ai.key },
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + _auCfg.key },
           body: JSON.stringify({
-            model: P.ai.model || "gpt-4o",
+            model: _auCfg.model,
             messages: [{ role: "system", content: "你是严谨的数据一致性审核 AI·只报真实矛盾·不制造伪问题。" }, { role: "user", content: tpAu }],
             temperature: 0.2,
             max_tokens: _tok(3000)
@@ -10957,8 +10991,13 @@ async function _endTurn_aiInfer(edicts, xinglu, memRes, oldVars) {
         tp25 += '\u4F0F\u7B14\u8981\u5177\u4F53\uFF1A\u5305\u542B\u201C\u8C01\u201D\u201C\u505A\u4EC0\u4E48\u201D\u201C\u5728\u54EA\u91CC\u201D\u201C\u51E0\u56DE\u5408\u540E\u5F15\u7206\u201D\u3002\u4E0D\u8981\u6A21\u7CCA\u3002\n';
         tp25 += 'memory\u5FC5\u987B\u5305\u542B\u6240\u6709\u5173\u952E\u53D8\u5316\uFF0C\u8FD9\u662F\u4E0B\u56DE\u5408AI\u7684\u552F\u4E00\u56DE\u5FC6\u6765\u6E90\u3002';
 
-        var resp25 = await fetch(url, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+P.ai.key},
-          body:JSON.stringify({model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp25}], temperature:0.7, max_tokens:_tok(12000)})});
+        // Phase 5.1 三模型解耦：sc25 (Analyzer 角色) 优先用次要 API·没配则回退主要
+        var _t25 = (typeof _useSecondaryTier === 'function' && _useSecondaryTier()) ? 'secondary' : 'primary';
+        var _c25 = (typeof _getAITier === 'function') ? _getAITier(_t25) : { key: P.ai.key, url: url, model: P.ai.model || 'gpt-4o' };
+        var _u25 = (typeof _buildAIUrlForTier === 'function') ? _buildAIUrlForTier(_t25) : url;
+        _dbg('[sc25] using tier:', _c25.tier || _t25, 'model:', _c25.model);
+        var resp25 = await fetch(_u25, {method:"POST", headers:{"Content-Type":"application/json","Authorization":"Bearer "+_c25.key},
+          body:JSON.stringify({model:_c25.model, messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp25}], temperature:0.7, max_tokens:_tok(12000)})});
         if (resp25.ok) {
           var data25 = await resp25.json();
           _checkTruncated(data25, '伏笔记忆');

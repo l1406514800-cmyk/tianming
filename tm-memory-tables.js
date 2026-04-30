@@ -849,6 +849,105 @@
   }
 
   // ────────────────────────────────────────────────────────────
+  // §8.5 事件溯源·从历史反向重建关键表（Phase 5.2 Horae 轻版 chat[0]）
+  // 用途：_memTables 损坏/丢失/迁移老存档时·用 shijiHistory + evtLog + ChronicleTracker 反推
+  //   curStatus / eventHistory / majorEventsBrief 三张可重建·其他表保持手工
+  // ────────────────────────────────────────────────────────────
+  function rebuildFromHistory(opts) {
+    opts = opts || {};
+    if (!_ensureInit()) return { ok: false, reason: 'no GM' };
+    var stats = { curStatus: 0, eventHistory: 0, majorEventsBrief: 0 };
+    var nowTurn = (GM && GM.turn) || 1;
+
+    if (opts.clear !== false) {
+      _t('curStatus').rows = [];
+      _t('eventHistory').rows = [];
+      _t('majorEventsBrief').rows = [];
+    }
+
+    // 1. curStatus 单行重建
+    (function() {
+      var sc = (typeof findScenarioById === 'function' && GM.sid) ? findScenarioById(GM.sid) : null;
+      var row = [
+        sc ? (sc.dynasty || sc.name || '') : '',
+        (typeof P !== 'undefined' && P && P.playerInfo && P.playerInfo.characterName) || '',
+        (GM.vars && GM.vars['年号'] && GM.vars['年号'].value) || (sc ? sc.era : '') || '',
+        String(nowTurn),
+        '',
+        ''
+      ];
+      _t('curStatus').rows.push(row);
+      stats.curStatus++;
+    })();
+
+    // 2. eventHistory 从 evtLog 重建
+    if (Array.isArray(GM.evtLog)) {
+      var byTurn = {};
+      GM.evtLog.forEach(function(e) {
+        if (!e) return;
+        var t = e.turn || 0;
+        if (!byTurn[t]) byTurn[t] = 0;
+        byTurn[t]++;
+        var seq = byTurn[t];
+        _t('eventHistory').rows.push([
+          'T' + t + '-E' + seq,
+          String(t),
+          (e.text || e.event || '').substring(0, 80),
+          '0.5',
+          e.tag || '',
+          (e.actor || e.target || ''),
+          ''
+        ]);
+        stats.eventHistory++;
+      });
+    }
+
+    // 3. majorEventsBrief 从 shijiHistory + ChronicleTracker
+    if (Array.isArray(GM.shijiHistory)) {
+      var seqByTurn = {};
+      GM.shijiHistory.forEach(function(sh) {
+        if (!sh || !sh.turn) return;
+        var t = sh.turn;
+        seqByTurn[t] = (seqByTurn[t] || 0) + 1;
+        var summary = (sh.shilu || sh.shizhengji || '').substring(0, 250);
+        if (!summary.trim()) return;
+        _t('majorEventsBrief').rows.push([
+          'T' + t + '-S' + seqByTurn[t],
+          String(t),
+          '',
+          '',
+          '',
+          summary,
+          ''
+        ]);
+        stats.majorEventsBrief++;
+      });
+    }
+    if (typeof ChronicleTracker !== 'undefined' && ChronicleTracker.getAll) {
+      try {
+        var allChron = ChronicleTracker.getAll({}) || [];
+        allChron.forEach(function(c) {
+          if (!c || c.status !== 'completed') return;
+          var t = c.completedTurn || c.startTurn || 0;
+          var sq = ((c.id || '').slice(-2) || '?');
+          _t('majorEventsBrief').rows.push([
+            'T' + t + '-C' + sq,
+            String(t),
+            c.location || '',
+            '',
+            c.title || '',
+            (c.description || c.summary || '').substring(0, 250),
+            c.result || ''
+          ]);
+          stats.majorEventsBrief++;
+        });
+      } catch(_re){}
+    }
+
+    return { ok: true, stats: stats, totalRows: stats.curStatus + stats.eventHistory + stats.majorEventsBrief };
+  }
+
+  // ────────────────────────────────────────────────────────────
   // §9 暴露 API
   // ────────────────────────────────────────────────────────────
   global.MemTables = {
@@ -875,7 +974,8 @@
       return _findRowByKey(t, def, keyValue);
     },
     getSheet: function(sheetKey) { return _t(sheetKey); },
-    getCellHistory: getCellHistory
+    getCellHistory: getCellHistory,
+    rebuildFromHistory: rebuildFromHistory
   };
 
   // 兼容裸函数调用
