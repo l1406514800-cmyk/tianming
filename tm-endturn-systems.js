@@ -27,7 +27,10 @@ async function _endTurn_updateSystems(timeRatio, zhengwen) {
 
   // 3. 通过子回合调度器执行分层结算（daily→monthly→perturn）
   showLoading("更新数据",92);
-  var pipelineCtx = { timeRatio: timeRatio, turn: GM.turn };
+  var monthRatio = (typeof _getDaysPerTurn === 'function')
+    ? _getDaysPerTurn() / 30
+    : ((typeof timeRatio === 'number' && isFinite(timeRatio) && timeRatio > 0) ? timeRatio * 12 : 1);
+  var pipelineCtx = { timeRatio: timeRatio, turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio };
   SubTickRunner.run(pipelineCtx);
 
   // 3.5 NPC 行为推演（异步，不在 pipeline 中）
@@ -45,19 +48,19 @@ async function _endTurn_updateSystems(timeRatio, zhengwen) {
   // 6.01 腐败引擎回合演化（九源累积/衰减/真实感知更新/后果传导/揭发概率）
   try {
     if (typeof CorruptionEngine !== 'undefined') {
-      CorruptionEngine.tick({ turn: GM.turn });
+      CorruptionEngine.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] CorruptionEngine.tick 失败:') : console.error('[endTurn] CorruptionEngine.tick 失败:', e); }
 
   // 6.015 户口前移（方案联动总表推荐：腐败→户口→帑廪→内帑→民心→皇权→皇威）
   try {
     if (typeof HujiEngine !== 'undefined') {
-      HujiEngine.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+      HujiEngine.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] HujiEngine(early) 失败:') : console.error('[endTurn] HujiEngine(early) 失败:', e); }
   try {
     if (typeof HujiDeepFill !== 'undefined') {
-      HujiDeepFill.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+      HujiDeepFill.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] HujiDeepFill(early) 失败:') : console.error('[endTurn] HujiDeepFill(early) 失败:', e); }
   // 标记已早跑，后文跳过
@@ -66,77 +69,77 @@ async function _endTurn_updateSystems(timeRatio, zhengwen) {
   // 6.02 帑廪引擎回合结算（八源+八支+月度流水+年末决算）
   try {
     if (typeof GuokuEngine !== 'undefined') {
-      GuokuEngine.tick({ turn: GM.turn });
+      GuokuEngine.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] GuokuEngine.tick 失败:') : console.error('[endTurn] GuokuEngine.tick 失败:', e); }
 
   // 6.03 内帑引擎回合结算（6 源+5 支+月度+年末+危机检查）
   try {
     if (typeof NeitangEngine !== 'undefined') {
-      NeitangEngine.tick({ turn: GM.turn });
+      NeitangEngine.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] NeitangEngine.tick 失败:') : console.error('[endTurn] NeitangEngine.tick 失败:', e); }
 
   // 6.04 角色经济回合结算（6 资源 × 全角色）
   try {
     if (typeof CharEconEngine !== 'undefined') {
-      CharEconEngine.tick({ turn: GM.turn });
+      CharEconEngine.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] CharEconEngine.tick 失败:') : console.error('[endTurn] CharEconEngine.tick 失败:', e); }
 
   // 6.05 经济联动（层层剥夺/区域财政/俸禄流/贪腐流/下拨/民心反馈）
   try {
     if (typeof EconomyLinkage !== 'undefined') {
-      EconomyLinkage.tick({ turn: GM.turn });
+      EconomyLinkage.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] EconomyLinkage.tick 失败:') : console.error('[endTurn] EconomyLinkage.tick 失败:', e); }
 
   // 6.055 货币系统（铸币/纸币生命周期/市场/海外银流/钱荒钱贱）
   try {
     if (typeof CurrencyEngine !== 'undefined') {
-      CurrencyEngine.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+      CurrencyEngine.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] CurrencyEngine.tick 失败:') : console.error('[endTurn] CurrencyEngine.tick 失败:', e); }
 
   // 6.056 央地财政（合规率/地方 AI 决策/14 支出效果/监察/自立藩镇）
   try {
     if (typeof CentralLocalEngine !== 'undefined') {
-      CentralLocalEngine.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+      CentralLocalEngine.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] CentralLocalEngine.tick 失败:') : console.error('[endTurn] CentralLocalEngine.tick 失败:', e); }
 
   // 6.057 经济补完（封建财政/土地兼并/借贷/虚报差额/地域接受度/套利）
   try {
     if (typeof EconomyGapFill !== 'undefined') {
-      EconomyGapFill.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+      EconomyGapFill.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] EconomyGapFill.tick 失败:') : console.error('[endTurn] EconomyGapFill.tick 失败:', e); }
 
   // 6.07 户口系统（已在 6.015 早跑，跳过）
   if (!GM._hujiEarlyTicked) try {
     if (typeof HujiEngine !== 'undefined') {
-      HujiEngine.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+      HujiEngine.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] HujiEngine.tick 失败:') : console.error('[endTurn] HujiEngine.tick 失败:', e); }
 
   // 6.08 环境承载力（五维/疤痕/过载/危机/技术/政策）
   try {
     if (typeof EnvCapacityEngine !== 'undefined') {
-      EnvCapacityEngine.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+      EnvCapacityEngine.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] EnvCapacityEngine.tick 失败:') : console.error('[endTurn] EnvCapacityEngine.tick 失败:', e); }
 
   // 6.09 诏令/奏疏/抗疏（二阶段流程、待朱批清理）
   try {
     if (typeof EdictParser !== 'undefined') {
-      EdictParser.tick({ turn: GM.turn });
+      EdictParser.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] EdictParser.tick 失败:') : console.error('[endTurn] EdictParser.tick 失败:', e); }
 
   // 6.10 户口深化（已在 6.015 早跑，跳过）
   if (!GM._hujiEarlyTicked) try {
     if (typeof HujiDeepFill !== 'undefined') {
-      HujiDeepFill.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+      HujiDeepFill.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] HujiDeepFill.tick 失败:') : console.error('[endTurn] HujiDeepFill.tick 失败:', e); }
   // 清 early 标记，下回合重新走
@@ -145,77 +148,83 @@ async function _endTurn_updateSystems(timeRatio, zhengwen) {
   // 6.11 诏令补完（11 类反向触发 + 自动路由）
   try {
     if (typeof EdictComplete !== 'undefined') {
-      EdictComplete.tick({ turn: GM.turn });
+      EdictComplete.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] EdictComplete.tick 失败:') : console.error('[endTurn] EdictComplete.tick 失败:', e); }
 
   // 6.12 环境恢复政策 + §9 联动
   try {
     if (typeof EnvRecoveryFill !== 'undefined') {
-      EnvRecoveryFill.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+      EnvRecoveryFill.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] EnvRecoveryFill.tick 失败:') : console.error('[endTurn] EnvRecoveryFill.tick 失败:', e); }
 
   // 6.13 皇威/皇权/民心 tick + 42 项变量联动
   try {
     if (typeof AuthorityEngines !== 'undefined') {
-      AuthorityEngines.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+      AuthorityEngines.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] AuthorityEngines.tick 失败:') : console.error('[endTurn] AuthorityEngines.tick 失败:', e); }
 
   // 6.14 权力系统补完（权臣/民变5级/暴君症状/失威危机/天象/联动全）
   try {
     if (typeof AuthorityComplete !== 'undefined') {
-      AuthorityComplete.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+      AuthorityComplete.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] AuthorityComplete.tick 失败:') : console.error('[endTurn] AuthorityComplete.tick 失败:', e); }
 
   // 6.15 历史补完（年龄金字塔精细化+疫病战亡字段维护）
   try {
     if (typeof HistoricalPresets !== 'undefined') {
-      HistoricalPresets.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+      HistoricalPresets.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
     }
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] HistoricalPresets.tick 失败:') : console.error('[endTurn] HistoricalPresets.tick 失败:', e); }
 
   // 6.16 C/D/B/A/E 阶段补丁 tick
   try {
-    if (typeof PhaseC !== 'undefined') PhaseC.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+    if (typeof PhaseC !== 'undefined') PhaseC.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseC.tick 失败:') : console.error('[endTurn] PhaseC.tick 失败:', e); }
   try {
-    if (typeof PhaseD !== 'undefined') PhaseD.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+    if (typeof PhaseD !== 'undefined') PhaseD.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseD.tick 失败:') : console.error('[endTurn] PhaseD.tick 失败:', e); }
   try {
-    if (typeof PhaseB !== 'undefined') PhaseB.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+    if (typeof PhaseB !== 'undefined') PhaseB.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseB.tick 失败:') : console.error('[endTurn] PhaseB.tick 失败:', e); }
   try {
-    if (typeof PhaseA !== 'undefined') PhaseA.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+    if (typeof PhaseA !== 'undefined') PhaseA.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseA.tick 失败:') : console.error('[endTurn] PhaseA.tick 失败:', e); }
   try {
-    if (typeof PhaseE !== 'undefined') PhaseE.tick({ turn: GM.turn, monthRatio: timeRatio || 1 });
+    if (typeof PhaseE !== 'undefined') PhaseE.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio });
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseE.tick 失败:') : console.error('[endTurn] PhaseE.tick 失败:', e); }
   // 6.17 F 阶段全部补丁 tick
-  try { if (typeof PhaseF1 !== 'undefined') PhaseF1.tick({ turn: GM.turn, monthRatio: timeRatio || 1 }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseF1.tick 失败:') : console.error('[endTurn] PhaseF1.tick 失败:', e); }
-  try { if (typeof PhaseF2 !== 'undefined') PhaseF2.tick({ turn: GM.turn, monthRatio: timeRatio || 1 }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseF2.tick 失败:') : console.error('[endTurn] PhaseF2.tick 失败:', e); }
-  try { if (typeof PhaseF3 !== 'undefined') PhaseF3.tick({ turn: GM.turn, monthRatio: timeRatio || 1 }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseF3.tick 失败:') : console.error('[endTurn] PhaseF3.tick 失败:', e); }
-  try { if (typeof PhaseF4 !== 'undefined') PhaseF4.tick({ turn: GM.turn, monthRatio: timeRatio || 1 }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseF4.tick 失败:') : console.error('[endTurn] PhaseF4.tick 失败:', e); }
-  try { if (typeof PhaseF5 !== 'undefined') PhaseF5.tick({ turn: GM.turn, monthRatio: timeRatio || 1 }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseF5.tick 失败:') : console.error('[endTurn] PhaseF5.tick 失败:', e); }
-  try { if (typeof PhaseF6 !== 'undefined') PhaseF6.tick({ turn: GM.turn, monthRatio: timeRatio || 1 }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseF6.tick 失败:') : console.error('[endTurn] PhaseF6.tick 失败:', e); }
+  try { if (typeof PhaseF1 !== 'undefined') PhaseF1.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseF1.tick 失败:') : console.error('[endTurn] PhaseF1.tick 失败:', e); }
+  try { if (typeof PhaseF2 !== 'undefined') PhaseF2.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseF2.tick 失败:') : console.error('[endTurn] PhaseF2.tick 失败:', e); }
+  try { if (typeof PhaseF3 !== 'undefined') PhaseF3.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseF3.tick 失败:') : console.error('[endTurn] PhaseF3.tick 失败:', e); }
+  try { if (typeof PhaseF4 !== 'undefined') PhaseF4.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseF4.tick 失败:') : console.error('[endTurn] PhaseF4.tick 失败:', e); }
+  try { if (typeof PhaseF5 !== 'undefined') PhaseF5.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseF5.tick 失败:') : console.error('[endTurn] PhaseF5.tick 失败:', e); }
+  try { if (typeof PhaseF6 !== 'undefined') PhaseF6.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseF6.tick 失败:') : console.error('[endTurn] PhaseF6.tick 失败:', e); }
   // 6.18 G 阶段终结补丁 tick
-  try { if (typeof PhaseG1 !== 'undefined') PhaseG1.tick({ turn: GM.turn, monthRatio: timeRatio || 1 }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseG1.tick 失败:') : console.error('[endTurn] PhaseG1.tick 失败:', e); }
-  try { if (typeof PhaseG2 !== 'undefined') PhaseG2.tick({ turn: GM.turn, monthRatio: timeRatio || 1 }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseG2.tick 失败:') : console.error('[endTurn] PhaseG2.tick 失败:', e); }
-  try { if (typeof PhaseG3 !== 'undefined') PhaseG3.tick({ turn: GM.turn, monthRatio: timeRatio || 1 }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseG3.tick 失败:') : console.error('[endTurn] PhaseG3.tick 失败:', e); }
-  try { if (typeof PhaseG4 !== 'undefined') PhaseG4.tick({ turn: GM.turn, monthRatio: timeRatio || 1 }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseG4.tick 失败:') : console.error('[endTurn] PhaseG4.tick 失败:', e); }
-  // 6.19 H 阶段终极补丁 tick
-  try { if (typeof PhaseH !== 'undefined') PhaseH.tick({ turn: GM.turn, monthRatio: timeRatio || 1 }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseH.tick 失败:') : console.error('[endTurn] PhaseH.tick 失败:', e); }
+  try { if (typeof PhaseG1 !== 'undefined') PhaseG1.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseG1.tick 失败:') : console.error('[endTurn] PhaseG1.tick 失败:', e); }
+  try { if (typeof PhaseG2 !== 'undefined') PhaseG2.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseG2.tick 失败:') : console.error('[endTurn] PhaseG2.tick 失败:', e); }
+  try { if (typeof PhaseG3 !== 'undefined') PhaseG3.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseG3.tick 失败:') : console.error('[endTurn] PhaseG3.tick 失败:', e); }
+  try { if (typeof PhaseG4 !== 'undefined') PhaseG4.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] PhaseG4.tick 失败:') : console.error('[endTurn] PhaseG4.tick 失败:', e); }
+  // 6.19 H 阶段·原 PhaseH.tick 拆为 7 项原生调用 (R10 collapse·delete tm-tax-atomic.js·redistribute → CurrencyEngine·FiscalEngine·FeudalCore·EdictComplete)
+  try { if (typeof CurrencyEngine !== 'undefined' && typeof CurrencyEngine._updatePaperStateAtomic === 'function') CurrencyEngine._updatePaperStateAtomic(GM, monthRatio); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] CurrencyEngine._updatePaperStateAtomic 失败:') : console.error('[endTurn] CurrencyEngine._updatePaperStateAtomic 失败:', e); }
+  try { if (typeof CurrencyEngine !== 'undefined' && typeof CurrencyEngine._updateGrainPriceAtomic === 'function') CurrencyEngine._updateGrainPriceAtomic(GM, monthRatio); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] CurrencyEngine._updateGrainPriceAtomic 失败:') : console.error('[endTurn] CurrencyEngine._updateGrainPriceAtomic 失败:', e); }
+  try { if (typeof FiscalEngine !== 'undefined' && typeof FiscalEngine._tickTransferOrders === 'function') FiscalEngine._tickTransferOrders({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }, monthRatio); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] FiscalEngine._tickTransferOrders 失败:') : console.error('[endTurn] FiscalEngine._tickTransferOrders 失败:', e); }
+  try { if (typeof FeudalCore !== 'undefined' && typeof FeudalCore._tickFeudalHoldings === 'function') FeudalCore._tickFeudalHoldings({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }, monthRatio); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] FeudalCore._tickFeudalHoldings 失败:') : console.error('[endTurn] FeudalCore._tickFeudalHoldings 失败:', e); }
+  try { if (typeof EdictComplete !== 'undefined' && typeof EdictComplete._checkProjectCompletion === 'function') EdictComplete._checkProjectCompletion({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] EdictComplete._checkProjectCompletion 失败:') : console.error('[endTurn] EdictComplete._checkProjectCompletion 失败:', e); }
+  try { if (typeof EdictComplete !== 'undefined' && typeof EdictComplete._checkHuangceCycle === 'function') EdictComplete._checkHuangceCycle({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] EdictComplete._checkHuangceCycle 失败:') : console.error('[endTurn] EdictComplete._checkHuangceCycle 失败:', e); }
+  try { if (typeof EdictComplete !== 'undefined' && typeof EdictComplete._checkGaituEscalation === 'function') EdictComplete._checkGaituEscalation({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] EdictComplete._checkGaituEscalation 失败:') : console.error('[endTurn] EdictComplete._checkGaituEscalation 失败:', e); }
   // 6.20 NPC 按立场自主献策产生奏疏（天象/权臣/民变/灾变/瘟疫/军败 触发）
-  try { if (typeof NpcMemorials !== 'undefined') NpcMemorials.tick({ turn: GM.turn, monthRatio: timeRatio || 1 }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] NpcMemorials.tick 失败:') : console.error('[endTurn] NpcMemorials.tick 失败:', e); }
+  try { if (typeof NpcMemorials !== 'undefined') NpcMemorials.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] NpcMemorials.tick 失败:') : console.error('[endTurn] NpcMemorials.tick 失败:', e); }
   // 6.21 融合桥接：行政区划 → 七变量 聚合
-  try { if (typeof IntegrationBridge !== 'undefined') IntegrationBridge.tick({ turn: GM.turn, monthRatio: timeRatio || 1 }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] IntegrationBridge.tick 失败:') : console.error('[endTurn] IntegrationBridge.tick 失败:', e); }
+  try { if (typeof IntegrationBridge !== 'undefined') IntegrationBridge.tick({ turn: GM.turn, monthRatio: monthRatio, _monthRatio: monthRatio }); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] IntegrationBridge.tick 失败:') : console.error('[endTurn] IntegrationBridge.tick 失败:', e); }
 
   // 6.06 角色完整字段推演（stressSources/innerThought/career/familyMembers/clanPrestige）
   try {
     if (typeof CharFullSchema !== 'undefined' && Array.isArray(GM.chars)) {
-      var _mr = (typeof timeRatio === 'number') ? timeRatio : 1;
+      var _mr = monthRatio;
       GM.chars.forEach(function(ch) {
         if (!ch || ch.alive === false) return;
         CharFullSchema.ensureFullFields(ch);

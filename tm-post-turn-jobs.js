@@ -28,6 +28,9 @@
 /** 方向 8：SC_L2_AI·每 5 回合 AI 语义化情景摘要 */
 async function _scL2AIGenerate(turnOverride) {
   if (!GM || !P || !P.ai || !P.ai.key) return;
+  function _memText(entry) {
+    return (typeof memoryEntryText === 'function') ? memoryEntryText(entry) : String((entry && (entry.content || entry.text || entry.summary)) || '');
+  }
   var jobTurn = turnOverride || (GM._postTurnJobs && GM._postTurnJobs.turn) || GM.turn || 0;
   if (jobTurn % 5 !== 0) return;
   if (!GM._memoryLayers) GM._memoryLayers = { L1: [], L2: [], L3: [] };
@@ -51,7 +54,7 @@ async function _scL2AIGenerate(turnOverride) {
   if (bucketMems.length) {
     tpL2 += '<memories>\n';
     bucketMems.forEach(function(m){
-      tpL2 += '  <mem turn="' + m.turn + '">' + ((m.text || m.content || '').substring(0, 150)) + '</mem>\n';
+      tpL2 += '  <mem turn="' + m.turn + '">' + (_memText(m).substring(0, 150)) + '</mem>\n';
     });
     tpL2 += '</memories>\n';
   }
@@ -84,9 +87,15 @@ async function _scL2AIGenerate(turnOverride) {
         createdAt: jobTurn
       });
       if (GM._memoryLayers.L2.length > 12) GM._memoryLayers.L2 = GM._memoryLayers.L2.slice(-12);
+      try {
+        if (typeof recordMemoryDiagnostic === 'function') recordMemoryDiagnostic('post_turn_l2', { status: 'ok', range: bucketStart + '-' + jobTurn, memories: bucketMems.length, shiji: bucketShiji.length, snapshot: (typeof buildMemoryDiagnosticSnapshot === 'function' ? buildMemoryDiagnosticSnapshot(GM) : null) });
+      } catch(_) {}
       _dbg('[SC_L2_AI] 生成 AI 情景摘要 T' + bucketStart + '-T' + jobTurn);
     }
-  } catch(e) { _dbg('[SC_L2_AI] 失败:', e); }
+  } catch(e) {
+    try { if (typeof recordMemoryDiagnostic === 'function') recordMemoryDiagnostic('post_turn_l2', { status: 'fail', error: String(e && e.message || e) }); } catch(_) {}
+    _dbg('[SC_L2_AI] 失败:', e);
+  }
 }
 
 /** 方向 9：SC_L3_CONDENSE·每 30 回合 AI 年代纲要 */
@@ -137,9 +146,15 @@ async function _scL3Condense(turnOverride) {
         aiGenerated: true,
         createdAt: jobTurn
       });
+      try {
+        if (typeof recordMemoryDiagnostic === 'function') recordMemoryDiagnostic('post_turn_l3', { status: 'ok', range: l3Start + '-' + jobTurn, scenes: bucketL2.length, snapshot: (typeof buildMemoryDiagnosticSnapshot === 'function' ? buildMemoryDiagnosticSnapshot(GM) : null) });
+      } catch(_) {}
       _dbg('[SC_L3_CONDENSE] 生成 AI 年代纲要 T' + l3Start + '-T' + GM.turn);
     }
-  } catch(e) { _dbg('[SC_L3_CONDENSE] 失败:', e); }
+  } catch(e) {
+    try { if (typeof recordMemoryDiagnostic === 'function') recordMemoryDiagnostic('post_turn_l3', { status: 'fail', error: String(e && e.message || e) }); } catch(_) {}
+    _dbg('[SC_L3_CONDENSE] 失败:', e);
+  }
 }
 
 /** 方向 12：SC_REFLECT·对比上回合预测 vs 本回合实际·生成反省记录 */
@@ -277,7 +292,10 @@ function _ensurePostTurnJobQueue() {
 function _enqueuePostTurnJob(id, fn) {
   var q = _ensurePostTurnJobQueue();
   if (!q || typeof fn !== 'function') return null;
-  var p = Promise.resolve().then(fn).catch(function(e){ _dbg('[PostTurn]' + id + ' failed:', e); });
+  var p = Promise.resolve().then(fn).catch(function(e){
+    try { if (typeof recordMemoryDiagnostic === 'function') recordMemoryDiagnostic('post_turn_job', { id: id, status: 'fail', error: String(e && e.message || e) }); } catch(_) {}
+    _dbg('[PostTurn]' + id + ' failed:', e);
+  });
   q.pending.push({ id: id, promise: p });
   return p;
 }
@@ -313,6 +331,9 @@ function _launchPostTurnJobs() {
     return _scReflect(jobTurn);
   } });
   jobs.forEach(function(j) { _enqueuePostTurnJob(j.id, j.fn); });
+  try {
+    if (typeof recordMemoryDiagnostic === 'function') recordMemoryDiagnostic('post_turn_launch', { jobs: jobs.map(function(j){ return j.id; }), turn: jobTurn, snapshot: (typeof buildMemoryDiagnosticSnapshot === 'function' ? buildMemoryDiagnosticSnapshot(GM) : null) });
+  } catch(_) {}
   _dbg('[PostTurn] launch', jobs.length, 'jobs; pending=', q.pending.length);
 }
 
@@ -325,6 +346,9 @@ async function _awaitPostTurnJobs() {
   try {
     await Promise.all(pending.map(function(p) { return p.promise; }));
   } catch(_e) { /* 已被单任务 catch */ }
+  try {
+    if (typeof recordMemoryDiagnostic === 'function') recordMemoryDiagnostic('post_turn_await', { status: 'done', count: pending.length, snapshot: (typeof buildMemoryDiagnosticSnapshot === 'function' ? buildMemoryDiagnosticSnapshot(GM) : null) });
+  } catch(_) {}
   GM._postTurnJobs = null;
   delete GM._turnAiResults;
 }

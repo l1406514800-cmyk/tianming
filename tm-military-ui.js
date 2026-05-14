@@ -14,8 +14,8 @@
  *
  * 依赖：
  *   - P.military 数据结构（troops/facilities/organization/campaigns/armies）
- *   - openGenericModal/closeGenericModal（tm-modal-system.js）
- *   - gv（tm-modal-system.js）
+*   - openGenericModal/closeGenericModal（tm-ui-foundation.js）
+*   - gv（tm-ui-foundation.js）
  *   - toast / renderEdTab / editingScenarioId（tm-game-engine.js）
  *   - callAISmart / showLoading / hideLoading / _dbg（tm-utils.js）
  *   - milSubLabels、addMilItem、editMilItem、deleteMilItem（旧 data-model 或 patches）
@@ -66,7 +66,13 @@ function editArmy(i){
     '<div class="form-group"><label>补给</label><input type="number" id="gm_supply" value="'+(a.supply!=null?a.supply:80)+'" min="0" max="100"></div>';
   openGenericModal("编辑部队",body,function(){
     a.name=gv("gm_name");a.commander=gv("gm_cmdr");a.location=gv("gm_loc");
-    a.faction=gv("gm_faction")||"";
+    // [Slice J·2026-05-10] 走 Membership API·替代直接 a.faction= 写
+    var _newFac = gv("gm_faction") || "";
+    if (window.TM && window.TM.FactionMembership && window.TM.FactionMembership.assignArmy) {
+      window.TM.FactionMembership.assignArmy(a, _newFac, { reason: '军事编辑器手动改归属' });
+    } else {
+      a.faction = _newFac;
+    }
     a.type=gv("gm_type")||a.type||"";
     var _sz = +(document.getElementById("gm_size").value)||0;
     if (_sz > 0) { a.size = _sz; a.soldiers = _sz; }

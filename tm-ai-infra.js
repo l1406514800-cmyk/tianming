@@ -1150,6 +1150,10 @@ var SubTickRunner = {
     var ticks = SubTickRunner.calcSubTicks();
     baseCtx.days = ticks.days;
     baseCtx.months = ticks.months;
+    if (typeof baseCtx.monthRatio !== 'number' || !isFinite(baseCtx.monthRatio)) {
+      baseCtx.monthRatio = ticks.days / 30;
+    }
+    baseCtx._monthRatio = baseCtx.monthRatio;
     var report = SettlementPipeline.runAll(baseCtx);
     _dbg('[SubTick] 回合结算完成（' + ticks.days + '天/' + ticks.months + '月），' + report.length + ' 步');
     return report;
@@ -1168,18 +1172,18 @@ var SubTickRunner = {
     var dailyBatches = Math.ceil(ticks.days / dailyBatchSize);
     for (var d = 0; d < dailyBatches; d++) {
       var batchDays = Math.min(dailyBatchSize, ticks.days - d * dailyBatchSize);
-      var dailyCtx = { timeRatio: batchDays / 365, turn: baseCtx.turn, day: d * dailyBatchSize + 1, batchDays: batchDays, isSubTick: true };
+      var dailyCtx = { timeRatio: batchDays / 365, monthRatio: batchDays / 30, _monthRatio: batchDays / 30, turn: baseCtx.turn, day: d * dailyBatchSize + 1, batchDays: batchDays, isSubTick: true };
       totalReport = totalReport.concat(SettlementPipeline.runBySchedule('daily', dailyCtx));
     }
 
     // Phase 2: monthly 步骤（每月一次）
     for (var m = 0; m < ticks.months; m++) {
-      var monthCtx = { timeRatio: 1 / 12, turn: baseCtx.turn, month: m + 1, totalMonths: ticks.months, isSubTick: true };
+      var monthCtx = { timeRatio: 1 / 12, monthRatio: 1, _monthRatio: 1, turn: baseCtx.turn, month: m + 1, totalMonths: ticks.months, isSubTick: true };
       totalReport = totalReport.concat(SettlementPipeline.runBySchedule('monthly', monthCtx));
     }
 
     // Phase 3: perturn 步骤（回合末一次）
-    totalReport = totalReport.concat(SettlementPipeline.runBySchedule('perturn', { timeRatio: baseCtx.timeRatio, turn: baseCtx.turn, isSubTick: false }));
+    totalReport = totalReport.concat(SettlementPipeline.runBySchedule('perturn', { timeRatio: baseCtx.timeRatio, monthRatio: ticks.days / 30, _monthRatio: ticks.days / 30, turn: baseCtx.turn, isSubTick: false }));
 
     _dbg('[SubTick] 多tick模式完成: ' + ticks.days + '天/' + ticks.months + '月, ' + totalReport.length + '步');
     return totalReport;
@@ -1756,7 +1760,6 @@ function turnToDay(turn){
 function calcDateFromTurn(turn){
   if(!P.time) return {adYear:0,solarMonth:1,solarDay:1,lunarMonth:1,lunarDay:1,season:'春',gzYearStr:'',gzDayStr:''};
   var t=P.time;
-  var perTurn=t.perTurn||'1s';
   // 公历起始日期（用于干支计算）
   var solarM=t.startMonth||1, solarD=t.startDay||1;
   // 农历起始日期（用于显示；未设置则从公历近似推算）
@@ -1806,8 +1809,7 @@ function calcDateFromTurn(turn){
   }
 
   // 年号年数
-  var tpy=(perTurn==='1y'?1:perTurn==='1m'?12:perTurn==='1s'?4:1);
-  var reignYear=(t.reignY||1)+Math.floor((turn-1)/tpy);
+  var reignYear=(t.reignY||1)+Math.floor(totalDays/360);
 
   return {
     adYear:sy, solarMonth:sm, solarDay:sd,
@@ -3041,9 +3043,166 @@ var ImageAPI = {
 
 //  将散落的全局函数归入命名空间，保持旧全局名向后兼容
 //  R114 (2026-04-24): 改 "var TM = {...}" 为 "Object.assign(TM, {...})"
-//  原因：tm-error-collector.js 先于 tm-utils.js 加载后会设置 TM.errors，
+//  原因：tm-diagnostics-foundation.js 先于 tm-utils.js 加载后会设置 TM.errors，
 //  若此处整体覆盖 TM 会把 errors 字段抹掉。改为 merge 模式。
 // ============================================================
+// ============================================================
+//  End-turn AI diagnostics ledger
+// ============================================================
+function memoryEntryText(entry) {
+  if (entry == null) return '';
+  if (typeof entry === 'string') return entry;
+  return String(entry.content || entry.text || entry.summary || entry.title || entry.description || '');
+}
+
+function normalizeGlobalMemoryEntry(entry, defaults) {
+  defaults = defaults || {};
+  var obj = (entry && typeof entry === 'object') ? entry : { text: entry };
+  return {
+    turn: obj.turn || defaults.turn || ((typeof GM !== 'undefined' && GM && GM.turn) || 0),
+    type: obj.type || defaults.type || 'note',
+    text: memoryEntryText(obj),
+    source: obj.source || defaults.source || '',
+    priority: obj.priority || defaults.priority || '',
+    raw: obj
+  };
+}
+
+function buildMemoryDiagnosticSnapshot(G) {
+  G = G || ((typeof GM !== 'undefined') ? GM : null);
+  if (!G) return null;
+  function _arr(v) { return Array.isArray(v) ? v : []; }
+  function _blankCount(arr) {
+    return _arr(arr).filter(function(x) { return !memoryEntryText(x); }).length;
+  }
+  function _countType(arr, type) {
+    return _arr(arr).filter(function(x) { return x && x.type === type; }).length;
+  }
+  var recall = (G._turnAiResults && Array.isArray(G._turnAiResults.recallResults)) ? G._turnAiResults.recallResults : [];
+  var recallHits = recall.reduce(function(sum, r) { return sum + ((r && Array.isArray(r.hits)) ? r.hits.length : 0); }, 0);
+  var sem = null;
+  try {
+    if (typeof SemanticRecall !== 'undefined' && SemanticRecall && typeof SemanticRecall.status === 'function') sem = SemanticRecall.status();
+  } catch(_) {}
+  var ML = G._memoryLayers || {};
+  return {
+    turn: G.turn || 0,
+    aiMemory: { total: _arr(G._aiMemory).length, compressed: _countType(G._aiMemory, 'compressed'), blank: _blankCount(G._aiMemory) },
+    foreshadows: { total: _arr(G._foreshadows).length, compressed: _countType(G._foreshadows, 'compressed'), blank: _blankCount(G._foreshadows) },
+    consolidated: { total: _arr(G._consolidatedMemory).length },
+    layers: { L1: _arr(ML.L1).length, L2: _arr(ML.L2).length, L3: _arr(ML.L3).length },
+    personalArchive: { total: _arr(G._memoryArchiveFull).length },
+    recall: { queries: recall.length, hits: recallHits },
+    semantic: sem ? { enabled: !!sem.enabled, modelReady: !!sem.modelReady, indexSize: sem.indexSize || 0, error: sem.error || '' } : null,
+    postTurnJobs: (G._postTurnJobs && Array.isArray(G._postTurnJobs.pending)) ? { pending: G._postTurnJobs.pending.length, turn: G._postTurnJobs.turn || G.turn || 0 } : null
+  };
+}
+
+function ensureAIDiagnostics(turn) {
+  var G = (typeof GM !== 'undefined') ? GM : null;
+  if (!G) return null;
+  var t = turn || G.turn || 0;
+  var d = G._lastAIDiagnostics;
+  if (!d || d.turn !== t) {
+    d = G._lastAIDiagnostics = {
+      turn: t,
+      main: 'pending',
+      branches: {},
+      calls: [],
+      warnings: [],
+      hints: [],
+      repairedJson: [],
+      failedWrites: [],
+      memory: { events: [], snapshots: [] },
+      generatedAt: Date.now()
+    };
+  }
+  d.branches = d.branches || {};
+  d.calls = Array.isArray(d.calls) ? d.calls : [];
+  d.warnings = Array.isArray(d.warnings) ? d.warnings : [];
+  d.hints = Array.isArray(d.hints) ? d.hints : [];
+  d.repairedJson = Array.isArray(d.repairedJson) ? d.repairedJson : [];
+  d.failedWrites = Array.isArray(d.failedWrites) ? d.failedWrites : [];
+  d.memory = d.memory || { events: [], snapshots: [] };
+  d.memory.events = Array.isArray(d.memory.events) ? d.memory.events : [];
+  d.memory.snapshots = Array.isArray(d.memory.snapshots) ? d.memory.snapshots : [];
+  return d;
+}
+
+function recordAIDiagnostic(kind, payload) {
+  var d = ensureAIDiagnostics();
+  if (!d) return null;
+  payload = payload || {};
+  payload.kind = kind || 'note';
+  payload.at = Date.now();
+  if (kind === 'call') d.calls.push(payload);
+  else if (kind === 'write_gate') d.failedWrites.push(payload);
+  else if (kind === 'write_hint') d.hints.push(payload);
+  else if (kind === 'json_repair') d.repairedJson.push(payload);
+  else d.warnings.push(payload);
+  if (d.calls.length > 80) d.calls = d.calls.slice(-80);
+  if (d.warnings.length > 80) d.warnings = d.warnings.slice(-80);
+  if (d.hints.length > 80) d.hints = d.hints.slice(-80);
+  if (d.repairedJson.length > 80) d.repairedJson = d.repairedJson.slice(-80);
+  if (d.failedWrites.length > 80) d.failedWrites = d.failedWrites.slice(-80);
+  return d;
+}
+
+function recordMemoryDiagnostic(kind, payload) {
+  var d = ensureAIDiagnostics();
+  if (!d) return null;
+  var G = (typeof GM !== 'undefined') ? GM : null;
+  payload = payload || {};
+  payload.kind = kind || 'memory';
+  payload.at = Date.now();
+  d.memory = d.memory || { events: [], snapshots: [] };
+  d.memory.events = Array.isArray(d.memory.events) ? d.memory.events : [];
+  d.memory.snapshots = Array.isArray(d.memory.snapshots) ? d.memory.snapshots : [];
+  d.memory.events.push(payload);
+  if (payload.snapshot) d.memory.snapshots.push(payload.snapshot);
+  if (G) {
+    G._memoryDiagnosticsLog = Array.isArray(G._memoryDiagnosticsLog) ? G._memoryDiagnosticsLog : [];
+    G._memoryDiagnosticsLog.push(payload);
+    if (G._memoryDiagnosticsLog.length > 120) G._memoryDiagnosticsLog = G._memoryDiagnosticsLog.slice(-120);
+  }
+  if (d.memory.events.length > 80) d.memory.events = d.memory.events.slice(-80);
+  if (d.memory.snapshots.length > 20) d.memory.snapshots = d.memory.snapshots.slice(-20);
+  return d;
+}
+
+function openMemoryDiagnostics() {
+  var snap = (typeof buildMemoryDiagnosticSnapshot === 'function') ? buildMemoryDiagnosticSnapshot() : null;
+  var d = (typeof ensureAIDiagnostics === 'function') ? ensureAIDiagnostics() : null;
+  var events = d && d.memory && Array.isArray(d.memory.events) ? d.memory.events.slice(-30) : [];
+  var log = (typeof GM !== 'undefined' && GM && Array.isArray(GM._memoryDiagnosticsLog)) ? GM._memoryDiagnosticsLog.slice(-50) : [];
+  var esc = (typeof escHtml === 'function') ? escHtml : function(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function(ch) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch];
+    });
+  };
+  var payload = { snapshot: snap, recentEvents: events, recentLog: log };
+  var text = JSON.stringify(payload, null, 2);
+  if (typeof openGenericModal === 'function') {
+    openGenericModal('记忆诊断', '<pre style="white-space:pre-wrap;max-height:60vh;overflow:auto;font-size:12px;line-height:1.5;">' + esc(text) + '</pre>');
+  } else {
+    if (typeof console !== 'undefined' && console.log) console.log('[MemoryDiagnostics]', payload);
+    if (typeof toast === 'function') toast('记忆诊断已输出到控制台');
+  }
+  return payload;
+}
+
+function setAIBranchDiagnostic(branch, status, detail) {
+  var d = ensureAIDiagnostics();
+  if (!d || !branch) return null;
+  d.branches[branch] = {
+    status: status || 'unknown',
+    detail: detail || '',
+    at: Date.now()
+  };
+  if (branch === 'main') d.main = status || d.main;
+  return d;
+}
+
 if (typeof window !== 'undefined') window.TM = window.TM || {};
 else if (typeof globalThis !== 'undefined') globalThis.TM = globalThis.TM || {};
 Object.assign(TM, {
@@ -3086,6 +3245,14 @@ Object.assign(TM, {
     subCallRegistry: typeof AISubCallRegistry !== 'undefined' ? AISubCallRegistry : null,
     modelAdapter: typeof ModelAdapter !== 'undefined' ? ModelAdapter : null,
     tokenTracker: typeof TokenUsageTracker !== 'undefined' ? TokenUsageTracker : null,
+    ensureDiagnostics: typeof ensureAIDiagnostics === 'function' ? ensureAIDiagnostics : null,
+    recordDiagnostic: typeof recordAIDiagnostic === 'function' ? recordAIDiagnostic : null,
+    setBranchDiagnostic: typeof setAIBranchDiagnostic === 'function' ? setAIBranchDiagnostic : null,
+    memoryEntryText: typeof memoryEntryText === 'function' ? memoryEntryText : null,
+    normalizeGlobalMemoryEntry: typeof normalizeGlobalMemoryEntry === 'function' ? normalizeGlobalMemoryEntry : null,
+    buildMemoryDiagnosticSnapshot: typeof buildMemoryDiagnosticSnapshot === 'function' ? buildMemoryDiagnosticSnapshot : null,
+    recordMemoryDiagnostic: typeof recordMemoryDiagnostic === 'function' ? recordMemoryDiagnostic : null,
+    openMemoryDiagnostics: typeof openMemoryDiagnostics === 'function' ? openMemoryDiagnostics : null,
     promptTemplate: typeof PromptTemplate !== 'undefined' ? PromptTemplate : null,
     promptCache: typeof PromptLayerCache !== 'undefined' ? PromptLayerCache : null
   },

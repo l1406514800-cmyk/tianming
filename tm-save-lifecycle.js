@@ -132,6 +132,10 @@ function _ensurePDefaults() {
   if (!P._varFormulas) P._varFormulas = [];
   if (!P.conf) P.conf = {};
   if (!P.conf.verbosity) P.conf.verbosity = 'standard';
+  if (typeof P.conf.npcAiPrecision !== 'boolean') P.conf.npcAiPrecision = true;
+  if (!P.conf.npcAiPrecisionMode) P.conf.npcAiPrecisionMode = 'eager';
+  if (typeof P.conf.npcAiPrecisionMaxPerTurn !== 'number') P.conf.npcAiPrecisionMaxPerTurn = 2;
+  if (typeof P.conf.npcInTurnMaxPerTurn !== 'number') P.conf.npcInTurnMaxPerTurn = 8;
   // 阶段一：mechanicsConfig默认值
   if (!P.mechanicsConfig) P.mechanicsConfig = {};
   var mc = P.mechanicsConfig;
@@ -708,6 +712,19 @@ function fullLoadGame(data){
 
     // 恢复所有_saved*字段
     _restoreSavedFields();
+    // 存档载入后恢复地图 live-state 引用，避免 P.map 与 GM.mapData 分裂。
+    try {
+      var _liveMapSrc = (GM && GM.mapData && GM.mapData.regions && GM.mapData.regions.length > 0) ? GM.mapData :
+        (P && P.map && P.map.regions && P.map.regions.length > 0) ? P.map :
+        (P && P.mapData && P.mapData.regions && P.mapData.regions.length > 0) ? P.mapData : null;
+      if (_liveMapSrc && typeof bindRuntimeMapState === 'function') {
+        bindRuntimeMapState(_liveMapSrc);
+      } else if (_liveMapSrc) {
+        GM.mapData = _safeClone(_liveMapSrc);
+        P.map = GM.mapData;
+        P.mapData = GM.mapData;
+      }
+    } catch(_mapRestoreE) { try{ window.TM&&TM.errors&&TM.errors.captureSilent(_mapRestoreE,'fullLoadGame·mapLiveState'); }catch(_){} }
 
     // 一次性清理·扫除存档里历史误抓人物(强烈/连日/乌纱/平静等命中 NAME_BLACKLIST 词组)
     try {

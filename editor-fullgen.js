@@ -1039,7 +1039,8 @@
         meta.scnId = scriptData.id;
         try { localStorage.setItem('tianming_editor_meta', JSON.stringify(meta)); } catch(_){}
       }
-      window.tianming.saveScenario(fname, scriptData).then(function(r) {
+      var _scForFile = (typeof SchemaAdapter !== 'undefined') ? SchemaAdapter.exportScenario(scriptData) : scriptData;
+      window.tianming.saveScenario(fname, _scForFile).then(function(r) {
         if (r && r.success) { showToast('\u5df2\u4fdd\u5b58\u5230\u5267\u672c\u6587\u4ef6\u5939'); }
         else { showToast('\u4fdd\u5b58\u5931\u8d25: ' + (r && r.error ? r.error : '')); }
       });
@@ -1082,6 +1083,9 @@
       t.daysPerTurn = (gs.turnDuration || 1) * (_dMap[gs.turnUnit] || 30);
     }
     if (!t.daysPerTurn) t.daysPerTurn = 30;
+    if (typeof normalizeTimeConfigFromGameSettings === 'function') {
+      normalizeTimeConfigFromGameSettings(t, gs);
+    }
     // 干支/年号
     if (gs.enableGanzhi !== undefined) t.enableGanzhi = gs.enableGanzhi;
     if (gs.enableGanzhiDay !== undefined) t.enableGanzhiDay = gs.enableGanzhiDay;
@@ -1174,6 +1178,18 @@
 
   // 将加载的数据合并到scriptData并刷新UI
   function _mergeAndRenderScriptData(d) {
+    if (typeof SchemaAdapter !== 'undefined' && d && (Array.isArray(d.events) || Array.isArray(d.relations) || Array.isArray(d.factionRelations) || Array.isArray(d.variables))) {
+      try {
+        var _ad = SchemaAdapter.importScenario(d);
+        d = _ad.scriptData;
+        if (_ad.warnings && _ad.warnings.length && console && console.log) {
+          console.log('[SchemaAdapter] import warnings: ' + _ad.warnings.length);
+          _ad.warnings.slice(0, 3).forEach(function(w) { console.log('  *', w); });
+        }
+      } catch(_seA) {
+        console.warn('[SchemaAdapter] import failed, fallback to raw merge:', _seA.message);
+      }
+    }
     for (var key in d) {
       if (d.hasOwnProperty(key)) {
         scriptData[key] = d[key];
@@ -1259,7 +1275,8 @@
   }
 
   function exportScript() {
-    var json = JSON.stringify(scriptData, null, 2);
+    var _scForExport = (typeof SchemaAdapter !== 'undefined') ? SchemaAdapter.exportScenario(scriptData) : scriptData;
+    var json = JSON.stringify(_scForExport, null, 2);
     var blob = new Blob(
       [json], {type: 'application/json'}
     );
@@ -1430,7 +1447,7 @@
       // 旧格式兼容：从perTurn推算daysPerTurn
       if (!gs.daysPerTurn && _t.perTurn) {
         var _dMap2 = {'1d':1,'1w':7,'1m':30,'1s':90,'1y':365};
-        gs.daysPerTurn = _dMap2[_t.perTurn] || 30;
+        gs.daysPerTurn = (_t.perTurn === 'custom' && _t.customDays) ? Number(_t.customDays) : (_dMap2[_t.perTurn] || 30);
       }
     }
     var sy = document.getElementById('gs-startYear');

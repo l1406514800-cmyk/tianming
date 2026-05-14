@@ -13,6 +13,12 @@
 //   §2 [L300]  openAbdication 退位/归去来兮入口
 //   §3 [L500]  openShiji 史记弹窗 + _shijiShowDetail 详情
 //   §4 [L900]  switchGTab 主 tab 切换 + 文苑入口
+//
+// Domain: 玩家核心 / 全局资源栏 / 人物志 (含传记 + 特质渲染·跨域)
+// Refactor notes:
+//   Phase 3·deep audit·**跨域**·含传记/特质/render 等多职责·考虑拆 player-core / player-bio / player-traits-render
+//   Phase 5·namespace TM.Player.Core
+// 见 web/docs/architecture-map.md §1 行 53
 //   §5 [L1100] addEB 事件流 + _fmtEvt 渲染
 //   §6 [L1400] 全局资源栏 renderGameState 顶栏 + 起居注
 //   §7 [L1900] 人物志完整页 6-tab (renwuMain/renwuArc/renwuRel/...)
@@ -323,6 +329,12 @@ function switchGTab(btn,panelId){
   if(panelId==='gt-edict' && typeof _renderEdictSuggestions==='function') _renderEdictSuggestions();
   // 切换到鸿雁传书tab时刷新面板
   if(panelId==='gt-letter' && typeof renderLetterPanel==='function') renderLetterPanel();
+  if(panelId==='gt-renwu' && typeof renderRenwu==='function') {
+    try { renderRenwu(true); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Renwu') : console.error('[Renwu]', e); }
+  }
+  if(panelId==='gt-difang' && typeof _renderDifangPanel==='function') {
+    try { _renderDifangPanel(true); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'Difang') : console.error('[Difang]', e); }
+  }
   // 切换到官制tab时重绘树状图（panel可能首次渲染时尺寸计算失败）
   if(panelId==='gt-office' && typeof renderOfficeTree==='function') {
     // 延迟确保 display:block 已生效，SVG 尺寸能正确计算
@@ -583,9 +595,32 @@ function _workAction(idx, action) {
 
 // P3: 省份民情面板渲染
 var _dfSearch='', _dfSort='name', _dfCrisis=false;
+var _dfNeedsRender=false,_dfRenderTimer=0;
 
-function _renderDifangPanel() {
+function _dfIsPanelVisible(){
+  var panel=_$("gt-difang");
+  if(!panel)return true;
+  if(panel.style&&panel.style.display==='none')return false;
+  if(panel.style&&(panel.style.display==='block'||panel.style.display==='flex'))return true;
+  if(typeof window!=='undefined'&&window.getComputedStyle){
+    var st=window.getComputedStyle(panel);
+    if(st&&st.display==='none')return false;
+  }
+  return true;
+}
+
+function _dfScheduleRender(delay){
+  if(_dfRenderTimer)clearTimeout(_dfRenderTimer);
+  _dfRenderTimer=setTimeout(function(){
+    _dfRenderTimer=0;
+    _renderDifangPanel();
+  },delay==null?80:delay);
+}
+
+function _renderDifangPanel(force) {
   var grid = _$('difang-grid'); if (!grid) return;
+  if(!force&&!_dfIsPanelVisible()){_dfNeedsRender=true;return;}
+  _dfNeedsRender=false;
   // 优先读运行时 GM.adminHierarchy（与左侧栏一致·含推演更新的民心/腐败/人口）·回退剧本 P.adminHierarchy
   var ah = (GM && GM.adminHierarchy && Object.keys(GM.adminHierarchy).length > 0) ? GM.adminHierarchy : P.adminHierarchy;
   if (!ah) { grid.innerHTML = '<div style="color:var(--txt-d);text-align:center;">未设置行政区划</div>'; return; }
@@ -1292,10 +1327,23 @@ function renderLeftPanel(){
   if(_barDyn){ _barDyn.textContent=(_sc?_sc.name:'')+(GM.eraName?' · '+GM.eraName:''); }
   if(_barDate){ _barDate.textContent=(typeof getTSText==='function'?getTSText(GM.turn):''); }
   if(_barTurnT){ _barTurnT.textContent='第 '+(GM.turn||1)+' 回合'; }
+  // 右上时间区·B 方案 LOCKED §3.1·主 = getTSText / 副 = 公元 N 年
+  var _barTimeMain=_$("bar-time-main"), _barTimeSub=_$("bar-time-sub");
+  if(_barTimeMain && typeof getTSText==='function'){
+    _barTimeMain.textContent=getTSText(GM.turn);
+  }
+  if(_barTimeSub && typeof calcDateFromTurn==='function'){
+    var _di=calcDateFromTurn(GM.turn);
+    if(_di && typeof _di.adYear!=='undefined'){
+      var _ay=_di.adYear;
+      _barTimeSub.textContent=(_ay<0?'公元前 '+Math.abs(_ay)+' 年':'公元 '+_ay+' 年');
+    }
+  }
   // 四时物候：按 GM.turn 月份推算
   var _wSeal=_$("bar-weather-seal"), _wName=_$("bar-weather-name"), _wDesc=_$("bar-weather-desc");
   if(_wSeal && _wName){
-    var _mon=(((GM.turn||1)-1)%12)+1; // 1..12
+    var _dateForWeather=(typeof calcDateFromTurn==='function')?calcDateFromTurn(GM.turn||1):null;
+    var _mon=(_dateForWeather&&(_dateForWeather.lunarMonth||_dateForWeather.solarMonth))||(((GM.turn||1)-1)%12)+1; // 1..12
     var _s='春',_sTxt='春分',_sDesc='桃李始华';
     if(_mon>=3&&_mon<=5){_s='春';_sTxt=['孟春','仲春','季春'][_mon-3];_sDesc=['立春·东风解冻','春分·雷乃发声','谷雨·萍始生'][_mon-3];}
     else if(_mon>=6&&_mon<=8){_s='夏';_sTxt=['孟夏','仲夏','季夏'][_mon-6];_sDesc=['立夏·蝼蝈鸣','夏至·蜩始鸣','大暑·腐草为萤'][_mon-6];}
@@ -1593,7 +1641,41 @@ function renderLeftPanel(){
 }
 
 // 游戏主界面渲染
-function openGaiyuanModal(){  var cur=GM.eraName||"";  var t=P.time;var tpy=4;if(t.perTurn==="1y")tpy=1;else if(t.perTurn==="1m")tpy=12;  var yo=Math.floor((GM.turn-1)/tpy);var y=t.year+yo;  var mo=t.startMonth||1;  var html="<div style='padding:1rem'>"+    "<div style='margin-bottom:0.8rem;color:var(--gold);font-weight:700'>"+"改元"+"</div>"+    "<div style='font-size:0.85rem;color:var(--txt-d);margin-bottom:0.8rem'>"+"当前年号："+cur+"。改元后将使用新年号。"+"</div>"+    "<div class='rw'>"+    "<div class='fd'><label>"+"新年号名"+"</label><input id='gy-name' value=''  placeholder='如建安、建兴…'></div>"+    "<div class='fd'><label>"+"起始年"+"</label><input type='number' id='gy-year' value='"+y+"'></div>"+    "<div class='fd'><label>"+"起始月"+"</label><input type='number' id='gy-month' min='1' max='12' value='"+mo+"'></div>"+    "<div class='fd'><label>"+"起始日"+"</label><input type='number' id='gy-day' min='1' max='31' value='1'></div>"+    "</div></div>";  openGenericModal("改元",html,function(){    var name=(_$("gy-name")||{}).value||"";    if(!name){toast("年号名不能为空");return false;}    var ey=parseInt((_$("gy-year")||{}).value)||y;    var em=parseInt((_$("gy-month")||{}).value)||mo;    var ed=parseInt((_$("gy-day")||{}).value)||1;    if(!GM.eraNames)GM.eraNames=[];    GM.eraNames.push({name:name,startYear:ey,startMonth:em,startDay:ed});    GM.eraName=name;    if(!P.time.eraNames)P.time.eraNames=[];    P.time.eraNames.push({name:name,startYear:ey,startMonth:em,startDay:ed});    P.time.enableEraName=true;    saveP();renderLeftPanel();    toast("改元为"+name+"元年");  });}// ============================================================
+// ============================================================
+function openGaiyuanModal(){
+  var cur=GM.eraName||"";
+  var t=P.time||{};
+  var di=(typeof calcDateFromTurn==='function')?calcDateFromTurn(GM.turn||1):null;
+  var y=di&&typeof di.adYear!=='undefined'?di.adYear:((typeof getCurrentYear==='function')?getCurrentYear():(t.year||1));
+  var mo=di&&(di.lunarMonth||di.solarMonth)?(di.lunarMonth||di.solarMonth):((typeof getCurrentMonth==='function')?getCurrentMonth():(t.startMonth||1));
+  var day=di&&(di.lunarDay||di.solarDay)?(di.lunarDay||di.solarDay):1;
+  var html="<div style='padding:1rem'>"+
+    "<div style='margin-bottom:0.8rem;color:var(--gold);font-weight:700'>"+"改元"+"</div>"+
+    "<div style='font-size:0.85rem;color:var(--txt-d);margin-bottom:0.8rem'>"+"当前年号："+cur+"。改元后将使用新年号。"+"</div>"+
+    "<div class='rw'>"+
+    "<div class='fd'><label>"+"新年号名"+"</label><input id='gy-name' value=''  placeholder='如建安、建兴…'></div>"+
+    "<div class='fd'><label>"+"起始年"+"</label><input type='number' id='gy-year' value='"+y+"'></div>"+
+    "<div class='fd'><label>"+"起始月"+"</label><input type='number' id='gy-month' min='1' max='12' value='"+mo+"'></div>"+
+    "<div class='fd'><label>"+"起始日"+"</label><input type='number' id='gy-day' min='1' max='31' value='"+day+"'></div>"+
+    "</div></div>";
+  openGenericModal("改元",html,function(){
+    var name=(_$("gy-name")||{}).value||"";
+    if(!name){toast("年号名不能为空");return false;}
+    var ey=parseInt((_$("gy-year")||{}).value)||y;
+    var em=parseInt((_$("gy-month")||{}).value)||mo;
+    var ed=parseInt((_$("gy-day")||{}).value)||day;
+    if(!GM.eraNames)GM.eraNames=[];
+    GM.eraNames.push({name:name,startYear:ey,startMonth:em,startDay:ed});
+    GM.eraName=name;
+    if(!P.time)P.time={};
+    if(!P.time.eraNames)P.time.eraNames=[];
+    P.time.eraNames.push({name:name,startYear:ey,startMonth:em,startDay:ed});
+    P.time.enableEraName=true;
+    saveP();renderLeftPanel();
+    toast("改元为"+name+"元年");
+  });
+}
+// ============================================================
 // Tooltip 系统（轻量单例）
 // ============================================================
 var TmTooltip = {
@@ -2023,7 +2105,8 @@ function openCharDetail(charName) {
   }
 
   // 特质 · 情绪
-  var hasTraits = (ch.traitIds && ch.traitIds.length > 0 && P.traitDefinitions);
+  var _trAll = (ch.traitIds && ch.traitIds.length) ? ch.traitIds : (Array.isArray(ch.traits) ? ch.traits : []);
+  var hasTraits = _trAll.length > 0;
   var mood = '';
   if (ch._memory && ch._memory.length > 0) {
     var recent = ch._memory.slice(-3);
@@ -2036,14 +2119,14 @@ function openCharDetail(charName) {
     h += '<div class="qp-sec"><div class="qp-sec-title">特 质 · 情 绪</div>';
     if (hasTraits) {
       h += '<div>';
-      ch.traitIds.slice(0, 5).forEach(function(tid) {
-        var d = P.traitDefinitions.find(function(t) { return t.id === tid; });
-        if (!d) return;
+      _trAll.slice(0, 5).forEach(function(tid) {
+        var d = (P.traitDefinitions || []).find(function(t) { return t.id === tid; });
+        var _name = d ? d.name : tid;
         var cls = 'gold';
-        if (d.dims && d.dims.boldness > 0.2) cls = 'valor';
-        else if (d.dims && d.dims.compassion > 0.2) cls = 'heart';
-        else if (d.dims && d.dims.rationality > 0.2) cls = 'mind';
-        h += '<span class="rwp-trait-tag '+cls+'" style="font-size:10px;padding:2px 8px;">'+escHtml(d.name)+'</span>';
+        if (d && d.dims && d.dims.boldness > 0.2) cls = 'valor';
+        else if (d && d.dims && d.dims.compassion > 0.2) cls = 'heart';
+        else if (d && d.dims && d.dims.rationality > 0.2) cls = 'mind';
+        h += '<span class="rwp-trait-tag '+cls+'" style="font-size:10px;padding:2px 8px;">'+escHtml(_name)+'</span>';
       });
       h += '</div>';
     }
@@ -2667,15 +2750,33 @@ function openCharRenwuPage(charName) {
       }
     }
   } catch(_expE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_expE, '人物志] 历练段') : console.warn('[人物志] 历练段', _expE); }
-  // 近期记忆
-  if (ch._memory && ch._memory.length > 0) {
-    h += '<div class="rwp-sec"><div class="rwp-sec-title">此 人 记 忆<small>近 5 条</small></div><div>';
-    ch._memory.slice(-5).reverse().forEach(function(m) {
+  // 记忆：完整人物志显示全量；近五条直接显示，旧记忆折叠展开。
+  var _rwpFullMem = [];
+  if (GM && Array.isArray(GM._memoryArchiveFull)) {
+    _rwpFullMem = GM._memoryArchiveFull.filter(function(m) { return m && m.char === ch.name; });
+  }
+  if (_rwpFullMem.length === 0 && Array.isArray(ch._memory)) _rwpFullMem = ch._memory.slice();
+  if (_rwpFullMem.length > 0) {
+    var _rwpRecentMem = _rwpFullMem.slice(-5).reverse();
+    var _rwpOlderMem = _rwpFullMem.slice(0, Math.max(0, _rwpFullMem.length - 5)).reverse();
+    h += '<div class="rwp-sec"><div class="rwp-sec-title">此 人 记 忆<small>共 '+_rwpFullMem.length+' 条</small></div><div>';
+    _rwpRecentMem.forEach(function(m) {
       var mc = _rwpMoodCls(m.emotion);
       h += '<div class="rwp-mem '+mc+'"><span class="rwp-mem-mood '+mc+'">〔'+m.emotion+'〕</span>'+escHtml(m.event);
       if (m.who) h += '<span class="rwp-mem-who">('+escHtml(m.who)+')</span>';
       h += '</div>';
     });
+    if (_rwpOlderMem.length > 0) {
+      h += '<div class="rwp-mem" style="cursor:pointer;color:var(--gold-300);font-size:11px;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\';">展开全部旧记忆（'+_rwpOlderMem.length+' 条）▸</div>';
+      h += '<div style="display:none;">';
+      _rwpOlderMem.forEach(function(m) {
+        var mc = _rwpMoodCls(m.emotion);
+        h += '<div class="rwp-mem '+mc+'"><span class="rwp-mem-mood '+mc+'">〔'+m.emotion+'〕</span>'+escHtml(m.event);
+        if (m.who) h += '<span class="rwp-mem-who">('+escHtml(m.who)+')</span>';
+        h += '</div>';
+      });
+      h += '</div>';
+    }
     h += '</div></div>';
   }
   // 印象
@@ -2841,4 +2942,30 @@ function _rwpResItem(val, unit, type) {
   var display = v >= 10000 ? (v/10000).toFixed(1)+'万' : v >= 1000 ? v.toLocaleString() : Math.round(v);
   return '<div class="rwp-res-item">'+svg+'<span><span class="rwp-res-val'+(neg?' neg':'')+'">'+display+'</span><span class="rwp-res-unit">'+unit+'</span></span></div>';
 }
+function calcPromotionChance(char) {
+  if (!char) return 0;
+  var G = typeof GM !== 'undefined' ? GM : null;
+  var merit = char.virtueMerit || 30;
+  var rank = char.rank || 5;
+  var hq = G && G.huangquan && G.huangquan.index || 55;
+  var hw = G && G.huangwei && G.huangwei.index || 50;
+  var thresholds = { 5: 60, 4: 75, 3: 85, 2: 92, 1: 97 };
+  var needed = thresholds[rank] || 100;
+  if (merit < needed) return 0;
+  var baseChance = 0.3;
+  if (merit >= needed + 20) baseChance = 0.7;
+  else if (merit >= needed + 10) baseChance = 0.5;
+  if (hq > 70) baseChance *= 1.3;
+  else if (hq < 40) baseChance *= 0.6;
+  if (hw < 30) baseChance *= 0.4;
+  if ((char.loyalty || 50) < 40) baseChance *= 0.2;
+  return Math.max(0, Math.min(0.95, baseChance));
+}
 
+var _tmPlayerGlobal = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));
+_tmPlayerGlobal.PlayerCore = _tmPlayerGlobal.PlayerCore || {};
+_tmPlayerGlobal.PlayerCore.calcPromotionChance = calcPromotionChance;
+_tmPlayerGlobal.PlayerCore.VERSION = 1;
+if (typeof _tmPlayerGlobal.calcPromotionChance === 'undefined') {
+  _tmPlayerGlobal.calcPromotionChance = calcPromotionChance;
+}

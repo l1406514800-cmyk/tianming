@@ -23,6 +23,10 @@
 (function(global) {
   'use strict';
 
+  function _turnsForMonthsLocal(months) {
+    return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  [1] 25 条大徭役完整 JSON
   // ═══════════════════════════════════════════════════════════════════
@@ -510,11 +514,11 @@
     if (!G) return '';
     var lines = [];
     if (G.population && G.population.plagueEvents) {
-      var recentPlagues = G.population.plagueEvents.filter(function(p) { return (G.turn - p.turn) < 12; });
+      var recentPlagues = G.population.plagueEvents.filter(function(p) { return (G.turn - p.turn) < _turnsForMonthsLocal(12); });
       if (recentPlagues.length > 0) lines.push('【疫】近一年 ' + recentPlagues.length + ' 次，殒 ' + recentPlagues.reduce(function(s,p){return s+p.scale;},0) + ' 口');
     }
     if (G.population && G.population.warCasualties) {
-      var recentWars = G.population.warCasualties.filter(function(w) { return (G.turn - w.turn) < 12; });
+      var recentWars = G.population.warCasualties.filter(function(w) { return (G.turn - w.turn) < _turnsForMonthsLocal(12); });
       if (recentWars.length > 0) lines.push('【战亡】近一年 ' + recentWars.reduce(function(s,w){return s+w.scale;},0) + ' 亡');
     }
     return lines.length > 0 ? lines.join('\n') : '';

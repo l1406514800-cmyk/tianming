@@ -15,7 +15,7 @@
  *
  * 扩充数据（实测自报，2026-04-29 以 register() 末尾日志为准）：
  *   · 朝臣/后妃/宦官/外镇/敌方/逆雄  98 人（含历史低阶但将崛起者）
- *   · 势力 11（明朝廷 / 后金 / 察哈尔 / 朝鲜 / 播州土司·杨氏 / 郑氏海商 / 陕北饥民
+ *   · 势力 12（明朝廷 / 后金 / 察哈尔 / 科尔沁蒙古 / 朝鲜 / 播州土司·杨氏 / 郑氏海商 / 陕北饥民
  *              / 葡萄牙·澳门 / 荷兰·台海(东印度公司) / 西班牙·马尼拉 / 奢安之乱联军）
  *   · 党派 7（阉党 / 东林 / 浙党 / 楚党 / 齐党 / 宣党 / 昆党）
  *   · 阶层 9（宗室 / 士大夫 / 缙绅 / 自耕农 / 佃农流民 / 商人 / 工匠 / 军户 / 僧道）
@@ -2189,6 +2189,7 @@
       modelRequirements: {
         minOutputK: 8,           // 单次输出≥8K tokens（本剧本 46 角色+17 省+复杂 schema）
         minContextK: 32,         // 上下文≥32K（多子调用+累积记忆）
+        batchPersonaMaxLen: 200, // PromptComposer: batch NPC aiPersonaText max chars per NPC
         needsChineseClassical: true,  // 需要中文古典/文言生成
         recommendedTier: 'high',      // 推荐档位：high/medium/low
         recommendedModels: ['claude-sonnet', 'claude-opus', 'gpt-4o', 'gpt-4.1', 'deepseek-r1', 'gemini-2.5'],
@@ -5096,6 +5097,52 @@
     };
 
     // 为 armies / items 打 sid（以便 GM filter-by-sid 能捕获）
+    function _inferInitialTroopFaction(a) {
+      var n = String((a && a.name) || '');
+      if (!n) return '';
+      if (/^后金|辽东土官/.test(n)) return '后金';
+      if (/^郑芝龙|^郑氏/.test(n)) return '郑氏海商';
+      if (/^(京营|关宁|宁远|山海关|东江|蓟州|宣府|大同|山西|延绥|宁夏|甘肃|固原|四川|广西|福建|广东|全国|通州|天津|山海卫|登州|太原|西安|南京|苏州|杭州|宁波|福州|泉州|武昌|成都|广州|桂林|云南|贵阳)/.test(n)) return '明朝廷';
+      return '';
+    }
+
+    function _inferInitialTroopDynamic(a) {
+      var n = String((a && a.name) || '');
+      if (/^后金·两黄旗|^后金·两白旗/.test(n)) return [100, 0, 5];
+      if (/^后金·两红旗|^后金·两蓝旗|^后金·蒙古|^后金·汉军|辽东土官/.test(n)) return [90, 0, 10];
+      if (/郑芝龙|郑氏/.test(n)) return [95, 0, 10];
+      if (/宁远副总兵·祖氏/.test(n)) return [90, 4, 35];
+      if (/关宁/.test(n)) return [75, 3, 30];
+      if (/宁远卫·满桂/.test(n)) return [65, 2, 28];
+      if (/山海关/.test(n)) return [60, 2, 25];
+      if (/东江/.test(n)) return [90, 5, 60];
+      if (/延绥|固原|三边/.test(n)) return [65, 6, 60];
+      if (/宁夏|甘肃/.test(n)) return [60, 5, 55];
+      if (/蓟州/.test(n)) return [45, 2, 28];
+      if (/宣府|大同|山西/.test(n)) return [50, 2, 30];
+      if (/京营/.test(n)) return [35, 1, 25];
+      if (/白杆兵/.test(n)) return [75, 1, 15];
+      if (/狼兵/.test(n)) return [70, 1, 20];
+      if (/福建水师/.test(n)) return [60, 2, 25];
+      if (/广东水师/.test(n)) return [50, 2, 25];
+      if (/全国卫所/.test(n)) return [25, 4, 50];
+      if (/卫\(/.test(n) || /南京京营外备/.test(n)) return [30, 3, 40];
+      return [50, 1, 25];
+    }
+
+    if (scenario.military && Array.isArray(scenario.military.initialTroops)) {
+      scenario.military.initialTroops.forEach(function(a) {
+        a.sid = SID;
+        a.id = a.id || _uid('army_');
+        if (!a.faction) a.faction = _inferInitialTroopFaction(a);
+        if (!a.location && a.garrison) a.location = a.garrison;
+        if (!a.garrison && a.location) a.garrison = a.location;
+        var dyn = _inferInitialTroopDynamic(a);
+        if (a.controlLevel === undefined) a.controlLevel = dyn[0];
+        if (a.payArrearsMonths === undefined) a.payArrearsMonths = dyn[1];
+        if (a.mutinyRisk === undefined) a.mutinyRisk = dyn[2];
+      });
+    }
     if (scenario.military && Array.isArray(scenario.military.armies)) {
       scenario.military.armies.forEach(function(a) { a.sid = SID; a.id = _uid('army_'); });
     }
@@ -5131,7 +5178,10 @@
     // § 2. 人物——46 位
     // ═══════════════════════════════════════════════════════════════════
     var chars = buildCharacters().map(_normalizeChar);
-    chars.forEach(function (c) { c.sid = SID; c.id = _uid('char_'); global.P.characters.push(c); });
+    chars.forEach(function (c) {
+      if (c.faction === '陕北饥民') c.faction = '陕北饥民(将起)';
+      c.sid = SID; c.id = _uid('char_'); global.P.characters.push(c);
+    });
 
     // ═══════════════════════════════════════════════════════════════════
     // § 3. 势力
@@ -5809,6 +5859,199 @@
       ]
     };
 
+    if (!facs.some(function(f) { return f && f.name === '科尔沁蒙古'; })) {
+      facs.splice(3, 0, {
+        name: '科尔沁蒙古', leader: '奥巴台吉', color: '#6f7f9a',
+        type: '蒙古部盟·后金联姻盟友', factionType: '漠南蒙古东部强部',
+        territory: '嫩科尔沁草原·西拉木伦河流域·辽河以北',
+        capital: '科尔沁部帐',
+        prestige: 48, economy: 28, militaryStrength: 60000,
+        description: '漠南蒙古东部强部，已与后金多次联姻结盟，是后金牵制察哈尔、经营辽东侧翼的重要盟友。',
+        attitude: '敌视', playerRelation: -45,
+        resources: '草场·战马·部众骑兵·联姻网络',
+        culture: '蒙古部盟文化·萨满信仰与藏传佛教并行',
+        goal: '依附后金保持部盟地位，牵制察哈尔，保全草场与牧民',
+        mainstream: '部盟求存·联姻后金',
+        leaderTitle: '科尔沁部台吉',
+        desc: '科尔沁蒙古已归附后金并以联姻巩固同盟。对明朝廷而言，它不是直接主敌，却是后金北侧外交与骑兵动员的重要支点。',
+        allies: ['后金'], enemies: ['察哈尔'], neutrals: ['明朝廷'],
+        strengths: ['骑兵机动', '后金联姻保护', '草原情报网络'],
+        weaknesses: ['依附性强', '内部诸贝勒利益分散', '受察哈尔压力牵制'],
+        strategy: '借后金之势稳住本部，协助压制察哈尔；若后金失势则保留转圜余地。',
+        foundYear: 1624,
+        leaderInfo: { name: '奥巴台吉', personality: '务实·联姻求存', age: '45', gender: '男', belief: '萨满/藏传佛教', learning: '部盟政治·骑射', ethnicity: '蒙古', bio: '科尔沁部首领，天命九年前后归附后金，并通过联姻成为后金蒙古盟友体系核心之一。' },
+        heirInfo: { name: '诸贝勒合议', personality: '部盟共议', age: '', gender: '合议', belief: '蒙古传统', learning: '', ethnicity: '蒙古', bio: '科尔沁内部由诸贝勒共同维持部盟秩序。' },
+        cohesion: { political: 64, military: 72, economic: 42, cultural: 78, ethnic: 88, loyalty: 70 },
+        militaryBreakdown: { standingArmy: 18000, militia: 42000, elite: 6000, fleet: 0 },
+        economicStructure: { agriculture: 8, trade: 22, handicraft: 10, tribute: 60 },
+        succession: { rule: 'borjigin_clan_council', designatedHeir: '诸贝勒合议', stability: 58 },
+        historicalEvents: [
+          { turn: -3, event: '1624 前后归附后金', impact: '后金取得漠南东部盟友' },
+          { turn: 0, event: '1627 联姻盟友体系成形', impact: '牵制察哈尔，强化后金侧翼' }
+        ],
+        internalParties: ['亲后金联姻派', '本部草场保守派', '对察哈尔警戒派']
+      });
+    }
+
+    var _FAC_AI_DIRECTIVES = {
+      '明朝廷': {
+        personality: '新君勤政急切，正统包袱极重，疑心与救亡冲动并存',
+        aiProfile: {
+          posture: '危房帝国的开局回合，外敌、饥荒、党争、财政同时压盘。',
+          decisionStyle: '先稳京师和诏令通道，再用人事、补饷、赈济拆雷；会偏爱严令和速效整顿。',
+          riskTolerance: '中低。阉党、京营、辽东不能同回合全线硬碰。',
+          playerVisibleTheme: '除阉、补饷、救饥、守辽东四件事互相抢资源。'
+        },
+        strategicPriorities: ['稳住司礼监与京营', '分批剪除阉党', '召回可用东林与实务臣', '辽东先守宁锦山海', '赈陕西防民变成军', '开盐关海贸筹银'],
+        decisionHints: ['若朝堂凝聚低，先罢免外围阉党而非直扑魏忠贤', '若军饷欠发，优先补关宁、东江、三边高风险军', '若陕西饥荒加重，赈济比剿杀更能延缓流寇化'],
+        openingProblems: ['魏忠贤仍控东厂与司礼监', '京营虚弱且被阉党把持', '辽东经略未稳', '太仓银少而辽饷巨大', '陕北旱饥已到爆点'],
+        tabooMoves: ['一回合内同时清洗全部阉党与边将', '无补饷就强令关宁出塞决战', '把陕北饥民只当普通叛军处理']
+      },
+      '后金': {
+        personality: '皇太极隐忍精算，军事进取但不愿硬啃高墙',
+        aiProfile: {
+          posture: '攻势在手，但刚继汗位，仍需平衡四大贝勒与蒙古侧翼。',
+          decisionStyle: '优先拆明朝外援、收蒙古、诱降明将；攻城不足时绕路和离间优先。',
+          riskTolerance: '中高。野战敢赌，攻坚和远征会先找盟友与补给。',
+          playerVisibleTheme: '看似停在辽东，其实在给绕蒙古入塞铺路。'
+        },
+        strategicPriorities: ['稳两黄旗汗权', '压察哈尔并拉科尔沁', '迫朝鲜继续低头', '招降辽东汉将工匠', '探明关宁欠饷与党争', '学习红衣炮攻城'],
+        decisionHints: ['明朝内乱时加大离间和招降', '察哈尔若虚弱则先打蒙古侧翼', '宁锦强固时避免正面硬攻'],
+        openingProblems: ['四大贝勒共治尚未完全收权', '红衣炮与攻城法仍短板', '人口少，经不起无谓攻坚'],
+        tabooMoves: ['无重炮强攻宁远锦州', '同时逼反朝鲜与蒙古所有盟部']
+      },
+      '察哈尔': {
+        personality: '林丹汗骄矜急躁，想复大汗旧威却部众离心',
+        aiProfile: {
+          posture: '被后金东压、西迁求生，名义高于实力。',
+          decisionStyle: '向明求岁赐与互市，借正统名义拉部众；军事上多游动牵制。',
+          riskTolerance: '中高但续航低。缺粮缺银时容易冒进。',
+          playerVisibleTheme: '草原王旗还在飘，但部落已经开始各找靠山。'
+        },
+        strategicPriorities: ['求明互市与军资', '稳归化城周边部众', '防科尔沁倒向后金牵制', '保持蒙古大汗名分'],
+        decisionHints: ['若明朝给岁赐，倾向联明抗金', '若被后金压迫，会西走或索要更多援助', '内部凝聚低时先安抚部众'],
+        openingProblems: ['诸部离心', '后金军事压力', '财源不足'],
+        tabooMoves: ['孤军深入辽东', '无补给强行统一漠南']
+      },
+      '科尔沁蒙古': {
+        personality: '务实保族，亲后金但保留草原部盟算盘',
+        aiProfile: {
+          posture: '后金侧翼盟友，收益来自联姻、赏赐和保护。',
+          decisionStyle: '协助后金牵制察哈尔，避免自己成为第一战场。',
+          riskTolerance: '中。可出骑兵，但不会为盟友赌光本部。',
+          playerVisibleTheme: '不是大主角，却是后金绕塞战略的马腿。'
+        },
+        strategicPriorities: ['巩固与后金联姻', '牵制察哈尔', '保草场与牧民', '用情报换赏赐'],
+        decisionHints: ['后金强则跟进，后金败则减少投入', '察哈尔接近明朝时会主动上报或袭扰'],
+        openingProblems: ['依附性强', '部内贵族利益分散'],
+        tabooMoves: ['单独对明宣战', '远离草场长期征战']
+      },
+      '朝鲜': {
+        personality: '仁祖守正而怯战，事大明与畏后金撕扯',
+        aiProfile: {
+          posture: '刚被后金打服，仍以事明为政治合法性。',
+          decisionStyle: '表面两面称臣，实际求保国都和王位；偏好遣使、拖延、哭穷。',
+          riskTolerance: '低。不会主动挑大战。',
+          playerVisibleTheme: '小中华夹在两头猛兽之间，礼义和生存互相打架。'
+        },
+        strategicPriorities: ['维持对明礼义', '避免后金二次入侵', '修复边防与粮仓', '压住国内党争'],
+        decisionHints: ['明朝强则更公开亲明', '后金压境则被迫送礼缓兵', '财政弱时优先守汉城和平安道'],
+        openingProblems: ['江都盟屈辱未消', '军力疲弱', '国内党争'],
+        tabooMoves: ['主动撕毁江都盟', '远征辽东']
+      },
+      '播州土司·杨氏(余裔)': {
+        personality: '残部复仇，势小而耐等乱局',
+        aiProfile: {
+          posture: '主支已灭，借西南土司网络等待明廷分兵。',
+          decisionStyle: '低烈度串联、藏匿、走私和情报活动优先。',
+          riskTolerance: '低到中。只在明廷西南失控时扩大行动。',
+          playerVisibleTheme: '地图边角的旧仇火星，平时小，乱时会引山火。'
+        },
+        strategicPriorities: ['联络水西永宁余部', '保住族众', '等待奢安反扑窗口'],
+        decisionHints: ['奢安之乱升温时会响应', '明军主力调走时会扰边'],
+        openingProblems: ['人口与兵力太少', '合法性低', '明军记仇'],
+        tabooMoves: ['孤立攻府城', '公开称王过早']
+      },
+      '郑氏海商': {
+        personality: '逐利、机变、讲信用但先算账',
+        aiProfile: {
+          posture: '海盗到官军的转身窗口，海上贸易与武装船队是本钱。',
+          decisionStyle: '谁给合法性和航路，便替谁剿敌；会用海盗威胁抬价。',
+          riskTolerance: '中高。海战敢打，陆上不深陷。',
+          playerVisibleTheme: '他不是单纯海盗，是能被招安成海上外包军的玩家变量。'
+        },
+        strategicPriorities: ['争取明廷招抚官职', '压制竞争海盗', '保平户厦门航路', '周旋荷兰与澳门'],
+        decisionHints: ['明廷示好则上表受抚并剿小股海盗', '荷兰扩张时会寻求临时合作或反制', '若被明军强剿则转向更强海盗化'],
+        openingProblems: ['合法性不足', '与荷兰关系复杂', '船队忠诚靠钱'],
+        tabooMoves: ['无利益替明朝长期免费作战', '放弃海贸全力内陆化']
+      },
+      '陕北饥民(将起)': {
+        personality: '先求活命，组织松散，饥饿比野心更强',
+        aiProfile: {
+          posture: '尚未成形为大起义军，但饥荒、欠饷、逃兵正在合流。',
+          decisionStyle: '找粮、裹挟、避强击弱；若官府赈济会暂缓，若催征则迅速流寇化。',
+          riskTolerance: '高但无纪律。绝境会铤而走险。',
+          playerVisibleTheme: '这不是刷出来的叛军，是民生崩盘后的火药堆。'
+        },
+        strategicPriorities: ['抢粮活命', '吸收逃兵饥民', '避开大镇精兵', '寻找山沟县城突破口'],
+        decisionHints: ['赈济和免赋能降低爆发', '催征、剿杀、欠饷会加速成军', '地方官粉饰太平会让风险隐藏累积'],
+        openingProblems: ['无稳定首领', '缺武器粮秣', '民心是被逼出来的'],
+        tabooMoves: ['开局就组织成纪律严明大军', '无饥荒压力仍大规模起义']
+      },
+      '葡萄牙·澳门': {
+        personality: '商贸务实，传教热心，依赖明廷许可',
+        aiProfile: {
+          posture: '租借港口，夹在明廷、荷兰、西班牙同君连合与耶稣会之间。',
+          decisionStyle: '用铸炮、历法、贸易和外交换取澳门安全。',
+          riskTolerance: '低。绝不愿刺激明廷收回澳门。',
+          playerVisibleTheme: '红衣炮、银路和耶稣会，是一个小港口能撬动大明的筹码。'
+        },
+        strategicPriorities: ['保澳门租借', '抗荷兰台海压力', '向明廷提供火炮与技术', '维护长崎贸易'],
+        decisionHints: ['明廷需要火器时会主动献炮求护照', '荷兰威胁增加时寻求明葡合作'],
+        openingProblems: ['军事纵深极小', '受明地方官许可制约', '荷兰海上压力'],
+        tabooMoves: ['公开挑战明朝主权', '主动封锁福建海岸']
+      },
+      '荷兰·台海(东印度公司)': {
+        personality: '公司理性、逐利强硬、海权扩张',
+        aiProfile: {
+          posture: '刚立足台湾，目标是打破葡西垄断并控制东亚贸易节点。',
+          decisionStyle: '筑堡、签约、炮舰、封锁并用；会把战争当商业工具。',
+          riskTolerance: '中高。海上敢压，内陆谨慎。',
+          playerVisibleTheme: '它像一家公司版势力，打仗是为了航线和账本。'
+        },
+        strategicPriorities: ['固热兰遮与赤崁', '压郑氏海商', '夺葡萄牙长崎贸易', '寻福建沿海突破'],
+        decisionHints: ['郑氏强则先封锁贸易或扶持竞争海盗', '明廷合作有利时可暂时剿盗', '若澳门虚弱会加压'],
+        openingProblems: ['台湾根基未稳', '当地华商与原住民关系复杂', '远离巴达维亚总部'],
+        tabooMoves: ['无补给深入大陆', '同时激怒明郑葡西全部势力']
+      },
+      '西班牙·马尼拉': {
+        personality: '守成殖民官僚，重银路，疑惧华商',
+        aiProfile: {
+          posture: '美洲银流入东亚的枢纽，防荷兰、防摩洛，也防马尼拉华商失控。',
+          decisionStyle: '守港、控商、维持大帆船航线；会与澳门葡人协作。',
+          riskTolerance: '中低。更像守财库而非开疆。',
+          playerVisibleTheme: '马尼拉决定白银海路是否稳，影响大明钱荒的远端水龙头。'
+        },
+        strategicPriorities: ['保马尼拉大帆船', '守基隆据点', '压制荷兰扩张', '管理华商社区'],
+        decisionHints: ['荷兰台海扩张时会加强基隆和澳门协同', '华商动荡时优先治安而非贸易扩张'],
+        openingProblems: ['华商与殖民官矛盾', '荷兰海上威胁', '远洋补给慢'],
+        tabooMoves: ['主动与明朝全面开战', '放弃大帆船银路']
+      },
+      '奢安之乱联军': {
+        personality: '山地坚忍，叛乱多年，求自治与生存',
+        aiProfile: {
+          posture: '战争第七年，主力退入水西山地，明军难啃但资源也紧。',
+          decisionStyle: '守山寨、耗明军、等明廷内外失火再反扑；谈判底线是土司自治。',
+          riskTolerance: '中。山地敢拖，不愿平原决战。',
+          playerVisibleTheme: '这不是一场小叛乱，是西南改土归流和辽饷压力撞出的长期战争。'
+        },
+        strategicPriorities: ['守水西山寨', '联播州乌撒乌蒙余部', '拖垮川黔明军', '争恢复永宁或自治让步'],
+        decisionHints: ['明廷辽东或陕北吃紧时会扩大袭扰', '朱燮元秦良玉压来时转入坚壁清野', '若明廷招抚可提出高价自治条件'],
+        openingProblems: ['粮道紧', '内部部族目标不一', '白杆兵威胁大'],
+        tabooMoves: ['离开山地与明军主力决战', '无外部乱局就称帝扩大战线']
+      }
+    };
+
     facs.forEach(function (f) {
       f.sid = SID; f.id = _uid('fac_');
       // 编辑器 openFactionModal 完整字段合并
@@ -5823,6 +6066,13 @@
           if (f[k] === undefined || f[k] === null) f[k] = _FAC_LAYER2[f.name][k];
         });
       }
+      // 势力精细化推演读取的 AI 作战性格卡。只补缺省，不覆盖原剧本手写字段。
+      if (_FAC_AI_DIRECTIVES[f.name]) {
+        Object.keys(_FAC_AI_DIRECTIVES[f.name]).forEach(function(k){
+          if (f[k] === undefined || f[k] === null) f[k] = _FAC_AI_DIRECTIVES[f.name][k];
+        });
+      }
+      if (!f.npcDecisionHints && Array.isArray(f.decisionHints)) f.npcDecisionHints = f.decisionHints.slice();
       // 字段名对齐编辑器：desc → description（编辑器用 description 保存并渲染）
       if (f.desc && !f.description) f.description = f.desc;
       // attitude：编辑器用简单字符串（友好/中立/敌对/附属/朝贡/联盟/和亲/互市/敌视），保留我的结构 object 至 attitudeDetail
@@ -8067,6 +8317,90 @@
         bio: '沈阳降人，秀才出身。天命十年入仕后金。为皇太极赞画军政，谋主之才。',
         resources: { privateWealth: { cash: 85000, grain: 1800, cloth: 550 } },
       },
+      {
+        name: '莽古尔泰', title: '三大贝勒', officialTitle: '三大贝勒·正蓝旗主', alive: true,
+        age: 40, gender: '男', personality: '悍勇·暴烈·跋扈·疑忌', location: '沈阳',
+        loyalty: 58, ambition: 78, intelligence: 58, valor: 88, benevolence: 32,
+        military: 82, administration: 45, management: 52, integrity: 42,
+        stance: '后金宗室·强硬派', faction: '后金', party: '', family: '爱新觉罗',
+        traits: ['wrathful', 'arrogant', 'brave', 'ambitious'],
+        _memory: [
+          { event: '父汗努尔哈赤旧制四大贝勒共议，己位居其一，不甘凡事尽听皇太极', emotion: '傲', weight: 8, turn: -300 },
+          { event: '辽东诸役多亲冒矢石，旗中悍卒畏服其勇', emotion: '喜', weight: 7, turn: -260 }
+        ],
+        bio: '努尔哈赤第五子。四大贝勒之一，性刚暴而善战，握正蓝旗势力。天聪初年仍为宗室军权重心，既可为汗廷猛将，亦是皇太极集权路上的隐患。',
+        resources: { privateWealth: { cash: 260000, grain: 8000, cloth: 1800 } },
+      },
+      {
+        name: '济尔哈朗', title: '贝勒', officialTitle: '贝勒·镶蓝旗宗室', alive: true,
+        age: 28, gender: '男', personality: '谨慎·稳重·守礼·识大局', location: '沈阳',
+        loyalty: 82, ambition: 45, intelligence: 76, valor: 78, benevolence: 60,
+        military: 78, administration: 68, management: 66, integrity: 74,
+        stance: '舒尔哈齐系宗室·温和派', faction: '后金', party: '', family: '爱新觉罗',
+        traits: ['patient', 'calm', 'honest', 'diligent'],
+        _memory: [
+          { event: '其父舒尔哈齐旧事使本支宗室常知进退，处阿敏与皇太极之间须谨慎', emotion: '惧', weight: 8, turn: -500 },
+          { event: '朝鲜之役后见汗廷新制渐立，知后金不可复止于部落共议', emotion: '敬', weight: 6, turn: -180 }
+        ],
+        bio: '舒尔哈齐第六子，阿敏之弟。少年历军，持重少躁。此时尚未大显，然宗室身份、军中资望和谨慎性格，使其可在诸贝勒间充当缓冲。',
+        resources: { privateWealth: { cash: 150000, grain: 5200, cloth: 1200 } },
+      },
+      {
+        name: '阿济格', title: '贝勒', officialTitle: '贝勒·两白旗宗室', alive: true,
+        age: 22, gender: '男', personality: '骁勇·急进·桀骜·好胜', location: '沈阳',
+        loyalty: 74, ambition: 76, intelligence: 62, valor: 90, benevolence: 38,
+        military: 84, administration: 38, management: 50, integrity: 55,
+        stance: '两白旗悍将', faction: '后金', party: '', family: '爱新觉罗',
+        traits: ['brave', 'wrathful', 'arrogant', 'ambitious'],
+        _memory: [
+          { event: '母阿巴亥殉葬之后，两白旗诸幼弟心中皆有旧痛', emotion: '恨', weight: 8, turn: -350 },
+          { event: '随军征伐渐立锋芒，自信弓马不逊诸兄', emotion: '喜', weight: 7, turn: -160 }
+        ],
+        bio: '努尔哈赤第十二子，多尔衮、多铎同母兄。年少骁悍，尚未完全掌权，却已是两白旗武力的重要支点。适合作为突击、劫掠与宗室怨气事件源。',
+        resources: { privateWealth: { cash: 90000, grain: 3800, cloth: 900 } },
+      },
+      {
+        name: '多铎', title: '贝勒幼弟', officialTitle: '贝勒·镶白旗幼主', alive: true,
+        age: 13, gender: '男', personality: '少年锐气·骄纵·胆大·依兄', location: '沈阳',
+        loyalty: 78, ambition: 82, intelligence: 70, valor: 72, benevolence: 42,
+        military: 62, administration: 28, management: 38, integrity: 52,
+        stance: '两白旗幼弟·潜在强藩', faction: '后金', party: '', family: '爱新觉罗',
+        traits: ['ambitious', 'brave', 'impatient', 'arrogant'],
+        _memory: [
+          { event: '幼年失母，依多尔衮、阿济格而立，知两白旗权势不可旁落', emotion: '惧', weight: 7, turn: -350 },
+          { event: '诸兄议政时常被视为童子，心中不服', emotion: '怒', weight: 5, turn: -120 }
+        ],
+        bio: '努尔哈赤第十五子，多尔衮同母弟。天聪元年尚幼，却系两白旗未来核心之一。现在不是主将，但很适合埋“未来战神/宗室继承”线。',
+        resources: { privateWealth: { cash: 70000, grain: 3000, cloth: 700 } },
+      },
+      {
+        name: '佟养性', title: '汉军火器官', officialTitle: '汉匠火器总管', alive: true,
+        age: 42, gender: '男', personality: '精细·务实·善营造·趋利', location: '沈阳·汉人工匠营',
+        loyalty: 72, ambition: 58, intelligence: 82, valor: 48, benevolence: 45,
+        military: 62, administration: 72, management: 86, integrity: 50,
+        stance: '辽东汉军技术派', faction: '后金', party: '', family: '佟氏',
+        traits: ['diligent', 'patient', 'deceitful'],
+        _memory: [
+          { event: '辽东汉人工匠、炮手渐入后金，汗廷欲以汉法制器攻城', emotion: '喜', weight: 8, turn: -180 },
+          { event: '宁远红夷炮之威震动八旗，知无火器则坚城难下', emotion: '惧', weight: 9, turn: -160 }
+        ],
+        bio: '辽东佟氏。降金后为汉人工匠、火器与军器营要员。此时后金尚未完全建立乌真超哈重军，但佟养性代表皇太极吸纳汉军技术、铸炮攻城的方向。',
+        resources: { privateWealth: { cash: 65000, grain: 1600, cloth: 500 } },
+      },
+      {
+        name: '李永芳', title: '汉军降将', officialTitle: '三等副将·抚顺降将', alive: true,
+        age: 53, gender: '男', personality: '圆滑·谨慎·知兵·畏威', location: '沈阳·汉军营',
+        loyalty: 76, ambition: 48, intelligence: 74, valor: 68, benevolence: 50,
+        military: 72, administration: 66, management: 70, integrity: 38,
+        stance: '辽东汉军降将', faction: '后金', party: '', family: '李氏',
+        traits: ['patient', 'deceitful', 'diligent'],
+        _memory: [
+          { event: '天命三年以抚顺降后金，开明将降金之先例', emotion: '惧', weight: 9, turn: -900 },
+          { event: '娶爱新觉罗氏，虽受厚遇，仍知汉降将夹在两边之间', emotion: '忧', weight: 8, turn: -600 }
+        ],
+        bio: '原明抚顺守将，天命三年降努尔哈赤，为明将降金的标志人物之一。娶宗室女，熟悉辽东明军制度，可为皇太极招抚汉官、整编降兵所用。',
+        resources: { privateWealth: { cash: 85000, grain: 2200, cloth: 650 } },
+      },
       // ──── 蒙古 ────
       {
         name: '林丹汗', title: '察哈尔可汗', officialTitle: '蒙古大汗·察哈尔可汗', alive: true,
@@ -9217,7 +9551,7 @@
           { name: '次辅·文华殿大学士', rank: '正五品', perPersonSalary: '月俸 16 石 · 岁俸 192 石', salary: 16, holder: '施凤来', establishedCount: 1, vacancyCount: 0, authority: 'decision', succession: 'appointment', duties: '辅佐首辅，分理庶政。' },
           { name: '武英殿大学士', rank: '正五品', perPersonSalary: '月俸 16 石 · 岁俸 192 石', salary: 16, holder: '张瑞图', establishedCount: 1, vacancyCount: 0, authority: 'execution', succession: 'appointment', duties: '入值文渊，参与票拟。冯铨天启六年十一月已罢，张瑞图以礼部尚书兼武英殿大学士入阁（阉党新贵，书法独步）。' },
           { name: '东阁大学士', rank: '正五品', perPersonSalary: '月俸 16 石 · 岁俸 192 石', salary: 16, holder: '李国普', establishedCount: 1, vacancyCount: 0, authority: 'execution', succession: 'appointment', duties: '天启七年七月以礼部右侍郎兼东阁大学士入阁（阉党附庸）。' },
-          { name: '东阁大学士(缺)', rank: '正五品', perPersonSalary: '月俸 16 石 · 岁俸 192 石', salary: 16, holder: '', establishedCount: 1, vacancyCount: 1, authority: 'execution', succession: 'appointment', duties: '储相之位，目前空缺。' }
+          { name: '文渊阁大学士(缺)', rank: '正五品', perPersonSalary: '月俸 16 石 · 岁俸 192 石', salary: 16, holder: '', establishedCount: 1, vacancyCount: 1, authority: 'execution', succession: 'appointment', duties: '储相之位，目前空缺。' }
         ],
         subs: []
       },
@@ -9350,93 +9684,11 @@
         ],
         subs: []
       },
-      // ═══ 补充：六科给事中（独立言官，监察六部） ═══
-      {
-        id: _uid('off_'), name: '六科给事中', desc: '吏/户/礼/兵/刑/工 各科。独立于都察院。掌抄发章疏、科参稽核，权重位尊，小臣制大臣',
-        positions: [
-          { name: '吏科都给事中', rank: '正七品', perPersonSalary: '月俸 7.5 石 · 岁俸 90 石', salary: 7.5, holder: '', establishedCount: 1, vacancyCount: 1, authority: 'supervision', powers: { impeach: true, supervise: true }, duties: '驳正吏部之误；核察文选升降。', bindingHint: 'ministry' },
-          { name: '户科都给事中', rank: '正七品', perPersonSalary: '月俸 7.5 石 · 岁俸 90 石', salary: 7.5, holder: '', establishedCount: 1, vacancyCount: 1, authority: 'supervision', powers: { impeach: true, supervise: true }, duties: '户部钱粮事关。阉党把持多年。' },
-          { name: '礼科都给事中', rank: '正七品', perPersonSalary: '月俸 7.5 石 · 岁俸 90 石', salary: 7.5, holder: '', establishedCount: 1, vacancyCount: 1, authority: 'supervision', powers: { impeach: true } },
-          { name: '兵科都给事中', rank: '正七品', perPersonSalary: '月俸 7.5 石 · 岁俸 90 石', salary: 7.5, holder: '', establishedCount: 1, vacancyCount: 1, authority: 'supervision', powers: { impeach: true, supervise: true }, duties: '辽东兵饷甘苦最苦。' },
-          { name: '刑科都给事中', rank: '正七品', perPersonSalary: '月俸 7.5 石 · 岁俸 90 石', salary: 7.5, holder: '', establishedCount: 1, vacancyCount: 1, authority: 'supervision', powers: { impeach: true } },
-          { name: '工科都给事中', rank: '正七品', perPersonSalary: '月俸 7.5 石 · 岁俸 90 石', salary: 7.5, holder: '', establishedCount: 1, vacancyCount: 1, authority: 'supervision', powers: { impeach: true } },
-          { name: '各科给事中', rank: '从七品', perPersonSalary: '月俸 7 石 · 岁俸 84 石', salary: 7, holder: '', establishedCount: 50, vacancyCount: 15, authority: 'supervision', powers: { impeach: true } }
-        ],
-        subs: []
-      },
-      // ═══ 钦天监（天象历法，本剧本异象触发关键） ═══
-      {
-        id: _uid('off_'), name: '钦天监', desc: '掌天象/历法/占卜/冠礼阴阳。元设司天监，明洪武改钦天监',
-        positions: [
-          { name: '钦天监监正', rank: '正五品', perPersonSalary: '月俸 16 石 · 岁俸 192 石', salary: 16, holder: '', establishedCount: 1, vacancyCount: 1, duties: '总理天象观测、报异象于帝。彗星日食月食地震皆由此奏。天启七年八月观象台传"有星孛于营室"。', publicTreasuryInit: { money: 15000, grain: 5000, cloth: 0 }, bindingHint: 'ministry', hooks: { triggerOnHeavenSign: '必即日奏闻' } },
-          { name: '监副', rank: '正六品', perPersonSalary: '月俸 10 石 · 岁俸 120 石', salary: 10, holder: '', establishedCount: 2, vacancyCount: 1 },
-          { name: '五官正', rank: '从六品', perPersonSalary: '月俸 8 石 · 岁俸 96 石', salary: 8, holder: '', establishedCount: 5, vacancyCount: 2, duties: '春官正/夏官正/秋官正/冬官正/中官正。分掌五行占星。' },
-          { name: '博士/挈壶正', rank: '从八品', perPersonSalary: '月俸 6 石 · 岁俸 72 石', salary: 6, holder: '', establishedCount: 10, vacancyCount: 3 }
-        ],
-        subs: []
-      },
-      // ═══ 太医院 ═══
-      {
-        id: _uid('off_'), name: '太医院', desc: '御医及天下医政',
-        positions: [
-          { name: '太医院使', rank: '正五品', perPersonSalary: '月俸 16 石 · 岁俸 192 石', salary: 16, holder: '', establishedCount: 1, vacancyCount: 1, duties: '总领御医，亦诊治百官。天启七年熹宗崩于此衙束手。', publicTreasuryInit: { money: 20000, grain: 10000, cloth: 1000 }, bindingHint: 'imperial' },
-          { name: '御医', rank: '正八品', perPersonSalary: '月俸 6.5 石 · 岁俸 78 石', salary: 6.5, holder: '', establishedCount: 10, vacancyCount: 2 },
-          { name: '吏目·医士', rank: '从九品', perPersonSalary: '月俸 5 石 · 岁俸 60 石', salary: 5, holder: '', establishedCount: 40, vacancyCount: 10 }
-        ],
-        subs: []
-      },
-      // ═══ 五寺（太常/光禄/太仆/鸿胪/尚宝） ═══
+      // ═══ 太常寺（小九卿之一） ═══
       {
         id: _uid('off_'), name: '太常寺', desc: '掌祭祀礼乐',
         positions: [
           { name: '太常寺卿', rank: '正三品', perPersonSalary: '月俸 35 石 · 岁俸 420 石', salary: 35, holder: '', establishedCount: 1, vacancyCount: 1, duties: '祭祀天地宗庙；礼乐典章。', publicTreasuryInit: { money: 40000, grain: 60000, cloth: 5000 }, bindingHint: 'imperial' }
-        ],
-        subs: []
-      },
-      {
-        id: _uid('off_'), name: '光禄寺', desc: '掌宫廷宴享·皇家膳食',
-        positions: [
-          { name: '光禄寺卿', rank: '从三品', perPersonSalary: '月俸 26 石 · 岁俸 312 石', salary: 26, holder: '', establishedCount: 1, vacancyCount: 1, duties: '办万寿/千秋/进贡各节宴；宫廷果饼。', publicTreasuryInit: { money: 80000, grain: 50000, cloth: 0 }, bindingHint: 'imperial', privateIncome: { illicitRisk: 'medium', bonusNote: '采买时常油水' } }
-        ],
-        subs: []
-      },
-      {
-        id: _uid('off_'), name: '太仆寺', desc: '掌马政·九边战马',
-        positions: [
-          { name: '太仆寺卿', rank: '从三品', perPersonSalary: '月俸 26 石 · 岁俸 312 石', salary: 26, holder: '', establishedCount: 1, vacancyCount: 1, duties: '掌全国马政。北直隶/山东/河南/陕西/南直隶五省牧监。', publicTreasuryInit: { money: 60000, grain: 20000, cloth: 0 }, bindingHint: 'military', powers: { militaryCommand: false } },
-          { name: '寺丞·苑马寺', rank: '正六品', perPersonSalary: '月俸 10 石 · 岁俸 120 石', salary: 10, holder: '', establishedCount: 8, vacancyCount: 3 }
-        ],
-        subs: []
-      },
-      {
-        id: _uid('off_'), name: '鸿胪寺', desc: '掌朝会礼仪·外藩宾客',
-        positions: [
-          { name: '鸿胪寺卿', rank: '正四品', perPersonSalary: '月俸 24 石 · 岁俸 288 石', salary: 24, holder: '', establishedCount: 1, vacancyCount: 1, duties: '朝会班序；番使入朝引导；皇族婚丧典礼。', publicTreasuryInit: { money: 20000, grain: 5000, cloth: 2000 }, bindingHint: 'imperial' }
-        ],
-        subs: []
-      },
-      {
-        id: _uid('off_'), name: '尚宝司', desc: '掌御用印玺',
-        positions: [
-          { name: '尚宝司卿', rank: '正五品', perPersonSalary: '月俸 16 石 · 岁俸 192 石', salary: 16, holder: '', establishedCount: 1, vacancyCount: 1, duties: '保管二十五宝玺。铨用多勋戚。', publicTreasuryInit: { money: 10000, grain: 0, cloth: 0 }, bindingHint: 'imperial' }
-        ],
-        subs: []
-      },
-      // ═══ 国子监·宗人府 ═══
-      {
-        id: _uid('off_'), name: '国子监', desc: '天下最高学府',
-        positions: [
-          { name: '国子监祭酒', rank: '从四品', perPersonSalary: '月俸 21 石 · 岁俸 252 石', salary: 21, holder: '', establishedCount: 1, vacancyCount: 1, duties: '教育监生。南北两监。', publicTreasuryInit: { money: 20000, grain: 40000, cloth: 3000 }, bindingHint: 'ministry' },
-          { name: '司业', rank: '正六品', perPersonSalary: '月俸 10 石 · 岁俸 120 石', salary: 10, holder: '', establishedCount: 2, vacancyCount: 1 }
-        ],
-        subs: []
-      },
-      {
-        id: _uid('off_'), name: '宗人府', desc: '管理皇族宗室',
-        positions: [
-          { name: '宗人令', rank: '正一品', perPersonSalary: '月俸 87 石 · 岁俸 1044 石', salary: 87, holder: '', establishedCount: 1, vacancyCount: 0, duties: '宗室首席。常由亲王兼。目前空缺。', bindingHint: 'imperial' },
-          { name: '左/右宗正', rank: '正一品', perPersonSalary: '月俸 87 石 · 岁俸 1044 石', salary: 87, holder: '', establishedCount: 2, vacancyCount: 2 },
-          { name: '经历司经历', rank: '正五品', perPersonSalary: '月俸 16 石 · 岁俸 192 石', salary: 16, holder: '', establishedCount: 1, vacancyCount: 0, duties: '日常文书、宗室档案·宗禄由此经办。天启末宗禄岁需六百万石，实支不足一半。', publicTreasuryInit: { money: 50000, grain: 400000, cloth: 20000 }, bindingHint: 'imperial' }
         ],
         subs: []
       },
@@ -9933,13 +10185,245 @@
       return d;
     }
 
+    function npcTree(factionId, factionName, divisions) {
+      return { factionId: factionId, factionName: factionName, divisions: divisions };
+    }
+
+    function compactNpcAdmin(root) {
+      function arr(key) {
+        return root[key] && Array.isArray(root[key].divisions) ? root[key].divisions : [];
+      }
+      function sum(ds, getter) {
+        var n = 0;
+        ds.forEach(function(d) { n += Number(getter(d) || 0); });
+        return n;
+      }
+      function avg(ds, getter, fallback) {
+        var total = 0, weight = 0;
+        ds.forEach(function(d) {
+          var w = d && d.populationDetail && d.populationDetail.mouths ? d.populationDetail.mouths : 1;
+          var v = getter(d);
+          if (typeof v === 'number' && isFinite(v)) { total += v * w; weight += w; }
+        });
+        return weight ? Math.round(total / weight) : fallback;
+      }
+      function orTags(ds) {
+        var out = {};
+        ds.forEach(function(d) {
+          Object.keys(d.tags || {}).forEach(function(k) { if (d.tags[k]) out[k] = true; });
+        });
+        return out;
+      }
+      function compact(key, spec) {
+        var ds = arr(key);
+        if (!root[key] || ds.length === 0) return;
+        var money = sum(ds, function(d) { return d.publicTreasuryInit && d.publicTreasuryInit.money; });
+        var grain = sum(ds, function(d) { return d.publicTreasuryInit && d.publicTreasuryInit.grain; });
+        var cloth = sum(ds, function(d) { return d.publicTreasuryInit && d.publicTreasuryInit.cloth; });
+        var farmland = sum(ds, function(d) { return d.economyBase && d.economyBase.farmland; });
+        var commerce = sum(ds, function(d) { return d.economyBase && d.economyBase.commerceVolume; });
+        var maritime = sum(ds, function(d) { return d.economyBase && d.economyBase.maritimeTradeVolume; });
+        var salt = sum(ds, function(d) { return d.economyBase && d.economyBase.saltProduction; });
+        var mineral = sum(ds, function(d) { return d.economyBase && d.economyBase.mineralProduction; });
+        var horse = sum(ds, function(d) { return d.economyBase && d.economyBase.horseProduction; });
+        var fishing = sum(ds, function(d) { return d.economyBase && d.economyBase.fishingProduction; });
+        root[key].divisions = [division(Object.assign({
+          name: spec.name,
+          level: 'province',
+          regionType: spec.regionType || 'normal',
+          officialPosition: spec.officialPosition || '势力直属辖区',
+          governor: spec.governor || '',
+          description: spec.description || '',
+          populationDetail: {
+            mouths: spec.mouths || sum(ds, function(d) { return d.populationDetail && d.populationDetail.mouths; }),
+            fugitives: spec.fugitives != null ? spec.fugitives : sum(ds, function(d) { return d.populationDetail && d.populationDetail.fugitives; }),
+            hiddenCount: spec.hiddenCount != null ? spec.hiddenCount : sum(ds, function(d) { return d.populationDetail && d.populationDetail.hiddenCount; })
+          },
+          terrain: spec.terrain || (ds[0] && ds[0].terrain) || '混合',
+          specialResources: spec.specialResources || ds.map(function(d){ return d.specialResources; }).filter(Boolean).slice(0, 4).join('·'),
+          taxLevel: spec.taxLevel || (ds[0] && ds[0].taxLevel) || '中',
+          publicTreasuryInit: { money: money, grain: grain, cloth: cloth },
+          minxinLocal: spec.minxinLocal != null ? spec.minxinLocal : avg(ds, function(d) { return d.minxinLocal; }, 45),
+          corruptionLocal: spec.corruptionLocal != null ? spec.corruptionLocal : avg(ds, function(d) { return d.corruptionLocal; }, 45),
+          byEthnicity: spec.byEthnicity || (ds[0] && ds[0].byEthnicity),
+          byFaith: spec.byFaith || (ds[0] && ds[0].byFaith),
+          fiscalDetail: {
+            claimedRevenue: sum(ds, function(d) { return d.fiscalDetail && d.fiscalDetail.claimedRevenue; }),
+            actualRevenue: sum(ds, function(d) { return d.fiscalDetail && d.fiscalDetail.actualRevenue; }),
+            remittedToCenter: sum(ds, function(d) { return d.fiscalDetail && d.fiscalDetail.remittedToCenter; }),
+            retainedBudget: sum(ds, function(d) { return d.fiscalDetail && d.fiscalDetail.retainedBudget; }),
+            compliance: spec.compliance != null ? spec.compliance : 0.55,
+            skimmingRate: spec.skimmingRate != null ? spec.skimmingRate : 0.12,
+            autonomyLevel: spec.autonomyLevel != null ? spec.autonomyLevel : 0.75
+          },
+          tags: Object.assign(orTags(ds), spec.tags || {}),
+          economyBase: {
+            farmland: farmland,
+            commerceCoefficient: spec.commerceCoefficient || 0.8,
+            commerceVolume: commerce,
+            maritimeTradeVolume: maritime,
+            saltProduction: salt,
+            mineralProduction: mineral,
+            horseProduction: horse,
+            fishingProduction: fishing,
+            imperialFarmland: 0,
+            imperialAssets: { zhizao: 0, kuangchang: mineral > 0 ? 1 : 0, yuyao: 0 },
+            postRelays: sum(ds, function(d) { return d.economyBase && d.economyBase.postRelays; }),
+            kejuQuota: 0,
+            roadQuality: avg(ds, function(d) { return d.economyBase && d.economyBase.roadQuality; }, 20),
+            landsAnnexed: sum(ds, function(d) { return d.economyBase && d.economyBase.landsAnnexed; }),
+            landsReclaimed: sum(ds, function(d) { return d.economyBase && d.economyBase.landsReclaimed; }),
+            landsSurveyed: 0,
+            disasterRecord: []
+          },
+          tradeRoutes: spec.tradeRoutes || [],
+          threats: spec.threats || [],
+          specialCulture: spec.specialCulture || '',
+          strategicValue: spec.strategicValue || '',
+          recentDisasters: spec.recentDisasters || []
+        }, spec.extra || {}))];
+      }
+
+      compact('laterJin', {
+        name: '辽沈建州八旗辖区', regionType: 'normal', officialPosition: '后金汗廷直辖', governor: '皇太极',
+        description: '沈阳、辽阳、建州旧地、辽北边旗合为一个省级大区。后金体量不按明朝省制拆细，核心是八旗军政与辽东降民屯粮。',
+        terrain: '平原/山地', specialResources: '辽河粮·铁匠·人参·皮毛·战马', taxLevel: '旗役',
+        byEthnicity: { '女真': 0.48, '汉': 0.35, '蒙古': 0.10, '朝鲜': 0.04, '其他': 0.03 },
+        byFaith: { '萨满': 0.46, '儒': 0.18, '藏传佛教': 0.12, '佛': 0.08, '民间': 0.16 },
+        tradeRoutes: ['沈阳-辽阳', '沈阳-科尔沁', '鸭绿江贡道'],
+        threats: ['宁锦明军反攻', '汉民逃亡', '四大贝勒分权', '朝鲜亲明派抵触'],
+        specialCulture: '八旗军政合一·女真、辽东汉民与蒙古盟部混居。汗廷以贝勒议政维系新征服区。',
+        strategicValue: '辽沈为后金国本与入关前进基地，连接朝鲜、科尔沁与宁锦防线。',
+        recentDisasters: ['天启元年辽沈易手后汉民逃亡与屯粮重编', '天启六年宁远失利后攻势暂挫']
+      });
+      compact('chahar', {
+        name: '察哈尔漠南牧地', regionType: 'jimi', officialPosition: '察哈尔大汗本营', governor: '林丹汗',
+        description: '察哈尔本部、归化城与宣府塞外合为一个草原大区。它不是布政使司式国家，更像移动汗帐与部盟牧地。',
+        terrain: '草原', specialResources: '战马·羊群·边市·寺院供养', taxLevel: '部盟贡赋',
+        byEthnicity: { '蒙古': 0.92, '汉': 0.05, '回回': 0.01, '其他': 0.02 },
+        byFaith: { '藏传佛教': 0.60, '萨满': 0.25, '民间': 0.12, '伊斯兰': 0.03 },
+        tradeRoutes: ['归化城-宣府互市', '漠南草原路'],
+        threats: ['后金东压', '科尔沁倒向后金', '部众离散'],
+        specialCulture: '蒙古黄金家族余威·藏传佛教与游牧盟誓并行，汗帐政治重于城郭官署。',
+        strategicValue: '漠南屏障，夹在明边、后金与归化城商道之间，是后金西进绕边的关键障碍。',
+        recentDisasters: ['天启年间林丹汗西迁压力渐重', '科尔沁等东蒙古诸部倒向后金']
+      });
+      compact('khorchin', {
+        name: '科尔沁东蒙古牧地', regionType: 'jimi', officialPosition: '科尔沁部帐', governor: '奥巴台吉',
+        description: '嫩科尔沁、西拉木伦河与辽河北岸牧地合并。游戏上作为后金侧翼盟友的一个省级牧区处理。',
+        terrain: '草原', specialResources: '战马·牛羊·骑兵·联姻网络', taxLevel: '盟贡',
+        byEthnicity: { '蒙古': 0.94, '女真': 0.04, '其他': 0.02 },
+        byFaith: { '萨满': 0.46, '藏传佛教': 0.38, '民间': 0.16 },
+        tradeRoutes: ['科尔沁-沈阳盟路', '辽河草原路'],
+        threats: ['察哈尔报复', '后金过度征调'],
+        specialCulture: '东蒙古部盟文化·姻亲外交浓厚，骑兵与牛羊牧产是政治筹码。',
+        strategicValue: '后金侧翼盟友和骑兵来源，控制辽河草原通道，可牵制察哈尔。',
+        recentDisasters: ['天启六年前后与后金结盟加深', '察哈尔压力与部众迁徙持续']
+      });
+      compact('joseon', {
+        name: '朝鲜八道', regionType: 'fanbang', officialPosition: '朝鲜国王辖境', governor: '仁祖·李倧',
+        description: '京畿、忠清、庆尚、全罗、江原、黄海、平安、咸镜合为一个外藩国家大区。具体八道不在本剧本展开。',
+        terrain: '山地/沿海', specialResources: '稻米·人参·纸·海产·山城', taxLevel: '藩国贡赋',
+        byEthnicity: { '朝鲜': 0.98, '女真': 0.01, '汉': 0.005, '其他': 0.005 },
+        byFaith: { '儒': 0.52, '佛': 0.18, '民间': 0.25, '萨满': 0.05 },
+        tradeRoutes: ['汉城-义州', '汉城-釜山', '全罗粮道'],
+        threats: ['后金二次入侵', '主战主和党争', '边民逃亡'],
+        specialCulture: '朝鲜王朝儒学官僚国家·两班政治与义理事大观念强，边郡山城传统深。',
+        strategicValue: '鸭绿江以东屏障，既是明后金外交缓冲，也是粮道、人参和海路节点。',
+        recentDisasters: ['天启七年丁卯胡乱后朝野震荡', '义州至平安道边民逃散']
+      });
+      compact('bozhouYang', {
+        name: '播州余裔山寨', regionType: 'tusi', officialPosition: '原播州残部寨主', governor: '杨朝栋',
+        description: '播州杨氏正统土司在万历二十八年已被明廷废除；此处仅为旧土司亲族、逃亡寨兵与山地附从的残余山寨，不是正式政权。',
+        terrain: '山地',
+        tradeRoutes: ['娄山关旧道', '播州-水西山路', '乌江盐粮小道'],
+        threats: ['明廷改土归流清剿', '周边土司吞并', '寨粮短缺', '旧部合法性不足'],
+        specialCulture: '播州旧土司记忆·山寨盟誓与汉彝苗仡佬杂居，政治号召来自杨氏旧名望而非正式官署。',
+        strategicValue: '黔北山地小节点，可扰乌江与娄山关交通，但体量远低于奢安主战场。',
+        recentDisasters: ['万历二十八年播州之役后杨氏土司被废', '改土归流后旧部散入山寨']
+      });
+      compact('zhengMaritime', {
+        name: '郑氏台海商路', regionType: 'maritime', officialPosition: '船帮总寨', governor: '郑芝龙',
+        description: '厦门金门、平户贸易站与东番航线合为一个海商势力区。它是船队和商路，不是陆上省制国家。',
+        terrain: '沿海/海域', specialResources: '海船·日本银·鹿皮·走私税·火器', taxLevel: '航路抽分',
+        byEthnicity: { '汉': 0.70, '平埔族': 0.12, '日本': 0.10, '葡/西混血': 0.02, '其他': 0.06 },
+        byFaith: { '民间': 0.42, '佛': 0.22, '道': 0.12, '天主教': 0.08, '原住民信仰': 0.16 },
+        tradeRoutes: ['厦门-平户', '厦门-大员', '厦门-马尼拉'],
+        threats: ['福建官军招剿', '荷兰竞争', '船队内讧'],
+        specialCulture: '闽南海商、倭寇遗脉与天主教海贸圈混合，船帮义气强于陆上官制。',
+        strategicValue: '台海航路枢纽，连接福建、日本、澳门、马尼拉和大员，能左右白银与火器流向。',
+        recentDisasters: ['天启年间海禁与招抚并行', '荷兰大员扩张压迫台海商路']
+      });
+      compact('shaanbeiFamine', {
+        name: '陕北饥民流动区', regionType: 'disaster_zone', officialPosition: '流民聚啸区', governor: '王嘉胤(潜)',
+        description: '延安、榆林、米脂府谷等饥区合并。它还不是正式政权，只是一团即将点燃的流民火场。',
+        terrain: '高原/边塞', specialResources: '饥民·逃卒·残粮·兵器', taxLevel: '无',
+        byEthnicity: { '汉': 0.92, '回': 0.04, '蒙古': 0.02, '其他': 0.02 },
+        byFaith: { '民间': 0.50, '道': 0.18, '佛': 0.11, '儒': 0.11, '白莲/秘密信仰': 0.10 },
+        tradeRoutes: ['延安-米脂山路', '榆林塞路'],
+        threats: ['饥饿内耗', '官军围剿', '民变燎原'],
+        specialCulture: '陕北边民、逃卒、驿夫与饥民混杂，乡约失效后靠结伙求生。',
+        strategicValue: '三边腹地燃点，若饥荒、欠饷、逃卒合流，会从流动饥区变成连锁民变。',
+        recentDisasters: ['天启五年至七年陕北连旱', '延安榆林饥民逃散与驿路崩坏']
+      });
+      compact('portugueseMacau', {
+        name: '澳门葡人租居地', regionType: 'leased_port', officialPosition: '澳门议事会与总督辖区', governor: 'Dom Filipe Lobo da Silveira',
+        description: '澳门半岛、炮厂、商馆和外港合并为一个租居港区。小港口不再拆成多区。',
+        terrain: '沿海', specialResources: '红衣炮·耶稣会·中日转口贸易·船坞', taxLevel: '租银/商税',
+        byEthnicity: { '汉': 0.72, '葡萄牙': 0.05, '土生葡人': 0.08, '马来/印度/非洲仆役': 0.10, '其他': 0.05 },
+        byFaith: { '天主教': 0.22, '民间': 0.52, '佛': 0.12, '道': 0.08, '其他': 0.06 },
+        tradeRoutes: ['澳门-长崎黑船', '澳门-果阿-马六甲', '澳门-广州香山'],
+        threats: ['荷兰封锁', '明廷禁教', '粮食依赖广东'],
+        specialCulture: '华人居民占多数，葡人议事会、耶稣会和多族仆役商帮共处，口岸身份依赖明廷默许。',
+        strategicValue: '广州外海转口港，连接日本白银、果阿航线和红衣炮技术，是明廷与西洋技术接触点。',
+        recentDisasters: ['天启二年荷兰攻澳门失败后戒备增强', '日本贸易波动与荷兰封锁压力上升']
+      });
+      compact('dutchFormosa', {
+        name: '大员荷兰商馆区', regionType: 'company_colony', officialPosition: 'VOC 大员长官辖区', governor: 'Gerard Frederikszoon de With',
+        description: '热兰遮、赤崁与台海舰队合并为一个公司殖民据点。它是商馆加要塞，不按省制拆细。',
+        terrain: '沿海/海域', specialResources: '鹿皮·糖·转口贸易·火炮·武装商船', taxLevel: '公司税',
+        byEthnicity: { '平埔族': 0.62, '汉': 0.25, '荷兰': 0.02, '日本/东南亚雇佣兵': 0.06, '其他': 0.05 },
+        byFaith: { '原住民信仰': 0.58, '民间': 0.22, '加尔文派': 0.04, '佛/道': 0.10, '其他': 0.06 },
+        tradeRoutes: ['大员-巴达维亚', '大员-厦门', '大员-日本'],
+        threats: ['郑氏竞争', '原住民反抗', '西班牙基隆牵制'],
+        specialCulture: 'VOC 商馆军政、平埔村社、汉人海商和雇佣兵并存，公司契约压过传统官制。',
+        strategicValue: '台海转口与鹿皮贸易据点，控制福建、日本、巴达维亚之间的海上中继。',
+        recentDisasters: ['天启四年荷兰入据大员后筑热兰遮', '西班牙占北台湾基隆形成牵制']
+      });
+      compact('spanishManila', {
+        name: '菲律宾马尼拉总督区', regionType: 'colonial_governorate', officialPosition: '菲律宾总督府', governor: 'Juan Niño de Tabora',
+        description: '马尼拉、吕宋、宿务、北台湾基隆与摩洛边区压成一个殖民总督区。海外殖民势力只做一个省级大区。',
+        terrain: '沿海/群岛', specialResources: '美洲银·大帆船·华商·船坞·基隆炮台', taxLevel: '殖民商税',
+        byEthnicity: { '菲律宾原住民': 0.76, '华商(Sangley)': 0.13, '西班牙/拉美士兵': 0.015, '混血': 0.045, '其他': 0.05 },
+        byFaith: { '天主教': 0.50, '原住民信仰': 0.30, '佛/道': 0.07, '伊斯兰': 0.09, '其他': 0.04 },
+        tradeRoutes: ['马尼拉-阿卡普尔科', '马尼拉-月港', '马尼拉-澳门', '马尼拉-基隆'],
+        threats: ['荷兰封锁', '华商暴动', '摩洛战争', '大帆船失事'],
+        specialCulture: '西班牙总督、修会、菲律宾村社与华商 Parián 并存，白银贸易使少数殖民官兵支配大口岸。',
+        strategicValue: '马尼拉大帆船贸易核心，连接美洲白银、中国货物与南海岛链。',
+        recentDisasters: ['天启六年西班牙进占基隆牵制荷兰', '华商社群与殖民当局关系长期紧张']
+      });
+      compact('sheAnRebels', {
+        name: '奢安水西永宁山地', regionType: 'tusi', officialPosition: '奢安联军山地辖区', governor: '奢崇明·安邦彦',
+        description: '永宁、水西、乌撒乌蒙合并为一个西南土司叛乱大区。对玩家来说是一个山地战场，不需要三层细拆。',
+        terrain: '山地', specialResources: '山寨粮·朱砂·罗罗土兵·土司向导', taxLevel: '土司征粮',
+        byEthnicity: { '彝': 0.54, '汉': 0.18, '苗': 0.15, '仡佬': 0.07, '其他': 0.06 },
+        byFaith: { '毕摩/土司祭祀': 0.48, '民间': 0.30, '佛': 0.10, '道': 0.07, '儒': 0.05 },
+        tradeRoutes: ['水西山寨路', '永宁-水西联络路', '乌撒乌蒙山路'],
+        threats: ['朱燮元持久围剿', '秦良玉白杆兵', '粮源枯竭', '部目离心'],
+        specialCulture: '西南彝族土司军事网络·山寨、头目与血缘盟誓并行，熟悉高山峡谷作战。',
+        strategicValue: '牵制四川贵州的山地战场，若久拖会吞噬明廷西南粮饷与白杆兵机动力。',
+        recentDisasters: ['天启元年奢安之乱爆发', '朱燮元持久围剿造成田土荒废与部众离散']
+      });
+      return root;
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     // 顶级行政区划 · 两京十三布政使司 + 辽东都指挥使司
     // 人口口数参考：《明实录》天启六年黄册 + 经济重心南移修正。
     // 每省俱含：户口三元/族群/信仰/保甲/承载力/财政/公库/民心·腐败，
     // 本剧本按用户要求"只生成最高一级"，子级府县由推演 AI 按需生成。
     // ═══════════════════════════════════════════════════════════════════
-    return {
+    return compactNpcAdmin({
       player: {
         factionId: 'fac-ming',
         factionName: '明朝廷',
@@ -10440,8 +10924,472 @@
             fiscalDetail: { claimedRevenue: 50000, actualRevenue: 20000, remittedToCenter: 5000, retainedBudget: 40000, compliance: 0.15, skimmingRate: 0.30, autonomyLevel: 0.9 }
           })
         ]
-      }
-    };
+      },
+
+      // 非玩家势力 · 省级/准省级区划
+      // 口径：只做顶级区域，不展开府县；游牧、土司、商站势力使用“准省级军政区/牧地/据点”。
+      // 史料基线：1627 年天聪元年/天启七年左右的实控或强影响范围，不把名义宗主权算作直属。
+      laterJin: npcTree('fac-later-jin', '后金', [
+        division({
+          name: '盛京辽沈核心', level: 'province', officialPosition: '八旗汗廷直辖', governor: '皇太极',
+          description: '沈阳、辽阳一带。1621 年后金夺沈阳辽阳，1625 年迁都沈阳，是八旗汗权、汉匠和辽河屯粮的核心盘。',
+          populationDetail: { mouths: 430000, fugitives: 15000, hiddenCount: 50000 },
+          terrain: '平原', specialResources: '辽河粮·铁匠·皮毛·人参转运', taxLevel: '旗役',
+          publicTreasuryInit: { money: 220000, grain: 720000, cloth: 48000 },
+          minxinLocal: 62, corruptionLocal: 34,
+          byEthnicity: { '女真': 0.38, '汉': 0.47, '蒙古': 0.08, '朝鲜': 0.04, '其他': 0.03 },
+          byFaith: { '萨满': 0.38, '儒': 0.26, '佛': 0.12, '民间': 0.18, '藏传佛教': 0.06 },
+          fiscalDetail: { claimedRevenue: 360000, actualRevenue: 280000, remittedToCenter: 210000, retainedBudget: 70000, compliance: 0.80, skimmingRate: 0.08, autonomyLevel: 0.15 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: true, horseRegion: true, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 2600000, commerceCoefficient: 0.9, commerceVolume: 420000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 650000, horseProduction: 12000, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 2, yuyao: 0 }, postRelays: 18, kejuQuota: 0, roadQuality: 36, landsAnnexed: 0, landsReclaimed: 120000, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['沈阳-辽阳', '沈阳-科尔沁', '沈阳-鸭绿江'], threats: ['明军宁锦反攻', '汉民逃亡', '旗主分权']
+        }),
+        division({
+          name: '赫图阿拉建州旧地', level: 'province', officialPosition: '建州八旗旧营', governor: '代善诸贝勒',
+          description: '赫图阿拉、苏子河、建州女真旧地。是后金起家老营，族群凝聚高，但农业承载有限。',
+          populationDetail: { mouths: 260000, fugitives: 5000, hiddenCount: 20000 },
+          terrain: '山地', specialResources: '人参·貂皮·木材·猎场', taxLevel: '旗役',
+          publicTreasuryInit: { money: 90000, grain: 180000, cloth: 26000 },
+          minxinLocal: 72, corruptionLocal: 28,
+          byEthnicity: { '女真': 0.74, '汉': 0.10, '蒙古': 0.06, '索伦/达斡尔': 0.06, '其他': 0.04 },
+          byFaith: { '萨满': 0.62, '藏传佛教': 0.12, '佛': 0.08, '民间': 0.18 },
+          fiscalDetail: { claimedRevenue: 120000, actualRevenue: 90000, remittedToCenter: 55000, retainedBudget: 35000, compliance: 0.76, skimmingRate: 0.06, autonomyLevel: 0.28 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: false, horseRegion: true, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 700000, commerceCoefficient: 0.45, commerceVolume: 90000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 180000, horseProduction: 8000, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 1, yuyao: 0 }, postRelays: 10, kejuQuota: 0, roadQuality: 18, landsAnnexed: 0, landsReclaimed: 40000, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['赫图阿拉-沈阳', '长白山参貂路'], threats: ['山地补给不足', '诸贝勒旧权过重']
+        }),
+        division({
+          name: '辽北边旗与广宁东境', level: 'province', officialPosition: '辽北诸旗前线', governor: '阿敏·莽古尔泰',
+          description: '铁岭、开原、广宁以东至辽河中游前线。既是压明辽西的跳板，也是降汉军户和旗丁混居区。',
+          populationDetail: { mouths: 210000, fugitives: 12000, hiddenCount: 26000 },
+          terrain: '平原', specialResources: '马·屯田·辽东旧卫所', taxLevel: '军役',
+          publicTreasuryInit: { money: 70000, grain: 260000, cloth: 16000 },
+          minxinLocal: 48, corruptionLocal: 38,
+          byEthnicity: { '女真': 0.42, '汉': 0.39, '蒙古': 0.13, '朝鲜': 0.03, '其他': 0.03 },
+          byFaith: { '萨满': 0.40, '儒': 0.24, '藏传佛教': 0.12, '佛': 0.08, '民间': 0.16 },
+          fiscalDetail: { claimedRevenue: 150000, actualRevenue: 105000, remittedToCenter: 65000, retainedBudget: 40000, compliance: 0.70, skimmingRate: 0.10, autonomyLevel: 0.34 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: false, horseRegion: true, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 1350000, commerceCoefficient: 0.55, commerceVolume: 120000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 120000, horseProduction: 15000, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 14, kejuQuota: 0, roadQuality: 28, landsAnnexed: 0, landsReclaimed: 60000, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['辽北马道', '广宁旧驿路'], threats: ['宁锦明军反扑', '降民反复', '边旗争功']
+        }),
+        division({
+          name: '鸭绿江与朝鲜压迫区', level: 'province', regionType: 'jimi', officialPosition: '边外羁縻与征粮区', governor: '阿敏旧部',
+          description: '鸭绿江、义州对岸及朝鲜西北受压区域。不是完全直属领土，更像丁卯之役后的军事胁迫与贡赋通道。',
+          populationDetail: { mouths: 70000, fugitives: 8000, hiddenCount: 15000 },
+          terrain: '山地', specialResources: '米粮·人参·皮毛·朝鲜贡物', taxLevel: '贡赋',
+          publicTreasuryInit: { money: 18000, grain: 90000, cloth: 9000 },
+          minxinLocal: 26, corruptionLocal: 42,
+          byEthnicity: { '朝鲜': 0.78, '女真': 0.12, '汉': 0.06, '其他': 0.04 },
+          byFaith: { '儒': 0.50, '佛': 0.18, '萨满': 0.12, '民间': 0.20 },
+          fiscalDetail: { claimedRevenue: 60000, actualRevenue: 28000, remittedToCenter: 18000, retainedBudget: 10000, compliance: 0.42, skimmingRate: 0.12, autonomyLevel: 0.72 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 320000, commerceCoefficient: 0.35, commerceVolume: 50000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 0, horseProduction: 800, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 5, kejuQuota: 0, roadQuality: 14, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['鸭绿江渡口', '义州-沈阳贡道'], threats: ['朝鲜亲明派抵触', '东江镇袭扰']
+        })
+      ]),
+
+      chahar: npcTree('fac-chahar', '察哈尔', [
+        division({
+          name: '察哈尔本部牧地', level: 'province', regionType: 'jimi', officialPosition: '察哈尔大汗本营', governor: '林丹汗',
+          description: '林丹汗本部与汗帐核心牧场。名义有蒙古大汗正统，现实被后金与离心诸部挤压。',
+          populationDetail: { mouths: 170000, fugitives: 20000, hiddenCount: 40000 },
+          terrain: '草原', specialResources: '战马·羊群·毛皮', taxLevel: '部盟贡赋',
+          publicTreasuryInit: { money: 22000, grain: 25000, cloth: 9000 },
+          minxinLocal: 46, corruptionLocal: 32,
+          byEthnicity: { '蒙古': 0.94, '汉': 0.03, '其他': 0.03 },
+          byFaith: { '藏传佛教': 0.58, '萨满': 0.28, '民间': 0.14 },
+          fiscalDetail: { claimedRevenue: 50000, actualRevenue: 26000, remittedToCenter: 12000, retainedBudget: 14000, compliance: 0.48, skimmingRate: 0.08, autonomyLevel: 0.82 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: false, horseRegion: true, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 90000, commerceCoefficient: 0.35, commerceVolume: 50000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 0, horseProduction: 22000, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 4, kejuQuota: 0, roadQuality: 22, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['归化城-宣府互市', '漠南草原路'], threats: ['科尔沁倒向后金', '部众西迁离散']
+        }),
+        division({
+          name: '归化城右翼', level: 'province', regionType: 'jimi', officialPosition: '归化城诸部', governor: '土默特旧贵',
+          description: '归化城及周边右翼牧地。是林丹汗西迁后的财货窗口，依赖明边互市和寺院网络。',
+          populationDetail: { mouths: 95000, fugitives: 12000, hiddenCount: 20000 },
+          terrain: '草原', specialResources: '互市·马匹·羊毛·寺院供养', taxLevel: '互市抽分',
+          publicTreasuryInit: { money: 18000, grain: 45000, cloth: 12000 },
+          minxinLocal: 42, corruptionLocal: 36,
+          byEthnicity: { '蒙古': 0.86, '汉': 0.09, '回回': 0.02, '其他': 0.03 },
+          byFaith: { '藏传佛教': 0.65, '萨满': 0.18, '民间': 0.12, '伊斯兰': 0.05 },
+          fiscalDetail: { claimedRevenue: 42000, actualRevenue: 24000, remittedToCenter: 9000, retainedBudget: 15000, compliance: 0.46, skimmingRate: 0.10, autonomyLevel: 0.78 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: false, horseRegion: true, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 130000, commerceCoefficient: 0.55, commerceVolume: 80000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 0, horseProduction: 10000, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 3, kejuQuota: 0, roadQuality: 24, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['宣府互市', '归化城寺院路'], threats: ['明朝断市', '后金绕塞威胁']
+        }),
+        division({
+          name: '宣化塞外左翼', level: 'province', regionType: 'jimi', officialPosition: '塞外左翼牧营', governor: '察哈尔诸台吉',
+          description: '宣府、大同塞外诸营，是察哈尔靠近明边的前线和求援通道。',
+          populationDetail: { mouths: 65000, fugitives: 10000, hiddenCount: 14000 },
+          terrain: '草原', specialResources: '马·边市·哨探', taxLevel: '部盟贡赋',
+          publicTreasuryInit: { money: 8000, grain: 18000, cloth: 5000 },
+          minxinLocal: 38, corruptionLocal: 34,
+          byEthnicity: { '蒙古': 0.91, '汉': 0.05, '其他': 0.04 },
+          byFaith: { '藏传佛教': 0.54, '萨满': 0.30, '民间': 0.16 },
+          fiscalDetail: { claimedRevenue: 26000, actualRevenue: 13000, remittedToCenter: 5000, retainedBudget: 8000, compliance: 0.42, skimmingRate: 0.09, autonomyLevel: 0.84 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: false, horseRegion: true, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 40000, commerceCoefficient: 0.28, commerceVolume: 25000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 0, horseProduction: 7000, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 2, kejuQuota: 0, roadQuality: 18, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['宣府口外', '大同口外'], threats: ['边军袭扰', '后金离间诸台吉']
+        })
+      ]),
+
+      khorchin: npcTree('fac-khorchin', '科尔沁蒙古', [
+        division({
+          name: '嫩科尔沁本部', level: 'province', regionType: 'jimi', officialPosition: '科尔沁部帐', governor: '奥巴台吉',
+          description: '嫩江、科尔沁本部草场。已与后金联姻结盟，是后金东蒙古盟友核心。',
+          populationDetail: { mouths: 145000, fugitives: 3000, hiddenCount: 22000 },
+          terrain: '草原', specialResources: '战马·牛羊·骑兵', taxLevel: '盟贡',
+          publicTreasuryInit: { money: 26000, grain: 22000, cloth: 8000 },
+          minxinLocal: 64, corruptionLocal: 26,
+          byEthnicity: { '蒙古': 0.95, '女真': 0.03, '其他': 0.02 },
+          byFaith: { '萨满': 0.44, '藏传佛教': 0.40, '民间': 0.16 },
+          fiscalDetail: { claimedRevenue: 42000, actualRevenue: 30000, remittedToCenter: 9000, retainedBudget: 21000, compliance: 0.62, skimmingRate: 0.06, autonomyLevel: 0.76 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: false, horseRegion: true, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 60000, commerceCoefficient: 0.32, commerceVolume: 32000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 0, horseProduction: 18000, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 4, kejuQuota: 0, roadQuality: 24, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['科尔沁-沈阳盟路', '嫩江草原路'], threats: ['察哈尔报复', '后金赏赐依赖']
+        }),
+        division({
+          name: '西拉木伦河牧地', level: 'province', regionType: 'jimi', officialPosition: '科尔沁西翼', governor: '诸贝勒合议',
+          description: '西拉木伦河流域牧地，夹在察哈尔和后金之间，是骑兵动员和草场纠纷高发区。',
+          populationDetail: { mouths: 85000, fugitives: 4000, hiddenCount: 13000 },
+          terrain: '草原', specialResources: '马·羊·草场', taxLevel: '盟贡',
+          publicTreasuryInit: { money: 12000, grain: 10000, cloth: 4000 },
+          minxinLocal: 55, corruptionLocal: 30,
+          byEthnicity: { '蒙古': 0.94, '女真': 0.02, '其他': 0.04 },
+          byFaith: { '萨满': 0.46, '藏传佛教': 0.38, '民间': 0.16 },
+          fiscalDetail: { claimedRevenue: 26000, actualRevenue: 17000, remittedToCenter: 5000, retainedBudget: 12000, compliance: 0.58, skimmingRate: 0.08, autonomyLevel: 0.80 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: false, horseRegion: true, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 30000, commerceCoefficient: 0.25, commerceVolume: 18000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 0, horseProduction: 9000, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 2, kejuQuota: 0, roadQuality: 20, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['西拉木伦-辽河', '察哈尔边路'], threats: ['察哈尔袭扰', '牧草不足']
+        }),
+        division({
+          name: '辽河北岸附金牧地', level: 'province', regionType: 'jimi', officialPosition: '后金侧翼盟地', governor: '亲金诸台吉',
+          description: '辽河以北与后金接壤的盟地，提供向导、马匹和轻骑，是后金绕塞战略的侧翼。',
+          populationDetail: { mouths: 50000, fugitives: 1000, hiddenCount: 8000 },
+          terrain: '草原', specialResources: '轻骑·斥候·马匹', taxLevel: '军役',
+          publicTreasuryInit: { money: 9000, grain: 9000, cloth: 3000 },
+          minxinLocal: 60, corruptionLocal: 24,
+          byEthnicity: { '蒙古': 0.90, '女真': 0.07, '其他': 0.03 },
+          byFaith: { '萨满': 0.48, '藏传佛教': 0.35, '民间': 0.17 },
+          fiscalDetail: { claimedRevenue: 18000, actualRevenue: 12000, remittedToCenter: 4000, retainedBudget: 8000, compliance: 0.62, skimmingRate: 0.05, autonomyLevel: 0.70 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: false, horseRegion: true, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 20000, commerceCoefficient: 0.22, commerceVolume: 12000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 0, horseProduction: 6500, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 2, kejuQuota: 0, roadQuality: 22, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['辽河-沈阳军路'], threats: ['被后金过度征调', '明边反间']
+        })
+      ]),
+
+      joseon: npcTree('fac-joseon', '朝鲜', [
+        division({ name: '京畿道', level: 'province', regionType: 'fanbang', officialPosition: '京畿观察使', governor: '朝鲜王廷近臣', description: '汉城所在，王畿核心。丁卯之役后王廷惊惧，守城、粮仓和党争都压在此处。', populationDetail: { mouths: 760000, fugitives: 26000, hiddenCount: 50000 }, terrain: '山地', specialResources: '王都·米·手工业·纸', taxLevel: '中', publicTreasuryInit: { money: 18000, grain: 90000, cloth: 6000 }, minxinLocal: 44, corruptionLocal: 48, byEthnicity: { '朝鲜': 0.98, '汉': 0.01, '其他': 0.01 }, byFaith: { '儒': 0.58, '佛': 0.16, '民间': 0.24, '萨满': 0.02 }, fiscalDetail: { claimedRevenue: 105000, actualRevenue: 72000, remittedToCenter: 34000, retainedBudget: 38000, compliance: 0.62, skimmingRate: 0.12, autonomyLevel: 0.34 }, tags: { hasPort: true, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false }, economyBase: { farmland: 980000, commerceCoefficient: 0.9, commerceVolume: 220000, maritimeTradeVolume: 60000, saltProduction: 0, mineralProduction: 0, horseProduction: 1200, fishingProduction: 80000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 28, kejuQuota: 0, roadQuality: 30, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] }, tradeRoutes: ['汉城-开城', '汉江水路'], threats: ['党争', '后金再犯'] }),
+        division({ name: '忠清道', level: 'province', regionType: 'fanbang', officialPosition: '忠清观察使', governor: '两班地方官', description: '中部粮区与山城带，连接汉城和南方税粮。', populationDetail: { mouths: 880000, fugitives: 18000, hiddenCount: 60000 }, terrain: '丘陵', specialResources: '稻米·棉布·山城', taxLevel: '中', publicTreasuryInit: { money: 12000, grain: 100000, cloth: 5000 }, minxinLocal: 50, corruptionLocal: 44, byEthnicity: { '朝鲜': 0.99, '其他': 0.01 }, byFaith: { '儒': 0.54, '佛': 0.18, '民间': 0.26, '萨满': 0.02 }, fiscalDetail: { claimedRevenue: 118000, actualRevenue: 85000, remittedToCenter: 38000, retainedBudget: 47000, compliance: 0.66, skimmingRate: 0.10, autonomyLevel: 0.38 }, tags: { hasPort: true, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false }, economyBase: { farmland: 1320000, commerceCoefficient: 0.65, commerceVolume: 120000, maritimeTradeVolume: 30000, saltProduction: 0, mineralProduction: 0, horseProduction: 800, fishingProduction: 50000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 24, kejuQuota: 0, roadQuality: 26, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] }, tradeRoutes: ['汉城-全州南路'], threats: ['粮役加派', '山城军备不足'] }),
+        division({ name: '庆尚道', level: 'province', regionType: 'fanbang', officialPosition: '庆尚观察使', governor: '岭南士族', description: '朝鲜东南大省，人口与田粮最厚。壬辰倭乱伤痕仍在，水军和倭防压力大。', populationDetail: { mouths: 1600000, fugitives: 22000, hiddenCount: 90000 }, terrain: '沿海', specialResources: '稻米·海产·港口·铁', taxLevel: '中', publicTreasuryInit: { money: 20000, grain: 180000, cloth: 9000 }, minxinLocal: 52, corruptionLocal: 46, byEthnicity: { '朝鲜': 0.985, '倭侨/降倭': 0.005, '其他': 0.01 }, byFaith: { '儒': 0.52, '佛': 0.20, '民间': 0.25, '萨满': 0.03 }, fiscalDetail: { claimedRevenue: 210000, actualRevenue: 150000, remittedToCenter: 68000, retainedBudget: 82000, compliance: 0.68, skimmingRate: 0.10, autonomyLevel: 0.40 }, tags: { hasPort: true, saltRegion: false, mineralRegion: true, horseRegion: false, fishingRegion: true, imperialDomain: false }, economyBase: { farmland: 2450000, commerceCoefficient: 0.75, commerceVolume: 240000, maritimeTradeVolume: 90000, saltProduction: 0, mineralProduction: 120000, horseProduction: 900, fishingProduction: 160000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 1, yuyao: 0 }, postRelays: 34, kejuQuota: 0, roadQuality: 24, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] }, tradeRoutes: ['釜山倭馆', '洛东江水路'], threats: ['倭防', '水军空耗'] }),
+        division({ name: '全罗道', level: 'province', regionType: 'fanbang', officialPosition: '全罗观察使', governor: '湖南士族', description: '朝鲜西南粮仓，壬辰倭乱时水军根基所在。财政价值高，运粮也最容易被海盗和风灾打断。', populationDetail: { mouths: 1250000, fugitives: 17000, hiddenCount: 70000 }, terrain: '沿海', specialResources: '稻米·海盐·渔业·水军', taxLevel: '中', publicTreasuryInit: { money: 16000, grain: 170000, cloth: 7000 }, minxinLocal: 54, corruptionLocal: 42, byEthnicity: { '朝鲜': 0.99, '其他': 0.01 }, byFaith: { '儒': 0.50, '佛': 0.20, '民间': 0.27, '萨满': 0.03 }, fiscalDetail: { claimedRevenue: 178000, actualRevenue: 130000, remittedToCenter: 56000, retainedBudget: 74000, compliance: 0.69, skimmingRate: 0.09, autonomyLevel: 0.40 }, tags: { hasPort: true, saltRegion: true, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false }, economyBase: { farmland: 2100000, commerceCoefficient: 0.70, commerceVolume: 180000, maritimeTradeVolume: 70000, saltProduction: 140000000, mineralProduction: 0, horseProduction: 600, fishingProduction: 180000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 30, kejuQuota: 0, roadQuality: 25, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] }, tradeRoutes: ['全州-汉城粮道', '西南海水军路'], threats: ['海路断粮', '两班隐田'] }),
+        division({ name: '江原道', level: 'province', regionType: 'fanbang', officialPosition: '江原观察使', governor: '地方守令', description: '东部山地，人口较薄，山城和林木重要。', populationDetail: { mouths: 470000, fugitives: 9000, hiddenCount: 35000 }, terrain: '山地', specialResources: '木材·山城·药材', taxLevel: '轻', publicTreasuryInit: { money: 6000, grain: 42000, cloth: 3000 }, minxinLocal: 49, corruptionLocal: 40, byEthnicity: { '朝鲜': 0.99, '其他': 0.01 }, byFaith: { '儒': 0.46, '佛': 0.24, '民间': 0.27, '萨满': 0.03 }, fiscalDetail: { claimedRevenue: 52000, actualRevenue: 34000, remittedToCenter: 14000, retainedBudget: 20000, compliance: 0.60, skimmingRate: 0.08, autonomyLevel: 0.48 }, tags: { hasPort: true, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false }, economyBase: { farmland: 520000, commerceCoefficient: 0.40, commerceVolume: 50000, maritimeTradeVolume: 20000, saltProduction: 0, mineralProduction: 60000, horseProduction: 500, fishingProduction: 50000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 1, yuyao: 0 }, postRelays: 18, kejuQuota: 0, roadQuality: 14, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] }, tradeRoutes: ['东海岸路', '山城驿路'], threats: ['山地补给难', '流民藏匿'] }),
+        division({ name: '黄海道', level: 'province', regionType: 'fanbang', officialPosition: '黄海观察使', governor: '西海道守臣', description: '汉城西北屏障，开城与海州一带承受后金入侵后遗压力。', populationDetail: { mouths: 610000, fugitives: 30000, hiddenCount: 45000 }, terrain: '丘陵', specialResources: '粮米·海盐·开城商贸', taxLevel: '中', publicTreasuryInit: { money: 9000, grain: 62000, cloth: 4000 }, minxinLocal: 36, corruptionLocal: 50, byEthnicity: { '朝鲜': 0.985, '女真/降人': 0.005, '其他': 0.01 }, byFaith: { '儒': 0.52, '佛': 0.17, '民间': 0.28, '萨满': 0.03 }, fiscalDetail: { claimedRevenue: 76000, actualRevenue: 45000, remittedToCenter: 19000, retainedBudget: 26000, compliance: 0.52, skimmingRate: 0.13, autonomyLevel: 0.50 }, tags: { hasPort: true, saltRegion: true, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false }, economyBase: { farmland: 780000, commerceCoefficient: 0.62, commerceVolume: 90000, maritimeTradeVolume: 40000, saltProduction: 70000000, mineralProduction: 0, horseProduction: 500, fishingProduction: 60000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 20, kejuQuota: 0, roadQuality: 22, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] }, tradeRoutes: ['开城商路', '海州港路'], threats: ['后金威慑', '边民逃亡'] }),
+        division({ name: '平安道', level: 'province', regionType: 'fanbang', officialPosition: '平安观察使', governor: '西北边臣', description: '鸭绿江前线，义州、平壤一带是后金最直接压力区。丁卯之役创伤最重。', populationDetail: { mouths: 820000, fugitives: 65000, hiddenCount: 80000 }, terrain: '山地', specialResources: '人参·边贸·山城·马', taxLevel: '重', publicTreasuryInit: { money: 7000, grain: 48000, cloth: 3000 }, minxinLocal: 24, corruptionLocal: 54, byEthnicity: { '朝鲜': 0.96, '女真': 0.02, '汉': 0.01, '其他': 0.01 }, byFaith: { '儒': 0.48, '佛': 0.18, '民间': 0.28, '萨满': 0.06 }, fiscalDetail: { claimedRevenue: 90000, actualRevenue: 42000, remittedToCenter: 16000, retainedBudget: 26000, compliance: 0.42, skimmingRate: 0.14, autonomyLevel: 0.58 }, tags: { hasPort: false, saltRegion: false, mineralRegion: true, horseRegion: true, fishingRegion: false, imperialDomain: false }, economyBase: { farmland: 800000, commerceCoefficient: 0.40, commerceVolume: 70000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 90000, horseProduction: 3500, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 1, yuyao: 0 }, postRelays: 22, kejuQuota: 0, roadQuality: 18, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] }, tradeRoutes: ['义州-鸭绿江', '平壤-汉城'], threats: ['后金二次入侵', '边民逃亡', '东江镇牵连'] }),
+        division({ name: '咸镜道', level: 'province', regionType: 'fanbang', officialPosition: '咸镜观察使', governor: '东北边臣', description: '朝鲜东北边道，山地寒冷，女真旧边压力长存。', populationDetail: { mouths: 560000, fugitives: 18000, hiddenCount: 55000 }, terrain: '山地', specialResources: '皮毛·马·木材·边防', taxLevel: '轻', publicTreasuryInit: { money: 5000, grain: 38000, cloth: 2500 }, minxinLocal: 42, corruptionLocal: 42, byEthnicity: { '朝鲜': 0.94, '女真': 0.04, '其他': 0.02 }, byFaith: { '儒': 0.44, '佛': 0.18, '民间': 0.28, '萨满': 0.10 }, fiscalDetail: { claimedRevenue: 56000, actualRevenue: 32000, remittedToCenter: 12000, retainedBudget: 20000, compliance: 0.50, skimmingRate: 0.10, autonomyLevel: 0.58 }, tags: { hasPort: true, saltRegion: false, mineralRegion: true, horseRegion: true, fishingRegion: true, imperialDomain: false }, economyBase: { farmland: 520000, commerceCoefficient: 0.35, commerceVolume: 45000, maritimeTradeVolume: 18000, saltProduction: 0, mineralProduction: 70000, horseProduction: 4200, fishingProduction: 70000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 1, yuyao: 0 }, postRelays: 18, kejuQuota: 0, roadQuality: 12, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] }, tradeRoutes: ['豆满江边路', '东北海岸路'], threats: ['寒灾', '边防空虚'] })
+      ]),
+
+      bozhouYang: npcTree('fac-bozhou-yang', '播州土司·杨氏(余裔)', [
+        division({
+          name: '播州余裔山寨', level: 'province', regionType: 'tusi', officialPosition: '原播州残部寨主', governor: '杨朝栋',
+          description: '遵义府边地和原播州山寨残余。不是完整政权，是杨氏旧部、姻亲、逃散土兵的复起火种。',
+          populationDetail: { mouths: 68000, fugitives: 9000, hiddenCount: 22000 },
+          terrain: '山地', specialResources: '木材·朱砂·山寨粮', taxLevel: '寨粮',
+          publicTreasuryInit: { money: 4000, grain: 9000, cloth: 900 },
+          minxinLocal: 40, corruptionLocal: 35,
+          byEthnicity: { '汉': 0.34, '彝': 0.30, '苗': 0.18, '仡佬': 0.10, '其他': 0.08 },
+          byFaith: { '民间': 0.42, '毕摩/土司祭祀': 0.28, '佛': 0.14, '道': 0.10, '儒': 0.06 },
+          fiscalDetail: { claimedRevenue: 16000, actualRevenue: 8000, remittedToCenter: 0, retainedBudget: 8000, compliance: 0.35, skimmingRate: 0.10, autonomyLevel: 0.92 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: true, horseRegion: false, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 90000, commerceCoefficient: 0.25, commerceVolume: 12000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 60000, horseProduction: 300, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 1, yuyao: 0 }, postRelays: 1, kejuQuota: 0, roadQuality: 8, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['遵义山路', '水西联络路'], threats: ['明军清剿', '奢安联军吞并']
+        })
+      ]),
+
+      zhengMaritime: npcTree('fac-zheng-maritime', '郑氏海商', [
+        division({
+          name: '厦门金门海商据点', level: 'province', regionType: 'maritime', officialPosition: '船帮总寨', governor: '郑芝龙',
+          description: '闽南沿海、厦门金门一带的船队、仓栈和人脉核心。1627 年仍在海盗与招抚之间摇摆。',
+          populationDetail: { mouths: 52000, fugitives: 4000, hiddenCount: 18000 },
+          terrain: '沿海', specialResources: '海船·走私税·糖·丝·火器', taxLevel: '抽分',
+          publicTreasuryInit: { money: 120000, grain: 18000, cloth: 9000 },
+          minxinLocal: 58, corruptionLocal: 40,
+          byEthnicity: { '汉': 0.90, '疍民': 0.04, '日本浪人': 0.02, '葡/西混血': 0.01, '其他': 0.03 },
+          byFaith: { '民间': 0.45, '佛': 0.22, '道': 0.14, '儒': 0.14, '天主教': 0.05 },
+          fiscalDetail: { claimedRevenue: 210000, actualRevenue: 150000, remittedToCenter: 0, retainedBudget: 150000, compliance: 0.70, skimmingRate: 0.18, autonomyLevel: 0.88 },
+          tags: { hasPort: true, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false },
+          economyBase: { farmland: 50000, commerceCoefficient: 1.6, commerceVolume: 650000, maritimeTradeVolume: 1200000, saltProduction: 0, mineralProduction: 0, horseProduction: 0, fishingProduction: 90000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 0, kejuQuota: 0, roadQuality: 24, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['厦门-平户', '厦门-大员', '厦门-马尼拉'], threats: ['福建官军招剿', '荷兰竞争', '船队内讧']
+        }),
+        division({
+          name: '平户唐人町贸易站', level: 'province', regionType: 'maritime', officialPosition: '日本贸易分舵', governor: '郑氏通事',
+          description: '日本平户华商网络，是郑芝龙早年根基和中日贸易窗口。',
+          populationDetail: { mouths: 18000, fugitives: 500, hiddenCount: 3000 },
+          terrain: '沿海', specialResources: '日本银·硫磺·铜·倭刀', taxLevel: '商税',
+          publicTreasuryInit: { money: 80000, grain: 6000, cloth: 4000 },
+          minxinLocal: 62, corruptionLocal: 36,
+          byEthnicity: { '汉': 0.55, '日本': 0.36, '葡/西混血': 0.04, '其他': 0.05 },
+          byFaith: { '民间': 0.34, '佛': 0.28, '神道': 0.18, '天主教': 0.12, '儒': 0.08 },
+          fiscalDetail: { claimedRevenue: 130000, actualRevenue: 90000, remittedToCenter: 0, retainedBudget: 90000, compliance: 0.68, skimmingRate: 0.16, autonomyLevel: 0.90 },
+          tags: { hasPort: true, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false },
+          economyBase: { farmland: 8000, commerceCoefficient: 1.8, commerceVolume: 520000, maritimeTradeVolume: 850000, saltProduction: 0, mineralProduction: 0, horseProduction: 0, fishingProduction: 35000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 0, kejuQuota: 0, roadQuality: 30, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['平户-厦门', '平户-长崎'], threats: ['幕府锁国趋严', '荷兰夺市']
+        }),
+        division({
+          name: '台湾海峡东番航线', level: 'province', regionType: 'maritime', officialPosition: '海峡船路', governor: '郑氏船头合议',
+          description: '东番岛、澎湖旧航线和台湾海峡船队停泊点。1624 后荷兰占大员，郑氏既合作又竞争。',
+          populationDetail: { mouths: 30000, fugitives: 2000, hiddenCount: 10000 },
+          terrain: '沿海', specialResources: '鹿皮·糖·海盐·补给港', taxLevel: '航路抽分',
+          publicTreasuryInit: { money: 60000, grain: 8000, cloth: 3000 },
+          minxinLocal: 50, corruptionLocal: 42,
+          byEthnicity: { '汉': 0.50, '平埔族': 0.35, '日本浪人': 0.05, '荷兰雇佣兵/通事': 0.03, '其他': 0.07 },
+          byFaith: { '民间': 0.42, '原住民信仰': 0.30, '佛': 0.12, '道': 0.08, '天主教/基督教': 0.08 },
+          fiscalDetail: { claimedRevenue: 90000, actualRevenue: 58000, remittedToCenter: 0, retainedBudget: 58000, compliance: 0.56, skimmingRate: 0.20, autonomyLevel: 0.92 },
+          tags: { hasPort: true, saltRegion: true, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false },
+          economyBase: { farmland: 60000, commerceCoefficient: 1.1, commerceVolume: 180000, maritimeTradeVolume: 450000, saltProduction: 30000000, mineralProduction: 0, horseProduction: 0, fishingProduction: 70000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 0, kejuQuota: 0, roadQuality: 16, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['澎湖-大员', '大员-厦门'], threats: ['荷兰设税', '风灾', '原住民冲突']
+        })
+      ]),
+
+      shaanbeiFamine: npcTree('fac-shaanbei-famine', '陕北饥民(将起)', [
+        division({
+          name: '延安府饥区', level: 'province', regionType: 'disaster_zone', officialPosition: '流民聚啸区', governor: '王嘉胤(潜)',
+          description: '延安府连年旱饥，赋役、欠饷和逃民正在汇成起义前夜。',
+          populationDetail: { mouths: 90000, fugitives: 50000, hiddenCount: 20000 },
+          terrain: '高原', specialResources: '饥民·窑洞·残粮', taxLevel: '无',
+          publicTreasuryInit: { money: 200, grain: 600, cloth: 0 },
+          minxinLocal: 8, corruptionLocal: 72,
+          byEthnicity: { '汉': 0.93, '回': 0.04, '蒙古': 0.01, '其他': 0.02 },
+          byFaith: { '民间': 0.50, '道': 0.18, '佛': 0.12, '儒': 0.12, '白莲/秘密信仰': 0.08 },
+          fiscalDetail: { claimedRevenue: 0, actualRevenue: 0, remittedToCenter: 0, retainedBudget: 0, compliance: 0.05, skimmingRate: 0.20, autonomyLevel: 0.96 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 120000, commerceCoefficient: 0.08, commerceVolume: 2000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 0, horseProduction: 400, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 3, kejuQuota: 0, roadQuality: 6, landsAnnexed: 30000, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [{ type: 'drought', severity: 3, startTurn: 1, note: '陕北大旱·流民聚啸' }] },
+          tradeRoutes: ['延安-米脂山路'], threats: ['官军围剿', '饥饿内耗']
+        }),
+        division({
+          name: '榆林延绥边卒区', level: 'province', regionType: 'disaster_zone', officialPosition: '欠饷边军游离区', governor: '逃卒头目',
+          description: '榆林、延绥边军欠饷，饥卒与饥民混流，是未来流寇军事骨架来源。',
+          populationDetail: { mouths: 52000, fugitives: 26000, hiddenCount: 10000 },
+          terrain: '边塞', specialResources: '逃卒·马匹·兵器', taxLevel: '无',
+          publicTreasuryInit: { money: 100, grain: 300, cloth: 0 },
+          minxinLocal: 10, corruptionLocal: 68,
+          byEthnicity: { '汉': 0.88, '蒙古': 0.07, '回': 0.03, '其他': 0.02 },
+          byFaith: { '民间': 0.48, '道': 0.18, '佛': 0.12, '儒': 0.12, '白莲/秘密信仰': 0.10 },
+          fiscalDetail: { claimedRevenue: 0, actualRevenue: 0, remittedToCenter: 0, retainedBudget: 0, compliance: 0.04, skimmingRate: 0.18, autonomyLevel: 0.98 },
+          tags: { hasPort: false, saltRegion: true, mineralRegion: false, horseRegion: true, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 70000, commerceCoefficient: 0.10, commerceVolume: 3000, maritimeTradeVolume: 0, saltProduction: 8000000, mineralProduction: 0, horseProduction: 2500, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 5, kejuQuota: 0, roadQuality: 8, landsAnnexed: 20000, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [{ type: 'drought', severity: 3, startTurn: 1, note: '边卒欠饷·盐池断供' }] },
+          tradeRoutes: ['榆林塞路', '花马池盐路'], threats: ['明边军追剿', '缺粮溃散']
+        }),
+        division({
+          name: '米脂府谷流民带', level: 'province', regionType: 'disaster_zone', officialPosition: '流民山寨带', governor: '诸小头目',
+          description: '米脂、府谷、清涧一带的逃户、饥民和小股盗群。尚未成国，但玩家若不赈，火会从这里起。',
+          populationDetail: { mouths: 38000, fugitives: 32000, hiddenCount: 12000 },
+          terrain: '高原', specialResources: '流民·山寨·驿道', taxLevel: '无',
+          publicTreasuryInit: { money: 0, grain: 200, cloth: 0 },
+          minxinLocal: 6, corruptionLocal: 70,
+          byEthnicity: { '汉': 0.94, '回': 0.03, '其他': 0.03 },
+          byFaith: { '民间': 0.52, '道': 0.18, '佛': 0.10, '儒': 0.10, '白莲/秘密信仰': 0.10 },
+          fiscalDetail: { claimedRevenue: 0, actualRevenue: 0, remittedToCenter: 0, retainedBudget: 0, compliance: 0.03, skimmingRate: 0.15, autonomyLevel: 0.99 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 40000, commerceCoefficient: 0.05, commerceVolume: 1000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 0, horseProduction: 200, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 2, kejuQuota: 0, roadQuality: 5, landsAnnexed: 15000, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [{ type: 'famine', severity: 3, startTurn: 1, note: '树皮观音土·逃户充斥' }] },
+          tradeRoutes: ['米脂山路', '府谷河曲路'], threats: ['饥饿死亡', '头目互并']
+        })
+      ]),
+
+      portugueseMacau: npcTree('fac-portuguese-macau', '葡萄牙·澳门', [
+        division({
+          name: '澳门议事会辖区', level: 'province', regionType: 'leased_port', officialPosition: '议事会与总督辖区', governor: 'Dom Filipe Lobo da Silveira',
+          description: '澳门半岛、议事亭、圣保禄学院及葡人商社。依明廷许可租居，靠中日贸易、传教和火炮技术吃饭。',
+          populationDetail: { mouths: 10000, fugitives: 200, hiddenCount: 1000 },
+          terrain: '沿海', specialResources: '红衣炮·耶稣会·中日转口贸易', taxLevel: '租银/商税',
+          publicTreasuryInit: { money: 60000, grain: 12000, cloth: 4000 },
+          minxinLocal: 58, corruptionLocal: 32,
+          byEthnicity: { '葡萄牙': 0.18, '土生葡人': 0.25, '汉': 0.45, '马来/非洲/印度仆役': 0.08, '其他': 0.04 },
+          byFaith: { '天主教': 0.54, '民间': 0.30, '佛': 0.08, '道': 0.05, '伊斯兰/其他': 0.03 },
+          fiscalDetail: { claimedRevenue: 85000, actualRevenue: 70000, remittedToCenter: 0, retainedBudget: 70000, compliance: 0.78, skimmingRate: 0.10, autonomyLevel: 0.74 },
+          tags: { hasPort: true, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false },
+          economyBase: { farmland: 1000, commerceCoefficient: 2.0, commerceVolume: 700000, maritimeTradeVolume: 1200000, saltProduction: 0, mineralProduction: 0, horseProduction: 0, fishingProduction: 12000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 0, kejuQuota: 0, roadQuality: 40, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['澳门-长崎黑船', '澳门-果阿-马六甲', '澳门-广州香山'], threats: ['荷兰封锁', '明廷禁教', '粮食依赖广东']
+        }),
+        division({
+          name: '澳门海贸与炮厂区', level: 'province', regionType: 'leased_port', officialPosition: '铸炮商馆区', governor: 'Bocarro 炮厂匠师',
+          description: '炮厂、船坞、商馆和外港停泊网络。游戏上作为澳门技术和海贸产出的第二顶级区。',
+          populationDetail: { mouths: 3500, fugitives: 100, hiddenCount: 500 },
+          terrain: '沿海', specialResources: '铸炮·船坞·通译·黑船水手', taxLevel: '商税',
+          publicTreasuryInit: { money: 45000, grain: 4000, cloth: 2000 },
+          minxinLocal: 60, corruptionLocal: 30,
+          byEthnicity: { '葡萄牙': 0.22, '土生葡人': 0.28, '汉': 0.30, '马来/印度/非洲水手': 0.16, '其他': 0.04 },
+          byFaith: { '天主教': 0.62, '民间': 0.22, '佛': 0.06, '道': 0.04, '其他': 0.06 },
+          fiscalDetail: { claimedRevenue: 70000, actualRevenue: 56000, remittedToCenter: 0, retainedBudget: 56000, compliance: 0.74, skimmingRate: 0.12, autonomyLevel: 0.78 },
+          tags: { hasPort: true, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 0, commerceCoefficient: 1.8, commerceVolume: 450000, maritimeTradeVolume: 900000, saltProduction: 0, mineralProduction: 0, horseProduction: 0, fishingProduction: 6000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 0, kejuQuota: 0, roadQuality: 35, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['澳门外港', '澳门-马尼拉', '澳门-长崎'], threats: ['炮厂被明廷征用', '海路被荷兰截断']
+        })
+      ]),
+
+      dutchFormosa: npcTree('fac-dutch-formosa', '荷兰·台海(东印度公司)', [
+        division({
+          name: '大员热兰遮商馆区', level: 'province', regionType: 'company_colony', officialPosition: 'VOC 大员长官辖区', governor: 'Gerard Frederikszoon de With',
+          description: '台湾西南大员与热兰遮城。1624 后荷兰由澎湖退据台湾，以商馆、要塞和征税经营台海。',
+          populationDetail: { mouths: 12000, fugitives: 200, hiddenCount: 3000 },
+          terrain: '沿海', specialResources: '鹿皮·糖·转口贸易·火炮', taxLevel: '公司税',
+          publicTreasuryInit: { money: 90000, grain: 16000, cloth: 5000 },
+          minxinLocal: 40, corruptionLocal: 34,
+          byEthnicity: { '平埔族': 0.54, '汉': 0.24, '荷兰': 0.05, '日本/东南亚雇佣兵': 0.10, '其他': 0.07 },
+          byFaith: { '原住民信仰': 0.50, '民间': 0.20, '加尔文派': 0.12, '佛/道': 0.10, '其他': 0.08 },
+          fiscalDetail: { claimedRevenue: 95000, actualRevenue: 65000, remittedToCenter: 0, retainedBudget: 65000, compliance: 0.60, skimmingRate: 0.10, autonomyLevel: 0.82 },
+          tags: { hasPort: true, saltRegion: true, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false },
+          economyBase: { farmland: 40000, commerceCoefficient: 1.5, commerceVolume: 380000, maritimeTradeVolume: 850000, saltProduction: 25000000, mineralProduction: 0, horseProduction: 0, fishingProduction: 80000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 0, kejuQuota: 0, roadQuality: 18, landsAnnexed: 0, landsReclaimed: 8000, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['大员-巴达维亚', '大员-厦门', '大员-日本'], threats: ['郑氏竞争', '原住民反抗', '补给远']
+        }),
+        division({
+          name: '赤崁普罗文西亚区', level: 'province', regionType: 'company_colony', officialPosition: '赤崁支城辖区', governor: 'VOC 商馆书记官',
+          description: '赤崁与普罗文西亚城周边，连接平埔社、汉人垦户和公司仓栈。',
+          populationDetail: { mouths: 18000, fugitives: 400, hiddenCount: 5000 },
+          terrain: '沿海', specialResources: '鹿皮·米·糖·平埔社贡', taxLevel: '公司税/社贡',
+          publicTreasuryInit: { money: 42000, grain: 26000, cloth: 3000 },
+          minxinLocal: 34, corruptionLocal: 36,
+          byEthnicity: { '平埔族': 0.66, '汉': 0.24, '荷兰/欧洲': 0.02, '日本/东南亚雇佣兵': 0.04, '其他': 0.04 },
+          byFaith: { '原住民信仰': 0.62, '民间': 0.18, '加尔文派': 0.06, '佛/道': 0.08, '其他': 0.06 },
+          fiscalDetail: { claimedRevenue: 62000, actualRevenue: 38000, remittedToCenter: 0, retainedBudget: 38000, compliance: 0.52, skimmingRate: 0.12, autonomyLevel: 0.86 },
+          tags: { hasPort: true, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false },
+          economyBase: { farmland: 90000, commerceCoefficient: 0.90, commerceVolume: 120000, maritimeTradeVolume: 220000, saltProduction: 0, mineralProduction: 0, horseProduction: 0, fishingProduction: 90000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 0, kejuQuota: 0, roadQuality: 14, landsAnnexed: 0, landsReclaimed: 12000, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['赤崁-大员', '新港社路'], threats: ['麻豆社冲突', '征税激怒部社']
+        }),
+        division({
+          name: '台海舰队航线区', level: 'province', regionType: 'company_colony', officialPosition: 'VOC 台海舰队', governor: '舰队司令',
+          description: '围绕台湾、澎湖旧航线、福建外海和巴达维亚补给的海上控制区。',
+          populationDetail: { mouths: 5500, fugitives: 100, hiddenCount: 500 },
+          terrain: '海域', specialResources: '武装商船·火炮·海上封锁', taxLevel: '商路收益',
+          publicTreasuryInit: { money: 75000, grain: 6000, cloth: 2000 },
+          minxinLocal: 45, corruptionLocal: 28,
+          byEthnicity: { '荷兰': 0.24, '日本/东南亚雇佣兵': 0.42, '汉': 0.20, '平埔族': 0.08, '其他': 0.06 },
+          byFaith: { '加尔文派': 0.32, '民间': 0.28, '原住民信仰': 0.12, '佛/道': 0.12, '其他': 0.16 },
+          fiscalDetail: { claimedRevenue: 80000, actualRevenue: 50000, remittedToCenter: 0, retainedBudget: 50000, compliance: 0.64, skimmingRate: 0.10, autonomyLevel: 0.80 },
+          tags: { hasPort: true, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false },
+          economyBase: { farmland: 0, commerceCoefficient: 1.4, commerceVolume: 260000, maritimeTradeVolume: 720000, saltProduction: 0, mineralProduction: 0, horseProduction: 0, fishingProduction: 30000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 0, kejuQuota: 0, roadQuality: 10, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['大员-巴达维亚', '大员-福建外海', '大员-日本'], threats: ['郑氏截航', '台风', '西班牙基隆牵制']
+        })
+      ]),
+
+      spanishManila: npcTree('fac-spanish-manila', '西班牙·马尼拉', [
+        division({
+          name: '马尼拉王城与甲米地', level: 'province', regionType: 'colonial_governorate', officialPosition: '菲律宾总督府', governor: 'Juan Niño de Tabora',
+          description: '马尼拉王城、巴里安华商区和甲米地船坞。大帆船白银、华商贸易和殖民军政都压在这里。',
+          populationDetail: { mouths: 85000, fugitives: 2000, hiddenCount: 12000 },
+          terrain: '沿海', specialResources: '美洲银·大帆船·华商·船坞', taxLevel: '殖民商税',
+          publicTreasuryInit: { money: 180000, grain: 50000, cloth: 16000 },
+          minxinLocal: 38, corruptionLocal: 46,
+          byEthnicity: { '菲律宾原住民': 0.48, '华商(Sangley)': 0.30, '西班牙': 0.06, '混血': 0.10, '其他': 0.06 },
+          byFaith: { '天主教': 0.58, '民间/原住民信仰': 0.22, '佛/道': 0.12, '伊斯兰': 0.04, '其他': 0.04 },
+          fiscalDetail: { claimedRevenue: 260000, actualRevenue: 185000, remittedToCenter: 0, retainedBudget: 185000, compliance: 0.68, skimmingRate: 0.16, autonomyLevel: 0.76 },
+          tags: { hasPort: true, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false },
+          economyBase: { farmland: 70000, commerceCoefficient: 2.0, commerceVolume: 900000, maritimeTradeVolume: 1800000, saltProduction: 0, mineralProduction: 0, horseProduction: 0, fishingProduction: 90000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 0, kejuQuota: 0, roadQuality: 34, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['马尼拉-阿卡普尔科', '马尼拉-月港', '马尼拉-澳门'], threats: ['华商暴动', '荷兰封锁', '大帆船失事']
+        }),
+        division({
+          name: '吕宋北部诸省', level: 'province', regionType: 'colonial_governorate', officialPosition: '北吕宋省政区', governor: '地方 Alcalde Mayor',
+          description: '邦板牙、伊罗戈、卡加延等北吕宋殖民省区，是马尼拉米粮、兵源和北台湾出兵跳板。',
+          populationDetail: { mouths: 190000, fugitives: 5000, hiddenCount: 30000 },
+          terrain: '沿海', specialResources: '米·兵源·木材·金砂', taxLevel: '贡赋/劳役',
+          publicTreasuryInit: { money: 26000, grain: 120000, cloth: 6000 },
+          minxinLocal: 34, corruptionLocal: 52,
+          byEthnicity: { '菲律宾原住民': 0.88, '华商': 0.05, '西班牙/混血': 0.04, '其他': 0.03 },
+          byFaith: { '天主教': 0.55, '原住民信仰': 0.34, '民间': 0.06, '其他': 0.05 },
+          fiscalDetail: { claimedRevenue: 118000, actualRevenue: 72000, remittedToCenter: 0, retainedBudget: 72000, compliance: 0.54, skimmingRate: 0.18, autonomyLevel: 0.68 },
+          tags: { hasPort: true, saltRegion: false, mineralRegion: true, horseRegion: false, fishingRegion: true, imperialDomain: false },
+          economyBase: { farmland: 620000, commerceCoefficient: 0.55, commerceVolume: 110000, maritimeTradeVolume: 80000, saltProduction: 0, mineralProduction: 80000, horseProduction: 0, fishingProduction: 100000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 1, yuyao: 0 }, postRelays: 0, kejuQuota: 0, roadQuality: 18, landsAnnexed: 0, landsReclaimed: 30000, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['马尼拉-卡加延', '北吕宋-基隆'], threats: ['原住民起事', '劳役过重']
+        }),
+        division({
+          name: '米沙鄢宿务诸岛', level: 'province', regionType: 'colonial_governorate', officialPosition: '宿务军政区', governor: '宿务守臣',
+          description: '宿务、班乃等米沙鄢据点，是早期西班牙殖民根基和南方海防节点。',
+          populationDetail: { mouths: 140000, fugitives: 3000, hiddenCount: 24000 },
+          terrain: '群岛', specialResources: '椰子·木材·水手·海防', taxLevel: '贡赋',
+          publicTreasuryInit: { money: 16000, grain: 65000, cloth: 4000 },
+          minxinLocal: 40, corruptionLocal: 48,
+          byEthnicity: { '菲律宾原住民': 0.90, '华商': 0.03, '西班牙/混血': 0.04, '其他': 0.03 },
+          byFaith: { '天主教': 0.50, '原住民信仰': 0.38, '民间': 0.06, '其他': 0.06 },
+          fiscalDetail: { claimedRevenue: 76000, actualRevenue: 46000, remittedToCenter: 0, retainedBudget: 46000, compliance: 0.52, skimmingRate: 0.15, autonomyLevel: 0.70 },
+          tags: { hasPort: true, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false },
+          economyBase: { farmland: 340000, commerceCoefficient: 0.45, commerceVolume: 70000, maritimeTradeVolume: 60000, saltProduction: 0, mineralProduction: 0, horseProduction: 0, fishingProduction: 120000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 0, kejuQuota: 0, roadQuality: 14, landsAnnexed: 0, landsReclaimed: 15000, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['宿务-马尼拉', '宿务-棉兰老'], threats: ['摩洛海盗', '补给慢']
+        }),
+        division({
+          name: '北台湾基隆淡水据点', level: 'province', regionType: 'colonial_outpost', officialPosition: '圣萨尔瓦多城守', governor: '西班牙驻台军官',
+          description: '1626 年建基隆圣萨尔瓦多城，用来卡住荷兰北上和保护马尼拉航线。人口少，但战略像海峡门闩。',
+          populationDetail: { mouths: 4500, fugitives: 100, hiddenCount: 1000 },
+          terrain: '沿海', specialResources: '基隆港·炮台·淡水据点', taxLevel: '军费',
+          publicTreasuryInit: { money: 25000, grain: 5000, cloth: 1500 },
+          minxinLocal: 32, corruptionLocal: 38,
+          byEthnicity: { '平埔族': 0.56, '西班牙/拉美士兵': 0.12, '菲律宾兵': 0.18, '汉': 0.10, '其他': 0.04 },
+          byFaith: { '原住民信仰': 0.48, '天主教': 0.38, '民间': 0.08, '其他': 0.06 },
+          fiscalDetail: { claimedRevenue: 24000, actualRevenue: 12000, remittedToCenter: 0, retainedBudget: 12000, compliance: 0.40, skimmingRate: 0.10, autonomyLevel: 0.82 },
+          tags: { hasPort: true, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false },
+          economyBase: { farmland: 8000, commerceCoefficient: 0.50, commerceVolume: 25000, maritimeTradeVolume: 80000, saltProduction: 0, mineralProduction: 0, horseProduction: 0, fishingProduction: 20000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 0, kejuQuota: 0, roadQuality: 10, landsAnnexed: 0, landsReclaimed: 1000, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['基隆-马尼拉', '基隆-淡水'], threats: ['荷兰南台压力', '补给孤立', '原住民冲突']
+        }),
+        division({
+          name: '棉兰老摩洛边区', level: 'province', regionType: 'frontier', officialPosition: '南方边防区', governor: '西班牙远征军官',
+          description: '棉兰老和苏禄摩洛战争边缘。西班牙影响零碎，更多是边防和冲突区。',
+          populationDetail: { mouths: 80000, fugitives: 8000, hiddenCount: 30000 },
+          terrain: '群岛', specialResources: '香料·海盗·奴隶贸易', taxLevel: '不稳',
+          publicTreasuryInit: { money: 4000, grain: 12000, cloth: 1000 },
+          minxinLocal: 18, corruptionLocal: 45,
+          byEthnicity: { '摩洛/菲律宾穆斯林': 0.70, '菲律宾原住民': 0.22, '西班牙/混血': 0.02, '其他': 0.06 },
+          byFaith: { '伊斯兰': 0.62, '原住民信仰': 0.20, '天主教': 0.12, '其他': 0.06 },
+          fiscalDetail: { claimedRevenue: 30000, actualRevenue: 8000, remittedToCenter: 0, retainedBudget: 8000, compliance: 0.22, skimmingRate: 0.12, autonomyLevel: 0.94 },
+          tags: { hasPort: true, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: true, imperialDomain: false },
+          economyBase: { farmland: 90000, commerceCoefficient: 0.25, commerceVolume: 20000, maritimeTradeVolume: 30000, saltProduction: 0, mineralProduction: 0, horseProduction: 0, fishingProduction: 70000, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 0, yuyao: 0 }, postRelays: 0, kejuQuota: 0, roadQuality: 8, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['宿务-棉兰老', '苏禄海路'], threats: ['摩洛战争', '远征失败']
+        })
+      ]),
+
+      sheAnRebels: npcTree('fac-she-an-rebels', '奢安之乱联军', [
+        division({
+          name: '永宁宣抚司残部', level: 'province', regionType: 'tusi', officialPosition: '永宁宣抚司叛军', governor: '奢崇明',
+          description: '四川永宁、叙永、川南山地残部。奢氏旧军仍有战力，但被朱燮元与秦良玉压缩。',
+          populationDetail: { mouths: 150000, fugitives: 35000, hiddenCount: 60000 },
+          terrain: '山地', specialResources: '山寨粮·木材·土兵', taxLevel: '土司征粮',
+          publicTreasuryInit: { money: 8000, grain: 26000, cloth: 2000 },
+          minxinLocal: 32, corruptionLocal: 40,
+          byEthnicity: { '彝': 0.54, '汉': 0.24, '苗': 0.08, '仡佬': 0.06, '其他': 0.08 },
+          byFaith: { '毕摩/土司祭祀': 0.48, '民间': 0.30, '佛': 0.10, '道': 0.08, '儒': 0.04 },
+          fiscalDetail: { claimedRevenue: 42000, actualRevenue: 22000, remittedToCenter: 0, retainedBudget: 22000, compliance: 0.42, skimmingRate: 0.12, autonomyLevel: 0.90 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: false, horseRegion: false, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 230000, commerceCoefficient: 0.28, commerceVolume: 22000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 50000, horseProduction: 500, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 1, yuyao: 0 }, postRelays: 1, kejuQuota: 0, roadQuality: 7, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['川南山路', '永宁-水西联络路'], threats: ['秦良玉白杆兵', '粮源枯竭']
+        }),
+        division({
+          name: '水西宣慰司四十八目', level: 'province', regionType: 'tusi', officialPosition: '水西宣慰司叛军', governor: '安邦彦',
+          description: '贵州水西安氏核心，四十八目山寨互保。1627 年主力退守水西，是奢安联军最硬的堡垒。',
+          populationDetail: { mouths: 240000, fugitives: 42000, hiddenCount: 90000 },
+          terrain: '山地', specialResources: '朱砂·山粮·罗罗土兵', taxLevel: '土司贡赋',
+          publicTreasuryInit: { money: 12000, grain: 42000, cloth: 3000 },
+          minxinLocal: 44, corruptionLocal: 36,
+          byEthnicity: { '彝': 0.58, '苗': 0.16, '汉': 0.14, '仡佬': 0.06, '其他': 0.06 },
+          byFaith: { '毕摩/土司祭祀': 0.50, '民间': 0.28, '佛': 0.10, '道': 0.06, '儒': 0.06 },
+          fiscalDetail: { claimedRevenue: 66000, actualRevenue: 38000, remittedToCenter: 0, retainedBudget: 38000, compliance: 0.48, skimmingRate: 0.10, autonomyLevel: 0.92 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: true, horseRegion: false, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 360000, commerceCoefficient: 0.32, commerceVolume: 36000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 120000, horseProduction: 800, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 2, yuyao: 0 }, postRelays: 2, kejuQuota: 0, roadQuality: 6, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['水西山寨路', '贵阳外围路'], threats: ['朱燮元持久围剿', '部目离心']
+        }),
+        division({
+          name: '乌撒乌蒙呼应区', level: 'province', regionType: 'tusi', officialPosition: '西南诸土司呼应区', governor: '乌撒乌蒙诸目',
+          description: '乌撒、乌蒙及水外诸目呼应地带。不是统一直属，但会给奢安联军提供山路、粮秣和退路。',
+          populationDetail: { mouths: 115000, fugitives: 20000, hiddenCount: 50000 },
+          terrain: '山地', specialResources: '马·山货·土兵向导', taxLevel: '寨贡',
+          publicTreasuryInit: { money: 5000, grain: 18000, cloth: 1200 },
+          minxinLocal: 38, corruptionLocal: 34,
+          byEthnicity: { '彝': 0.44, '苗': 0.20, '汉': 0.18, '仡佬': 0.08, '其他': 0.10 },
+          byFaith: { '毕摩/土司祭祀': 0.42, '民间': 0.34, '佛': 0.10, '道': 0.08, '儒': 0.06 },
+          fiscalDetail: { claimedRevenue: 32000, actualRevenue: 16000, remittedToCenter: 0, retainedBudget: 16000, compliance: 0.36, skimmingRate: 0.10, autonomyLevel: 0.94 },
+          tags: { hasPort: false, saltRegion: false, mineralRegion: true, horseRegion: true, fishingRegion: false, imperialDomain: false },
+          economyBase: { farmland: 150000, commerceCoefficient: 0.24, commerceVolume: 16000, maritimeTradeVolume: 0, saltProduction: 0, mineralProduction: 80000, horseProduction: 1000, fishingProduction: 0, imperialFarmland: 0, imperialAssets: { zhizao: 0, kuangchang: 1, yuyao: 0 }, postRelays: 1, kejuQuota: 0, roadQuality: 5, landsAnnexed: 0, landsReclaimed: 0, landsSurveyed: 0, disasterRecord: [] },
+          tradeRoutes: ['乌撒乌蒙山路', '滇黔边路'], threats: ['明军分化招抚', '粮道断绝']
+        })
+      ])
+    });
   }
 
   // DOM ready 后注册

@@ -11,6 +11,10 @@
 (function(global) {
   'use strict';
 
+  function _turnsForMonthsLocal(months) {
+    return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  A1 · 监察系统完整
   // ═══════════════════════════════════════════════════════════════════
@@ -176,7 +180,7 @@
     var reg = G.fiscal.regions[regionId];
     if (!reg) return { ok: false };
     if (!reg.forcedLevyHistory) reg.forcedLevyHistory = [];
-    var recentLevy = reg.forcedLevyHistory.filter(function(h){return (G.turn - h.turn) < 2;});
+    var recentLevy = reg.forcedLevyHistory.filter(function(h){return (G.turn - h.turn) < _turnsForMonthsLocal(2);});
     var penaltyMult = 1.0;
     if (recentLevy.length > 0) {
       // 二次强征：双倍 compliance 惩罚
@@ -384,7 +388,7 @@
     // 死亡继承扫描
     try {
       (G.chars || []).forEach(function(c) {
-        if (c.alive === false && !c._inheritanceProcessed && (ctx.turn - (c._deathTurn || ctx.turn)) < 3) {
+        if (c.alive === false && !c._inheritanceProcessed && (ctx.turn - (c._deathTurn || ctx.turn)) < _turnsForMonthsLocal(3)) {
           processInheritance(c, G);
         }
       });

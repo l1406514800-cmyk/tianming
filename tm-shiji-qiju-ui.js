@@ -31,7 +31,14 @@ function renderShijiList(){
   function _sjYear(sj){
     var t = sj.time || '';
     var m = t.match(/(.{2,8}\u5E74)/);
-    return m ? m[1] : ('T'+Math.floor((sj.turn||0)/12));
+    if (m) return m[1];
+    if (typeof calcDateFromTurn === 'function') {
+      var di = calcDateFromTurn(sj.turn || 1);
+      if (di && typeof di.adYear !== 'undefined') return String(di.adYear) + '\u5E74';
+    }
+    var dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
+    var baseYear = (typeof P !== 'undefined' && P.time && typeof P.time.year === 'number') ? P.time.year : 0;
+    return String(baseYear + Math.floor(((sj.turn || 1) - 1) * dpv / 365)) + '\u5E74';
   }
   function _sjDate(sj){
     var t = sj.time || '';

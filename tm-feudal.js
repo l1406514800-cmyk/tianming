@@ -1,20 +1,36 @@
 // @ts-check
 /// <reference path="types.d.ts" />
 // ============================================================
-// tm-feudal.js — 封建·封臣·头衔·爵位·铨选·战争 (R130 从 tm-military.js L2286-end 拆出)
+// Module: tm-feudal.js — 封建·封臣·头衔·爵位·铨选·战争·盟约·阴谋·封建持有 (R10h)
+// Domain: 封建 + 头衔 + 铨选 + 军事附属 + 外交 + 封建持有 (FeudalCore·R10h)
+// Status: active · Last Updated: 2026-05-04 (Phase 3 R10h·吸 §H FEUDAL_HOLDING_TYPES + _tickFeudalHoldings)
+// Owner: TM 团队
+// Imports: tm-data-model·tm-utils·tm-index-world·tm-military (姊妹)·原 tm-tax-atomic §H (R10h done)
+// Exports: 54 top-level functions/vars + 5 局部 IIFE 子系统 (WarWeightSystem·CasusBelliSystem·TreatySystem·SchemeSystem·DecisionSystem·WorkerPool) + global.FeudalCore (R10h·FEUDAL_HOLDING_TYPES + _tickFeudalHoldings)
+// Used by: tm-military·tm-game-loop·tm-endturn-systems·tm-var-drawers (FeudalCore.FEUDAL_HOLDING_TYPES UI display)·index/editor.html·smoke-office-dynastification (33 assertions)
+// Side effects: 全局 functions/vars (top-level)·影响 GM·DOM·CY 等·GM.feudalHoldings mutation (R10h)
+// Test: smoke-office-dynastification (33)·smoke-military-systems (83 间接)
+// Notes: R130 从 tm-military.js L2286-end 拆出·**Phase 3 audit·保留 single·拆 risk 高·Phase 5 namespace 化候选**
+//        R10h (2026-05-04·Claude)·从 tm-tax-atomic §H 迁入 FEUDAL_HOLDING_TYPES (5 类·imperial_clan/warlord/tribal_federation/tributary_state/jimi_prefecture) + _tickFeudalHoldings·暴露为 global.FeudalCore namespace·tax-atomic 删除后 var-drawers L1267 改用 FeudalCore.FEUDAL_HOLDING_TYPES
 // 姊妹: tm-military.js (战斗+行军+围城+补给+建筑)
-// 包含: AUTONOMY_TYPES/封臣系统/头衔/爵位类别/铨选三层/战争意愿/CB 宣战理由/
-//       盟约条约/阴谋系统/行军系统增强/称王称帝决策
 //
-// R159 章节导航 (2596 行)：
-//   §1 [L10]   AUTONOMY_TYPES 封建自治度等级
-//   §2 [L150]  封臣系统 (封授/收回/继承)
-//   §3 [L500]  头衔 + 爵位类别 (公侯伯子男·爵位降等)
-//   §4 [L900]  铨选三层 (中央/地方/世袭)
-//   §5 [L1300] 战争意愿 + CB 宣战理由
-//   §6 [L1700] 盟约条约 (互不侵犯·军事同盟·朝贡)
-//   §7 [L2000] 阴谋系统 (暗杀/逼宫/篡位)
-//   §8 [L2300] 行军系统增强 + 称王称帝决策
+// R159 章节导航 (2711 行·**R10h 后 14 sections**)：
+//   §A [L21]   AUTONOMY_TYPES 封建管辖层级 + PERMISSION_MATRIX (5 自治度·中国化)
+//   §B [L161]  封臣系统 (establishVassalage·breakVassalage·calculateTotalIncome·levyVassalArmies·updateVassalSystem)
+//   §C [L554]  头衔体系数据 (TITLE_LEVELS·OFFICIAL_RANKS·TITLE_CLASSES·inferTitleClass)
+//   §D [L656]  头衔操作 + Title 更新 (grantFief·grantTitle·inheritTitle·promoteTitle·hasPrivilege·assignOfficialRank·updateTitleSystem)
+//   §E [L1183] 补给系统 (updateSupplySystem·produceSupplies·consumeSupplies·transportSupplies·createSupplyRoute·generateSupplyReport)
+//   §F [L1470] 铨选三层 (QuanxuanConfig·performQuanxuan·quanxuanInitialScreen·quanxuanRefinedSelection·quanxuanFinalDecision·autoQuanxuanAndAppoint)
+//   §G [L1744] 军事 + 地图 update (updateMilitary·updateMap)
+//   §H [L1861] 战争意愿 (WarWeightSystem·局部 IIFE)
+//   §I [L1942] CB 宣战理由 (CasusBelliSystem·局部 IIFE)
+//   §J [L2048] 盟约条约 (TreatySystem·局部 IIFE)
+//   §K [L2161] 阴谋系统 (SchemeSystem·局部 IIFE)
+//   §L [L2458] 决断系统 (DecisionSystem·局部 IIFE)
+//   §M [L2589] 工人池 (WorkerPool·局部 IIFE)
+//   §N [L2671] 封建持有 (R10h·FEUDAL_HOLDING_TYPES + _tickFeudalHoldings·原 tm-tax-atomic §H)
+//
+// audit: web/docs/tm-feudal-audit.md (R10h done note in §4)
 // ============================================================
 
 
@@ -365,14 +381,17 @@ function updateVassalSystem() {
       var _ms = (typeof _getDaysPerTurn === 'function' ? _getDaysPerTurn() : 30) / 30;
       // 集权度影响封臣忠诚度自然漂移
       if (centralization > 0.7) {
-        ruler.loyalty = Math.min(100, (ruler.loyalty || 50) + 1 * _ms);
+        if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(ruler, 1 * _ms, '\u4E2D\u592E\u96C6\u6743\u589E\u5F3A\uFF0C\u5C01\u81E3\u5F52\u5FC3', { source:'feudal-centralization-drift', oncePerTurn:true });
+        else ruler.loyalty = Math.min(100, ((typeof ruler.loyalty === 'number' && isFinite(ruler.loyalty)) ? ruler.loyalty : 50) + 1 * _ms);
       } else if (centralization < 0.3) {
-        ruler.loyalty = Math.max(0, (ruler.loyalty || 50) - 1 * _ms);
+        if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(ruler, -1 * _ms, '\u4E2D\u592E\u96C6\u6743\u504F\u5F31\uFF0C\u5C01\u81E3\u79BB\u5FC3', { source:'feudal-centralization-drift', oncePerTurn:true });
+        else ruler.loyalty = Math.max(0, ((typeof ruler.loyalty === 'number' && isFinite(ruler.loyalty)) ? ruler.loyalty : 50) - 1 * _ms);
       }
 
       // 王朝衰落期额外降低忠诚
       if (dynastyPhase === 'decline' || dynastyPhase === 'collapse') {
-        ruler.loyalty = Math.max(0, (ruler.loyalty || 50) - 1 * _ms);
+        if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(ruler, -1 * _ms, '\u738B\u671D\u8870\u843D\u671F\u5C01\u81E3\u79BB\u5FC3', { source:'feudal-dynasty-decline-drift', oncePerTurn:true });
+        else ruler.loyalty = Math.max(0, ((typeof ruler.loyalty === 'number' && isFinite(ruler.loyalty)) ? ruler.loyalty : 50) - 1 * _ms);
       }
 
       // 获取叛乱阈值（从封臣类型定义中取，或默认25）
@@ -2654,3 +2673,44 @@ if (typeof TM !== 'undefined') {
     calculateSiegeProgress: typeof calculateSiegeProgress === 'function' ? calculateSiegeProgress : null
   };
 }
+
+// ============================================================
+// §N · FEUDAL_HOLDING_TYPES + _tickFeudalHoldings
+// (R10h·原 tm-tax-atomic §H·R12 redistribute·5 类封建持有 + tick)
+// ============================================================
+
+var FEUDAL_HOLDING_TYPES = {
+  imperial_clan:     { tributeRate: 0.15, military: 'imperial',  autonomy: 0.3, description:'皇族分封' },
+  warlord:           { tributeRate: 0.3,  military: 'own',       autonomy: 0.85,description:'藩镇自立' },
+  tribal_federation: { tributeRate: 0.05, military: 'auxiliary', autonomy: 0.7, description:'部族联盟' },
+  tributary_state:   { tributeRate: 0.01, military: 'nominal',   autonomy: 0.95,description:'朝贡国' },
+  jimi_prefecture:   { tributeRate: 0.10, military: 'nominal',   autonomy: 0.6, description:'羁縻府州' }
+};
+
+function _tickFeudalHoldings(ctx, mr) {
+  var _tmFeudalGlobal = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));
+  var G = _tmFeudalGlobal.GM;
+  if (!G || !G.feudalHoldings) return;
+  G.feudalHoldings.forEach(function(fh) {
+    var rule = FEUDAL_HOLDING_TYPES[fh.type];
+    if (!rule) return;
+    if ((G.month||1) === 1 && G.guoku && fh.tribute && fh.tribute.annual) {
+      G.guoku.money = (G.guoku.money || 0) + fh.tribute.annual;
+    }
+    var hw = G.huangwei && G.huangwei.index || 50;
+    if (hw < 30) fh.loyalty = Math.max(0, (fh.loyalty||0.5) - 0.005 * mr);
+    if (hw > 70) fh.loyalty = Math.min(1, (fh.loyalty||0.5) + 0.003 * mr);
+    if (fh.loyalty < 0.15 && Math.random() < 0.02 * mr) {
+      fh.status = 'rebelling';
+      if (_tmFeudalGlobal.addEB) _tmFeudalGlobal.addEB('藩镇', fh.name + ' 叛');
+    }
+  });
+}
+
+(function() {
+  var _g = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));
+  _g.FeudalCore = _g.FeudalCore || {};
+  _g.FeudalCore.FEUDAL_HOLDING_TYPES = FEUDAL_HOLDING_TYPES;
+  _g.FeudalCore._tickFeudalHoldings = _tickFeudalHoldings;
+  _g.FeudalCore.VERSION = 1;
+})();

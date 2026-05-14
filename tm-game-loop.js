@@ -284,7 +284,11 @@ function enterGame(){
     if (typeof PhaseG2 !== 'undefined' && typeof PhaseG2.init === 'function') PhaseG2.init(scriptData);
     if (typeof PhaseG3 !== 'undefined' && typeof PhaseG3.init === 'function') PhaseG3.init();
     if (typeof PhaseG4 !== 'undefined' && typeof PhaseG4.init === 'function') PhaseG4.init(scriptData);
-    if (typeof PhaseH !== 'undefined' && typeof PhaseH.init === 'function') PhaseH.init(scriptData);
+    // 原 PhaseH.init 拆为 enableTaxesByDynasty + _ensureRegionFiscal (R10 collapse·delete tm-tax-atomic.js)
+    if (typeof FiscalEngine !== 'undefined' && typeof FiscalEngine.enableTaxesByDynasty === 'function') FiscalEngine.enableTaxesByDynasty(GM);
+    if (typeof FiscalEngine !== 'undefined' && typeof FiscalEngine._ensureRegionFiscal === 'function' && GM.regions && GM.regions.forEach) {
+      GM.regions.forEach(function(r) { FiscalEngine._ensureRegionFiscal(r); });
+    }
     // 融合桥接：行政区划 ↔ 七变量
     if (typeof IntegrationBridge !== 'undefined' && typeof IntegrationBridge.init === 'function') IntegrationBridge.init();
     // 帑廪/内帑 三账初始化（若剧本未配置则 ensureGuokuModel 给默认）
@@ -697,6 +701,9 @@ if (sc.culturalConfig && sc.culturalConfig.enabled && Array.isArray(sc.culturalC
     P.time.daysPerTurn = (_gs.turnDuration||1) * (_dMap5[_gs.turnUnit]||30);
   }
   if (!P.time.daysPerTurn) P.time.daysPerTurn = 30;
+  if (typeof normalizeTimeConfigFromGameSettings === 'function') {
+    P.time = normalizeTimeConfigFromGameSettings(P.time, _gs);
+  }
   if (_gs.enableGanzhi !== undefined) P.time.enableGanzhi = _gs.enableGanzhi;
   if (_gs.enableGanzhiDay !== undefined) P.time.enableGanzhiDay = _gs.enableGanzhiDay;
   // 年号默认启用（若剧本 gameSettings 未显式设置或为 false，仍启用——年号由即位改元事件议定）
@@ -1100,6 +1107,47 @@ if (sc.culturalConfig && sc.culturalConfig.enabled && Array.isArray(sc.culturalC
   if(!GM.eraNames||!GM.eraNames.length){
     setTimeout(function(){ _showEnthronementEvent(sid); }, 600);
   }
+
+  // 2026-05-10·Slice E/G/H·一次性 migration·必须在 _facIndex 之前
+  // 把 GM.armies 的 .owner 升级到 .faction·并给 chars/armies 补 factionId·三源省份归属合一
+  try {
+    if (window.TM && TM.FactionMembership) {
+      if (TM.FactionMembership.migrateArmyOwnerToFaction) {
+        var _mig = TM.FactionMembership.migrateArmyOwnerToFaction();
+        if (GM.turn === 1) console.log('[startGame] army.owner→faction migrated=' + _mig.migrated + ' factionId 补=' + _mig.idCovered);
+      }
+      if (TM.FactionMembership.migrateCharsAddFactionId) {
+        var _idN = TM.FactionMembership.migrateCharsAddFactionId();
+        if (GM.turn === 1 && _idN > 0) console.log('[startGame] chars factionId 补=' + _idN);
+      }
+      if (TM.FactionMembership.migrateProvinceOwnership) {
+        var _provMig = TM.FactionMembership.migrateProvinceOwnership();
+        if (GM.turn === 1 && _provMig.adopted > 0) console.log('[startGame] province 三源合一·共 ' + _provMig.adopted + ' 省·' + JSON.stringify(_provMig.sourceCounts));
+      }
+    }
+  } catch(_migE) { try { console.warn('[startGame] migration 失败', _migE); } catch(_){} }
+  // 2026-05-10·Layer 2 势力反向索引·startGame 末首次构建
+  try {
+    if (window.TM && TM.FactionIndex && TM.FactionIndex.rebuild) {
+      TM.FactionIndex.rebuild();
+      if (GM.turn === 1 && GM._facIndex) {
+        console.log('[startGame] _facIndex 构建完成·势力数=' + Object.keys(GM._facIndex).length);
+      }
+    }
+  } catch(_fxE) { try { console.warn('[startGame] _facIndex 构建失败', _fxE); } catch(_){} }
+  // 2026-05-10·Layer 3 派生健康度·依赖 _facIndex·必须在 rebuild 之后
+  try {
+    if (window.TM && TM.FactionDerived && TM.FactionDerived.compute) {
+      TM.FactionDerived.compute();
+    }
+  } catch(_dhE) { try { console.warn('[startGame] derivedHealth 计算失败', _dhE); } catch(_){} }
+  // 2026-05-10·Phase B1-B3·派生经济+凝聚+综合·依赖 derivedHealth
+  try {
+    if (window.TM && TM.FactionDerivedEconomy && TM.FactionDerivedEconomy.compute) TM.FactionDerivedEconomy.compute();
+    if (window.TM && TM.FactionDerivedCohesion && TM.FactionDerivedCohesion.compute) TM.FactionDerivedCohesion.compute();
+    if (window.TM && TM.FactionDerivedStrength && TM.FactionDerivedStrength.compute) TM.FactionDerivedStrength.compute();
+  } catch(_dxE) { try { console.warn('[startGame] derivedEconomy/Cohesion/Strength 计算失败', _dxE); } catch(_){} }
+  // 2026-05-10·Phase C1·NPC memorial·startGame 不生成 (turn 1 由 endturn 触发)
 }
 
 /**
@@ -1327,12 +1375,12 @@ function _renderZhaozhengCenter() {
       {label:'\u4E0B\u8BCF\u4EE4', sub:'\u653F\u4EE4/\u519B\u4EE4/\u5916\u4EA4/\u7ECF\u6D4E', action:'switchGTab(null,"gt-edict")', icon:'scroll', ok:true},
       {label:'\u79D1\u4E3E\u53D6\u58EB', sub:'\u5F00\u79D1\u53D6\u58EB', action:'openKejuPanel()', icon:'scroll', ok:_canKeju().ok, reason:_canKeju().reason},
       {label:'\u5730\u65B9\u533A\u5212', sub:'\u67E5\u770B\u5730\u65B9\u884C\u653F', action:'openProvinceEconomy()', icon:'treasury', ok:_canProvince().ok, reason:_canProvince().reason},
-      {label:'\u5730\u65B9\u8206\u60C5', sub:'\u5404\u9053\u5DDE\u5E9C\u6C11\u60C5', action:'switchGTab(null,"gt-difang");_renderDifangPanel()', icon:'faction', ok:!!P.adminHierarchy, reason:P.adminHierarchy?'':'\u65E0\u884C\u653F\u533A\u5212'}
+      {label:'\u5730\u65B9\u8206\u60C5', sub:'\u5404\u9053\u5DDE\u5E9C\u6C11\u60C5', action:'switchGTab(null,"gt-difang")', icon:'faction', ok:!!P.adminHierarchy, reason:P.adminHierarchy?'':'\u65E0\u884C\u653F\u533A\u5212'}
     ]},
     { label: '\u519B\u4E8B', icon: 'troops', color: 'var(--vermillion-400)', items: [
       {label:'\u519B\u4E8B\u8BCF\u4EE4', sub:'\u8C03\u5175\u9063\u5C06', action:'switchGTab(null,"gt-edict");var el=document.getElementById("edict-mil");if(el)el.focus()', icon:'troops', ok:true},
       {label:'\u5236\u5EA6\u6539\u9769', sub:'\u901A\u8FC7\u8BCF\u4EE4\u53D1\u8D77', action:'switchGTab(null,"gt-edict");var el=document.getElementById("edict-pol");if(el){el.focus();el.placeholder="\u5982\uFF1A\u63A8\u884C\u52DF\u5175\u5236/\u6539\u9769\u7A0E\u5236/\u5B9E\u884C\u79D1\u4E3E...";}', icon:'scroll', ok:true},
-      {label:'\u5730\u56FE\u603B\u89C8', sub:'\u52BF\u529B\u5206\u5E03', action:'TM.MapSystem.open("regions")', icon:'map', ok:_canMap().ok, reason:_canMap().reason}
+      {label:'\u5730\u56FE\u603B\u89C8', sub:'\u52BF\u529B\u5206\u5E03', action:'TM.Map.open("regions")', icon:'map', ok:_canMap().ok, reason:_canMap().reason}
     ]},
     { label: '\u4EBA\u4E8B', icon: 'person', color: 'var(--gold-400)', items: [
       {label:'\u5B98\u5236\u4EFB\u514D', sub:'\u67E5\u770B\u5B98\u5236\u6811', action:'switchGTab(null,"gt-office")', icon:'office', ok:true},

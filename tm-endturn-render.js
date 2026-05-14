@@ -13,6 +13,12 @@
 //   §5 [L140]  主角状态区·朝野反应
 //   §6 [L500]  Delta 面板生成 (按 turnChanges)
 //   §7 [L900]  起居注/编年史/时政记面板
+//
+// Domain: 回合结果展示 (战况 / 兵备 / 财政 / 起居)
+// Refactor notes:
+//   Phase 3·**Codex own·Claude review at merge** (我刚 #5 加 affectedArmies/militarySystems)
+//   Phase 5·namespace TM.Endturn.Render
+// 见 web/docs/architecture-map.md §1 行 7
 //   §8 [L1300] 自动存档触发 + meta 写入
 //   §9 [L1600] 角色高亮工具 + 史官弹窗
 // ============================================================
@@ -48,9 +54,11 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
   // 动态更新年号
   (function(){
     // 年号系统始终启用
-    var t=P.time;var tpy=4;if(t.perTurn==="1y")tpy=1;else if(t.perTurn==="1m")tpy=12;
-    var yo=Math.floor((GM.turn-1)/tpy);var y=t.year+yo;
-    var mo=t.startMonth||1;
+    var t=P.time;
+    var _diEra=(typeof calcDateFromTurn==='function')?calcDateFromTurn(GM.turn||1):null;
+    var _dpvEra=(typeof _getDaysPerTurn==='function')?_getDaysPerTurn():30;
+    var y=_diEra?_diEra.adYear:((t.year||0)+Math.floor(((GM.turn||1)-1)*_dpvEra/365));
+    var mo=_diEra?_diEra.lunarMonth:(t.startMonth||1);
     var eraList=GM.eraNames||[];
     var best=null;
     eraList.forEach(function(e){
@@ -582,9 +590,11 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
     if (battles.length === 0 && GM.battleHistory) {
       battles = GM.battleHistory.filter(function(b) { return b.turn === GM.turn - 1; });
     }
-    if (battles.length === 0) return;
+    var hasArmies = Array.isArray(GM.armies) && GM.armies.length > 0;
+    if (battles.length === 0 && !hasArmies) return;
 
-    battleVisHtml = '<div class="turn-section"><h3>\u2694\uFE0F \u6218\u51B5</h3>';
+    var _sectTitle = battles.length > 0 ? '\u2694\uFE0F \u6218\u51B5' : '\u2694\uFE0F \u5175\u5907';
+    battleVisHtml = '<div class="turn-section"><h3>' + _sectTitle + '</h3>';
     battles.forEach(function(b) {
       var atkTotal = b.attackerSoldiers || 1;
       var defTotal = b.defenderSoldiers || 1;
@@ -635,6 +645,42 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
         battleVisHtml += '<div class="battle-meta">' + _extras.join(' \u00B7 ') + '</div>';
       }
 
+      // #5\u00B7affectedArmies expanded details panel (phase 5 slice 2)
+      if (Array.isArray(b.affectedArmies) && b.affectedArmies.length > 0) {
+        battleVisHtml += '<details style="margin-top:8px;padding:6px;background:rgba(0,0,0,0.2);border-radius:4px;">';
+        battleVisHtml += '<summary style="cursor:pointer;font-size:13px;color:var(--gold-300,#c9a96e);">\u8BE6\u60C5\u00B7' + b.affectedArmies.length + ' \u519B\u5377\u5165\u00B7\u6309\u547D\u8FD0/\u5F52\u56E0\u5C55\u5F00</summary>';
+        battleVisHtml += '<table style="width:100%;font-size:12px;margin-top:6px;border-collapse:collapse;">';
+        battleVisHtml += '<tr>';
+        ['\u519B','\u547D\u8FD0','\u635F\u5931','\u5F52\u56E0','\u4E3B\u5C06'].forEach(function(h) {
+          battleVisHtml += '<th style="text-align:left;padding:4px;color:var(--text-dim,#999);font-weight:normal;">' + h + '</th>';
+        });
+        battleVisHtml += '</tr>';
+        b.affectedArmies.forEach(function(army) {
+          var fate = String(army.fate || '');
+          var fateColor = fate.indexOf('\u6E83\u706D') >= 0 ? 'var(--vermillion-500,#dc2626)' :
+                          fate.indexOf('\u6E83') >= 0 ? 'var(--vermillion-400,#ef4444)' :
+                          fate.indexOf('\u4F24') >= 0 ? 'var(--amber-400,#f59e0b)' :
+                          fate.indexOf('\u4FDD') >= 0 || fate.indexOf('\u80DC') >= 0 ? 'var(--celadon-400,#84cc16)' :
+                          'var(--text,#fff)';
+          var attrMap = { commander:'\u4E3B\u5C06', leader:'\u7EDF\u5E05', local:'\u5730\u65B9', throne:'\u5FA1\u8425', banner:'\u65D7\u4E0B', state:'\u56FD\u5BB6' };
+          var attrLabel = attrMap[army.attribution] || army.attribution || '?';
+          var attrBg = army.attribution === 'commander' ? 'rgba(220,80,80,0.2)' :
+                       army.attribution === 'leader'    ? 'rgba(220,180,80,0.2)' :
+                       army.attribution === 'local'     ? 'rgba(120,180,120,0.2)' :
+                       army.attribution === 'throne'    ? 'rgba(220,180,80,0.3)' :
+                       army.attribution === 'banner'    ? 'rgba(180,120,180,0.2)' :
+                       army.attribution === 'state'     ? 'rgba(120,120,180,0.2)' : 'rgba(150,150,150,0.2)';
+          battleVisHtml += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">';
+          battleVisHtml += '<td style="padding:4px;">' + escHtml(army.army || '?') + '</td>';
+          battleVisHtml += '<td style="padding:4px;color:' + fateColor + ';">' + escHtml(fate || '?') + '</td>';
+          battleVisHtml += '<td style="padding:4px;">' + ((army.casualties || 0).toLocaleString()) + '</td>';
+          battleVisHtml += '<td style="padding:4px;"><span style="padding:2px 6px;border-radius:3px;font-size:11px;background:' + attrBg + ';">' + escHtml(attrLabel) + '</span></td>';
+          battleVisHtml += '<td style="padding:4px;color:var(--text-dim,#999);">' + escHtml(army.commander || '') + '</td>';
+          battleVisHtml += '</tr>';
+        });
+        battleVisHtml += '</table></details>';
+      }
+
       battleVisHtml += '</div>';
     });
 
@@ -656,6 +702,51 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
           battleVisHtml += '</div></div>';
         }
       });
+    }
+
+    // #5 b·militarySystems 状态总览·always render if armies exist
+    if (hasArmies) {
+      battleVisHtml += '<details style="margin-top:12px;padding:8px;background:rgba(0,0,0,0.15);border-radius:4px;">';
+      battleVisHtml += '<summary style="cursor:pointer;font-size:13px;color:var(--gold-300,#c9a96e);">militarySystems 总览·' + GM.armies.length + ' 军·风险监控</summary>';
+      battleVisHtml += '<table style="width:100%;font-size:12px;margin-top:6px;border-collapse:collapse;">';
+      battleVisHtml += '<tr>';
+      ['军','势力','统帅','驻地','士气','补给','欠饷','兵变险','状态'].forEach(function(h) {
+        battleVisHtml += '<th style="text-align:left;padding:4px;color:var(--text-dim,#999);font-weight:normal;">' + h + '</th>';
+      });
+      battleVisHtml += '</tr>';
+      // 排序·风险高的优先 (兵变 + 欠饷 + 低补给/士气)
+      var _sortedArmies = GM.armies.slice().sort(function(a, b) {
+        var rA = (a.mutinyRisk || 0) + (a.payArrearsMonths || 0) * 10 + Math.max(0, 50 - (a.morale || 100)) + Math.max(0, 50 - (a.supply || 100));
+        var rB = (b.mutinyRisk || 0) + (b.payArrearsMonths || 0) * 10 + Math.max(0, 50 - (b.morale || 100)) + Math.max(0, 50 - (b.supply || 100));
+        return rB - rA;
+      });
+      _sortedArmies.forEach(function(a) {
+        var moraleColor = (a.morale||100) < 30 ? 'var(--vermillion-400,#ef4444)' : (a.morale||100) < 60 ? 'var(--amber-400,#f59e0b)' : 'var(--celadon-400,#84cc16)';
+        var supplyColor = (a.supply||100) < 30 ? 'var(--vermillion-400,#ef4444)' : (a.supply||100) < 60 ? 'var(--amber-400,#f59e0b)' : 'var(--celadon-400,#84cc16)';
+        var arrearColor = (a.payArrearsMonths||0) >= 3 ? 'var(--vermillion-400,#ef4444)' : (a.payArrearsMonths||0) >= 1 ? 'var(--amber-400,#f59e0b)' : 'var(--text,#fff)';
+        var mutinyColor = (a.mutinyRisk||0) >= 60 ? 'var(--vermillion-500,#dc2626)' : (a.mutinyRisk||0) >= 30 ? 'var(--amber-400,#f59e0b)' : 'var(--text,#fff)';
+        var stateText = a.state === 'marching' ? '行军中' : a.state === 'sieging' ? '围城中' : a.state === 'garrison' ? '驻守' : (a.state || '驻守');
+        battleVisHtml += '<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">';
+        battleVisHtml += '<td style="padding:4px;">' + escHtml(a.name||'?') + '</td>';
+        battleVisHtml += '<td style="padding:4px;color:var(--text-dim,#999);">' + escHtml(a.faction||a.owner||'未挂旗') + '</td>';
+        battleVisHtml += '<td style="padding:4px;">' + escHtml(a.commander||'') + '</td>';
+        battleVisHtml += '<td style="padding:4px;color:var(--text-dim,#999);">' + escHtml(a.location||'') + (a.state==='marching' && a.destination?'→'+escHtml(a.destination):'') + '</td>';
+        battleVisHtml += '<td style="padding:4px;color:'+moraleColor+';">' + (a.morale||0) + '</td>';
+        battleVisHtml += '<td style="padding:4px;color:'+supplyColor+';">' + (a.supply||0) + '</td>';
+        battleVisHtml += '<td style="padding:4px;color:'+arrearColor+';">' + (a.payArrearsMonths||0) + '月</td>';
+        battleVisHtml += '<td style="padding:4px;color:'+mutinyColor+';font-weight:'+((a.mutinyRisk||0)>=60?'bold':'normal')+';">' + (a.mutinyRisk||0) + '</td>';
+        battleVisHtml += '<td style="padding:4px;color:var(--text-dim,#999);">' + escHtml(stateText) + '</td>';
+        battleVisHtml += '</tr>';
+      });
+      battleVisHtml += '</table>';
+      // 风险警示
+      var _highRisk = _sortedArmies.filter(function(a) { return (a.mutinyRisk||0) >= 60 || (a.payArrearsMonths||0) >= 3; });
+      if (_highRisk.length > 0) {
+        battleVisHtml += '<div style="margin-top:6px;padding:6px;background:rgba(220,80,80,0.15);border-left:3px solid var(--vermillion-500,#dc2626);font-size:12px;color:var(--vermillion-300,#fca5a5);">';
+        battleVisHtml += '⚠ 高危·' + _highRisk.length + ' 军·兵变险≥6成或欠饷≥3月·需及时处置';
+        battleVisHtml += '</div>';
+      }
+      battleVisHtml += '</details>';
     }
 
     battleVisHtml += '</div>';
@@ -1270,6 +1361,18 @@ function _endTurn_render(shizhengji, zhengwen, playerStatus, playerInner, edicts
   _dbg('========== 回合结算完成 (T' + GM.turn + ') ==========');
   _dbg('[endTurn] 财务报表:', ledger);
   _dbg('[endTurn] 变动队列已清空，准备进入下一回合');
+  try {
+    var _aiDiag = GM._lastAIDiagnostics;
+    if (_aiDiag && !_aiDiag._announced) {
+      var _fw = Array.isArray(_aiDiag.failedWrites) ? _aiDiag.failedWrites.length : 0;
+      var _warn = Array.isArray(_aiDiag.warnings) ? _aiDiag.warnings.length : 0;
+      var _rep = Array.isArray(_aiDiag.repairedJson) ? _aiDiag.repairedJson.length : 0;
+      if (_fw || _warn || _rep) {
+        _dbg('[AIDiagnostics] hidden summary: write_gate=' + _fw + ', warnings=' + _warn + ', json_repair=' + _rep);
+        _aiDiag._announced = true;
+      }
+    }
+  } catch(_aiDiagE) { console.warn('[AIDiagnostics] render summary failed:', _aiDiagE); }
 
   // 更新地图颜色（根据占领者实时更新）
   if (P.map && P.map.enabled) {
@@ -1396,7 +1499,15 @@ function _renderUnifiedChanges(oldVars) {
       var tip = escHtml((r.reason || '') + (r.name?'\u00B7'+r.name:'')).slice(0, 80);
       var short = r.shortfall || 0;
       var status = r.executionStatus || '';
-      if (status === 'blocked') {
+      var annual = Number(r.annualAmount || 0);
+      if ((status === 'scheduled' || status === 'updated' || r.recurring) && annual > 0) {
+        var annualTip = escHtml((r.reason || '') + (r.name?'\u00B7'+r.name:'') + '\u00B7\u5E74\u4F8B ' + annual).slice(0, 100);
+        var annualWord = status === 'updated' ? '\u6539\u5E74\u4F8B' : '\u5E74\u4F8B';
+        out.push('<span class="tr-reason-chip ' + signCls + '" title="' + annualTip + '">' + annualWord + '\u00B7' + label + '<span class="v">' + signChar + _rucFmtBig(annual) + '/\u5E74</span></span>');
+      } else if (status === 'stopped' || status === 'removed') {
+        var stopTip = escHtml((r.reason || '') + (r.name?'\u00B7'+r.name:'') + (annual ? '\u00B7\u539F\u5E74\u4F8B ' + annual : '')).slice(0, 100);
+        out.push('<span class="tr-reason-chip" title="' + stopTip + '" style="border-color:rgba(160,150,130,0.45);color:var(--txt-s);">\u505C\u5E74\u4F8B\u00B7' + label + (annual ? '<span class="v">' + _rucFmtBig(annual) + '/\u5E74</span>' : '') + '</span>');
+      } else if (status === 'blocked') {
         // 完全拒付：红底+❌
         var tipBlk = '\u5E93\u7A7A\u4E3A\u96F6\u00B7\u8BCF\u4E0D\u5F97\u884C\u00B7\u8BF7 ' + (r.requested||0) + ' \u4E00\u6587\u672A\u62E8' + (r.reason?'\u3010'+r.reason+'\u3011':'');
         out.push('<span class="tr-reason-chip" title="' + escHtml(tipBlk) + '" style="background:rgba(192,64,48,0.18);border:1px solid var(--vermillion-400);color:#fef4e8;">\u274C ' + label + '<span style="margin-left:6px;color:#fbd8d0;">\u8BF7' + _rucFmtBig(r.requested||0) + '\u00B7\u672A\u62E8</span></span>');

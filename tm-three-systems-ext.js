@@ -104,17 +104,28 @@
     });
     return out;
   }
+  // [Slice H·2026-05-10] setProvinceOwner 改为 TM.FactionMembership.assignProvince 的 thin wrapper
+  // 保留函数名以维持现有 53+ 调用点向后兼容
   function setProvinceOwner(provinceName, newOwnerName, reason) {
     if (!global.GM || !provinceName) return false;
     if (!GM._provinceToFaction) buildProvinceOwnerIndex();
+    if (global.TM && global.TM.FactionMembership && global.TM.FactionMembership.assignProvince) {
+      var ok = global.TM.FactionMembership.assignProvince(provinceName, newOwnerName || '', { reason: reason || '', silent: true });
+      // 旧 emit·保留 province:ownerChange 事件名 (订阅者依赖)
+      if (ok) {
+        try {
+          if (global.GameEventBus && typeof global.GameEventBus.emit === 'function') {
+            global.GameEventBus.emit('province:ownerChange', { province: provinceName, from: GM._provinceToFaction[provinceName], to: newOwnerName, reason: reason || '' });
+          }
+        } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-three-systems-ext');}catch(_){}}
+      }
+      return ok;
+    }
+    // ── legacy fallback (membership 未加载时·理论上不应触发) ──
     var oldOwner = GM._provinceToFaction[provinceName] || null;
     if (oldOwner === newOwnerName) return false;
     GM._provinceToFaction[provinceName] = newOwnerName;
-    // 同步 provinceStats.owner
-    if (GM.provinceStats && GM.provinceStats[provinceName]) {
-      GM.provinceStats[provinceName].owner = newOwnerName;
-    }
-    // 同步 facs[i].territories/provinceIds
+    if (GM.provinceStats && GM.provinceStats[provinceName]) GM.provinceStats[provinceName].owner = newOwnerName;
     if (Array.isArray(GM.facs)) {
       GM.facs.forEach(function(f) {
         if (f.name === oldOwner) {
@@ -129,7 +140,6 @@
         }
       });
     }
-    // 事件总线
     try {
       if (global.GameEventBus && typeof global.GameEventBus.emit === 'function') {
         global.GameEventBus.emit('province:ownerChange', { province: provinceName, from: oldOwner, to: newOwnerName, reason: reason || '' });
@@ -141,8 +151,10 @@
   // ====== 军队字段扩展 ======
   function extendArmyFields(a) {
     if (!a || typeof a !== 'object') return;
-    // 所有权(已有 faction 则沿用·否则空)
-    if (!a.owner) a.owner = a.faction || a.ownerFaction || '';
+    // [Slice E·2026-05-10] 所有权统一到 a.faction·从 ownerFaction 兜底·a.owner 已废
+    if (!a.faction && a.ownerFaction) a.faction = a.ownerFaction;
+    if (!a.faction && a.owner) a.faction = a.owner;
+    if ('owner' in a) try { delete a.owner; } catch(_){}
     // 私兵度·0=国家兵·100=完全私兵
     if (a.controlLevel === undefined) {
       // 以 commander 是否有 faction 关联推算·有 faction != owner 则偏私兵
@@ -212,7 +224,7 @@
       // 只为 strength >= 20 的势力兜底
       var s = typeof f.strength === 'number' ? f.strength : 0;
       if (s < 20) return;
-      var hasOwnArmy = GM.armies.some(function(a){ return (a.owner === f.name) || (a.faction === f.name); });
+      var hasOwnArmy = GM.armies.some(function(a){ return a.faction === f.name; });
       if (hasOwnArmy) return;
       // 生成代表性部队
       var estSize = Math.round(s * 500);  // strength 60 → 3万
@@ -433,7 +445,7 @@
       // 2. 粮饷欠发累计(仅国家兵)
       if (a.controlLevel < 60) {
         // 简化处理：若势力财政低·累加欠饷
-        var owner = a.owner;
+        var owner = a.faction;
         if (owner && global.GM.facs) {
           var f = GM.facs.find(function(ff){ return ff.name === owner; });
           if (f && typeof f.money === 'number' && f.money < 0) {
@@ -473,7 +485,7 @@
         });
         try {
           if (global.GameEventBus && typeof global.GameEventBus.emit === 'function') {
-            global.GameEventBus.emit('army:mutinyRisk', { army: a.name, risk: a.mutinyRisk, owner: a.owner });
+            global.GameEventBus.emit('army:mutinyRisk', { army: a.name, risk: a.mutinyRisk, owner: a.faction });
           }
         } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-three-systems-ext');}catch(_){}}
       } else if (a.mutinyRisk < 50 && a._mutinyTriggered) {
@@ -576,7 +588,7 @@
         return {
           name: a.name,
           commander: a.commander || '',
-          owner: a.owner || a.faction || '',
+          owner: a.faction || '',
           size: a.soldiers || a.size || 0,
           state: a.state || 'garrison',
           location: a.garrison || a.location || '',
@@ -866,8 +878,8 @@
         a.morale = Math.max(10, a.morale - 20);
         a.state = 'routed';
       }
-      if (a && a.owner) {
-        var f = (GM.facs||[]).find(function(x){return x.name === a.owner;});
+      if (a && a.faction) {
+        var f = (GM.facs||[]).find(function(x){return x.name === a.faction;});
         if (f) {
           f.strength = Math.max(0, (f.strength||0) - 10);
           f.legitimacy = Math.max(0, (f.legitimacy||0) - 5);
@@ -1009,7 +1021,7 @@
     } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-three-systems-ext');}catch(_){}}
     if (!sc || !Array.isArray(sc.openingLetters) || sc.openingLetters.length === 0) { GM._openingLettersActivated = true; return; }
     if (!Array.isArray(GM.letters)) GM.letters = [];
-    var _days = (P.time && P.time.daysPerTurn) || 30;
+    var _days = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : ((P.time && P.time.daysPerTurn) || 30);
     sc.openingLetters.forEach(function(tpl) {
       if (!tpl || !tpl.from) return;
       // 若此信已存在(按 from+subjectLine 去重)则跳过

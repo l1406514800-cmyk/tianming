@@ -382,12 +382,9 @@ function setValueByPath(path, value) {
  */
 function getCurrentYear() {
   if (!P.time) return 0;
-  var tpy = 4; // turns per year
-  if (P.time.perTurn === "1y") tpy = 1;
-  else if (P.time.perTurn === "1m") tpy = 12;
-  else if (P.time.perTurn === "1s") tpy = 4;
-
-  var yearOffset = Math.floor((GM.turn - 1) / tpy);
+  if (typeof calcDateFromTurn === 'function') return calcDateFromTurn(GM.turn || 1).adYear;
+  var dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
+  var yearOffset = Math.floor(((GM.turn || 1) - 1) * dpv / 365);
   return (P.time.year || 0) + yearOffset;
 }
 
@@ -396,14 +393,8 @@ function getCurrentYear() {
  */
 function getCurrentMonth() {
   if (!P.time) return 1;
-  if (P.time.perTurn === "1y") return 1;
-  if (P.time.perTurn === "1s") {
-    var season = ((GM.turn - 1) % 4);
-    return season * 3 + 1; // 春1月，夏4月，秋7月，冬10月
-  }
-  if (P.time.perTurn === "1m") {
-    var monthOffset = (GM.turn - 1) % 12;
-    return ((P.time.startMonth || 1) - 1 + monthOffset) % 12 + 1;
-  }
-  return 1;
+  if (typeof calcDateFromTurn === 'function') return calcDateFromTurn(GM.turn || 1).solarMonth;
+  var dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
+  var monthOffset = Math.floor((((GM.turn || 1) - 1) * dpv) / 30);
+  return ((P.time.startMonth || 1) - 1 + monthOffset) % 12 + 1;
 }

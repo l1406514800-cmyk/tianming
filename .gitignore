@@ -45,6 +45,10 @@ tools/smoke-fiscal-three-numbers.js
 tools/smoke-pre-endturn-save.js
 tools/smoke-save-name-and-double.js
 
+# 一次性 asset 处理工具 (alpha 处理图片等·非生产)
+preview/img/_remove-white-bg.js
+data/maps/tianqi-ming2/tianqi-ming2.preview-data.js
+
 # Phase 9.1 模型预打包·Electron 打包前下载（23 MB）·勿入仓库
 vendor/models/Xenova/
 !vendor/models/README.md

@@ -1,0 +1,1019 @@
+// @ts-check
+/// <reference path="types.d.ts" />
+/*
+ * tm-faction-npc-llm-decision.js — LLM 接管 NPC 决策 (Phase G·2026-05-10)
+ *
+ * 替代 F4 enrich (cosmetic 润色) — LLM 真做决策·代码 apply 副作用。
+ *
+ * 流程:
+ *   1. buildPrompt(fac, state)·拼上下文 (派生数据 + chars + 派系 + 近事)
+ *   2. callLLM·返回 structured JSON (NpcTurnDecision)
+ *   3. validateDecision·schema 检查·失败丢弃 → fallback 模板
+ *   4. applyDecision(fac, decision)·按 schema 应用副作用·写 trajectory
+ *
+ * Decision schema (LLM 输出):
+ * {
+ *   "rationale": "ruler 此回合考量 (50-150 字·解释为什么这么决策)",
+ *   "memorials": [
+ *     { "from": "char.name", "type": "军务/政务/民生/经济/人事/密奏",
+ *       "content": "奏疏内容 (60-120 字·古文)",
+ *       "rulerDecision": "approved/rejected/annotated/referred",
+ *       "ruling": "朱批 (10-30 字)",
+ *       "loyaltyDelta": -5..+5 }
+ *   ],
+ *   "edict": {
+ *     "type": "催征/补饷/安抚/赏赐/巡抚/经略/...",
+ *     "content": "诏令 (60-120 字·古文)",
+ *     "trigger": "财政危/军权弱/...",
+ *     "treasuryDelta": -500000..+500000,
+ *     "loyaltyDeltas": { "court": -10..+10, "general": ..., "clan": ... }
+ *   },
+ *   "chaoyi": {
+ *     "type": "cooperate/attack/compromise/infight/null",
+ *     "summary": "朝议简述 (20-50 字)",
+ *     "partyImbalanceDelta": -0.2..+0.2,
+ *     "loyaltyDeltaByParty": { "partyA": -5..+5, ... }
+ *   },
+ *   "office": [
+ *     { "kind": "promote/demote", "target": "char.name", "newPosition": "...",
+ *       "loyaltyDelta": -10..+10, "reason": "..." }
+ *   ]
+ * }
+ *
+ * 与 F4 区别·F4 是 cosmetic·G 是 mechanic。
+ * G 启用时·F4 自动失效 (G 决策已含 content)。
+ */
+(function(global) {
+  'use strict';
+
+  function _safeNum(v) { return (typeof v === 'number' && isFinite(v)) ? v : 0; }
+  function _clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+  function _isEnabled() {
+    if (!global.TM || !global.TM.FactionNpcSettings) return false;
+    return global.TM.FactionNpcSettings.isAiPrecisionEnabled();
+  }
+
+  function _classifyChar(c) {
+    if (global.TM && global.TM.FactionNpcMemorial && global.TM.FactionNpcMemorial._classifyChar) {
+      return global.TM.FactionNpcMemorial._classifyChar(c);
+    }
+    return 'other';
+  }
+
+  function _txt(v, max) {
+    if (v == null) return '';
+    var s = '';
+    if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') s = String(v);
+    else if (typeof v === 'object') s = String(v.content || v.text || v.summary || v.event || v.desc || v.description || v.name || JSON.stringify(v));
+    s = s.replace(/\s+/g, ' ').trim();
+    if (max && s.length > max) return s.slice(0, max) + '...';
+    return s;
+  }
+
+  function _arr(v) { return Array.isArray(v) ? v : []; }
+  function _tail(a, n) { a = _arr(a); return a.slice(Math.max(0, a.length - n)); }
+  function _head(a, n) { a = _arr(a); return a.slice(0, n); }
+
+  function _pushSection(lines, title, bodyLines) {
+    bodyLines = _arr(bodyLines).filter(function(x){ return !!x; });
+    if (bodyLines.length > 0) {
+      lines.push('\n[' + title + ']');
+      bodyLines.forEach(function(x){ lines.push(x); });
+    }
+  }
+
+  function _fmtTurn(o) {
+    return 'T' + ((o && o.turn != null) ? o.turn : ((global.GM && global.GM.turn) || '?'));
+  }
+
+  function _currentTurn() {
+    return _safeNum(global.GM && global.GM.turn) || 1;
+  }
+
+  function _ledgerEnabled(opts) {
+    return !!(opts && (opts.source === 'eager' || opts.source === 'in-turn'));
+  }
+
+  function _ensureLedger(turn) {
+    if (!global.GM) return null;
+    turn = _safeNum(turn) || _currentTurn();
+    if (!global.GM._npcFactionLlmLedger || global.GM._npcFactionLlmLedger.turn !== turn) {
+      global.GM._npcFactionLlmLedger = { turn: turn, runs: {}, order: [] };
+    }
+    if (!global.GM._npcFactionLlmLedger.runs) global.GM._npcFactionLlmLedger.runs = {};
+    if (!Array.isArray(global.GM._npcFactionLlmLedger.order)) global.GM._npcFactionLlmLedger.order = [];
+    return global.GM._npcFactionLlmLedger;
+  }
+
+  function _readLedger(turn) {
+    if (!global.GM || !global.GM._npcFactionLlmLedger) return null;
+    turn = _safeNum(turn) || _currentTurn();
+    return global.GM._npcFactionLlmLedger.turn === turn ? global.GM._npcFactionLlmLedger : null;
+  }
+
+  function hasRunThisTurn(facName, turn) {
+    var ledger = _readLedger(turn);
+    if (!ledger || !ledger.runs || !ledger.runs[facName]) return false;
+    var row = ledger.runs[facName];
+    return row.status === 'pending' || row.status === 'applied' || row.status === 'failed' || row.status === 'skipped';
+  }
+
+  function countRunsThisTurn(turn) {
+    var ledger = _readLedger(turn);
+    if (!ledger || !ledger.runs) return 0;
+    return Object.keys(ledger.runs).filter(function(name){
+      var row = ledger.runs[name];
+      return row && (row.status === 'pending' || row.status === 'applied' || row.status === 'failed' || row.status === 'skipped');
+    }).length;
+  }
+
+  function _beginLedgerRun(facName, opts) {
+    if (!_ledgerEnabled(opts)) return { ok: true, token: null };
+    var runTurn = _safeNum(opts.turn) || _currentTurn();
+    var nowTurn = _currentTurn();
+    if (runTurn !== nowTurn) {
+      return { ok: false, reason: 'stale turn', turn: runTurn, currentTurn: nowTurn };
+    }
+    if (hasRunThisTurn(facName, runTurn)) {
+      return { ok: false, reason: 'already run this turn', turn: runTurn };
+    }
+    var ledger = _ensureLedger(runTurn);
+    var token = {
+      id: facName + ':' + runTurn + ':' + (opts.source || 'auto') + ':' + Date.now(),
+      fac: facName,
+      turn: runTurn,
+      source: opts.source || 'auto'
+    };
+    ledger.runs[facName] = {
+      fac: facName,
+      turn: runTurn,
+      source: token.source,
+      status: 'pending',
+      startedAt: Date.now(),
+      token: token.id
+    };
+    ledger.order.push(facName);
+    return { ok: true, token: token };
+  }
+
+  function _isLedgerTokenStale(token) {
+    return !!(token && token.turn !== _currentTurn());
+  }
+
+  function _finishLedgerRun(token, status, reason) {
+    if (!token) return;
+    var ledger = _readLedger(token.turn);
+    if (!ledger || !ledger.runs || !ledger.runs[token.fac]) return;
+    var row = ledger.runs[token.fac];
+    if (row.token !== token.id) return;
+    row.status = status || row.status || 'skipped';
+    row.finishedAt = Date.now();
+    if (reason) row.reason = reason;
+  }
+
+  function _formatRecentWorld(facName) {
+    var lines = [];
+    var G = global.GM || {};
+    _tail(G.shijiHistory, 4).forEach(function(s){
+      var parts = [];
+      if (s.szjTitle) parts.push(_txt(s.szjTitle, 40));
+      if (s.turnSummary) parts.push(_txt(s.turnSummary, 100));
+      if (s.shizhengji) parts.push('政:' + _txt(s.shizhengji, 180));
+      if (s.zhengwen) parts.push('文:' + _txt(s.zhengwen, 160));
+      if (parts.length) lines.push('  ' + _fmtTurn(s) + ' ' + parts.join(' / '));
+    });
+    _head(G.qijuHistory, 8).forEach(function(q){
+      var txt = _txt(q.content || q.text || q.zhengwen || q.xinglu || q, 160);
+      if (!txt) return;
+      var related = !facName || txt.indexOf(facName) >= 0 || lines.length < 4;
+      if (related) lines.push('  ' + _fmtTurn(q) + ' 近事:' + txt);
+    });
+    var ai = G._turnAiResults || G._lastAiResult || G._lastAIResult || null;
+    if (ai) {
+      var aiTxt = _txt(ai.turnSummary || ai.shizhengji || ai.zhengwen || ai, 240);
+      if (aiTxt) lines.push('  当前主推演残影:' + aiTxt);
+    }
+    var endturnCtx = G._lastEndturnAiContext || null;
+    if (endturnCtx && endturnCtx.aiResult) {
+      var ar = endturnCtx.aiResult;
+      var arTxt = _txt(ar.turnSummary || ar.shizhengji || ar.zhengwen || ar.shiluText || ar, 260);
+      if (arTxt) lines.push('  本回合主AI推演:' + arTxt);
+    }
+    return lines;
+  }
+
+  function _formatPlayerRecent() {
+    var lines = [];
+    var G = global.GM || {};
+    var latest = _tail(G.shijiHistory, 1)[0] || {};
+    var endturnCtx = G._lastEndturnAiContext || null;
+    if (endturnCtx) {
+      if (Array.isArray(endturnCtx.edicts)) {
+        endturnCtx.edicts.slice(0, 8).forEach(function(e, i){ lines.push('  本回合诏' + (i + 1) + ': ' + _txt(e, 180)); });
+      } else if (endturnCtx.edicts) {
+        lines.push('  本回合诏: ' + _txt(endturnCtx.edicts, 240));
+      }
+      if (endturnCtx.xinglu) lines.push('  本回合行录: ' + _txt(endturnCtx.xinglu, 180));
+    }
+    var edicts = latest.edicts || latest.edict || latest.playerEdicts || null;
+    if (Array.isArray(edicts)) {
+      edicts.slice(0, 6).forEach(function(e, i){ lines.push('  诏' + (i + 1) + ': ' + _txt(e, 160)); });
+    } else if (edicts) {
+      lines.push('  诏: ' + _txt(edicts, 220));
+    }
+    if (latest.xinglu) lines.push('  行止: ' + _txt(latest.xinglu, 180));
+    _tail(G.edicts, 5).forEach(function(e){
+      var txt = _txt(e.text || e.content || e, 160);
+      if (txt) lines.push('  御批记录: ' + txt);
+    });
+    _head(G.qijuHistory, 8).forEach(function(q){
+      if (q && q.xinglu) lines.push('  近行: ' + _txt(q.xinglu, 140));
+    });
+    return lines;
+  }
+
+  function _formatFactionTrajectory(fac) {
+    var lines = [];
+    _tail(fac.npcMemorials, 4).forEach(function(m){
+      lines.push('  奏疏 ' + _fmtTurn(m) + ' [' + (m.type || '?') + '/' + (m.status || '?') + '] ' + (m.from || '') + ': ' + _txt(m.content, 140));
+    });
+    _tail(fac.npcEdicts, 4).forEach(function(e){
+      lines.push('  诏令 ' + _fmtTurn(e) + ' [' + (e.type || '?') + '/' + (e.trigger || '?') + '] ' + _txt(e.content, 140));
+    });
+    _tail(fac.npcChaoyi, 4).forEach(function(c){
+      lines.push('  朝议 ' + _fmtTurn(c) + ' [' + (c.type || '?') + '] ' + _txt(c.summary, 120));
+    });
+    _tail(fac.npcOfficeActions, 4).forEach(function(o){
+      lines.push('  官事 ' + _fmtTurn(o) + ' ' + (o.action || o.kind || '?') + ' ' + (o.target || '') + ' ' + _txt(o.reason, 100));
+    });
+    _tail(fac.npcFiscalLedger, 4).forEach(function(l){
+      lines.push('  财计 ' + _fmtTurn(l) + (l.crisis ? ' 危机' : '') + ' 压力' + (l.stress != null ? l.stress : (l.fiscalStress != null ? l.fiscalStress : '?')) + ' ' + _txt(l.summary || l.note, 100));
+    });
+    if (fac._lastLlmRationale && fac._lastLlmRationale.text) {
+      lines.push('  上次君主考量: ' + _txt(fac._lastLlmRationale.text, 180));
+    }
+    return lines;
+  }
+
+  function _mentionsFac(obj, facName) {
+    if (!facName) return false;
+    return _txt(obj, 900).indexOf(facName) >= 0;
+  }
+
+  function _formatSc16DirectiveForFac(fac) {
+    var lines = [];
+    var G = global.GM || {};
+    var sc16 = G._turnAiResults && G._turnAiResults.subcall16;
+    if (!sc16 || !fac || !fac.name) return lines;
+
+    if (sc16.power_balance_shift) lines.push('  sc16 world balance: ' + _txt(sc16.power_balance_shift, 180));
+    if (sc16.territorial_changes) lines.push('  sc16 territory: ' + _txt(sc16.territorial_changes, 160));
+
+    _arr(sc16.faction_actions).filter(function(a) {
+      return a && (
+        a.faction === fac.name || a.actor === fac.name || a.from === fac.name ||
+        a.target === fac.name || a.targetFaction === fac.name || _mentionsFac(a, fac.name)
+      );
+    }).slice(0, 6).forEach(function(a) {
+      var who = a.faction || a.actor || a.from || fac.name;
+      var target = a.target || a.targetFaction || a.to || '';
+      lines.push('  sc16 action: ' + who + (target ? '->' + target : '') + ' ' + _txt(a.action || a.move || a.intent, 160)
+        + (a.motive ? ' | motive:' + _txt(a.motive, 90) : '')
+        + (a.impact ? ' | impact:' + _txt(a.impact, 90) : ''));
+    });
+
+    _arr(sc16.diplomatic_shifts).filter(function(d) {
+      return d && (d.from === fac.name || d.to === fac.name || _mentionsFac(d, fac.name));
+    }).slice(0, 6).forEach(function(d) {
+      lines.push('  sc16 diplomacy: ' + (d.from || '?') + '->' + (d.to || '?') + ' '
+        + _txt(d.old_relation || '', 40) + '=>' + _txt(d.new_relation || d.type || '', 60)
+        + (d.reason ? ' | reason:' + _txt(d.reason, 100) : ''));
+    });
+
+    if (lines.length > 0) {
+      lines.push('  sc16 continuity rule: sc16 is the current-turn world-level directive; faction precision may refine, explain, or add local details, but should not reverse it without a clear sudden cause in rationale.');
+    }
+    return lines;
+  }
+
+  function _formatFactionProfile(fac) {
+    if (!fac) return [];
+    var lines = [];
+    var profile = fac.aiProfile || {};
+    if (fac.goal) lines.push('  goal: ' + _txt(fac.goal, 140));
+    if (fac.strategy) lines.push('  strategy: ' + _txt(fac.strategy, 240));
+    if (fac.longTermStrategy) lines.push('  longTerm: ' + _txt(fac.longTermStrategy, 220));
+    if (fac.personality) lines.push('  factionPersonality: ' + _txt(fac.personality, 140));
+    if (profile.posture) lines.push('  posture: ' + _txt(profile.posture, 180));
+    if (profile.decisionStyle) lines.push('  decisionStyle: ' + _txt(profile.decisionStyle, 200));
+    if (profile.riskTolerance) lines.push('  riskTolerance: ' + _txt(profile.riskTolerance, 120));
+    if (profile.playerVisibleTheme) lines.push('  visibleTheme: ' + _txt(profile.playerVisibleTheme, 160));
+    if (Array.isArray(fac.strategicPriorities) && fac.strategicPriorities.length) {
+      lines.push('  priorities: ' + fac.strategicPriorities.slice(0, 6).map(function(x){ return _txt(x, 70); }).join(' / '));
+    }
+    if (Array.isArray(fac.decisionHints) && fac.decisionHints.length) {
+      lines.push('  decisionHints: ' + fac.decisionHints.slice(0, 6).map(function(x){ return _txt(x, 90); }).join(' / '));
+    }
+    if (Array.isArray(fac.openingProblems) && fac.openingProblems.length) {
+      lines.push('  openingProblems: ' + fac.openingProblems.slice(0, 5).map(function(x){ return _txt(x, 90); }).join(' / '));
+    }
+    if (Array.isArray(fac.tabooMoves) && fac.tabooMoves.length) {
+      lines.push('  tabooMoves: ' + fac.tabooMoves.slice(0, 4).map(function(x){ return _txt(x, 80); }).join(' / '));
+    }
+    if (Array.isArray(fac.strengths) && fac.strengths.length) lines.push('  strengths: ' + fac.strengths.slice(0, 6).join(' / '));
+    if (Array.isArray(fac.weaknesses) && fac.weaknesses.length) lines.push('  weaknesses: ' + fac.weaknesses.slice(0, 6).join(' / '));
+    if (fac.warState) lines.push('  warState: ' + _txt(fac.warState, 220));
+    if (fac.economicPolicy) lines.push('  economicPolicy: ' + _txt(fac.economicPolicy, 180));
+    if (fac.leaderInfo) lines.push('  leaderInfo: ' + _txt(fac.leaderInfo, 180));
+    return lines;
+  }
+
+  function _formatPrecisionNewsForFac(fac, limit) {
+    var G = global.GM || {};
+    var lines = [];
+    _arr(G.qijuHistory).filter(function(q) {
+      if (!q) return false;
+      var src = q._source || '';
+      var isPrecision = src === 'npc-in-turn-llm' || src === 'npc-bridge' || src === 'faction-npc-llm';
+      if (!isPrecision) return false;
+      if (q._facName && q._facName !== fac.name) return false;
+      return q._facName === fac.name || _mentionsFac(q, fac.name);
+    }).slice(0, limit || 6).forEach(function(q) {
+      lines.push('    qiju ' + _fmtTurn(q) + ' source=' + (q._source || '?') + ' ' + _txt(q.content || q.text || q.zhengwen || q, 180));
+    });
+    return lines;
+  }
+
+  function buildRecentTrajectoryContextForSc16(opts) {
+    opts = opts || {};
+    var G = global.GM || {};
+    var playerFacName = (global.P && global.P.playerInfo && global.P.playerInfo.factionName) || '';
+    var maxFactions = Math.max(1, opts.maxFactions || 12);
+    var maxChars = Math.max(1000, opts.maxChars || 6000);
+    var rows = _arr(G.facs).filter(function(f){ return f && f.name && !f.isPlayer && f.name !== playerFacName; }).map(function(f) {
+      var traj = _formatFactionTrajectory(f);
+      var news = _formatPrecisionNewsForFac(f, 5);
+      var strength = (f.derivedStrength && f.derivedStrength.value) || f.strength || 0;
+      return { fac: f, traj: traj, news: news, score: traj.length * 10 + news.length * 12 + strength / 20 };
+    }).filter(function(r){ return r.traj.length > 0 || r.news.length > 0; }).sort(function(a, b){ return b.score - a.score; }).slice(0, maxFactions);
+
+    if (rows.length === 0) return '';
+    var lines = [];
+    lines.push('\n[FACTION_PRECISION_HISTORY]');
+    lines.push('  These are previous faction precision simulations: endturn batch records, post-endturn news bridge entries, and in-turn precision news. sc16 should treat them as established faction trajectories unless a new global reason forces a turn.');
+    rows.forEach(function(r) {
+      lines.push('  faction: ' + r.fac.name);
+      r.traj.slice(-8).forEach(function(x){ lines.push('  ' + x); });
+      r.news.forEach(function(x){ lines.push('  ' + x); });
+    });
+    var out = lines.join('\n');
+    if (out.length > maxChars) out = out.slice(0, maxChars) + '\n  ...[FACTION_PRECISION_HISTORY_TRUNCATED]';
+    return out;
+  }
+
+  function _adminHierarchySources() {
+    var G = global.GM || {};
+    var P0 = global.P || {};
+    var out = [];
+    if (G.adminHierarchy && typeof G.adminHierarchy === 'object') out.push({ name: 'GM.adminHierarchy', data: G.adminHierarchy });
+    if (P0.adminHierarchy && typeof P0.adminHierarchy === 'object') out.push({ name: 'P.adminHierarchy', data: P0.adminHierarchy });
+    return out;
+  }
+
+  function _facKeys(fac) {
+    return [fac && fac.name, fac && fac.id, fac && fac.factionId, fac && fac.key].filter(function(x){ return x != null && String(x).trim(); }).map(function(x){ return String(x); });
+  }
+
+  function _matchesAny(v, keys) {
+    if (v == null) return false;
+    return keys.indexOf(String(v)) >= 0;
+  }
+
+  function _divisionOwnerValue(d) {
+    if (!d || typeof d !== 'object') return null;
+    var fields = ['currentFaction', 'currentOwner', 'controllerFaction', 'controller', 'ownerFactionName', 'ownerFaction', 'dejureOwner', 'factionName', 'factionId', 'faction', 'owner', 'heldBy'];
+    for (var i = 0; i < fields.length; i++) {
+      if (d[fields[i]] != null && d[fields[i]] !== '') return d[fields[i]];
+    }
+    return null;
+  }
+
+  function _walkDivisions(divs, cb) {
+    _arr(divs).forEach(function(d) {
+      if (!d || typeof d !== 'object') return;
+      cb(d);
+      if (Array.isArray(d.children) && d.children.length) _walkDivisions(d.children, cb);
+    });
+  }
+
+  function _collectOwnedDivisions(ah, fac) {
+    var keys = _facKeys(fac);
+    var owned = [];
+    if (!ah || !keys.length) return owned;
+    Object.keys(ah).forEach(function(k) {
+      var tree = ah[k] || {};
+      _walkDivisions(tree.divisions, function(d) {
+        var ov = _divisionOwnerValue(d);
+        if (_matchesAny(ov, keys)) owned.push(d);
+      });
+    });
+    return owned;
+  }
+
+  function _mergeDivisions(a, b) {
+    var out = [];
+    var seen = {};
+    function keyOf(d) { return String((d && (d.id || d.name)) || Math.random()); }
+    _arr(a).concat(_arr(b)).forEach(function(d) {
+      if (!d) return;
+      var k = keyOf(d);
+      if (seen[k]) return;
+      seen[k] = true;
+      out.push(d);
+    });
+    return out;
+  }
+
+  function _treeMatchesFac(tree, key, fac) {
+    var keys = _facKeys(fac);
+    return _matchesAny(key, keys)
+      || _matchesAny(tree && tree.factionName, keys)
+      || _matchesAny(tree && tree.factionId, keys)
+      || _matchesAny(tree && tree.name, keys);
+  }
+
+  function _findAdminTreeForFac(fac) {
+    var sources = _adminHierarchySources();
+    for (var si = 0; si < sources.length; si++) {
+      var src = sources[si];
+      var ah = src.data;
+      var owned = _collectOwnedDivisions(ah, fac);
+      var keys = Object.keys(ah || {});
+      var matched = null;
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        var tree = ah[k] || {};
+        if (!_treeMatchesFac(tree, k, fac)) continue;
+        var facKeys = _facKeys(fac);
+        var divs = _arr(tree.divisions).filter(function(d) {
+          var ov = _divisionOwnerValue(d);
+          return ov == null || _matchesAny(ov, facKeys);
+        });
+        matched = { source: src.name, key: k, tree: Object.assign({}, tree, { divisions: divs }) };
+        break;
+      }
+      if (owned.length > 0) {
+        var merged = matched ? _mergeDivisions(matched.tree.divisions, owned) : owned;
+        return { source: src.name, key: matched ? matched.key + '+owned-runtime' : 'owned-runtime', tree: Object.assign({}, matched ? matched.tree : { factionName: fac && fac.name }, { divisions: merged }) };
+      }
+      if (matched) return matched;
+    }
+    return null;
+  }
+
+  function _fmtAmount(n) {
+    n = Number(n || 0);
+    if (!isFinite(n) || n === 0) return '0';
+    if (Math.abs(n) >= 100000000) return Math.round(n / 10000000) / 10 + '亿';
+    if (Math.abs(n) >= 10000) return Math.round(n / 1000) / 10 + '万';
+    return String(Math.round(n));
+  }
+
+  function _pickNum() {
+    for (var i = 0; i < arguments.length; i++) {
+      var n = Number(arguments[i]);
+      if (isFinite(n) && n !== 0) return n;
+    }
+    return 0;
+  }
+
+  function _stock(obj, key) {
+    if (!obj) return 0;
+    if (typeof obj[key] === 'number') return obj[key];
+    if (obj[key] && typeof obj[key].stock === 'number') return obj[key].stock;
+    return 0;
+  }
+
+  function _truthyKeys(obj, max) {
+    if (!obj || typeof obj !== 'object') return [];
+    return Object.keys(obj).filter(function(k){ return !!obj[k]; }).slice(0, max || 6);
+  }
+
+  function _formatAdminDivisionLine(d, idx) {
+    var pop = d.populationDetail || {};
+    var popMouths = _pickNum(pop.mouths, d.population && d.population.mouths, typeof d.population === 'number' ? d.population : 0, d.mouths);
+    var households = _pickNum(pop.households, d.households);
+    var fugitives = _pickNum(pop.fugitives, d.fugitives);
+    var fiscal = d.fiscalDetail || d.fiscal || {};
+    var treasury = d.publicTreasury || d.publicTreasuryInit || {};
+    var parts = [];
+    parts.push((idx != null ? (idx + 1) + '. ' : '') + _txt(d.name || d.id || '未命名区划', 48));
+    if (d.level || d.regionType) parts.push('level=' + _txt([d.level, d.regionType].filter(Boolean).join('/'), 28));
+    if (d.officialPosition || d.governor) parts.push('office=' + _txt([d.officialPosition, d.governor].filter(Boolean).join('/'), 42));
+    if (d.terrain) parts.push('terrain=' + _txt(d.terrain, 30));
+    if (d.specialResources) parts.push('res=' + _txt(d.specialResources, 54));
+    if (popMouths || households || fugitives) {
+      parts.push('pop=口' + _fmtAmount(popMouths) + (households ? '/户' + _fmtAmount(households) : '') + (fugitives ? '/流亡' + _fmtAmount(fugitives) : ''));
+    }
+    var money = _pickNum(_stock(treasury, 'money'), treasury.money);
+    var grain = _pickNum(_stock(treasury, 'grain'), treasury.grain);
+    var cloth = _pickNum(_stock(treasury, 'cloth'), treasury.cloth);
+    if (money || grain || cloth) parts.push('treasury=银' + _fmtAmount(money) + '/粮' + _fmtAmount(grain) + '/布' + _fmtAmount(cloth));
+    if (fiscal.actualRevenue || fiscal.remittedToCenter || fiscal.retainedBudget || fiscal.claimedRevenue) {
+      parts.push('fiscal=应' + _fmtAmount(fiscal.claimedRevenue) + '/实' + _fmtAmount(fiscal.actualRevenue) + '/上解' + _fmtAmount(fiscal.remittedToCenter) + '/留' + _fmtAmount(fiscal.retainedBudget));
+    }
+    if (d.minxinLocal != null || d.minxin != null) parts.push('minxin=' + (d.minxinLocal != null ? d.minxinLocal : d.minxin));
+    if (d.corruptionLocal != null || d.corruption != null) parts.push('corruption=' + (d.corruptionLocal != null ? d.corruptionLocal : d.corruption));
+    var tags = _truthyKeys(d.tags, 5);
+    if (tags.length) parts.push('tags=' + tags.join('/'));
+    if (Array.isArray(d.tradeRoutes) && d.tradeRoutes.length) parts.push('routes=' + d.tradeRoutes.slice(0, 3).map(function(x){ return _txt(x, 22); }).join('/'));
+    if (Array.isArray(d.threats) && d.threats.length) parts.push('threats=' + d.threats.slice(0, 3).map(function(x){ return _txt(x, 24); }).join('/'));
+    if (d.description) parts.push('desc=' + _txt(d.description, 92));
+    return '  ' + parts.join(' | ');
+  }
+
+  function _formatOwnAdminHierarchy(fac, opts) {
+    opts = opts || {};
+    var found = _findAdminTreeForFac(fac);
+    if (!found || !found.tree || !_arr(found.tree.divisions).length) return [];
+    var maxDivisions = Math.max(1, opts.maxDivisions || 8);
+    var divs = _arr(found.tree.divisions).slice(0, maxDivisions);
+    var lines = [];
+    lines.push('  Current own province-level territory ledger, source=' + found.source + '/' + found.key + '. Must treat it as current map state; if later turns changed territory, this runtime ledger overrides opening scenario land.');
+    lines.push('  faction=' + (fac && fac.name || found.tree.factionName || '?') + ' provinceCount=' + _arr(found.tree.divisions).length);
+    divs.forEach(function(d, i){ lines.push(_formatAdminDivisionLine(d, i)); });
+    if (_arr(found.tree.divisions).length > divs.length) lines.push('  ... ' + (_arr(found.tree.divisions).length - divs.length) + ' more divisions omitted');
+    return lines;
+  }
+
+  function buildFactionAdminSummaryForSc16(opts) {
+    opts = opts || {};
+    var G = global.GM || {};
+    var playerFacName = (global.P && global.P.playerInfo && global.P.playerInfo.factionName) || '';
+    var maxFactions = Math.max(1, opts.maxFactions || 16);
+    var maxChars = Math.max(1000, opts.maxChars || 8000);
+    var rows = _arr(G.facs).filter(function(f){ return f && f.name && !f.isPlayer && f.name !== playerFacName; }).slice(0, maxFactions);
+    var lines = [];
+    lines.push('\n[FACTION_ADMIN_HIERARCHY]');
+    lines.push('  Current runtime province-level territory ledger for non-player factions. Use this as the map board when reasoning about expansion, defense, logistics, tax base, and diplomacy. If territory changed this turn, trust GM.adminHierarchy over scenario opening data.');
+    rows.forEach(function(f) {
+      var own = _formatOwnAdminHierarchy(f, { maxDivisions: opts.maxDivisions || 4 });
+      if (!own.length) return;
+      lines.push('  faction: ' + f.name);
+      own.slice(1).forEach(function(x){ lines.push('  ' + x); });
+    });
+    if (lines.length <= 2) return '';
+    var out = lines.join('\n');
+    if (out.length > maxChars) out = out.slice(0, maxChars) + '\n  ...[FACTION_ADMIN_HIERARCHY_TRUNCATED]';
+    return out;
+  }
+
+  function _formatRelationsAndWars(fac) {
+    var lines = [];
+    var G = global.GM || {};
+    _arr(G.factionRelations).filter(function(r){
+      return r && (r.from === fac.name || r.to === fac.name);
+    }).slice(0, 10).forEach(function(r){
+      lines.push('  关系 ' + r.from + '→' + r.to + ' ' + (r.type || '') + '(' + (r.value != null ? r.value : 0) + ') ' + _txt(r.desc, 120));
+    });
+    _arr(G.activeWars).filter(function(w){
+      var t = _txt(w, 300);
+      var sides = _arr(w.sides).join('|');
+      return t.indexOf(fac.name) >= 0 || sides.indexOf(fac.name) >= 0;
+    }).slice(0, 5).forEach(function(w){
+      lines.push('  战事 ' + _txt(w.name || w.title || '未名战事', 60) + ' ' + _txt(w.status || w.phase || w, 160));
+    });
+    _arr(G.treaties).filter(function(t){ return _txt(t, 260).indexOf(fac.name) >= 0; }).slice(0, 4).forEach(function(t){
+      lines.push('  条约 ' + _txt(t, 180));
+    });
+    _arr(G.battleHistory).slice(-4).forEach(function(b){
+      var txt = _txt(b, 200);
+      if (txt.indexOf(fac.name) >= 0) lines.push('  近战 ' + txt);
+    });
+    return lines;
+  }
+
+  function _formatMilitaryContext(fac) {
+    var G = global.GM || {};
+    var names = [fac.name, fac.id, fac.factionId].filter(function(x){ return !!x; });
+    var lines = [];
+    _arr(G.armies).filter(function(a){
+      var owner = a.faction || a.ownerFaction || a.owner || a.factionName || a.side || '';
+      return names.indexOf(owner) >= 0 || _txt(a, 260).indexOf(fac.name) >= 0;
+    }).slice(0, 8).forEach(function(a){
+      lines.push('  军 ' + _txt(a.name || a.id || '无名军', 50)
+        + ' 兵' + (a.soldiers || a.troops || a.count || a.size || '?')
+        + ((a.location || a.garrison) ? ' 地:' + (a.location || a.garrison) : '')
+        + (a.morale != null ? ' 气:' + a.morale : ''));
+    });
+    if (fac.militaryBreakdown) lines.push('  军制: ' + _txt(fac.militaryBreakdown, 220));
+    if (fac.militaryStrength) lines.push('  标称军力: ' + _txt(fac.militaryStrength, 80));
+    return lines;
+  }
+
+  function _formatCharacterMemory(alive) {
+    var lines = [];
+    alive.slice(0, 12).forEach(function(c){
+      var parts = [];
+      if (Array.isArray(c._memory) && c._memory.length) {
+        parts.push('记:' + c._memory.slice(-2).map(function(m){ return _txt(m.event || m, 70); }).join('；'));
+      }
+      if (Array.isArray(c._scars) && c._scars.length) {
+        parts.push('伤:' + c._scars.slice(-1).map(function(s){ return _txt(s.event || s, 70); }).join('；'));
+      }
+      if (c._impressions) {
+        var imps = [];
+        Object.keys(c._impressions).slice(0, 4).forEach(function(k){
+          var imp = c._impressions[k] || {};
+          var favor = (typeof imp === 'number') ? imp : imp.favor;
+          if (favor != null && Math.abs(favor) >= 10) imps.push(k + ':' + favor);
+        });
+        if (imps.length) parts.push('人情:' + imps.join('/'));
+      }
+      if (parts.length) lines.push('  ' + c.name + '(' + _classifyChar(c) + '): ' + parts.join(' | '));
+    });
+    return lines;
+  }
+
+  function _formatWorldStatus(fac) {
+    var lines = [];
+    var G = global.GM || {};
+    var provinces = (typeof global.getFactionProvinces === 'function') ? global.getFactionProvinces(fac.name) : [];
+    if (provinces && provinces.length) lines.push('  治地: ' + provinces.slice(0, 12).join('、'));
+    _arr(G.currentIssues).slice(0, 6).forEach(function(i){ lines.push('  时局问题: ' + _txt(i.title || i.name || i, 120)); });
+    _arr(G.factionEvents).slice(-5).forEach(function(e){
+      var txt = _txt(e, 160);
+      if (!fac.name || txt.indexOf(fac.name) >= 0) lines.push('  势力事件: ' + txt);
+    });
+    if (G.eraState) lines.push('  天下态势: ' + _txt(G.eraState.contextDescription || G.eraState, 220));
+    return lines;
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Build prompt — 拼 fac state·让 LLM 全面理解再决策
+  // ──────────────────────────────────────────────────────────
+  function _buildPrompt(fac) {
+    var paradigm = (global.TM && global.TM.FactionParadigm) ? global.TM.FactionParadigm.detect(fac.name, fac) : 'generic';
+    var era = (global.P && (global.P.scenarioName || (global.P.playerInfo && global.P.playerInfo.era))) || '';
+    var turn = (global.GM && global.GM.turn) || 1;
+    var entry = (global.GM && global.GM._facIndex && global.GM._facIndex[fac.name]) || null;
+    var alive = (entry && entry.chars) ? entry.chars.filter(function(c){ return c.alive !== false; }) : [];
+    var ruler = alive.find(function(c){ return _classifyChar(c) === 'ruler'; }) || alive[0] || { name: '?' };
+
+    var dh = fac.derivedHealth || {};
+    var de = fac.derivedEconomy || {};
+    var dc = fac.derivedCohesion || {};
+    var ds = fac.derivedStrength || {};
+
+    var sys = '你是历史推演大师。模拟 NPC 势力一回合内政决策。';
+    sys += '\n背景: ' + era + '·第 ' + turn + ' 回合';
+    sys += '\n势力: ' + fac.name + ' (paradigm·' + paradigm + ')·主君·' + ruler.name + (ruler.position ? ' (' + ruler.position + ')' : '');
+    if (ruler.personality) sys += '\n主君人格: ' + ruler.personality;
+    if (ruler.behaviorMode) sys += '·行为·' + ruler.behaviorMode;
+    if (ruler.aiPersonaText) sys += '\n主君简介: ' + String(ruler.aiPersonaText).slice(0, 200);
+
+    sys += '\n\n势力派生状态:';
+    sys += '\n  实力 ' + (ds.value || 50) + '/' + (ds.label || '?');
+    sys += ' 健康 ' + (dh.overall || 50) + '/' + ((dh.labels && dh.labels.overall) || '?');
+    sys += ' 凝聚 ' + (dc.overall || 50) + '/' + ((dc.labels && dc.labels.overall) || '?');
+    sys += ' 财政压 ' + (de.fiscalStress || 0);
+    sys += '\n  4 健康分项: 朝堂 ' + (dh.courtCohesion || 50) + ' 军权 ' + (dh.militaryControl || 50) + ' 人事 ' + (dh.personnelHealth || 50) + ' 兵权 ' + (dh.militaryStability || 50);
+    if (de.netFlow != null) sys += '\n  财政: 年税 ' + (de.annualTaxIncome || 0) + ' 军费 ' + (de.annualMilitaryCost || 0) + ' 净 ' + de.netFlow;
+
+    var parties = (entry && entry.parties) ? Object.keys(entry.parties) : [];
+    if (parties.length > 0) sys += '\n  派系: ' + parties.join('·') + ' (主导·' + ((entry.metrics && entry.metrics.partyDominantName) || '?') + ' 失衡·' + ((entry.metrics && entry.metrics.partyImbalance) || 0) + ')';
+
+    sys += '\n  治下 chars (上奏候选): ' + alive.slice(0, 6).map(function(c){
+      return c.name + '(' + _classifyChar(c) + (c.party ? '·' + c.party : '') + '·忠' + (c.loyalty || 50) + ')';
+    }).join('·');
+
+    var recentEdict = (Array.isArray(fac.npcEdicts) && fac.npcEdicts.length > 0) ? fac.npcEdicts[fac.npcEdicts.length - 1] : null;
+    if (recentEdict) sys += '\n  上回合诏: [' + recentEdict.type + '/' + recentEdict.trigger + ']';
+
+    var user = '请输出本回合该势力的内政决策·strict JSON·无 markdown·无注释。schema:\n';
+    var extra = [];
+    _pushSection(extra, 'RECENT_WORLD', _formatRecentWorld(fac.name));
+    _pushSection(extra, 'PLAYER_RECENT', _formatPlayerRecent());
+    _pushSection(extra, 'SCENARIO_FACTION_PROFILE', _formatFactionProfile(fac));
+    _pushSection(extra, 'OWN_ADMIN_HIERARCHY', _formatOwnAdminHierarchy(fac));
+    _pushSection(extra, 'SC16_WORLD_DIRECTIVE', _formatSc16DirectiveForFac(fac));
+    _pushSection(extra, 'FACTION_TRAJECTORY', _formatFactionTrajectory(fac));
+    _pushSection(extra, 'RELATIONS_AND_WARS', _formatRelationsAndWars(fac));
+    _pushSection(extra, 'MILITARY_CONTEXT', _formatMilitaryContext(fac));
+    _pushSection(extra, 'CHAR_MEMORY', _formatCharacterMemory(alive));
+    _pushSection(extra, 'WORLD_STATUS', _formatWorldStatus(fac));
+    if (extra.length > 0) {
+      sys += '\n\nAI_DECISION_CONTEXT:';
+      sys += extra.join('\n');
+      sys += '\n以上情报均为势力本回合决策依据：优先尊重近事、史记、玩家诏令、势力旧账、战事关系与人物记忆；不要只按当前数值面板机械出招。';
+    }
+
+    user += '{\n';
+    user += '  "rationale": "主君考量·50-150 字",\n';
+    user += '  "memorials": [{"from":"char.name","type":"军务|政务|民生|经济|人事|密奏","content":"奏疏 60-120 字","rulerDecision":"approved|rejected|annotated|referred","ruling":"朱批 10-30 字","loyaltyDelta":-5至5}, ...0-3 条],\n';
+    user += '  "edict": {"type":"催征|减俸|补饷|整军|安抚|罢党争|怀柔|赏赐|巡抚|经略","content":"诏令 60-120 字","trigger":"财政危|军权弱|朝堂裂|稳定·示恩|...","treasuryDelta":-500000至500000,"loyaltyDeltas":{"court":-10至10,"general":0,"clan":0}},\n';
+    user += '  "chaoyi": {"type":"cooperate|attack|compromise|infight|null (单派则 null)","summary":"20-50 字","partyImbalanceDelta":-0.2至0.2,"loyaltyDeltaByParty":{"partyA":-5至5}},\n';
+    user += '  "office": [{"kind":"promote|demote","target":"char.name","newPosition":"按 paradigm 头衔","loyaltyDelta":-10至10,"reason":"..."}, ...0-1 条]\n';
+    user += '}\n';
+    user += '约束: type/decision/kind 必须是给定 enum·content 必须中文古文风·目标 char 必须在治下 chars 列表中·所有数值必须在区间内。';
+
+    return { system: sys, user: user };
+  }
+
+  async function _callLLMDecision(prompts) {
+    if (typeof global.callAI !== 'function') return null;
+    try {
+      var combined = prompts.system + '\n\n' + prompts.user;
+      var raw = await global.callAI(combined, 800, null, 'secondary');
+      if (!raw) return null;
+      // 提取 JSON·允许包前后说明
+      var jsonStart = raw.indexOf('{');
+      var jsonEnd = raw.lastIndexOf('}');
+      if (jsonStart < 0 || jsonEnd <= jsonStart) {
+        try { console.warn('[npc-llm-decision] no JSON in response·preview:', raw.slice(0, 100)); } catch(_){}
+        return null;
+      }
+      var jsonStr = raw.slice(jsonStart, jsonEnd + 1);
+      var parsed = JSON.parse(jsonStr);
+      return parsed;
+    } catch (e) {
+      try { console.warn('[npc-llm-decision] parse failed', e); } catch(_){}
+      return null;
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Validate decision schema·失败 returns null
+  // ──────────────────────────────────────────────────────────
+  var VALID_MEM_TYPES = ['军务','政务','民生','经济','人事','密奏'];
+  var VALID_DECISIONS = ['approved','rejected','annotated','referred'];
+  var VALID_EDICT_TYPES = ['催征','减俸','补饷','整军','安抚','罢党争','怀柔','赏赐','巡抚','经略'];
+  var VALID_CHAOYI_TYPES = ['cooperate','attack','compromise','infight'];
+  var VALID_OFFICE_KINDS = ['promote','demote'];
+
+  function _validateDecision(d) {
+    if (!d || typeof d !== 'object') return null;
+    if (typeof d.rationale !== 'string') d.rationale = '';
+    if (!Array.isArray(d.memorials)) d.memorials = [];
+    d.memorials = d.memorials.filter(function(m){
+      return m && typeof m === 'object'
+        && typeof m.from === 'string'
+        && VALID_MEM_TYPES.indexOf(m.type) >= 0
+        && VALID_DECISIONS.indexOf(m.rulerDecision) >= 0
+        && typeof m.content === 'string';
+    }).slice(0, 3);  // max 3
+    if (d.edict && typeof d.edict === 'object'
+        && VALID_EDICT_TYPES.indexOf(d.edict.type) >= 0
+        && typeof d.edict.content === 'string') {
+      // OK
+    } else {
+      d.edict = null;
+    }
+    if (d.chaoyi && typeof d.chaoyi === 'object') {
+      if (VALID_CHAOYI_TYPES.indexOf(d.chaoyi.type) < 0) d.chaoyi = null;
+    } else {
+      d.chaoyi = null;
+    }
+    if (!Array.isArray(d.office)) d.office = [];
+    d.office = d.office.filter(function(o){
+      return o && VALID_OFFICE_KINDS.indexOf(o.kind) >= 0
+        && typeof o.target === 'string';
+    }).slice(0, 2);
+    return d;
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Apply decision·按 schema 改 fac/chars 数据
+  // ──────────────────────────────────────────────────────────
+  function _applyDecision(fac, decision) {
+    var turn = (global.GM && global.GM.turn) || 1;
+    var entry = (global.GM && global.GM._facIndex && global.GM._facIndex[fac.name]) || null;
+    var alive = (entry && entry.chars) ? entry.chars.filter(function(c){ return c.alive !== false; }) : [];
+    var ruler = alive.find(function(c){ return _classifyChar(c) === 'ruler'; }) || alive[0];
+
+    var summary = { memorials: 0, edicts: 0, chaoyi: 0, office: 0 };
+
+    // 1. memorials
+    decision.memorials.forEach(function(m, idx){
+      var char = alive.find(function(c){ return c.name === m.from; });
+      if (!char) return;  // LLM hallucinated char·skip
+      var loyaltyDelta = _clamp(_safeNum(m.loyaltyDelta), -10, 10);
+      char.loyalty = _clamp(_safeNum(char.loyalty) + loyaltyDelta, 0, 100);
+      if (!Array.isArray(char._memorialMemory)) char._memorialMemory = [];
+      char._memorialMemory.push(turn + ': ' + m.type + '·' + m.rulerDecision);
+      if (char._memorialMemory.length > 10) char._memorialMemory = char._memorialMemory.slice(-10);
+
+      var rec = {
+        id: 'npcm_llm_' + turn + '_' + fac.name + '_' + idx,
+        from: m.from,
+        fromRole: _classifyChar(char),
+        to: ruler ? ruler.name : '',
+        type: m.type,
+        subtype: m.type === '密奏' ? '密折' : '上疏',
+        content: m.content,
+        status: m.rulerDecision,
+        ruling: m.ruling || '',
+        turn: turn,
+        resolvedTurn: turn,
+        impact: { loyaltyDelta: loyaltyDelta, memoryNote: turn + ': ' + m.type + '·' + m.rulerDecision },
+        _generatedByLlm: true
+      };
+      if (!Array.isArray(fac.npcMemorials)) fac.npcMemorials = [];
+      if (fac.npcMemorials.length > 30) fac.npcMemorials = fac.npcMemorials.slice(-30);
+      fac.npcMemorials.push(rec);
+      // Phase H2·LLM 决策也入近事快报
+      if (global.TM && global.TM.FactionNpcNewsBridge) {
+        try { global.TM.FactionNpcNewsBridge.pushMemorial(fac, rec); } catch(_){}
+      }
+      summary.memorials++;
+    });
+
+    // 2. edict
+    if (decision.edict) {
+      var ed = decision.edict;
+      var treasuryDelta = _clamp(_safeNum(ed.treasuryDelta), -1000000, 1000000);
+      if (fac.treasury && typeof fac.treasury === 'object') {
+        fac.treasury.money = Math.max(0, _safeNum(fac.treasury.money) + treasuryDelta);
+      }
+      var loyDeltas = ed.loyaltyDeltas || {};
+      ['court', 'general', 'clan'].forEach(function(role){
+        var d = _clamp(_safeNum(loyDeltas[role]), -15, 15);
+        if (!d) return;
+        alive.forEach(function(c){
+          if (_classifyChar(c) !== role) return;
+          c.loyalty = _clamp(_safeNum(c.loyalty) + d, 0, 100);
+        });
+      });
+      var edictRec = {
+        id: 'npce_llm_' + turn + '_' + fac.name,
+        issuer: ruler ? ruler.name : '',
+        turn: turn,
+        type: ed.type,
+        content: ed.content,
+        trigger: ed.trigger || '',
+        effects: { treasuryDelta: treasuryDelta, loyaltyDeltas: loyDeltas },
+        applied: true,
+        _generatedByLlm: true
+      };
+      if (!Array.isArray(fac.npcEdicts)) fac.npcEdicts = [];
+      if (fac.npcEdicts.length > 30) fac.npcEdicts = fac.npcEdicts.slice(-30);
+      fac.npcEdicts.push(edictRec);
+      if (global.TM && global.TM.FactionNpcNewsBridge) {
+        try { global.TM.FactionNpcNewsBridge.pushEdict(fac, edictRec); } catch(_){}
+      }
+      summary.edicts++;
+    }
+
+    // 3. chaoyi
+    if (decision.chaoyi) {
+      var cy = decision.chaoyi;
+      var pid = _clamp(_safeNum(cy.partyImbalanceDelta), -0.3, 0.3);
+      if (fac.derivedHealth && fac.derivedHealth._source) {
+        fac.derivedHealth._source.partyImbalance = _clamp(_safeNum(fac.derivedHealth._source.partyImbalance) + pid, 0, 1);
+      }
+      var lByP = cy.loyaltyDeltaByParty || {};
+      Object.keys(lByP).forEach(function(p){
+        var d = _clamp(_safeNum(lByP[p]), -10, 10);
+        alive.forEach(function(c){
+          if (c.party !== p) return;
+          c.loyalty = _clamp(_safeNum(c.loyalty) + d, 0, 100);
+        });
+      });
+      var cyRec = {
+        id: 'npccy_llm_' + turn + '_' + fac.name,
+        turn: turn,
+        type: cy.type,
+        parties: Object.keys(lByP),
+        participants: [],  // LLM 没指明·留空
+        summary: cy.summary || '',
+        effects: { partyImbalanceDelta: pid, loyaltyDeltaByParty: lByP },
+        _generatedByLlm: true
+      };
+      if (!Array.isArray(fac.npcChaoyi)) fac.npcChaoyi = [];
+      if (fac.npcChaoyi.length > 30) fac.npcChaoyi = fac.npcChaoyi.slice(-30);
+      fac.npcChaoyi.push(cyRec);
+      if (global.TM && global.TM.FactionNpcNewsBridge) {
+        try { global.TM.FactionNpcNewsBridge.pushChaoyi(fac, cyRec); } catch(_){}
+      }
+      summary.chaoyi++;
+    }
+
+    // 4. office
+    decision.office.forEach(function(o, idx){
+      var char = alive.find(function(c){ return c.name === o.target; });
+      if (!char) return;
+      var d = _clamp(_safeNum(o.loyaltyDelta), -15, 15);
+      var posBefore = char.position || char.role || char.title || '';
+      char.position = o.newPosition || posBefore;
+      char.loyalty = _clamp(_safeNum(char.loyalty) + d, 0, 100);
+
+      var rec = {
+        id: 'npco_llm_' + turn + '_' + fac.name + '_' + idx,
+        action: o.kind,
+        target: o.target,
+        ruler: ruler ? ruler.name : '',
+        reason: o.reason || '',
+        effect: { positionFrom: posBefore, positionTo: char.position, loyaltyDelta: d },
+        turn: turn,
+        _generatedByLlm: true
+      };
+      if (!Array.isArray(fac.npcOfficeActions)) fac.npcOfficeActions = [];
+      if (fac.npcOfficeActions.length > 30) fac.npcOfficeActions = fac.npcOfficeActions.slice(-30);
+      fac.npcOfficeActions.push(rec);
+      if (global.TM && global.TM.FactionNpcNewsBridge) {
+        try { global.TM.FactionNpcNewsBridge.pushOffice(fac, rec); } catch(_){}
+      }
+      summary.office++;
+    });
+
+    // 5. rationale·写到 fac._lastLlmRationale
+    if (decision.rationale) fac._lastLlmRationale = { turn: turn, text: decision.rationale };
+
+    return summary;
+  }
+
+  // ──────────────────────────────────────────────────────────
+  // Public API
+  // ──────────────────────────────────────────────────────────
+
+  // 单 fac LLM 决策·async·返回 summary
+  async function decideFor(facName, opts) {
+    opts = opts || {};
+    if (!_isEnabled()) return { skipped: true, reason: 'LLM mode off' };
+    if (typeof global.GM === 'undefined') return { skipped: true, reason: 'no GM' };
+    var fac = global.GM.facs.find(function(x){ return x && x.name === facName; });
+    if (!fac) return { skipped: true, reason: 'fac not found' };
+    var playerFacName = (global.P && global.P.playerInfo && global.P.playerInfo.factionName) || '';
+    if (fac.isPlayer || fac.name === playerFacName) return { skipped: true, reason: 'player faction' };
+    var ledgerRun = _beginLedgerRun(fac.name, opts);
+    if (!ledgerRun.ok) return { skipped: true, reason: ledgerRun.reason, turn: ledgerRun.turn, currentTurn: ledgerRun.currentTurn };
+    var ledgerToken = ledgerRun.token;
+
+    var prompts = _buildPrompt(fac);
+    var raw = await _callLLMDecision(prompts);
+    if (_isLedgerTokenStale(ledgerToken)) {
+      return { skipped: true, reason: 'stale turn', turn: ledgerToken.turn, currentTurn: _currentTurn() };
+    }
+    if (!raw) {
+      _finishLedgerRun(ledgerToken, 'failed', 'LLM call/parse failed');
+      return { skipped: true, reason: 'LLM call/parse failed', fallbackToTemplate: true };
+    }
+    var decision = _validateDecision(raw);
+    if (_isLedgerTokenStale(ledgerToken)) {
+      return { skipped: true, reason: 'stale turn', turn: ledgerToken.turn, currentTurn: _currentTurn() };
+    }
+    if (!decision) {
+      _finishLedgerRun(ledgerToken, 'failed', 'decision invalid');
+      return { skipped: true, reason: 'decision invalid', fallbackToTemplate: true };
+    }
+    var summary = _applyDecision(fac, decision);
+    _finishLedgerRun(ledgerToken, 'applied');
+    return { applied: true, summary: summary, rationale: decision.rationale };
+  }
+
+  // 多 fac 并发·按 derivedStrength 排序·max maxPerTurn
+  async function decideAll(opts) {
+    opts = opts || {};
+    if (!_isEnabled()) return { skipped: true, reason: 'LLM mode off' };
+    if (typeof global.GM === 'undefined') return { skipped: true, reason: 'no GM' };
+    var batchTurn = _safeNum(opts.turn) || _currentTurn();
+    var source = opts.source || 'eager';
+    var maxPerTurn = (global.TM.FactionNpcSettings && global.TM.FactionNpcSettings.maxPerTurn()) || 8;
+    var playerFacName = (global.P && global.P.playerInfo && global.P.playerInfo.factionName) || '';
+    var npcs = global.GM.facs
+      .filter(function(f){ return f && f.name && !f.isPlayer && f.name !== playerFacName; })
+      .filter(function(f){ return !hasRunThisTurn(f.name, batchTurn); })
+      .sort(function(a, b){
+        var sa = (a.derivedStrength && a.derivedStrength.value) || 0;
+        var sb = (b.derivedStrength && b.derivedStrength.value) || 0;
+        return sb - sa;
+      })
+      .slice(0, maxPerTurn);
+
+    var results = await Promise.all(npcs.map(function(f){
+      return decideFor(f.name, { source: source, turn: batchTurn }).then(function(r){ return { fac: f.name, result: r }; });
+    }));
+    var applied = results.filter(function(r){ return r.result.applied; }).length;
+    return { applied: applied, attempted: npcs.length, results: results };
+  }
+
+  global.TM = global.TM || {};
+  global.TM.FactionNpcLlmDecision = {
+    decideFor: decideFor,
+    decideAll: decideAll,
+    _buildPrompt: _buildPrompt,
+    buildRecentTrajectoryContextForSc16: buildRecentTrajectoryContextForSc16,
+    buildFactionAdminSummaryForSc16: buildFactionAdminSummaryForSc16,
+    _formatOwnAdminHierarchy: _formatOwnAdminHierarchy,
+    hasRunThisTurn: hasRunThisTurn,
+    countRunsThisTurn: countRunsThisTurn,
+    _validateDecision: _validateDecision,
+    _applyDecision: _applyDecision,
+    _isEnabled: _isEnabled
+  };
+
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = { decideFor: decideFor, decideAll: decideAll, hasRunThisTurn: hasRunThisTurn, countRunsThisTurn: countRunsThisTurn, buildRecentTrajectoryContextForSc16: buildRecentTrajectoryContextForSc16, buildFactionAdminSummaryForSc16: buildFactionAdminSummaryForSc16 };
+  }
+})(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : globalThis));

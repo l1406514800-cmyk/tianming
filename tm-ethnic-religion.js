@@ -23,6 +23,10 @@
 (function(global) {
   'use strict';
 
+  function _turnsForMonthsLocal(months) {
+    return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  A4 族群宗教朝代启用表
   // ═══════════════════════════════════════════════════════════════════
@@ -256,7 +260,7 @@
     if (pathId === 'qing_tandin') G.population.corvee.fullyCommuted = true;
     if (typeof global.AuthorityEngines !== 'undefined') {
       global.AuthorityEngines.adjustHuangwei('structuralReform', path.hwDelta);
-      global.AuthorityEngines.adjustHuangquan('structureReform', path.hqDelta);
+      global.AuthorityEngines.adjustHuangquan('structureReform', path.hqDelta, '\u65cf\u7fa4\u5b97\u6559\u6539\u9769\u63a8\u884c' + (path.name ? '\uff1a' + path.name : ''));
     }
     if (global.addEB) global.addEB('改革', path.name + ' 推行');
     return { ok: true, path: path };
@@ -323,7 +327,7 @@
         if (global.addEB) global.addEB('军调', m.name + ' 抵达，损 ' + Math.round((m.attrition||0)*100) + '%');
       }
     });
-    G._activeTroopMovements = G._activeTroopMovements.filter(function(m){return (ctx.turn - m.startTurn) < 24;});
+    G._activeTroopMovements = G._activeTroopMovements.filter(function(m){return (ctx.turn - m.startTurn) < _turnsForMonthsLocal(24);});
   }
 
   function initiateTroopMovement(order) {
@@ -360,7 +364,11 @@
     if (!b) return;
     char.militaryBackground = { type: bg, description: b.description };
     char.combatCommand = (char.combatCommand || 50) + b.commandBonus;
-    char.loyalty = Math.max(0, Math.min(100, (char.loyalty||50) + b.loyaltyToEmperor));
+    if (typeof global.adjustCharacterLoyalty === 'function') {
+      global.adjustCharacterLoyalty(char, b.loyaltyToEmperor, '\u51FA\u8EAB\u80CC\u666F\u5BF9\u541B\u4E3B\u5FE0\u8BDA\u5F71\u54CD', { source:'leader-background-loyalty' });
+    } else {
+      char.loyalty = Math.max(0, Math.min(100, ((typeof char.loyalty === 'number' && isFinite(char.loyalty)) ? char.loyalty : 50) + b.loyaltyToEmperor));
+    }
     char.ambition = Math.max(0, Math.min(100, (char.ambition||50) + b.ambitionTendency));
   }
 

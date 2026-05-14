@@ -21,9 +21,43 @@
 //  人物志
 // ============================================================
 var _rwSearch='',_rwFaction='all',_rwRole='all',_rwSort='loyalty',_rwShowDead=false;
+var _rwNeedsRender=false,_rwRenderTimer=0;
 
-function renderRenwu(){
+function _rwIsPanelVisible(){
+  var panel=_$("gt-renwu");
+  if(!panel)return true;
+  if(panel.style&&panel.style.display==='none')return false;
+  if(panel.style&&(panel.style.display==='block'||panel.style.display==='flex'))return true;
+  if(typeof window!=='undefined'&&window.getComputedStyle){
+    var st=window.getComputedStyle(panel);
+    if(st&&st.display==='none')return false;
+  }
+  return true;
+}
+
+function _rwScheduleRender(delay){
+  if(_rwRenderTimer)clearTimeout(_rwRenderTimer);
+  _rwRenderTimer=setTimeout(function(){
+    _rwRenderTimer=0;
+    renderRenwu();
+  },delay==null?80:delay);
+}
+
+function _rwMakeRenderContext(allChars){
+  var byName=Object.create(null);
+  (allChars||[]).forEach(function(ch){
+    if(ch&&ch.name&&!byName[ch.name])byName[ch.name]=ch;
+  });
+  return {
+    byName:byName,
+    playerLoc:(typeof _getPlayerLocation==='function')?_getPlayerLocation():(GM._capital||'\u4EAC\u57CE')
+  };
+}
+
+function renderRenwu(force){
   var el=_$("rw-grid");var cnt=_$("rw-cnt");if(!el)return;
+  if(!force&&!_rwIsPanelVisible()){_rwNeedsRender=true;return;}
+  _rwNeedsRender=false;
   var _sbar=_$("rw-statbar"), _leg=_$("rw-legend");
 
   // 填充派系下拉（首次）
@@ -36,10 +70,18 @@ function renderRenwu(){
     });
   }
 
-  var _all = (GM.chars||[]).slice();
-  (GM.allCharacters||[]).forEach(function(ac) {
-    if (!_all.find(function(c){return c.name===ac.name;})) _all.push(ac);
-  });
+  var _all = [];
+  var _seenNames = Object.create(null);
+  var _addChar = function(ac) {
+    if (!ac) return;
+    if (ac.name) {
+      if (_seenNames[ac.name]) return;
+      _seenNames[ac.name] = true;
+    }
+    _all.push(ac);
+  };
+  (GM.chars||[]).forEach(_addChar);
+  (GM.allCharacters||[]).forEach(_addChar);
   _all.forEach(function(c) {
     if (c.alive !== false && c.alive !== true) c.alive = true;
   });
@@ -121,15 +163,16 @@ function renderRenwu(){
   var html = '';
   var _useGroups = _facKeys.length > 1 && _rwFaction === 'all';
 
+  var _rwCtx = _rwMakeRenderContext(_all);
   if (_useGroups) {
     _facKeys.forEach(function(fk) {
       var chars = _facGroups[fk];
       var _st = _rwFacChipStyle(fk);
       html += '<div class="rw-fac-group-hdr" style="'+_st+';--fac-c:var(--chip-c,var(--gold-400));">'+escHtml(fk)+' <span class="cnt">'+chars.length+' \u4EBA</span></div>';
-      chars.forEach(function(c) { html += _rwRenderCard(c); });
+      chars.forEach(function(c) { html += _rwRenderCard(c,_rwCtx); });
     });
   } else {
-    filtered.forEach(function(c) { html += _rwRenderCard(c); });
+    filtered.forEach(function(c) { html += _rwRenderCard(c,_rwCtx); });
   }
 
   el.innerHTML = html || '<div class="rw-empty">\u671D \u91CE \u5BC2 \u5BC2\u3000\u65E0 \u5339 \u914D \u4E4B \u4EBA<br>\u8BD5\u8C03\u62AB\u89C8\u6216\u653E\u5BBD\u7B5B\u9009</div>';
@@ -218,12 +261,12 @@ function _rwWcDot(k, v) {
 }
 
 /** 渲染单个人物卡片 */
-function _rwRenderCard(c) {
+function _rwRenderCard(c,ctx) {
   var _isDead = c.alive === false;
   var _isPlayer = !!c.isPlayer;
-  var _ch = (typeof findCharByName === 'function') ? findCharByName(c.name) : c;
+  var _ch = (ctx&&ctx.byName&&c.name&&ctx.byName[c.name]) || ((typeof findCharByName === 'function') ? findCharByName(c.name) : c);
   if (!_ch) _ch = c;
-  var _playerLoc = (typeof _getPlayerLocation === 'function') ? _getPlayerLocation() : (GM._capital||'\u4EAC\u57CE');
+  var _playerLoc = (ctx&&ctx.playerLoc) || ((typeof _getPlayerLocation === 'function') ? _getPlayerLocation() : (GM._capital||'\u4EAC\u57CE'));
 
   var _facCls = _rwFacClass(_ch);
   var _cardCls = 'rw-card' + (_facCls?' '+_facCls:'');
@@ -267,7 +310,8 @@ function _rwRenderCard(c) {
   if ((_ch.stress||0) > 70) _stateHtml += '<span class="rw-state-chip stress">\u91CD\u538B</span>';
   if (_ch._travelTo) _stateHtml += '<span class="rw-state-chip away">\u8D74\u4EFB</span>';
   if (_ch._scheming) _stateHtml += '<span class="rw-state-chip scheme">\u5BC6\u8C0B</span>';
-  if (_ch.joinTurn && GM.turn && (GM.turn - _ch.joinTurn) < 5) _stateHtml += '<span class="rw-state-chip new">\u65B0\u664B</span>';
+  var _newJoinTurns = (typeof turnsForMonths === 'function') ? turnsForMonths(5) : 5;
+  if (_ch.joinTurn && GM.turn && (GM.turn - _ch.joinTurn) < _newJoinTurns) _stateHtml += '<span class="rw-state-chip new">\u65B0\u664B</span>';
   else if (_ch.age && _ch.age >= 60) _stateHtml += '<span class="rw-state-chip veteran">\u8001\u6210</span>';
 
   // 属性 6 条
@@ -796,14 +840,32 @@ function viewRenwu(i){
       ch._memArchive.forEach(function(a) { html += '<div style="margin-bottom:0.2rem;">T'+a.period+'：'+escHtml(a.summary)+'</div>'; });
       html += '</div>';
     }
-    // 活跃记忆
-    if(ch._memory && ch._memory.length > 0){
-      ch._memory.slice(-8).reverse().forEach(function(m){
+    // 活跃记忆：完整详情显示全量；近五条直接显示，旧记忆折叠展开。
+    var _rwFullMem = [];
+    if(typeof GM !== 'undefined' && GM && Array.isArray(GM._memoryArchiveFull)){
+      _rwFullMem = GM._memoryArchiveFull.filter(function(m){ return m && m.char === ch.name; });
+    }
+    if(_rwFullMem.length === 0 && ch._memory && ch._memory.length > 0) _rwFullMem = ch._memory.slice();
+    if(_rwFullMem.length > 0){
+      var _rwRecentMem = _rwFullMem.slice(-5).reverse();
+      var _rwOlderMem = _rwFullMem.slice(0, Math.max(0, _rwFullMem.length - 5)).reverse();
+      _rwRecentMem.forEach(function(m){
         html += '<div style="font-size:0.75rem;padding:0.15rem 0;border-bottom:1px solid var(--bg-4);">';
         html += '<span style="color:var(--txt-d);">T'+m.turn+'</span> '+(emotionIcons[m.emotion]||'•')+' '+escHtml(m.event);
         if(m.who) html += ' <span style="color:var(--blue);font-size:0.65rem;">→'+escHtml(m.who)+'</span>';
         html += '</div>';
       });
+      if(_rwOlderMem.length > 0){
+        html += '<div style="font-size:0.7rem;color:var(--gold);padding:0.2rem 0.4rem;background:var(--bg-4);border-radius:4px;margin:0.3rem 0;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'block\':\'none\';">展开全部旧记忆（'+_rwOlderMem.length+'条）▸</div>';
+        html += '<div style="display:none;">';
+        _rwOlderMem.forEach(function(m){
+          html += '<div style="font-size:0.75rem;padding:0.15rem 0;border-bottom:1px solid var(--bg-4);">';
+          html += '<span style="color:var(--txt-d);">T'+m.turn+'</span> '+(emotionIcons[m.emotion]||'•')+' '+escHtml(m.event);
+          if(m.who) html += ' <span style="color:var(--blue);font-size:0.65rem;">→'+escHtml(m.who)+'</span>';
+          html += '</div>';
+        });
+        html += '</div>';
+      }
     }
     html += '</div>';
   }

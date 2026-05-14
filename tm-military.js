@@ -581,7 +581,7 @@ var MilitarySystems = (function(global) {
       return a && (String(a.id || '') === key || String(a.name || '') === key || String(a.armyId || '') === key);
     });
     if (matches.length) return matches[0];
-    matches = _armyRefs(G).filter(function(a) { return a && String(a.faction || a.owner || '') === key; });
+    matches = _armyRefs(G).filter(function(a) { return a && String(a.faction || '') === key; });
     return matches.length === 1 ? matches[0] : null;
   }
 
@@ -635,8 +635,8 @@ var MilitarySystems = (function(global) {
         side: side || '',
         armyId: army && (army.id || army.armyId || army.name || ''),
         name: _armyNameOf(army),
-        owner: army && (army.owner || army.faction || ''),
-        faction: army && (army.faction || army.owner || ''),
+        owner: army && (army.faction || ''),  // Slice E·snapshot owner=faction (向后兼容)
+        faction: army && (army.faction || ''),
         commander: commanderName || '',
         party: _partyNameOf(army, commanderName),
         loss: loss || 0,
@@ -857,6 +857,7 @@ var MilitarySystems = (function(global) {
     cityIds.forEach(function(cityId) {
       var id = String(cityId);
       var changed = false;
+      // [Slice H·2026-05-10] 走 setProvinceOwner (内部 → TM.FactionMembership.assignProvince)·三源同步
       try {
         var setter = global.setProvinceOwner || (global.TM && global.TM.ThreeSystems && global.TM.ThreeSystems.setProvinceOwner);
         if (typeof setter === 'function') { setter(id, winner, 'battleResult'); changed = true; }
@@ -865,6 +866,7 @@ var MilitarySystems = (function(global) {
         G.cities.forEach(function(c) {
           if (!c) return;
           if (String(c.id || c.cityId || c.name || c.provinceId || '') === id) {
+            // city 三字段·兼容期保留 (city 不在 Slice E 范围)·留作 backlog
             c.owner = winner;
             c.ownerFaction = winner;
             c.faction = winner;
@@ -872,10 +874,7 @@ var MilitarySystems = (function(global) {
           }
         });
       }
-      if (G.provinceStats && G.provinceStats[id]) {
-        G.provinceStats[id].owner = winner;
-        changed = true;
-      }
+      // provinceStats[id].owner 已经在 setProvinceOwner 内部通过 assignProvince 同步·此处无需重写
       result.applied.occupiedCityIds.push({ id: id, ok: changed });
     });
     var affectedArmies = Array.isArray(br.affectedArmies) ? br.affectedArmies : [];
@@ -1019,14 +1018,9 @@ var BattleEngine = (function() {
    */
   function _getSeason() {
     if (!P.time) return '春';
-    var perTurn = P.time.perTurn || '1m';
     var startMonth = P.time.startMonth || 1;
-    var turnMonths = 0;
-    if (perTurn === '1d') turnMonths = (GM.turn - 1) / 30;
-    else if (perTurn === '1m') turnMonths = GM.turn - 1;
-    else if (perTurn === '1s') turnMonths = (GM.turn - 1) * 3;
-    else if (perTurn === '1y') turnMonths = (GM.turn - 1) * 12;
-    else if (perTurn === 'custom' && P.time.customDays) turnMonths = (GM.turn - 1) * P.time.customDays / 30;
+    var daysPerTurn = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : ((P.time && P.time.daysPerTurn) || 30);
+    var turnMonths = (GM.turn - 1) * daysPerTurn / 30;
     var curMonth = ((startMonth - 1 + turnMonths) % 12) + 1;
     if (curMonth <= 3) return '春';
     if (curMonth <= 6) return '夏';
@@ -1431,6 +1425,9 @@ var MarchSystem = (function() {
     if (!GM.marchOrders) GM.marchOrders = [];
     GM.marchOrders.push(order);
 
+    army.destination = to;
+    army.state = 'marching';
+
     addEB('行军', army.name + '从' + from + '出发前往' + to + '，预计' + marchDays + '天(' + marchTurns + '回合)到达。' + routeDesc);
     _dbg('[March]', army.name, from, '→', to, marchDays + '天/' + marchTurns + '回合');
 
@@ -1450,6 +1447,11 @@ var MarchSystem = (function() {
         // 无地图模式：根据行军距离设置补给效率衰减
         var _army2 = (GM.armies||[]).find(function(a){return a.id===order.armyId||a.name===order.armyName;});
         if (_army2 && order.totalDays) {
+          _army2.location = order.to;
+          _army2.garrison = order.to;
+          _army2.destination = '';
+          _army2.state = 'garrison';
+          _army2._arrivedTurn = GM.turn || 0;
           _army2.supplyRatio = Math.max(0.3, 1.0 - (order.totalDays / 1000) * 0.3);
         }
         addEB('行军', (order.armyName || '某军') + '已抵达' + order.to + '。');
@@ -1580,6 +1582,46 @@ var SiegeSystem = (function() {
     return siege;
   }
 
+  function _transferCityOwner(siege) {
+    if (!siege || !siege.attackerFaction || !siege.targetCity) return false;
+    var target = String(siege.targetCity);
+    var owner = siege.attackerFaction;
+    var changed = false;
+    var targetIds = [target];
+    if (Array.isArray(GM.cities)) {
+      GM.cities.forEach(function(c) {
+        if (!c) return;
+        var keys = [c.id, c.cityId, c.name, c.provinceId].map(function(x){ return String(x || ''); }).filter(Boolean);
+        if (keys.indexOf(target) >= 0) {
+          keys.forEach(function(k){ if (targetIds.indexOf(k) < 0) targetIds.push(k); });
+          c.owner = owner;
+          c.ownerFaction = owner;
+          c.faction = owner;
+          changed = true;
+        }
+      });
+    }
+    try {
+      var setter = (typeof setProvinceOwner === 'function') ? setProvinceOwner :
+        (typeof TM !== 'undefined' && TM.ThreeSystems && TM.ThreeSystems.setProvinceOwner);
+      if (typeof setter === 'function') {
+        targetIds.forEach(function(id) { setter(id, owner, 'siege'); });
+        changed = true;
+      }
+    } catch(_) {}
+    if (GM.provinceStats) {
+      targetIds.forEach(function(id) {
+        if (GM.provinceStats[id]) {
+          GM.provinceStats[id].owner = owner;
+          changed = true;
+        }
+      });
+    }
+    siege.ownerTransferred = changed;
+    siege.newOwner = owner;
+    return changed;
+  }
+
   /**
    * 每回合推进所有围城
    */
@@ -1636,12 +1678,15 @@ var SiegeSystem = (function() {
       // 判定结果
       if (siege.progress >= 1.0) {
         siege.status = 'fallen';
+        _transferCityOwner(siege);
         addEB('围城', siege.targetCity + '城破！' + (siege.attackerFaction || '') + '攻陷城池。');
       } else if (siege.garrisonMorale <= cfg.surrenderMoraleThreshold) {
         siege.status = 'surrendered';
+        _transferCityOwner(siege);
         addEB('围城', siege.targetCity + '守军士气崩溃，开城投降。');
       } else if (siege.garrison <= 0) {
         siege.status = 'fallen';
+        _transferCityOwner(siege);
         addEB('围城', siege.targetCity + '守军全灭，城池失守。');
       }
     });
@@ -2970,7 +3015,7 @@ function syncMilitarySources(GM) {
     if (!a || a.destroyed) return;
     var soldiers = a.soldiers || a.size || a.strength || 0;
     if (soldiers <= 0) return;
-    var key = a.branch || a.type || a.kind || 'infantry';
+    var key = a.branch || a.type || a.kind || a.armyType || 'infantry';
     if (!typesMap[key]) {
       typesMap[key] = {
         enabled: true, strength: 0, paymentModel: 'wage',

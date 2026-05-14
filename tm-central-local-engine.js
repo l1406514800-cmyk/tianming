@@ -28,6 +28,10 @@
 (function(global) {
   'use strict';
 
+  function _turnsForMonthsLocal(months) {
+    return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  预设：央地分账模式
   // ═══════════════════════════════════════════════════════════════════
@@ -471,7 +475,7 @@
       }
       // 监察覆盖
       var auditLast = G.fiscal.auditSystem.lastAuditedByRegion[rid] || -999;
-      if (ctx.turn - auditLast < 6) delta += 0.01 * mr;
+      if (ctx.turn - auditLast < _turnsForMonthsLocal(6)) delta += 0.01 * mr;
       // 皇威
       var _hwVal = (G.huangwei && typeof G.huangwei === 'object') ? (G.huangwei.index || 50) : (G.huangwei || 50);
       if (_hwVal > 70) delta += 0.005 * mr;
@@ -560,7 +564,7 @@
     var totalRegions = Object.keys(G.fiscal.regions).length || 1;
     var recentAudited = 0;
     Object.keys(aud.lastAuditedByRegion).forEach(function(rid) {
-      if (ctx.turn - aud.lastAuditedByRegion[rid] < 12) recentAudited++;
+      if (ctx.turn - aud.lastAuditedByRegion[rid] < _turnsForMonthsLocal(12)) recentAudited++;
     });
     aud.coverageRatio = recentAudited / totalRegions;
   }
@@ -576,7 +580,7 @@
       rf.compliance = Math.min(1.0, rf.compliance + 0.1);
     }
     // 私挪
-    var recentIllicit = (rf.expenditures.illicit || []).filter(function(a) { return (G.turn - (a.turn||G.turn)) < 6; });
+    var recentIllicit = (rf.expenditures.illicit || []).filter(function(a) { return (G.turn - (a.turn||G.turn)) < _turnsForMonthsLocal(6); });
     if (recentIllicit.length > 0) {
       findings.push({ type: 'embezzlement', count: recentIllicit.length, total: recentIllicit.reduce(function(s,a){return s+a.amount;},0) });
       // 触发查办事件
@@ -651,14 +655,21 @@
   function _maybeResetAnnualReport(ctx) {
     var G = global.GM;
     if (!G || !G.fiscal || !G.fiscal.regions) return;
-    // 每 12 回合（月化）或按 month===1 归档
-    var isNewYear = (G.month === 1) || (G.turn && G.turn % 12 === 0);
+    // 年度归档按剧本 daysPerTurn 判断，避免日制/季制仍按 12 回合触发。
+    var fallbackDpv = (typeof global._getDaysPerTurn === 'function') ? global._getDaysPerTurn() : 30;
+    var fallbackTurn = Number(G.turn || 0);
+    var isNewYear = (typeof global.isYearBoundary === 'function')
+      ? global.isYearBoundary(G.turn)
+      : (fallbackTurn > 0 && Math.floor((fallbackTurn * fallbackDpv) / 365) > Math.floor(((fallbackTurn - 1) * fallbackDpv) / 365));
     if (!isNewYear) return;
+    var reportYear = (typeof global.calcDateFromTurn === 'function')
+      ? global.calcDateFromTurn(G.turn || 1).adYear
+      : ((typeof global.getCurrentYear === 'function') ? global.getCurrentYear() : ((G.year || 0) + Math.floor(Math.max(0, fallbackTurn - 1) * fallbackDpv / 365)));
     Object.keys(G.fiscal.regions).forEach(function(rid) {
       var rf = G.fiscal.regions[rid];
       if (rf.annualReport.collected > 0) {
         rf.history.push({
-          year: G.year || Math.floor(G.turn / 12),
+          year: G.year || reportYear,
           report: Object.assign({}, rf.annualReport)
         });
         if (rf.history.length > 20) rf.history.splice(0, rf.history.length - 20);

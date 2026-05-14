@@ -637,7 +637,13 @@ function _wdOpenAudienceQueue(qi) {
   } else if (ch && q.isEnvoy) {
     // 角色已存在（重复求见）——刷新来意并确保挂钩势力
     ch._envoy = true;
-    ch.faction = q.fromFaction || ch.faction;
+    // [Slice J·2026-05-10] 走 Membership API·替代直接 ch.faction= 写
+    var _envFac = q.fromFaction || ch.faction;
+    if (window.TM && window.TM.FactionMembership && window.TM.FactionMembership.assignChar && _envFac !== ch.faction) {
+      window.TM.FactionMembership.assignChar(ch, _envFac, { reason: '使节再次到访·势力归属同步' });
+    } else {
+      ch.faction = _envFac;
+    }
     ch.fromFaction = q.fromFaction;
     ch.interactionType = q.interactionType;
     ch.envoyMission = q.reason || ch.envoyMission || '';
@@ -696,7 +702,10 @@ function _wdAcceptOvernight() {
   if (!GM._pendingOvernight) GM._pendingOvernight = [];
   GM._pendingOvernight.push({ name: name, turn: GM.turn, status: 'accepted' });
   // 妃子关系加深（忠诚 + 压力 -）
-  if (typeof ch.loyalty === 'number') ch.loyalty = Math.min(100, ch.loyalty + 3);
+  if (typeof ch.loyalty === 'number') {
+    if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(ch, 3, '\u51C6\u7559\u5BBF\u00B7\u6069\u7737\u52A0\u6DF1', { source:'wendui-overnight-accepted' });
+    else ch.loyalty = Math.min(100, ch.loyalty + 3);
+  }
   if (typeof ch.stress === 'number') ch.stress = Math.max(0, ch.stress - 10);
   if (typeof NpcMemorySystem !== 'undefined') NpcMemorySystem.remember(name, '请得陛下留宿·恩眷殷深', '喜', 8, (P.playerInfo && P.playerInfo.characterName) || '陛下');
   if (typeof addEB === 'function') addEB('\u540E\u5BAB', '\u5E1D\u5C06\u5BBF\u4E8E' + name + '\u5BAB');
@@ -710,7 +719,10 @@ function _wdDeclineOvernight() {
   var name = req.name;
   var ch = findCharByName(name);
   if (ch) {
-    if (typeof ch.loyalty === 'number') ch.loyalty = Math.max(0, ch.loyalty - 1);
+    if (typeof ch.loyalty === 'number') {
+      if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(ch, -1, '\u8BF7\u7559\u5BBF\u672A\u51C6', { source:'wendui-overnight-denied' });
+      else ch.loyalty = Math.max(0, ch.loyalty - 1);
+    }
     if (typeof ch.stress === 'number') ch.stress = Math.min(100, ch.stress + 5);
     if (typeof NpcMemorySystem !== 'undefined') NpcMemorySystem.remember(name, '请留宿而未准·心中黯然', '忧', 5, (P.playerInfo && P.playerInfo.characterName) || '陛下');
   }
@@ -1179,7 +1191,13 @@ async function sendWendui(){
           loyaltyDelta = clamp(parseInt(parsed.loyaltyDelta) || 0, -_ldMax, _ldMax);
         }
         if (loyaltyDelta !== 0) {
-          ch.loyalty = clamp((ch.loyalty || 50) + loyaltyDelta, 0, 100);
+          if (typeof adjustCharacterLoyalty === 'function') {
+            var _wdReason = parsed && parsed.memoryImpact && parsed.memoryImpact.event ? parsed.memoryImpact.event : ((_wenduiMode === 'private' ? '\u79C1\u4E0B\u95EE\u5BF9' : '\u9762\u5723\u95EE\u5BF9') + '\uFF1A' + (msg || '').slice(0, 20));
+            adjustCharacterLoyalty(ch, loyaltyDelta, _wdReason, { source:'wendui-dialogue', ai:true, defaultReason:'AI\u63A8\u6F14' });
+          } else {
+            var _wdOldL = (typeof ch.loyalty === 'number' && isFinite(ch.loyalty)) ? ch.loyalty : 50;
+            ch.loyalty = clamp(_wdOldL + loyaltyDelta, 0, 100);
+          }
           if (typeof OpinionSystem !== 'undefined')
             OpinionSystem.addEventOpinion(name, '玩家', loyaltyDelta * 3, '问对' + (loyaltyDelta > 0 ? '受重用' : '被冷落'));
           // 刷新顶栏忠诚显示
@@ -1794,6 +1812,15 @@ function _wdBuildPrompt(ch, name) {
   if (typeof _buildTemporalConstraint === 'function') {
     try { p += _buildTemporalConstraint(ch); } catch(_){}
   }
+  // v1·PromptComposer·注入 phase 6 字段·让 NPC 真用 aiPersonaText / recognitionState
+  if (typeof TM !== 'undefined' && TM.PromptComposer) {
+    try {
+      var _aiPersonaBlock = TM.PromptComposer.buildAiPersonaText(ch);
+      if (_aiPersonaBlock) p += _aiPersonaBlock;
+      var _recBlock = TM.PromptComposer.buildRecognitionState(ch);
+      if (_recBlock) p += _recBlock;
+    } catch(_){}
+  }
   return p;
 }
 
@@ -2212,4 +2239,3 @@ function _jishiDownload(txt){
   var a=document.createElement('a');a.href='data:text/plain;charset=utf-8,'+encodeURIComponent(txt);
   a.download='jishi_'+(GM.saveName||'export')+'.txt';a.click();toast('\u5DF2\u5BFC\u51FA');
 }
-

@@ -276,6 +276,37 @@ function generateWeightReport(rankedCandidates) {
 // ===== 决策层 =====
 
 // NPC 决策推演（AI 驱动）
+function _resolveNpcDecisionPromptChar(npc) {
+  if (!npc) return {};
+  if (typeof GM === 'undefined' || !GM || !Array.isArray(GM.chars)) return npc;
+  var full = GM.chars.find(function(c) { return c && c.name === npc.name; });
+  return full || npc;
+}
+
+function _buildNpcDecisionComposerAddon(npc, options) {
+  var composer = (typeof TM !== 'undefined' && TM.PromptComposer) ? TM.PromptComposer : null;
+  if (!composer) return '';
+  var fullNpc = _resolveNpcDecisionPromptChar(npc);
+  var out = '';
+  try {
+    if (typeof composer.buildAiPersonaText === 'function') out += composer.buildAiPersonaText(fullNpc, options) || '';
+    if (typeof composer.buildRecognitionState === 'function') out += composer.buildRecognitionState(fullNpc) || '';
+  } catch (_) {}
+  return out;
+}
+
+function _getNpcDecisionBatchPersonaMaxLen() {
+  var composer = (typeof TM !== 'undefined' && TM.PromptComposer) ? TM.PromptComposer : null;
+  var sc = null;
+  try {
+    sc = (typeof findScenarioById === 'function' && typeof GM !== 'undefined' && GM && GM.sid) ? findScenarioById(GM.sid) : null;
+  } catch (_) {}
+  if (composer && typeof composer.getBatchPersonaMaxLen === 'function') return composer.getBatchPersonaMaxLen(sc, 200);
+  var req = sc && sc.modelRequirements;
+  var v = req && Number(req.batchPersonaMaxLen);
+  return isFinite(v) && v >= 0 ? v : 200;
+}
+
 async function npcDecisionLayer(npc, context) {
   if (!P.ai.key) return null;
 
@@ -452,6 +483,8 @@ function buildNpcDecisionPrompt(npc, context) {
     '   - 一般：0.3-0.5\n' +
     '   - 可选：0.0-0.3';
 
+  prompt += _buildNpcDecisionComposerAddon(npc);
+
   return prompt;
 }
 
@@ -560,7 +593,8 @@ function executeAppointBehavior(npc, target, decision, context) {
 
   // 更新目标角色的忠诚度（向任命者倾斜）
   if (targetChar.loyalty < 80) {
-    targetChar.loyalty = Math.min(100, targetChar.loyalty + 10);
+    if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(targetChar, 10, npc.name + '\u63D0\u62D4\u4EFB\u547D', { source:'npc-decision-appoint' });
+    else targetChar.loyalty = Math.min(100, targetChar.loyalty + 10);
   }
   // NPC任命：被任命者对任命者亲近+8
   if (typeof AffinityMap !== 'undefined' && target) {
@@ -589,7 +623,8 @@ function executeDismissBehavior(npc, target, decision, context) {
 
   // 降低目标角色的忠诚度
   if (targetChar.loyalty > 20) {
-    targetChar.loyalty = Math.max(0, targetChar.loyalty - 20);
+    if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(targetChar, -20, npc.name + '\u7F62\u514D\u5B98\u804C', { source:'npc-decision-dismiss' });
+    else targetChar.loyalty = Math.max(0, targetChar.loyalty - 20);
   }
   if (typeof AffinityMap !== 'undefined' && target) AffinityMap.add(target, npc.name, -12, '被' + npc.name + '罢免');
   if (typeof StressSystem !== 'undefined') StressSystem.checkStress(targetChar, '被罢免');
@@ -617,7 +652,8 @@ function executeRewardBehavior(npc, target, decision, context) {
 
   // 提升目标角色的忠诚度和士气
   if (targetChar.loyalty < 90) {
-    targetChar.loyalty = Math.min(100, targetChar.loyalty + 5);
+    if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(targetChar, 5, npc.name + '\u8D4F\u8D50', { source:'npc-decision-reward' });
+    else targetChar.loyalty = Math.min(100, targetChar.loyalty + 5);
   }
   if (targetChar.morale < 90) {
     targetChar.morale = Math.min(100, targetChar.morale + 10);
@@ -637,7 +673,8 @@ function executePunishBehavior(npc, target, decision, context) {
 
   // 降低目标角色的忠诚度和士气
   if (targetChar.loyalty > 10) {
-    targetChar.loyalty = Math.max(0, targetChar.loyalty - 15);
+    if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(targetChar, -15, npc.name + '\u60E9\u7F5A', { source:'npc-decision-punish' });
+    else targetChar.loyalty = Math.max(0, targetChar.loyalty - 15);
   }
   if (targetChar.morale > 10) {
     targetChar.morale = Math.max(0, targetChar.morale - 20);
@@ -668,10 +705,12 @@ function executeRequestLoyaltyBehavior(npc, target, decision, context) {
 
   if (random() < acceptChance) {
     addEB('效忠', target + ' 接受效忠');
-    targetChar.loyalty = Math.min(100, targetChar.loyalty + 10);
+    if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(targetChar, 10, '\u63A5\u53D7' + npc.name + '\u8981\u6C42\u6548\u5FE0', { source:'npc-decision-request-loyalty-accept' });
+    else targetChar.loyalty = Math.min(100, targetChar.loyalty + 10);
   } else {
     addEB('拒绝', target + ' 拒绝效忠');
-    targetChar.loyalty = Math.max(0, targetChar.loyalty - 10);
+    if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(targetChar, -10, '\u62D2\u7EDD' + npc.name + '\u8981\u6C42\u6548\u5FE0', { source:'npc-decision-request-loyalty-reject' });
+    else targetChar.loyalty = Math.max(0, targetChar.loyalty - 10);
   }
 }
 
@@ -808,6 +847,7 @@ async function executeNpcBehaviors() {
  */
 async function batchNpcDecisions(npcs, context) {
   if (!npcs || npcs.length === 0) return [];
+  var batchPersonaMaxLen = _getNpcDecisionBatchPersonaMaxLen();
 
   // 构建批量 prompt
   var turnCtx = GM._turnContext || {};
@@ -969,6 +1009,7 @@ async function batchNpcDecisions(npcs, context) {
       if (_sameYear.length > 0) kejuText += '[\u540C\u5E74:' + _sameYear.slice(0,2).map(function(c){return c.name;}).join(',') + ']';
     }
     prompt += (idx + 1) + '. ' + npc.name + '(' + officeText + ')' + spouseText + familyText + partyText + kejuText + ' \u5FE0' + (npc.loyalty || 50) + charismaText + ambNote + stressNote + ' ' + traitText + ' ' + goal + ' ' + affText + (arcText ? ' ' + arcText : '') + memText + expText + '\n';
+    prompt += _buildNpcDecisionComposerAddon(npc, npcs.length > 5 ? { maxLen: batchPersonaMaxLen } : null);
   });
 
   prompt += '\n为每人返回JSON数组：[{"name":"角色名","behaviorType":"appoint|dismiss|reward|punish|declare_war|request_loyalty|reform|none","target":"对象","intent":"意图描述20字","shouldExecute":true,"publicReason":"对外说辞/冠冕堂皇的理由15字","privateMotiv":"真实内心动机15字","innerThought":"内心独白15字"}]\n';
@@ -1251,9 +1292,13 @@ function executeNpcAction(npc, behavior, context) {
   if (action.indexOf('叛乱') >= 0 || action.indexOf('起兵') >= 0) {
     // 叛乱：降低忠诚度，增加野心
     if (npc.loyalty !== undefined) {
-      var oldLoyalty = npc.loyalty;
-      npc.loyalty = Math.max(0, npc.loyalty - 30);
-      recordChange('characters', npc.name, 'loyalty', oldLoyalty, npc.loyalty, '密谋叛乱');
+      if (typeof adjustCharacterLoyalty === 'function') {
+        adjustCharacterLoyalty(npc, -30, '\u5BC6\u8C0B\u53DB\u4E71', { source:'npc-complex-rebellion' });
+      } else {
+        var oldLoyalty = npc.loyalty;
+        npc.loyalty = Math.max(0, npc.loyalty - 30);
+        recordChange('characters', npc.name, 'loyalty', oldLoyalty, npc.loyalty, '\u5BC6\u8C0B\u53DB\u4E71');
+      }
       addToIndex('char', npc.name, npc);
     }
 
@@ -1276,9 +1321,13 @@ function executeNpcAction(npc, behavior, context) {
   else if (action.indexOf('背叛') >= 0 || action.indexOf('反叛') >= 0) {
     // 背叛：降低忠诚度和关系
     if (npc.loyalty !== undefined) {
-      var oldLoyalty = npc.loyalty;
-      npc.loyalty = Math.max(0, npc.loyalty - 40);
-      recordChange('characters', npc.name, 'loyalty', oldLoyalty, npc.loyalty, '背叛');
+      if (typeof adjustCharacterLoyalty === 'function') {
+        adjustCharacterLoyalty(npc, -40, '\u80CC\u53DB', { source:'npc-complex-betray' });
+      } else {
+        var oldLoyalty = npc.loyalty;
+        npc.loyalty = Math.max(0, npc.loyalty - 40);
+        recordChange('characters', npc.name, 'loyalty', oldLoyalty, npc.loyalty, '\u80CC\u53DB');
+      }
       addToIndex('char', npc.name, npc);
     }
     if (target && GM.rels[npc.name + '-' + target]) {
@@ -1291,9 +1340,13 @@ function executeNpcAction(npc, behavior, context) {
     if (target) {
       var targetChar = findCharByName(target);
       if (targetChar && targetChar.loyalty !== undefined) {
-        var oldLoyalty = targetChar.loyalty;
-        targetChar.loyalty = Math.max(0, targetChar.loyalty - 10);
-        recordChange('characters', target, 'loyalty', oldLoyalty, targetChar.loyalty, '被弹劾');
+        if (typeof adjustCharacterLoyalty === 'function') {
+          adjustCharacterLoyalty(targetChar, -10, '\u88AB\u5F39\u52BE', { source:'npc-complex-impeach' });
+        } else {
+          var oldLoyalty = targetChar.loyalty;
+          targetChar.loyalty = Math.max(0, targetChar.loyalty - 10);
+          recordChange('characters', target, 'loyalty', oldLoyalty, targetChar.loyalty, '\u88AB\u5F39\u52BE');
+        }
         addToIndex('char', target, targetChar);
       }
     }
@@ -1347,7 +1400,11 @@ function executeNpcAction(npc, behavior, context) {
       recordChange('economy', npc.name, _ecoKey2, oldValue, GM.vars[_ecoKey2].value, '\u8D2A\u6C61\u53D7\u8D3F');
     }
     if (npc.loyalty !== undefined) {
-      npc.loyalty = Math.max(0, npc.loyalty - 5);
+      if (typeof adjustCharacterLoyalty === 'function') {
+        adjustCharacterLoyalty(npc, -5, '\u8D2A\u6C61\u53D7\u8D3F', { source:'npc-complex-corruption' });
+      } else {
+        npc.loyalty = Math.max(0, npc.loyalty - 5);
+      }
       addToIndex('char', npc.name, npc);
     }
     addEB('腐败', npc.name + '贪污受贿。' + behavior.consequence);

@@ -28,6 +28,10 @@
 (function(global) {
   'use strict';
 
+  function _turnsForMonthsLocal(months) {
+    return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  P0-5 · 民心 byRegion / byClass 矩阵 — 扩展初始化
   // ═══════════════════════════════════════════════════════════════════
@@ -194,7 +198,9 @@
     if (mode === 'usurpation') {
       // 篡位
       if (global.addEB) global.addEB('权臣', pm.name + ' 篡位大逆！天命倾移');
-      if (typeof G.huangquan === 'object') G.huangquan.index = 5;
+      if (typeof global.AuthorityEngines !== 'undefined' && global.AuthorityEngines.setHuangquan) {
+        global.AuthorityEngines.setHuangquan(5, '\u6743\u81e3\u7be1\u4f4d', { source:'power-minister-usurpation' });
+      } else if (typeof G.huangquan === 'object') G.huangquan.index = 5;
       if (typeof G.huangwei === 'object') G.huangwei.index = 10;
       if (typeof G.minxin === 'object') G.minxin.trueIndex = Math.max(0, G.minxin.trueIndex - 30);
       G._gameOver = { type: 'usurped_by_power_minister', name: pm.name, turn: ctx.turn };
@@ -233,14 +239,16 @@
       // 升级条件：民心仍低 + 官军未剿 + 时间够长
       var currentDef = REVOLT_LEVELS[r.level - 1];
       if (r.level < 5) {
-        var upgradeReady = (ctx.turn - r.turn) > 6 && mx.trueIndex < currentDef.threshold && !r._suppressed;
+        var upgradeReady = (ctx.turn - r.turn) > _turnsForMonthsLocal(6) && mx.trueIndex < currentDef.threshold && !r._suppressed;
         if (upgradeReady && Math.random() < 0.15 * mr) {
           r.level++;
           r.scale = REVOLT_LEVELS[r.level - 1].scale;
           if (global.addEB) global.addEB('民变', (r.region || '某地') + ' 升级为 ' + REVOLT_LEVELS[r.level - 1].name);
           // 高级别民变影响更大
           if (r.level >= 4) {
-            if (typeof global.GM.huangquan === 'object') global.GM.huangquan.index = Math.max(0, global.GM.huangquan.index - 5);
+            if (typeof global.AuthorityEngines !== 'undefined' && global.AuthorityEngines.adjustHuangquan) {
+              global.AuthorityEngines.adjustHuangquan('factionConsuming', -5, '\u9ad8\u7ea7\u6c11\u53d8\u5347\u7ea7');
+            } else if (typeof global.GM.huangquan === 'object') global.GM.huangquan.index = Math.max(0, global.GM.huangquan.index - 5);
             if (typeof global.GM.huangwei === 'object') global.GM.huangwei.index = Math.max(0, global.GM.huangwei.index - 8);
           }
           if (r.level === 5) {
@@ -307,7 +315,7 @@
       ts.hiddenDamage.accumulatedMisjudgement = (ts.hiddenDamage.accumulatedMisjudgement || 0) + hw.drains.memorialObjection * 0.1 * mr;
     }
     // 暴君觉醒事件（随机触发）
-    if (ctx.turn - (ts.activatedTurn || 0) > 12 && !ts._awakened && Math.random() < 0.05 * mr) {
+    if (ctx.turn - (ts.activatedTurn || 0) > _turnsForMonthsLocal(12) && !ts._awakened && Math.random() < 0.05 * mr) {
       _tyrantAwakeningEvent(ts, hw, ctx);
     }
   }
@@ -459,7 +467,7 @@
       triggerHuangweiEvent('capitalFall', {});
     }
     // 抗疏（已发生的抗疏数量，客观数据）
-    var recentAbductions = (G._abductions || []).filter(function(a) { return (G.turn - a.turn) < 3; });
+    var recentAbductions = (G._abductions || []).filter(function(a) { return (G.turn - a.turn) < _turnsForMonthsLocal(3); });
     if (recentAbductions.length > 2) triggerHuangweiEvent('memorialObjection', {});
     // ── 已删除 ──
     //   · Math.random 祥瑞 / 天象 硬概率 —— 改由 AI 看局面自己产出
@@ -496,7 +504,7 @@
     var delta = HUANGQUAN_DELTAS[source];
     if (typeof delta !== 'number') return { ok: false };
     if (typeof global.AuthorityEngines !== 'undefined') {
-      global.AuthorityEngines.adjustHuangquan(source, delta, (ctx && ctx.reason) || '');
+      global.AuthorityEngines.adjustHuangquan(source, delta, (ctx && ctx.reason) || source || '\u7687\u6743\u4e8b\u4ef6');
     }
     return { ok: true, delta: delta };
   }
@@ -546,7 +554,7 @@
     if (activeRevolts > 0) adj('security', -0.15 * mr * activeRevolts, '民变不宁');
     // socialMobility（阶层流动）
     if (G.population && G.population.classMobility) {
-      var recentTrans = (G.population.classMobility.yearlyTransitions || []).filter(function(t){return (G.turn - t.turn) < 12;});
+      var recentTrans = (G.population.classMobility.yearlyTransitions || []).filter(function(t){return (G.turn - t.turn) < _turnsForMonthsLocal(12);});
       var upward = recentTrans.filter(function(t){return t.path === 'keju_rise' || t.path === 'military_merit';}).length;
       if (upward > 5) adj('socialMobility', 0.1 * mr, '仕途通畅');
     }
@@ -846,7 +854,11 @@
     }
     // 皇威 → 皇权（威远 → 诏令更易推行，等效皇权提升）
     if (G.huangwei && G.huangwei.index > 85 && G.huangquan) {
-      G.huangquan.index = Math.min(100, G.huangquan.index + 0.02 * mr);
+      if (typeof global.AuthorityEngines !== 'undefined' && global.AuthorityEngines.adjustHuangquan) {
+        global.AuthorityEngines.adjustHuangquan('personalRule', 0.02 * mr, '\u7687\u5a01\u9ad8\u6da8\u4f20\u5bfc');
+      } else {
+        G.huangquan.index = Math.min(100, G.huangquan.index + 0.02 * mr);
+      }
     }
   }
 
@@ -917,7 +929,7 @@
     }
     // 天象
     if (G.heavenSigns) {
-      var recent = G.heavenSigns.filter(function(s){return (G.turn||0) - s.turn < 6;});
+      var recent = G.heavenSigns.filter(function(s){return (G.turn||0) - s.turn < _turnsForMonthsLocal(6);});
       if (recent.length > 0) lines.push('【天象】' + recent.map(function(s){return s.name;}).join('、'));
     }
     return lines.length > 0 ? lines.join('\n') : '';

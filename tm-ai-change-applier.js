@@ -249,6 +249,16 @@
       console.warn('[ai-applier] path not found:', path);
       return { ok: false, reason: 'path not found' };
     }
+    if (/^chars\.[^.]+\.loyalty$/.test(String(path)) && typeof global.adjustCharacterLoyalty === 'function') {
+      var loyDelta = global.adjustCharacterLoyalty(r.parent, delta, reason, {
+        source: 'ai-anypath-loyalty-delta',
+        ai: true,
+        defaultReason: 'AI\u63A8\u6F14',
+        maxAbs: 20
+      });
+      if (!loyDelta || !loyDelta.ok || loyDelta.blocked) return { ok: false, reason: loyDelta && loyDelta.reason || 'loyalty rejected' };
+      return { ok: true, old: loyDelta.oldValue, new: loyDelta.newValue, delta: loyDelta.delta, reason: reason };
+    }
     var old = typeof r.value === 'number' ? r.value : 0;
     r.parent[r.key] = old + delta;
     _recordToTurnChanges(path, old, r.parent[r.key], reason);
@@ -256,6 +266,7 @@
   }
 
   function _applyPathSet(obj, path, value, reason) {
+    var pathKey = String(path || '').replace(/^GM\./, '');
     var r = _resolvePath(obj, path);
     if (!r.parent) {
       // 尝试创建路径
@@ -267,15 +278,36 @@
       }
       cur[keys[keys.length-1]] = value;
       _recordToTurnChanges(path, undefined, value, reason);
+      if (pathKey === 'armies' && Array.isArray(value)) _refreshMilitaryViews(obj);
       return { ok: true, old: undefined, new: value, reason: reason };
     }
     var old = r.value;
+    if (/^chars\.[^.]+\.loyalty$/.test(String(path)) && typeof global.setCharacterLoyalty === 'function') {
+      var loySet = global.setCharacterLoyalty(r.parent, value, reason, {
+        source: 'ai-anypath-loyalty-set',
+        ai: true,
+        defaultReason: 'AI\u63A8\u6F14',
+        maxJump: 20
+      });
+      if (!loySet || !loySet.ok || loySet.blocked) return { ok: false, reason: loySet && loySet.reason || 'loyalty rejected' };
+      return { ok: true, old: loySet.oldValue, new: loySet.newValue, reason: reason };
+    }
     r.parent[r.key] = value;
     _recordToTurnChanges(path, old, value, reason);
+    if (pathKey === 'armies' && Array.isArray(value)) _refreshMilitaryViews(obj);
     return { ok: true, old: old, new: value, reason: reason };
   }
 
   function _applyPathPush(obj, path, value) {
+    var pathKey = String(path || '').replace(/^GM\./, '');
+    if (pathKey === 'armies' && value && typeof value === 'object' && !Array.isArray(value)) {
+      var change = Object.assign({}, value);
+      if (!change.armyName && change.name) change.armyName = change.name;
+      if (change.delta == null && change.soldiers_delta == null) {
+        change.delta = Number(change.soldiers != null ? change.soldiers : (change.size != null ? change.size : change.strength)) || 0;
+      }
+      return applyAIArmyChange(change, { source: 'path_push.armies' });
+    }
     var r = _resolvePath(obj, path);
     if (!r.parent) {
       var keys = String(path).split('.');
@@ -289,6 +321,7 @@
     }
     if (!Array.isArray(r.parent[r.key])) r.parent[r.key] = [];
     r.parent[r.key].push(value);
+    if (pathKey === 'armies') _refreshMilitaryViews(obj);
     return { ok: true };
   }
 
@@ -358,8 +391,187 @@
     return null;
   }
 
+  function _clampNum(n, min, max) {
+    n = Number(n);
+    if (!isFinite(n)) n = 0;
+    return Math.max(min, Math.min(max, n));
+  }
+
+  function _normalizeArmyKey(name) {
+    return String(name || '').trim().replace(/[\s,，、。？！；：·・\-—_]/g, '').toLowerCase();
+  }
+
+  function _findArmyForAIChange(G, name) {
+    if (!G || !Array.isArray(G.armies) || !name) return null;
+    var key = _normalizeArmyKey(name);
+    if (!key) return null;
+    var exact = G.armies.find(function(a) {
+      return a && (_normalizeArmyKey(a.name) === key || _normalizeArmyKey(a.id) === key);
+    });
+    if (exact) return exact;
+    return G.armies.find(function(a) {
+      var ak = _normalizeArmyKey(a && a.name);
+      return ak && key && (ak.indexOf(key) >= 0 || key.indexOf(ak) >= 0) && Math.abs(ak.length - key.length) <= 4;
+    }) || null;
+  }
+
+  function _playerFactionNameForArmy(G, change) {
+    if (change && (change.faction || change.owner || change.factionName)) return change.faction || change.owner || change.factionName;
+    var P0 = global.P || {};
+    if (P0.playerInfo && P0.playerInfo.factionName) return P0.playerInfo.factionName;
+    if (P0.playerFaction) return P0.playerFaction;
+    var pc = G && Array.isArray(G.chars) ? G.chars.find(function(c){ return c && c.isPlayer; }) : null;
+    if (pc && pc.faction) return pc.faction;
+    var pf = G && Array.isArray(G.facs) ? G.facs.find(function(f){ return f && (f.isPlayer || f.player); }) : null;
+    return (pf && pf.name) || '';
+  }
+
+  function _armyChangeDelta(change) {
+    if (!change) return 0;
+    var v = (change.delta != null) ? change.delta
+          : (change.soldiers_delta != null) ? change.soldiers_delta
+          : (change.soldierDelta != null) ? change.soldierDelta
+          : (change.strength_delta != null) ? change.strength_delta
+          : (change.troops_delta != null) ? change.troops_delta
+          : null;
+    if (v == null && (change.action === 'create' || change.create === true || change.isNewArmy === true)) {
+      v = change.soldiers != null ? change.soldiers : (change.strength != null ? change.strength : change.size);
+    }
+    v = Math.round(Number(v) || 0);
+    return v;
+  }
+
+  function _refreshMilitaryViews(G) {
+    try { if (typeof global.syncMilitarySources === 'function') global.syncMilitarySources(G); } catch(_) {}
+    try { if (global.TM && TM.FactionIndex && typeof TM.FactionIndex.rebuild === 'function') TM.FactionIndex.rebuild(); } catch(_) {}
+    try { if (typeof global.renderTopBarVars === 'function') global.renderTopBarVars(); } catch(_) {}
+    try { if (typeof global.syncArmiesToMap === 'function') global.syncArmiesToMap(); } catch(_) {}
+    try { if (typeof global.renderMap === 'function') global.renderMap(); } catch(_) {}
+  }
+
+  function applyAIArmyChange(change, opts) {
+    opts = opts || {};
+    var G = global.GM;
+    if (!G || !change) return { ok:false, reason:'no game or change' };
+    if (!Array.isArray(G.armies)) G.armies = [];
+    if (!G._turnReport) G._turnReport = [];
+
+    var name = change.armyName || change.name || change.army || change.unitName || change.unit || '';
+    name = String(name || '').trim();
+    if (!name) return { ok:false, reason:'missing army name' };
+
+    var delta = _armyChangeDelta(change);
+    var army = _findArmyForAIChange(G, name);
+    var reason = change.reason || change.rationale || opts.reason || 'AI推演';
+    var changed = false;
+    var created = false;
+
+    if (!army) {
+      if (delta <= 0) return { ok:false, reason:'army not found', name:name };
+      var armyType = change.armyType || change.type || change.branch || change.kind || '募兵';
+      var factionName = _playerFactionNameForArmy(G, change);
+      army = {
+        id: change.id || ('army_' + (G.turn || 0) + '_' + Math.random().toString(36).slice(2, 7)),
+        name: name,
+        faction: '',
+        branch: change.branch || armyType,
+        type: armyType,
+        armyType: armyType,
+        soldiers: delta,
+        size: delta,
+        strength: delta,
+        morale: _clampNum((change.morale != null ? change.morale : 60) + (Number(change.morale_delta) || 0), 0, 100),
+        supply: _clampNum(change.supply != null ? change.supply : 75, 0, 100),
+        training: _clampNum((change.training != null ? change.training : 45) + (Number(change.training_delta) || 0), 0, 100),
+        loyalty: _clampNum(change.loyalty != null ? change.loyalty : 60, 0, 100),
+        control: _clampNum(change.control != null ? change.control : 60, 0, 100),
+        controlLevel: _clampNum(change.controlLevel != null ? change.controlLevel : 60, 0, 100),
+        location: change.location || change.garrison || change.region || change.province || change.destination || '',
+        garrison: change.garrison || change.location || change.region || change.province || change.destination || '',
+        commander: change.commander || '',
+        equipment: Array.isArray(change.equipment) ? change.equipment : [],
+        composition: Array.isArray(change.composition) ? change.composition : [{ type: armyType, count: delta }],
+        state: change.state || 'garrison',
+        source: opts.source || change.source || 'ai_military_change',
+        reason: reason,
+        _aiCreated: true,
+        _createdTurn: G.turn || 0
+      };
+      G.armies.push(army);
+      if (factionName) {
+        try {
+          if (global.TM && TM.FactionMembership && typeof TM.FactionMembership.assignArmy === 'function') {
+            TM.FactionMembership.assignArmy(army, factionName, { reason: reason, silent: true });
+          } else {
+            army.faction = factionName;
+          }
+        } catch(_) {
+          army.faction = factionName;
+        }
+      }
+      created = true;
+      changed = true;
+      G._turnReport.push({ type:'military', armyName:name, field:'soldiers', old:0, new:delta, delta:delta, created:true, reason:reason, source:opts.source || '', turn:G.turn||0 });
+      if (typeof global.addEB === 'function') global.addEB('军事', '新建' + name + '·' + delta + '兵' + (reason ? '：' + reason : ''));
+    } else {
+      if (delta) {
+        var oldS = Math.max(0, Math.round(Number(army.soldiers || army.size || army.strength || 0) || 0));
+        var newS = Math.max(0, oldS + delta);
+        army.soldiers = newS;
+        army.size = newS;
+        army.strength = newS;
+        if (typeof opts.recordChange === 'function') opts.recordChange('military', army.name || name, 'soldiers', oldS, newS, reason);
+        G._turnReport.push({ type:'military', armyName:army.name || name, field:'soldiers', old:oldS, new:newS, delta:delta, reason:reason, source:opts.source || '', turn:G.turn||0 });
+        if (newS <= 0) {
+          army.destroyed = true;
+          if (typeof global.addEB === 'function') global.addEB('军事', (army.name || name) + '全军覆没：' + reason);
+        }
+        changed = true;
+      }
+      if (change.morale_delta || change.morale != null) {
+        var oldM = army.morale == null ? 50 : Number(army.morale);
+        army.morale = change.morale != null ? _clampNum(change.morale, 0, 100) : _clampNum(oldM + Number(change.morale_delta || 0), 0, 100);
+        if (typeof opts.recordChange === 'function') opts.recordChange('military', army.name || name, 'morale', oldM, army.morale, reason);
+        changed = true;
+      }
+      if (change.training_delta || change.training != null) {
+        var oldT = army.training == null ? 50 : Number(army.training);
+        army.training = change.training != null ? _clampNum(change.training, 0, 100) : _clampNum(oldT + Number(change.training_delta || 0), 0, 100);
+        changed = true;
+      }
+      if (change.supply_delta || change.supply != null) {
+        var oldSupply = army.supply == null ? 75 : Number(army.supply);
+        army.supply = change.supply != null ? _clampNum(change.supply, 0, 100) : _clampNum(oldSupply + Number(change.supply_delta || 0), 0, 100);
+        changed = true;
+      }
+      if (change.destination && typeof change.destination === 'string') {
+        army.destination = change.destination;
+        army._remainingDistance = 0;
+        if (typeof global.addEB === 'function') global.addEB('行军', (army.name || name) + '接令调往' + change.destination);
+        changed = true;
+      }
+      if ((change.location || change.garrison) && !change.destination) {
+        army.location = change.location || change.garrison;
+        army.garrison = change.garrison || change.location;
+        changed = true;
+      }
+    }
+
+    if (changed) _refreshMilitaryViews(G);
+    return { ok:true, army:army, created:created, changed:changed };
+  }
+
+  function _applyAIArmyChangeList(list, source, opts) {
+    var count = 0;
+    (list || []).forEach(function(change) {
+      var res = applyAIArmyChange(change, Object.assign({}, opts || {}, { source: source }));
+      if (res && res.ok && res.changed) count++;
+    });
+    return count;
+  }
+
   /** 深度 merge updates 到 entity·每个字段变化记入 _turnReport */
-  function _mergeUpdatesToEntity(entity, updates, reportType, entityName) {
+  function _mergeUpdatesToEntity(entity, updates, reportType, entityName, reason) {
     if (!entity || !updates) return 0;
     var G = global.GM;
     var count = 0;
@@ -383,6 +595,15 @@
           entity[key][subK] = newVal[subK];
         });
         count++;
+      } else if (reportType === 'char_update' && key === 'loyalty' && typeof global.setCharacterLoyalty === 'function') {
+        var _loySet = global.setCharacterLoyalty(entity, newVal, reason, {
+          source: 'ai-char-update-loyalty',
+          ai: true,
+          defaultReason: 'AI\u63A8\u6F14',
+          maxJump: 20
+        });
+        if (!_loySet || !_loySet.ok || _loySet.blocked) return;
+        count++;
       } else {
         entity[key] = newVal;
         count++;
@@ -399,7 +620,9 @@
       }
       // 若是人物更新·同步登记到 turnChanges.characters（供史记数值变化说明显示）
       if (reportType === 'char_update' && entityName && !/^\+/.test(key)) {
-        try { _recordCharChange('chars.' + entityName + '.' + key, oldVal, entity[key], ''); } catch(_rcE){ if(window.TM&&TM.errors) TM.errors.capture(_rcE,'applier.recordCharChange'); }
+        try {
+          if (key !== 'loyalty') _recordCharChange('chars.' + entityName + '.' + key, oldVal, entity[key], reason || '');
+        } catch(_rcE){ if(window.TM&&TM.errors) TM.errors.capture(_rcE,'applier.recordCharChange'); }
       }
     });
     return count;
@@ -472,6 +695,41 @@
   // ═══════════════════════════════════════════════════════════════════
   //  NPC 任免钩子
   // ═══════════════════════════════════════════════════════════════════
+
+  function _ensurePublicTreasuryResource(entity, resource) {
+    var treasury = _ensurePublicTreasury(entity);
+    if (!treasury) return null;
+    if (!treasury[resource]) treasury[resource] = { stock: 0, quota: 0, used: 0, available: 0, deficit: 0 };
+    return treasury[resource];
+  }
+
+  function _readFiscalStock(target, resource) {
+    if (!target) return 0;
+    if (target.stock !== undefined || target.available !== undefined || target.quota !== undefined || target.deficit !== undefined) {
+      if (target.stock !== undefined) return Number(target.stock) || 0;
+      return Number(target.available) || 0;
+    }
+    if (resource === 'money') {
+      if (target.money !== undefined) return Number(target.money) || 0;
+      if (target.balance !== undefined) return Number(target.balance) || 0;
+    }
+    return Number(target[resource]) || 0;
+  }
+
+  function _writeFiscalStock(target, resource, value) {
+    if (!target) return;
+    value = Number(value) || 0;
+    if (target.stock !== undefined || target.available !== undefined || target.quota !== undefined || target.deficit !== undefined) {
+      target.stock = value;
+      if (target.available !== undefined) target.available = value;
+      return;
+    }
+    target[resource] = value;
+    if (resource === 'money') target.balance = value;
+    if (target.ledgers && target.ledgers[resource]) {
+      target.ledgers[resource].stock = value;
+    }
+  }
 
   function _findChar(name) {
     var G = global.GM;
@@ -620,6 +878,15 @@
         // 同步 primary holder（兼容旧 UI 只读 holder 字段）
         pos.holder = (pos.actualHolders[0] && pos.actualHolders[0].name) || charName;
         pos.holderSinceTurn = (pos.actualHolders[0] && pos.actualHolders[0].joinedTurn) || (G.turn || 0);
+        if (typeof _offMigratePosition === 'function') _offMigratePosition(pos);
+        if (Array.isArray(pos.actualHolders)) {
+          var _namedSync = pos.actualHolders.filter(function(h){ return h && h.name && h.generated !== false; }).map(function(h){ return h.name; });
+          pos.holder = _namedSync[0] || charName;
+          pos.additionalHolders = _namedSync.slice(1);
+          var _estSync = pos.establishedCount != null ? parseInt(pos.establishedCount, 10) : (parseInt(pos.headCount, 10) || Math.max(1, _namedSync.length));
+          pos.vacancyCount = Math.max(0, _estSync - _namedSync.length);
+          pos.actualCount = Math.max(pos.actualHolders.length, _namedSync.length);
+        }
         treeUpdated = true;
         // 修正 ch.officialTitle 为树里的规范名称
         if (pos.name && pos.name !== position) ch.officialTitle = pos.name;
@@ -740,6 +1007,16 @@
             p.holder = (Array.isArray(p.actualHolders) && p.actualHolders[0] && p.actualHolders[0].name) || '';
             p.holderSinceTurn = (Array.isArray(p.actualHolders) && p.actualHolders[0] && p.actualHolders[0].joinedTurn) || 0;
           }
+          if (removedFromArr || wasPrimary) {
+            var namedAfterDismiss = Array.isArray(p.actualHolders)
+              ? p.actualHolders.filter(function(h){ return h && h.name && h.generated !== false; }).map(function(h){ return h.name; })
+              : (p.holder ? [p.holder] : []);
+            p.holder = namedAfterDismiss[0] || '';
+            p.additionalHolders = namedAfterDismiss.slice(1);
+            var estAfterDismiss = p.establishedCount != null ? parseInt(p.establishedCount, 10) : (parseInt(p.headCount, 10) || Math.max(1, namedAfterDismiss.length));
+            p.vacancyCount = Math.max(0, estAfterDismiss - namedAfterDismiss.length);
+            p.actualCount = Array.isArray(p.actualHolders) ? p.actualHolders.length : namedAfterDismiss.length;
+          }
         });
         if (Array.isArray(n.subs)) _clearAll(n.subs);
       });
@@ -811,6 +1088,7 @@
     if (!aiOutput || typeof aiOutput !== 'object') return { ok: false };
 
     // 确保 _turnReport 存在
+    if (typeof preflightAIWriteBack === 'function') preflightAIWriteBack(aiOutput, { source: 'applyAITurnChanges' });
     if (!G._turnReport) G._turnReport = [];
 
     var applied = {
@@ -1004,10 +1282,22 @@
       }
     });
 
+    if (!applied.semantic) applied.semantic = {};
+
+    // 7.5. 军事变化：诏令/奏疏/问对/朝会 AI 常返回 military_changes 或 army_changes。
+    // 旧逻辑只展示这些字段，不会在 GM.armies 缺项时创建新军，导致军队 UI 看不到新部队。
+    var militaryChangeCount = 0;
+    if (Array.isArray(aiOutput.military_changes)) {
+      militaryChangeCount += _applyAIArmyChangeList(aiOutput.military_changes, 'military_changes');
+    }
+    if (Array.isArray(aiOutput.army_changes)) {
+      militaryChangeCount += _applyAIArmyChangeList(aiOutput.army_changes, 'army_changes');
+    }
+    if (militaryChangeCount > 0) applied.semantic.military_changes = militaryChangeCount;
+
     // ═══════════════════════════════════════════════════════════════════
     // v2·AI 至高权力扩展通道（全域语义化快捷+兜底 anyPathChanges）
     // ═══════════════════════════════════════════════════════════════════
-    if (!applied.semantic) applied.semantic = {};
 
     // ── 8. char_updates：角色任意字段修改+仕途条目+走位 ──
     // schema: [{ name, updates:{...任意字段...}, careerEvent:{title,date,summary,...}, travelTo:{toLocation,estimatedDays,reason} }]
@@ -1017,7 +1307,7 @@
       var ch = _findEntity(G, 'char', cu.name);
       if (!ch) { applied.failed.push({char_update: cu, reason: 'char not found'}); return; }
       // updates：任意字段
-      if (cu.updates) charUpdCount += _mergeUpdatesToEntity(ch, cu.updates, 'char_update', ch.name);
+      if (cu.updates) charUpdCount += _mergeUpdatesToEntity(ch, cu.updates, 'char_update', ch.name, cu.reason || '');
       // careerEvent：仕途条目追加
       if (cu.careerEvent) {
         if (!Array.isArray(ch.careerHistory)) ch.careerHistory = [];
@@ -1223,8 +1513,13 @@
     var fiscalCount = 0;
     (aiOutput.fiscal_adjustments || []).forEach(function(fa) {
       if (!fa || !fa.target || !fa.kind) return;
+      var action = String(fa.action || fa.op || 'add').toLowerCase();
+      if (action === 'modify') action = 'update';
+      if (action === 'set') action = 'update';
+      if (action === 'delete' || action === 'disable' || action === 'cancel') action = 'stop';
+      if (action !== 'add' && action !== 'update' && action !== 'stop' && action !== 'remove') action = 'add';
       var amount = Math.abs(parseFloat(fa.amount) || 0);
-      if (amount <= 0) return;
+      if (action === 'add' && amount <= 0) return;
       var resource = (fa.resource === 'grain' || fa.resource === 'cloth') ? fa.resource : 'money';
       var entry = {
         id: 'fa_' + (G.turn||0) + '_' + Math.random().toString(36).slice(2,6),
@@ -1235,10 +1530,11 @@
         reason: fa.reason || '',
         recurring: !!fa.recurring,
         addedTurn: G.turn || 0,
-        stopAfterTurn: fa.stopAfterTurn || null
+        stopAfterTurn: fa.stopAfterTurn || null,
+        action: action
       };
       // 确定目标容器
-      var target = null, containerKey = null, immediateTarget = null;
+      var target = null, containerKey = null, immediateTarget = null, fiscalStockTarget = null;
       if (fa.target === 'guoku') {
         if (!G.guoku) G.guoku = {};
         if (!G.guoku.extraIncome) G.guoku.extraIncome = [];
@@ -1246,6 +1542,7 @@
         target = G.guoku;
         containerKey = (fa.kind === 'income') ? 'extraIncome' : 'extraExpense';
         immediateTarget = G.guoku;
+        fiscalStockTarget = G.guoku;
       } else if (fa.target === 'neitang') {
         if (!G.neitang) G.neitang = {};
         if (!G.neitang.extraIncome) G.neitang.extraIncome = [];
@@ -1253,6 +1550,7 @@
         target = G.neitang;
         containerKey = (fa.kind === 'income') ? 'extraIncome' : 'extraExpense';
         immediateTarget = G.neitang;
+        fiscalStockTarget = G.neitang;
       } else if (/^province:/.test(fa.target)) {
         var provName = fa.target.replace(/^province:/, '');
         var div = _findDivisionByNameOrId(G, provName);
@@ -1261,7 +1559,49 @@
           target = div.extraFiscal;
           containerKey = (fa.kind === 'income') ? 'income' : 'expense';
           immediateTarget = div;
+          fiscalStockTarget = _ensurePublicTreasuryResource(div, resource);
         }
+      }
+      if (target && containerKey && action !== 'add') {
+        var list = target[containerKey] || [];
+        var lookup = String(fa.id || fa.name || fa.category || '').trim().toLowerCase();
+        var existing = lookup ? list.find(function(item) {
+          return item && (
+            String(item.id || '').toLowerCase() === lookup ||
+            String(item.name || '').toLowerCase() === lookup ||
+            String(item.category || '').toLowerCase() === lookup
+          );
+        }) : null;
+        if (existing) {
+          if (action === 'stop' || action === 'remove') {
+            existing.recurring = false;
+            existing.stopAfterTurn = G.turn || 0;
+            existing.stoppedTurn = G.turn || 0;
+            existing.executionStatus = action === 'remove' ? 'removed' : 'stopped';
+            existing.stopReason = fa.reason || existing.stopReason || existing.reason || '';
+            fiscalCount++;
+            G._turnReport.push({ type:'fiscal_adj', action: action, target: fa.target, kind: fa.kind, resource: existing.resource || resource, name: existing.name, amount: 0, requested: 0, annualAmount: Number(existing.amount) || 0, recurring: false, shortfall: 0, executionStatus: existing.executionStatus, reason: existing.stopReason, turn: G.turn||0 });
+            if (typeof global.addEB === 'function') global.addEB('\u8D22\u653F', (fa.target === 'guoku' ? '\u5E11\u5EEA' : fa.target === 'neitang' ? '\u5185\u5E11' : fa.target) + '\u505C\u7528\u5E74\u4F8B\u300C' + (existing.name || fa.name || '') + '\u300D');
+            return;
+          }
+          if (amount > 0) existing.amount = amount;
+          existing.resource = resource;
+          existing.recurring = fa.recurring !== undefined ? !!fa.recurring : existing.recurring;
+          if (fa.stopAfterTurn !== undefined) existing.stopAfterTurn = fa.stopAfterTurn;
+          if (fa.category !== undefined) existing.category = fa.category || existing.category || '';
+          if (fa.reason) existing.reason = fa.reason;
+          if (existing.recurring) existing.lastSettledTurn = G.turn || 0;
+          existing.updatedTurn = G.turn || 0;
+          existing.executionStatus = 'updated';
+          fiscalCount++;
+          G._turnReport.push({ type:'fiscal_adj', action: action, target: fa.target, kind: fa.kind, resource: resource, name: existing.name || fa.name, amount: 0, requested: amount, annualAmount: existing.recurring ? (Number(existing.amount) || amount) : 0, recurring: !!existing.recurring, shortfall: 0, executionStatus: 'updated', reason: fa.reason || existing.reason || '', turn: G.turn||0 });
+          if (typeof global.addEB === 'function') global.addEB('\u8D22\u653F', (fa.target === 'guoku' ? '\u5E11\u5EEA' : fa.target === 'neitang' ? '\u5185\u5E11' : fa.target) + '\u6539\u5B9A\u5E74\u4F8B\u300C' + (existing.name || fa.name || '') + '\u300D');
+          return;
+        }
+        if (action === 'stop' || action === 'remove') return;
+        if (amount <= 0) return;
+        action = 'add';
+        entry.action = 'add';
       }
       if (target && containerKey) {
         target[containerKey].push(entry);
@@ -1273,9 +1613,14 @@
         //   · 若 cur >= amount → 足额拨付，无亏欠
         var actualApplied = amount;
         var shortfall = 0;
-        var executionStatus = 'completed';  // completed / partial / blocked
-        if (immediateTarget) {
-          var cur = Number(immediateTarget[resource]) || 0;
+        var executionStatus = 'completed';  // completed / partial / blocked / scheduled
+        if (entry.recurring) {
+          actualApplied = 0;
+          shortfall = 0;
+          executionStatus = 'scheduled';
+        } else if (immediateTarget) {
+          var stockTarget = fiscalStockTarget || immediateTarget;
+          var cur = _readFiscalStock(stockTarget, resource);
           if (fa.kind === 'expense') {
             if (cur <= 0) {
               // 库已空或赤字 → 主动支出彻底无法执行
@@ -1288,37 +1633,27 @@
               actualApplied = cur;
               shortfall = amount - cur;
               executionStatus = 'partial';
-              immediateTarget[resource] = 0;
-              if (immediateTarget.ledgers && immediateTarget.ledgers[resource]) {
-                immediateTarget.ledgers[resource].stock = 0;
-              }
+              _writeFiscalStock(stockTarget, resource, 0);
             } else {
               // 足额
               actualApplied = amount;
               shortfall = 0;
               executionStatus = 'completed';
-              immediateTarget[resource] = cur - amount;
-              if (immediateTarget.ledgers && immediateTarget.ledgers[resource]) {
-                var _led = immediateTarget.ledgers[resource];
-                _led.stock = (Number(_led.stock)||0) - amount;
-              }
+              _writeFiscalStock(stockTarget, resource, cur - amount);
             }
           } else {
             // 收入：直接加（若原为负·可抹平债务）
-            immediateTarget[resource] = cur + amount;
-            if (immediateTarget.ledgers && immediateTarget.ledgers[resource]) {
-              var ledI = immediateTarget.ledgers[resource];
-              ledI.stock = (Number(ledI.stock)||0) + amount;
-            }
+            _writeFiscalStock(stockTarget, resource, cur + amount);
           }
-          if (immediateTarget === G.guoku && resource === 'money') immediateTarget.balance = immediateTarget.money;
+          if ((immediateTarget === G.guoku || immediateTarget === G.neitang) && resource === 'money') immediateTarget.balance = immediateTarget.money;
         }
         // 条目标记实际应用量+亏欠量+执行状态
+        if (entry.recurring) entry.lastSettledTurn = G.turn || 0;
         entry.applied = actualApplied;
         entry.shortfall = shortfall;
         entry.executionStatus = executionStatus;
         // turnReport：记 actual + shortfall + status（渲染器区别对待）
-        G._turnReport.push({ type:'fiscal_adj', target: fa.target, kind: fa.kind, resource: resource, name: entry.name, amount: actualApplied, requested: amount, shortfall: shortfall, executionStatus: executionStatus, reason: entry.reason, turn: G.turn||0 });
+        G._turnReport.push({ type:'fiscal_adj', action: action, target: fa.target, kind: fa.kind, resource: resource, name: entry.name, amount: actualApplied, requested: amount, annualAmount: entry.recurring ? amount : 0, recurring: !!entry.recurring, shortfall: shortfall, executionStatus: executionStatus, reason: entry.reason, turn: G.turn||0 });
         // 亏欠单独登记——供下回合 AI 推演、史记、风闻录事参考
         if (shortfall > 0) {
           if (!G._fiscalShortfalls) G._fiscalShortfalls = [];
@@ -1352,7 +1687,7 @@
       if (!fu || !fu.name) return;
       var fac = _findEntity(G, 'faction', fu.name);
       if (!fac) { applied.failed.push({faction_update: fu, reason: 'faction not found'}); return; }
-      if (fu.updates) facCount += _mergeUpdatesToEntity(fac, fu.updates, 'faction_update', fac.name);
+      if (fu.updates) facCount += _mergeUpdatesToEntity(fac, fu.updates, 'faction_update', fac.name, fu.reason || '');
     });
     if (facCount > 0) applied.semantic.faction_updates = facCount;
 
@@ -1362,7 +1697,7 @@
       if (!pu || !pu.name) return;
       var party = _findEntity(G, 'party', pu.name);
       if (!party) { applied.failed.push({party_update: pu, reason: 'party not found'}); return; }
-      if (pu.updates) partyCount += _mergeUpdatesToEntity(party, pu.updates, 'party_update', party.name);
+      if (pu.updates) partyCount += _mergeUpdatesToEntity(party, pu.updates, 'party_update', party.name, pu.reason || '');
     });
     if (partyCount > 0) applied.semantic.party_updates = partyCount;
 
@@ -1372,7 +1707,7 @@
       if (!cu || !cu.name) return;
       var cls = _findEntity(G, 'class', cu.name);
       if (!cls) { applied.failed.push({class_update: cu, reason: 'class not found'}); return; }
-      if (cu.updates) classCount += _mergeUpdatesToEntity(cls, cu.updates, 'class_update', cls.name);
+      if (cu.updates) classCount += _mergeUpdatesToEntity(cls, cu.updates, 'class_update', cls.name, cu.reason || '');
     });
     if (classCount > 0) applied.semantic.class_updates = classCount;
 
@@ -1384,7 +1719,7 @@
       if (!identifier) return;
       var div = _findDivisionByNameOrId(G, identifier);
       if (!div) { applied.failed.push({region_update: ru, reason: 'region not found'}); return; }
-      if (ru.updates) regionCount += _mergeUpdatesToEntity(div, ru.updates, 'region_update', div.name || div.id);
+      if (ru.updates) regionCount += _mergeUpdatesToEntity(div, ru.updates, 'region_update', div.name || div.id, ru.reason || '');
     });
     if (regionCount > 0) applied.semantic.region_updates = regionCount;
 
@@ -2632,24 +2967,18 @@
       };
       G.guoku[containerKey].push(patch);
       // 立即作用：income 加库 / expense 扣库（不突破 0）
-      var cur = Number(G.guoku[w.resource]) || 0;
+      var cur = _readFiscalStock(G.guoku, w.resource);
       var actual;
       if (w.kind === 'income') {
         // 入：直接加（可抹平负债）
-        G.guoku[w.resource] = cur + w.shortfall;
-        if (G.guoku.ledgers && G.guoku.ledgers[w.resource]) {
-          G.guoku.ledgers[w.resource].stock = (Number(G.guoku.ledgers[w.resource].stock)||0) + w.shortfall;
-        }
+        _writeFiscalStock(G.guoku, w.resource, cur + w.shortfall);
         actual = w.shortfall;
         patch.shortfall = 0;
       } else {
         // 出：拨到见底
         actual = Math.min(cur, w.shortfall);
         if (cur > 0) {
-          G.guoku[w.resource] = cur - actual;
-          if (G.guoku.ledgers && G.guoku.ledgers[w.resource]) {
-            G.guoku.ledgers[w.resource].stock = Math.max(0, (Number(G.guoku.ledgers[w.resource].stock)||0) - actual);
-          }
+          _writeFiscalStock(G.guoku, w.resource, cur - actual);
         }
         patch.shortfall = w.shortfall - actual;
       }
@@ -2704,7 +3033,7 @@
     var curTurn = G.turn || 0;
     (G._aiMemory || []).forEach(function(mem){
       if (!mem) return;
-      var mtxt = (mem.text || mem.content || '') + '';
+      var mtxt = (typeof memoryEntryText === 'function') ? memoryEntryText(mem) : ((mem.text || mem.content || '') + '');
       if (!mtxt) return;
       if ((curTurn - (mem.turn||0)) > 30) return;
       if (mtxt.indexOf(name) >= 0) snippets.push('T'+mem.turn+' '+mtxt.substring(0,80));
@@ -2734,8 +3063,9 @@
     // 从 _aiMemory 移除该角色原始条目（保留墓志铭摘要）
     if (Array.isArray(G._aiMemory)) {
       G._aiMemory = G._aiMemory.filter(function(mem){
-        if (!mem || !mem.text) return true;
-        return mem.text.indexOf(name) < 0;
+        var memText = (typeof memoryEntryText === 'function') ? memoryEntryText(mem) : ((mem && (mem.text || mem.content)) || '');
+        if (!mem || !memText) return true;
+        return memText.indexOf(name) < 0;
       });
     }
     ch._epitaphed = true;
@@ -2829,6 +3159,275 @@
   }
   global._applyRegentDecisions = _applyRegentDecisions;
 
+  function _tmGateReason(label, reason, item) {
+    var payload = { label: label || '', reason: reason || '', item: item || null };
+    try { if (typeof global.recordAIDiagnostic === 'function') global.recordAIDiagnostic('write_gate', payload); } catch(_) {}
+    try {
+      if (typeof global.addEB === 'function') {
+        global.addEB('AI会签', '【拦截】' + (label || '写回') + '：' + (reason || '字段不足'));
+      }
+    } catch(_) {}
+    return false;
+  }
+
+  function _tmExistsChar(G, name) {
+    if (!name) return null;
+    return (G.chars || []).find(function(c){ return c && c.name === name; }) || null;
+  }
+
+  function _tmExistsFaction(G, name) {
+    if (!name) return null;
+    return (G.facs || []).find(function(f){ return f && f.name === name; }) || null;
+  }
+
+  function _tmGateReason(label, reason, item) {
+    var payload = { label: label || '', reason: reason || '', item: item || null };
+    try { if (typeof global.recordAIDiagnostic === 'function') global.recordAIDiagnostic('write_gate', payload); } catch(_) {}
+    _tmPushAIWeakHint(label, reason, item);
+    return false;
+  }
+
+  function _tmNormName(name) {
+    return String(name || '').trim().replace(/[\s·\-—、，。（）()《》“”"'：:；;！？?]/g, '');
+  }
+
+  function _tmNameOf(entity) {
+    return entity && (entity.name || entity.id || entity.title || entity.label);
+  }
+
+  function _tmAliasHit(entity, raw, norm) {
+    if (!entity) return false;
+    var fields = ['_aliases', 'aliases', 'alias', 'courtesyName', 'zi', 'hao', 'posthumousName', 'templeName'];
+    for (var i = 0; i < fields.length; i++) {
+      var v = entity[fields[i]];
+      if (!v) continue;
+      var arr = Array.isArray(v) ? v : String(v).split(/[、,，/|;]/);
+      for (var j = 0; j < arr.length; j++) {
+        var a = String(arr[j] || '').trim();
+        if (a && (a === raw || _tmNormName(a) === norm)) return true;
+      }
+    }
+    return false;
+  }
+
+  function _tmFindInList(list, name) {
+    if (!Array.isArray(list) || !name) return null;
+    var raw = String(name).trim();
+    var norm = _tmNormName(raw);
+    if (!norm) return null;
+    var i, e, en;
+    for (i = 0; i < list.length; i++) {
+      e = list[i]; en = _tmNameOf(e);
+      if (e && en && String(en).trim() === raw) return e;
+    }
+    for (i = 0; i < list.length; i++) {
+      e = list[i]; en = _tmNameOf(e);
+      if (e && en && _tmNormName(en) === norm) return e;
+    }
+    for (i = 0; i < list.length; i++) {
+      e = list[i];
+      if (_tmAliasHit(e, raw, norm)) return e;
+    }
+    return null;
+  }
+
+  function _tmGetScenario(G) {
+    try {
+      if (typeof global.findScenarioById === 'function' && G && G.sid) return global.findScenarioById(G.sid);
+    } catch(_) {}
+    return null;
+  }
+
+  function _tmPushArrays(root, keys, out) {
+    if (!root || typeof root !== 'object') return;
+    keys.forEach(function(k) {
+      if (Array.isArray(root[k])) out.push(root[k]);
+    });
+  }
+
+  function _tmResolveChar(G, name) {
+    if (!name || !G) return null;
+    var active = _tmFindInList(G.chars || [], name);
+    if (active) return { entity: active, source: 'GM.chars', active: true };
+    try {
+      if (global.DA && global.DA.chars && typeof global.DA.chars.findByName === 'function') {
+        var da = global.DA.chars.findByName(name);
+        if (da) return { entity: da, source: 'DA.chars', active: !!_tmFindInList(G.chars || [], _tmNameOf(da) || name) };
+      }
+    } catch(_) {}
+    try {
+      if (typeof global._fuzzyFindChar === 'function') {
+        var fuzzy = global._fuzzyFindChar(name);
+        if (fuzzy) return { entity: fuzzy, source: '_fuzzyFindChar', active: !!_tmFindInList(G.chars || [], _tmNameOf(fuzzy) || name) };
+      }
+    } catch(_) {}
+    var all = _tmFindInList(G.allCharacters || [], name);
+    if (all) return { entity: all, source: 'GM.allCharacters', active: false };
+    var sc = _tmGetScenario(G);
+    var sd = global.scriptData || {};
+    var buckets = [];
+    _tmPushArrays(sd, ['characters', 'chars', 'npcs', 'persons', 'allCharacters'], buckets);
+    _tmPushArrays(sc, ['characters', 'chars', 'npcs', 'persons', 'allCharacters'], buckets);
+    for (var i = 0; i < buckets.length; i++) {
+      var hit = _tmFindInList(buckets[i], name);
+      if (hit) return { entity: hit, source: 'scenario.characters', active: false };
+    }
+    return null;
+  }
+
+  function _tmResolveFaction(G, name) {
+    if (!name || !G) return null;
+    var active = _tmFindInList(G.facs || [], name);
+    if (active) return { entity: active, source: 'GM.facs', active: true };
+    try {
+      if (global.DA && global.DA.factions && typeof global.DA.factions.findByName === 'function') {
+        var da = global.DA.factions.findByName(name);
+        if (da) return { entity: da, source: 'DA.factions', active: !!_tmFindInList(G.facs || [], _tmNameOf(da) || name) };
+      }
+    } catch(_) {}
+    try {
+      if (typeof global._fuzzyFindFac === 'function') {
+        var fuzzy = global._fuzzyFindFac(name);
+        if (fuzzy) return { entity: fuzzy, source: '_fuzzyFindFac', active: !!_tmFindInList(G.facs || [], _tmNameOf(fuzzy) || name) };
+      }
+    } catch(_) {}
+    var sc = _tmGetScenario(G);
+    var sd = global.scriptData || {};
+    var buckets = [];
+    _tmPushArrays(G, ['factions', 'allFactions', 'extForces'], buckets);
+    _tmPushArrays(sd, ['factions', 'facs', 'allFactions', 'extForces'], buckets);
+    _tmPushArrays(sc, ['factions', 'facs', 'allFactions', 'extForces'], buckets);
+    for (var i = 0; i < buckets.length; i++) {
+      var hit = _tmFindInList(buckets[i], name);
+      if (hit) return { entity: hit, source: 'scenario.factions', active: false };
+    }
+    return null;
+  }
+
+  function _tmPushAIWeakHint(label, reason, item, resolution) {
+    var G = global.GM;
+    if (!G) return true;
+    var hint = {
+      label: label || '',
+      reason: reason || '',
+      itemName: item && (item.name || item.faction || item.newLeader || item.target || ''),
+      source: resolution && resolution.source || '',
+      active: resolution ? !!resolution.active : null,
+      turn: G.turn || 0
+    };
+    if (!G._aiWeakWriteHints) G._aiWeakWriteHints = [];
+    G._aiWeakWriteHints.push(hint);
+    if (G._aiWeakWriteHints.length > 20) G._aiWeakWriteHints = G._aiWeakWriteHints.slice(-20);
+    try { if (typeof global.recordAIDiagnostic === 'function') global.recordAIDiagnostic('write_hint', hint); } catch(_) {}
+    return true;
+  }
+
+  function _tmWeakEntityHint(label, reason, item, resolution) {
+    _tmPushAIWeakHint(label, reason, item, resolution);
+    return true;
+  }
+
+  function preflightAIWriteBack(aiOutput, opts) {
+    var G = global.GM;
+    if (!G || !aiOutput || typeof aiOutput !== 'object') return aiOutput;
+    opts = opts || {};
+    var blocked = 0;
+    function keepArray(field, label, fn) {
+      if (!Array.isArray(aiOutput[field])) return;
+      var kept = [];
+      aiOutput[field].forEach(function(item) {
+        if (fn(item)) kept.push(item);
+        else blocked++;
+      });
+      aiOutput[field] = kept;
+    }
+
+    keepArray('character_deaths', 'character_deaths', function(d) {
+      if (!d || !d.name) return _tmGateReason('character_deaths', 'missing name', d);
+      var chRes = _tmResolveChar(G, d.name);
+      if (!chRes) return _tmWeakEntityHint('character_deaths', 'char seems not in current known lists: ' + d.name, d, chRes);
+      var ch = chRes.entity;
+      if (!chRes.active) _tmPushAIWeakHint('character_deaths', 'char seems known but not in active roster: ' + d.name, d, chRes);
+      if (ch.alive === false || ch.dead === true) return _tmGateReason('character_deaths', 'char already dead: ' + d.name, d);
+      if (!(d.cause || d.reason || d.deathReason)) return _tmGateReason('character_deaths', 'missing cause/reason: ' + d.name, d);
+      return true;
+    });
+
+    keepArray('faction_create', 'faction_create', function(fc) {
+      if (!fc || !fc.name) return _tmGateReason('faction_create', 'missing name', fc);
+      var fcRes = _tmResolveFaction(G, fc.name);
+      if (fcRes && fcRes.active) return _tmGateReason('faction_create', 'duplicate active faction: ' + fc.name, fc);
+      if (fcRes && !fcRes.active) _tmPushAIWeakHint('faction_create', 'faction name seems known outside active roster: ' + fc.name, fc, fcRes);
+      if (!(fc.reason || fc.triggerEvent || fc.origin || fc.parentFaction)) return _tmGateReason('faction_create', 'missing reason/trigger: ' + fc.name, fc);
+      return true;
+    });
+
+    keepArray('faction_succession', 'faction_succession', function(sc) {
+      if (!sc || !sc.faction || !sc.newLeader) return _tmGateReason('faction_succession', 'missing faction/newLeader', sc);
+      var facRes = _tmResolveFaction(G, sc.faction);
+      var leaderRes = _tmResolveChar(G, sc.newLeader);
+      if (!facRes) return _tmWeakEntityHint('faction_succession', 'faction seems not in current known lists: ' + sc.faction, sc, facRes);
+      if (!facRes.active) _tmPushAIWeakHint('faction_succession', 'faction seems known but not active: ' + sc.faction, sc, facRes);
+      if (!leaderRes) return _tmWeakEntityHint('faction_succession', 'newLeader seems not in current known lists: ' + sc.newLeader, sc, leaderRes);
+      if (!leaderRes.active) _tmPushAIWeakHint('faction_succession', 'newLeader seems known but not active: ' + sc.newLeader, sc, leaderRes);
+      return true;
+    });
+
+    keepArray('faction_dissolve', 'faction_dissolve', function(fd) {
+      if (!fd || !fd.name) return _tmGateReason('faction_dissolve', 'missing name', fd);
+      var facRes = _tmResolveFaction(G, fd.name);
+      if (!facRes) return _tmWeakEntityHint('faction_dissolve', 'faction seems not in current known lists: ' + fd.name, fd, facRes);
+      var fac = facRes.entity;
+      if (!facRes.active) _tmPushAIWeakHint('faction_dissolve', 'faction seems known but not active: ' + fd.name, fd, facRes);
+      if (fac.isPlayer) return _tmGateReason('faction_dissolve', 'player faction cannot dissolve: ' + fd.name, fd);
+      if (!(fd.cause || fd.reason)) return _tmGateReason('faction_dissolve', 'missing cause/reason: ' + fd.name, fd);
+      if ((fd.cause === 'conquered' || fd.cause === 'absorbed') && fd.conqueror) {
+        var conquerorRes = _tmResolveFaction(G, fd.conqueror);
+        if (!conquerorRes) return _tmWeakEntityHint('faction_dissolve', 'conqueror seems not in current known lists: ' + fd.conqueror, fd, conquerorRes);
+        if (!conquerorRes.active) _tmPushAIWeakHint('faction_dissolve', 'conqueror seems known but not active: ' + fd.conqueror, fd, conquerorRes);
+      }
+      return true;
+    });
+
+    keepArray('office_assignments', 'office_assignments', function(oa) {
+      if (!oa || !oa.name) return _tmGateReason('office_assignments', 'missing name', oa);
+      var oaRes = _tmResolveChar(G, oa.name);
+      if (!oaRes) return _tmWeakEntityHint('office_assignments', 'char seems not in current known lists: ' + oa.name, oa, oaRes);
+      if (!oaRes.active) _tmPushAIWeakHint('office_assignments', 'char seems known but not active roster: ' + oa.name, oa, oaRes);
+      var action = oa.action || 'appoint';
+      if ((action === 'appoint' || action === 'transfer') && !oa.post) return _tmGateReason('office_assignments', 'missing post: ' + oa.name, oa);
+      return true;
+    });
+
+    keepArray('fiscal_adjustments', 'fiscal_adjustments', function(fa) {
+      if (!fa || !fa.target || !fa.kind) return _tmGateReason('fiscal_adjustments', 'missing target/kind', fa);
+      if (fa.kind !== 'income' && fa.kind !== 'expense') return _tmGateReason('fiscal_adjustments', 'invalid kind: ' + fa.kind, fa);
+      var fiscalAction = String(fa.action || fa.op || 'add').toLowerCase();
+      if (fiscalAction === 'modify' || fiscalAction === 'set') fiscalAction = 'update';
+      if (fiscalAction === 'delete' || fiscalAction === 'disable' || fiscalAction === 'cancel') fiscalAction = 'stop';
+      if (fiscalAction !== 'stop' && fiscalAction !== 'remove' && !(parseFloat(fa.amount) > 0)) return _tmGateReason('fiscal_adjustments', 'invalid amount', fa);
+      if (fa.target !== 'guoku' && fa.target !== 'neitang' && !/^province:/.test(String(fa.target))) {
+        return _tmGateReason('fiscal_adjustments', 'invalid target: ' + fa.target, fa);
+      }
+      return true;
+    });
+
+    if (aiOutput.battleResult) {
+      var br = aiOutput.battleResult;
+      if (!br.winnerFactionId || !br.loserFactionId) {
+        _tmGateReason('battleResult', 'missing winnerFactionId/loserFactionId', br);
+        delete aiOutput.battleResult;
+        blocked++;
+      }
+    }
+
+    if (blocked > 0) {
+      try { if (typeof global.recordAIDiagnostic === 'function') global.recordAIDiagnostic('write_gate_summary', { blocked: blocked, source: opts.source || '' }); } catch(_) {}
+    }
+    return aiOutput;
+  }
+  global.preflightAIWriteBack = preflightAIWriteBack;
+
   function _applyBattleResult(G, aiOutput, applied) {
     if (!G || !aiOutput || !aiOutput.battleResult) return;
     var api = global.MilitarySystems || (global.TM && global.TM.MilitarySystems);
@@ -2920,7 +3519,11 @@
         if (!c || c.alive === false) return;
         var isMilitary = (c.military||0) > 60 || /\u519B|\u5C06|\u5E05|\u53F2/.test(c.officialTitle||'');
         if (isMilitary && typeof c.loyalty === 'number') {
-          c.loyalty = Math.max(0, c.loyalty - Math.round(totalMult * 0.08));
+          if (typeof global.adjustCharacterLoyalty === 'function') {
+            global.adjustCharacterLoyalty(c, -Math.round(totalMult * 0.08), '\u56FD\u7528\u7A98\u8FEB\u5BFC\u81F4\u519B\u5FC3\u52A8\u6447', { source:'resource-deficit-military-loyalty', oncePerTurn:true });
+          } else {
+            c.loyalty = Math.max(0, c.loyalty - Math.round(totalMult * 0.08));
+          }
         }
       });
     }
@@ -3084,6 +3687,108 @@
   //  AI Prompt 上下文（注入七变量+NPC+关系网）
   // ═══════════════════════════════════════════════════════════════════
 
+  function _getFiscalContextTurnDays(G) {
+    if (typeof global._getDaysPerTurn === 'function') {
+      try {
+        var d = Number(global._getDaysPerTurn());
+        if (d > 0) return d;
+      } catch(_) {}
+    }
+    if (global.P && P.time && Number(P.time.daysPerTurn) > 0) return Number(P.time.daysPerTurn);
+    if (G && G.guoku && Number(G.guoku.turnDays) > 0) return Number(G.guoku.turnDays);
+    return 30;
+  }
+
+  function _isFiscalContextEntryActive(entry, G) {
+    if (!entry) return false;
+    if (entry.stopAfterTurn !== undefined && entry.stopAfterTurn !== null &&
+        (G.turn || 0) > Number(entry.stopAfterTurn)) return false;
+    return true;
+  }
+
+  function _normalizeFiscalContextEntry(target, kind, entry, monthRatio, G) {
+    if (!_isFiscalContextEntryActive(entry, G)) return null;
+    var recurring = !!entry.recurring;
+    var amount = Math.max(0, Number(entry.amount) || 0);
+    var turnAmount = recurring
+      ? amount / 12 * monthRatio
+      : (entry.applied !== undefined ? Math.max(0, Number(entry.applied) || 0) : amount);
+    return {
+      target: target,
+      kind: kind,
+      resource: (entry.resource === 'grain' || entry.resource === 'cloth') ? entry.resource : 'money',
+      name: entry.name || entry.category || '',
+      category: entry.category || '',
+      annualAmount: recurring ? amount : 0,
+      amount: amount,
+      turnAmount: turnAmount,
+      recurring: recurring,
+      addedTurn: entry.addedTurn || 0,
+      stopAfterTurn: entry.stopAfterTurn || null,
+      lastSettledTurn: entry.lastSettledTurn || null,
+      executionStatus: entry.executionStatus || '',
+      shortfall: Number(entry.shortfall) || 0,
+      reason: entry.reason || ''
+    };
+  }
+
+  function _buildFiscalDynamicContext(G) {
+    var turnDays = _getFiscalContextTurnDays(G);
+    var monthRatio = turnDays / 30;
+    var result = {
+      turnDays: turnDays,
+      monthRatio: monthRatio,
+      active: [],
+      byTarget: {
+        guoku: { income: [], expense: [] },
+        neitang: { income: [], expense: [] }
+      },
+      provinces: []
+    };
+
+    function pushEntry(target, kind, entry, bucket) {
+      var item = _normalizeFiscalContextEntry(target, kind, entry, monthRatio, G);
+      if (!item) return;
+      bucket.push(item);
+      if (item.recurring) result.active.push(item);
+    }
+
+    if (G.guoku) {
+      (G.guoku.extraIncome || []).forEach(function(entry) { pushEntry('guoku', 'income', entry, result.byTarget.guoku.income); });
+      (G.guoku.extraExpense || []).forEach(function(entry) { pushEntry('guoku', 'expense', entry, result.byTarget.guoku.expense); });
+    }
+    if (G.neitang) {
+      (G.neitang.extraIncome || []).forEach(function(entry) { pushEntry('neitang', 'income', entry, result.byTarget.neitang.income); });
+      (G.neitang.extraExpense || []).forEach(function(entry) { pushEntry('neitang', 'expense', entry, result.byTarget.neitang.expense); });
+    }
+
+    function walkDivs(divs) {
+      (divs || []).forEach(function(div) {
+        if (!div) return;
+        if (div.extraFiscal) {
+          var bucket = { id: div.id || '', name: div.name || div.id || '', income: [], expense: [] };
+          (div.extraFiscal.income || []).forEach(function(entry) {
+            pushEntry('province:' + bucket.name, 'income', entry, bucket.income);
+          });
+          (div.extraFiscal.expense || []).forEach(function(entry) {
+            pushEntry('province:' + bucket.name, 'expense', entry, bucket.expense);
+          });
+          if (bucket.income.length || bucket.expense.length) result.provinces.push(bucket);
+        }
+        if (div.children) walkDivs(div.children);
+        if (div.divisions) walkDivs(div.divisions);
+      });
+    }
+    if (G.adminHierarchy) {
+      Object.keys(G.adminHierarchy).forEach(function(key) {
+        var tree = G.adminHierarchy[key];
+        if (tree && tree.divisions) walkDivs(tree.divisions);
+      });
+    }
+    result.active.sort(function(a, b) { return Math.abs(b.turnAmount || 0) - Math.abs(a.turnAmount || 0); });
+    return result;
+  }
+
   function buildFullAIContext() {
     var G = global.GM;
     if (!G) return {};
@@ -3094,8 +3799,28 @@
         huangwei: _getVarState(G.huangwei),
         huangquan: _getVarState(G.huangquan),
         minxin: _getVarState(G.minxin),
-        guoku: G.guoku ? { money: G.guoku.money, grain: G.guoku.grain, cloth: G.guoku.cloth, annualIncome: G.guoku.annualIncome } : null,
-        neitang: G.neitang ? { money: G.neitang.money, huangzhuangAcres: G.neitang.huangzhuangAcres } : null,
+        guoku: G.guoku ? {
+          money: G.guoku.money !== undefined ? G.guoku.money : G.guoku.balance,
+          grain: G.guoku.grain,
+          cloth: G.guoku.cloth,
+          annualIncome: G.guoku.annualIncome,
+          monthlyIncome: G.guoku.monthlyIncome,
+          monthlyExpense: G.guoku.monthlyExpense,
+          turnIncome: G.guoku.turnIncome,
+          turnExpense: G.guoku.turnExpense,
+          turnDays: G.guoku.turnDays
+        } : null,
+        neitang: G.neitang ? {
+          money: G.neitang.money !== undefined ? G.neitang.money : G.neitang.balance,
+          grain: G.neitang.grain,
+          cloth: G.neitang.cloth,
+          huangzhuangAcres: G.neitang.huangzhuangAcres,
+          monthlyIncome: G.neitang.monthlyIncome,
+          monthlyExpense: G.neitang.monthlyExpense,
+          turnIncome: G.neitang.turnIncome,
+          turnExpense: G.neitang.turnExpense
+        } : null,
+        fiscalDynamic: _buildFiscalDynamicContext(G),
         population: G.population ? { national: G.population.national, fugitives: G.population.fugitives, hiddenCount: G.population.hiddenCount } : null,
         corruption: _getVarState(G.corruption)
       },
@@ -3289,6 +4014,7 @@
 
   global.AIChangeApplier = {
     applyAITurnChanges: applyAITurnChanges,
+    applyAIArmyChange: applyAIArmyChange,
     onAppointment: onAppointment,
     onDismissal: onDismissal,
     onTransfer: onTransfer,
@@ -3299,6 +4025,7 @@
     ensurePublicTreasury: _ensurePublicTreasury,
     applyPathDelta: _applyPathDelta,
     applyPathSet: _applyPathSet,
+    preflightAIWriteBack: preflightAIWriteBack,
     generateTurnReport: generateTurnReport,
     renderTurnReport: renderTurnReport,
     buildFullAIContext: buildFullAIContext,
@@ -3308,6 +4035,7 @@
 
   // 全局快捷
   global.applyAITurnChanges = applyAITurnChanges;
+  global.applyAIArmyChange = applyAIArmyChange;
   global.onAppointment = onAppointment;
   global.onDismissal = onDismissal;
   global._resolveBinding = _resolveBinding;

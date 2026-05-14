@@ -9,7 +9,7 @@
 
 | 按键 | 作用 |
 |------|------|
-| `Ctrl+Shift+E` | 打开 **TM.errors 错误日志面板**（含校验历史+下载 JSON） |
+| `Ctrl+Shift+E` | 打开 **TM.errors 错误日志面板**（含校验历史+下载 JSON；P4-beta 后由 tm-diagnostics-foundation 提供） |
 | `?test=1` | 启动游戏时加到 URL，自动跑全部 smoke test |
 
 ---
@@ -259,7 +259,7 @@ _aiDialogueWordHint('wd')          // 问对字数提示
 _aiDialogueTok('cy', 3)            // 朝议 3 人 token 预算
 _toggleDialogueDebug()             // 开启字数 debug 日志
 
-// 模态框（R17 抽离到 tm-modal-system.js）
+// 模态框（R17 抽离，P4-beta 并入 tm-ui-foundation.js）
 openGenericModal(title, html, onSave)
 closeGenericModal()
 showModal(title, html, onClose)

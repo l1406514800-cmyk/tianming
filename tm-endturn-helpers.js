@@ -219,7 +219,8 @@ function runAnnualReview() {
     results.excellent.forEach(function(r) {
       var c = findCharByName(r.name);
       if (c) {
-        c.loyalty = Math.min(100, (c.loyalty || 50) + 5);
+        if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(c, 5, '\u8003\u8BFE\u4F18\u7B49(' + r.score + '\u5206)', { source:'official-evaluation-excellent' });
+        else c.loyalty = Math.min(100, ((typeof c.loyalty === 'number' && isFinite(c.loyalty)) ? c.loyalty : 50) + 5);
         c.stress = Math.max(0, (c.stress || 0) - 5);
         if (typeof OpinionSystem !== 'undefined' && OpinionSystem.addEventOpinion) OpinionSystem.addEventOpinion(r.name, '朝廷', 5, '考课优等');
         if (typeof recordCharacterArc === 'function') recordCharacterArc(r.name, 'achievement', '考课优等(' + r.score + '分)');
@@ -233,7 +234,8 @@ function runAnnualReview() {
     results.poor.forEach(function(r) {
       var c = findCharByName(r.name);
       if (c) {
-        c.loyalty = Math.max(0, (c.loyalty || 50) - 5);
+        if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(c, -5, '\u8003\u8BFE\u52A3\u7B49(' + r.score + '\u5206)', { source:'official-evaluation-poor' });
+        else c.loyalty = Math.max(0, ((typeof c.loyalty === 'number' && isFinite(c.loyalty)) ? c.loyalty : 50) - 5);
         c.stress = Math.min(100, (c.stress || 0) + 10);
         if (typeof OpinionSystem !== 'undefined' && OpinionSystem.addEventOpinion) OpinionSystem.addEventOpinion(r.name, '朝廷', -5, '考课劣等');
         if (typeof recordCharacterArc === 'function') recordCharacterArc(r.name, 'event', '考课劣等(' + r.score + '分)');
@@ -1170,9 +1172,11 @@ SettlementPipeline.register('playerGrowth', '主角成长', function() {
   if (wenduiCount > 0) pc.charisma = Math.min(100, (pc.charisma || 50) + 0.15);
   if (hasWar) pc.military = Math.min(100, (pc.military || 50) + 0.15);
   // 基础智力随回合缓慢增长（阅历增长）
-  if (GM.turn > 1 && GM.turn % 3 === 0) pc.intelligence = Math.min(100, (pc.intelligence || 50) + 0.1);
+  var _learnTurns = (typeof turnsForMonths === 'function') ? turnsForMonths(3) : 3;
+  if (GM.turn > 1 && GM.turn % _learnTurns === 0) pc.intelligence = Math.min(100, (pc.intelligence || 50) + 0.1);
   // 年龄增长带来的衰退（65岁以上）
-  if ((pc.age || 30) > 65 && GM.turn % 6 === 0) {
+  var _elderTurns = (typeof turnsForMonths === 'function') ? turnsForMonths(6) : 6;
+  if ((pc.age || 30) > 65 && GM.turn % _elderTurns === 0) {
     pc.valor = Math.max(10, (pc.valor || 50) - 0.3);
     pc.military = Math.max(10, (pc.military || 50) - 0.2);
   }
@@ -1403,6 +1407,9 @@ SettlementPipeline.register('tradeRoutes', '贸易路线', function() {
 SettlementPipeline.register('diplomaticMissions', '\u5916\u4EA4\u4F7F\u56E2', function() {
   if (!GM._diplomaticMissions || GM._diplomaticMissions.length === 0) return;
   var dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
+  var monthsToTurns = (typeof turnsForMonths === 'function')
+    ? turnsForMonths
+    : function(months) { return Math.max(1, Math.ceil((months * 30) / Math.max(1, dpv))); };
   GM._diplomaticMissions.forEach(function(m) {
     if (m.status === 'completed' || m.status === 'failed') return;
     var turnsSinceSent = GM.turn - (m.sentTurn || GM.turn);
@@ -1414,13 +1421,13 @@ SettlementPipeline.register('diplomaticMissions', '\u5916\u4EA4\u4F7F\u56E2', fu
       if (typeof addEB === 'function') addEB('\u5916\u4EA4', m.envoy + '\u5DF2\u62B5\u8FBE' + m.target + '\uFF0C\u5F00\u59CB\u8C08\u5224');
     }
     // 谈判中超过3回合仍无AI回应→自动标记为completed(AI应在叙事中处理)
-    if (m.status === 'negotiating' && GM.turn - (m.arrivedTurn||GM.turn) >= 3) {
+    if (m.status === 'negotiating' && GM.turn - (m.arrivedTurn||GM.turn) >= monthsToTurns(3)) {
       m.status = 'awaiting_result';
     }
   });
   // 清理已完成/失败超过5回合的任务
   GM._diplomaticMissions = GM._diplomaticMissions.filter(function(m) {
-    if ((m.status === 'completed' || m.status === 'failed') && GM.turn - (m.resultTurn||GM.turn) > 5) return false;
+    if ((m.status === 'completed' || m.status === 'failed') && GM.turn - (m.resultTurn||GM.turn) > monthsToTurns(5)) return false;
     return true;
   });
 }, 39, 'perturn');

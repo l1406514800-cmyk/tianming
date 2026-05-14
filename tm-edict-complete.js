@@ -15,6 +15,10 @@
 (function(global) {
   'use strict';
 
+  function _turnsForMonthsLocal(months) {
+    return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  11 类奏疏反向触发规则
   // ═══════════════════════════════════════════════════════════════════
@@ -51,7 +55,7 @@
       try {
         if (!t.test(G)) return;
         // 避免 30 回合内重复
-        var recent = G._pendingMemorials.some(function(m) { return m.triggerId === t.id && (ctx.turn - m.turn) < 30; });
+        var recent = G._pendingMemorials.some(function(m) { return m.triggerId === t.id && (ctx.turn - m.turn) < _turnsForMonthsLocal(30); });
         if (recent) return;
         var memo = {
           id: 'trig_' + ctx.turn + '_' + Math.floor(Math.random()*10000),
@@ -349,7 +353,7 @@
     // 抗疏
     if (G._abductions && G._abductions.length > 0) {
       body += '<div style="font-size:0.82rem;color:var(--vermillion-400);margin:0.8rem 0 0.4rem;">抗疏</div>';
-      G._abductions.filter(function(a) { return (G.turn - a.turn) < 6; }).forEach(function(a) {
+    G._abductions.filter(function(a) { return (G.turn - a.turn) < _turnsForMonthsLocal(6); }).forEach(function(a) {
         body += '<div style="padding:8px;margin-bottom:4px;background:rgba(192,64,48,0.1);border-left:3px solid var(--vermillion-400);border-radius:4px;font-size:0.78rem;">';
         body += '<b>' + a.objector + '</b>：' + a.content;
         body += '<div style="margin-top:4px;display:flex;gap:4px;">';
@@ -382,21 +386,35 @@
     if (action === 'accept') {
       if (global.addEB) global.addEB('抗疏', '纳 ' + ab.objector + ' 之谏');
       if (global._adjAuthority) global._adjAuthority('minxin', 2);
-      if (objector) objector.loyalty = Math.min(100, (objector.loyalty || 50) + 5);
+      if (objector) {
+        if (global.adjustCharacterLoyalty) global.adjustCharacterLoyalty(objector, 5, '\u6297\u758F\u88AB\u91C7\u7EB3', { source:'edict-objection-accept' });
+        else objector.loyalty = Math.min(100, ((typeof objector.loyalty === 'number' && isFinite(objector.loyalty)) ? objector.loyalty : 50) + 5);
+      }
     } else if (action === 'reject') {
       if (global.addEB) global.addEB('抗疏', '斥 ' + ab.objector + ' 之谏');
-      if (objector) objector.loyalty = Math.max(0, (objector.loyalty || 50) - 3);
+      if (objector) {
+        if (global.adjustCharacterLoyalty) global.adjustCharacterLoyalty(objector, -3, '\u6297\u758F\u88AB\u9A73\u56DE', { source:'edict-objection-reject' });
+        else objector.loyalty = Math.max(0, ((typeof objector.loyalty === 'number' && isFinite(objector.loyalty)) ? objector.loyalty : 50) - 3);
+      }
     } else if (action === 'punish') {
       if (global.addEB) global.addEB('抗疏', '下 ' + ab.objector + ' 于狱');
       if (global._adjAuthority) { global._adjAuthority('minxin', -2); global._adjAuthority('huangwei', 3); }
-      if (objector) { objector.loyalty = Math.max(0, (objector.loyalty || 50) - 10); objector.stress = Math.min(100, (objector.stress || 0) + 30); }
+      if (objector) {
+        if (global.adjustCharacterLoyalty) global.adjustCharacterLoyalty(objector, -10, '\u56E0\u6297\u758F\u53D7\u7F5A', { source:'edict-objection-punish' });
+        else objector.loyalty = Math.max(0, ((typeof objector.loyalty === 'number' && isFinite(objector.loyalty)) ? objector.loyalty : 50) - 10);
+        objector.stress = Math.min(100, (objector.stress || 0) + 30);
+      }
     } else if (action === 'execute') {
       if (global.addEB) global.addEB('抗疏', '诛 ' + ab.objector);
       if (global._adjAuthority) { global._adjAuthority('minxin', -6); global._adjAuthority('huangwei', 5); }
       if (objector) objector.alive = false;
     } else if (action === 'demote') {
       if (global.addEB) global.addEB('抗疏', '贬 ' + ab.objector);
-      if (objector) { objector.loyalty = Math.max(0, (objector.loyalty || 50) - 5); objector.officialTitle = (objector.officialTitle || '') + '(贬)'; }
+      if (objector) {
+        if (global.adjustCharacterLoyalty) global.adjustCharacterLoyalty(objector, -5, '\u56E0\u6297\u758F\u88AB\u8D2C', { source:'edict-objection-demote' });
+        else objector.loyalty = Math.max(0, ((typeof objector.loyalty === 'number' && isFinite(objector.loyalty)) ? objector.loyalty : 50) - 5);
+        objector.officialTitle = (objector.officialTitle || '') + '(贬)';
+      }
     }
   }
 
@@ -440,6 +458,9 @@
     tick: tick,
     openEdictHelp: openEdictHelp,
     openMemorialsPanel: openMemorialsPanel,
+    _checkProjectCompletion: _checkProjectCompletion,
+    _checkHuangceCycle: _checkHuangceCycle,
+    _checkGaituEscalation: _checkGaituEscalation,
     getGameModeHint: getGameModeHint,
     enhancedTryExecute: _enhancedTryExecute,
     MEMORIAL_TRIGGERS: MEMORIAL_TRIGGERS,
@@ -447,5 +468,60 @@
     HELP_TOPICS: HELP_TOPICS,
     VERSION: 1
   };
+
+  function _checkProjectCompletion(ctx) {
+    var G = global.GM;
+    if (!G._activeCorveeProjects) return;
+    G._activeCorveeProjects.forEach(function(p) {
+      if (p._completionFired) return;
+      if (p.status === 'completed' || p.status === 'abandoned') {
+        p._completionFired = true;
+        if (!G._pendingMemorials) G._pendingMemorials = [];
+        G._pendingMemorials.push({
+          id: 'proj_complete_' + p.id,
+          typeKey: 'corvee_reform',
+          typeName: '工程' + (p.status === 'completed' ? '完工' : '烂尾') + '奏',
+          drafter: '工部尚书',
+          subject: p.name,
+          turn: ctx.turn || 0,
+          status: 'drafted',
+          draftText: '工部奏：' + p.name + ' ' + (p.status === 'completed' ? '竣工' : '中辍') + '，死亡' + (p.deaths || 0) + ' 人，请圣裁。'
+        });
+        if (global.addEB) global.addEB('工程', p.name + ' ' + (p.status === 'completed' ? '竣工' : '烂尾') + '奏到');
+      }
+    });
+  }
+
+  function _checkHuangceCycle(ctx) {
+    var G = global.GM;
+    if (!G.population || !G.population.meta) return;
+    var lastReg = G.population.meta.lastRegistrationTurn || 0;
+    if ((ctx.turn - lastReg) > _turnsForMonthsLocal(120)) {
+      G.population.meta.lastRegistrationTurn = ctx.turn;
+      if (!G._pendingMemorials) G._pendingMemorials = [];
+      G._pendingMemorials.push({
+        id: 'huangce_' + ctx.turn,
+        typeKey: 'huji_reform',
+        typeName: '大造黄册',
+        drafter: '户部尚书',
+        turn: ctx.turn,
+        status: 'drafted',
+        draftText: '户部奏：十年当大造黄册，请旨整饬。'
+      });
+      if (global.addEB) global.addEB('黄册', '十年一大造，请旨');
+    }
+  }
+
+  function _checkGaituEscalation(ctx) {
+    var G = global.GM;
+    if (!G.population || !G.population.jimiHoldings) return;
+    var lowLoyalty = G.population.jimiHoldings.filter(function(h) { return h.loyalty < 30; });
+    if (lowLoyalty.length >= 3 && !G._gaituEscalated) {
+      G._gaituEscalated = true;
+      if (typeof global.PhaseF5 !== 'undefined' && global.PhaseF5.triggerForcedCourtDiscussion) {
+        global.PhaseF5.triggerForcedCourtDiscussion('改土归流', '土司 ' + lowLoyalty.length + ' 不臣，议废土司改流官。');
+      }
+    }
+  }
 
 })(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));

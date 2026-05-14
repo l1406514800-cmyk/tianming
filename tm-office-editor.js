@@ -84,6 +84,9 @@ function openEditorHtml(scnId){
     haremConfig: scn.haremConfig||{rankSystem:[],succession:'eldest_legitimate'},
     cities: scn.cities||[]
   };
+  if (typeof normalizeTimeConfigFromGameSettings === 'function') {
+    scriptData.time = normalizeTimeConfigFromGameSettings(scriptData.time || {}, scriptData.gameSettings || {});
+  }
   // 写入IndexedDB（主存储）+ localStorage（兜底）
   var _edMeta = { scnId: scnId, scnName: P._activeScnName||scn.name||scnId };
   if (typeof TM_SaveDB !== 'undefined') {
@@ -163,6 +166,9 @@ function openEditorHtml(scnId){
       if(_gst.enableGanzhiDay !== undefined) scn.time.enableGanzhiDay = _gst.enableGanzhiDay;
       if(_gst.enableEraName !== undefined) scn.time.enableEraName = _gst.enableEraName;
       if(_gst.eraNames && _gst.eraNames.length > 0) scn.time.eraNames = _gst.eraNames;
+    }
+    if (typeof normalizeTimeConfigFromGameSettings === 'function') {
+      scn.time = normalizeTimeConfigFromGameSettings(scn.time || {}, sd.gameSettings || scn.gameSettings || {});
     }
     // 用 hasOwnProperty 检查：编辑器中清空的字段也应同步（空数组/空对象是有效值）
     var _syncField = function(key, fallback) {

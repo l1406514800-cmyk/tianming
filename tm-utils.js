@@ -8,7 +8,7 @@ var _$=function(id){return document.getElementById(id);};
 // ============================================================
 //  8.6 ErrorMonitor · R114 (2026-04-24) 降级为 TM.errors 的兼容 shim
 //
-//  唯一的错误系统现在是 TM.errors (tm-error-collector.js)，它已注册
+//  唯一的错误系统现在是 TM.errors (tm-diagnostics-foundation.js)，它已注册
 //  window.onerror / unhandledrejection / 资源加载错误 三套监听。
 //  ErrorMonitor 保留原 API (capture / getLog / exportText / clear / count)
 //  供既有 caller (tm-game-engine.js 错误日志导出按钮) 继续工作。
@@ -457,6 +457,51 @@ function _getDaysPerTurn() {
 }
 
 /**
+ * 标准化剧本时间配置：daysPerTurn 是权威字段，perTurn/customDays 只作旧系统兼容。
+ * @param {Object} time
+ * @param {Object=} gameSettings
+ * @returns {Object}
+ */
+function normalizeTimeConfigFromGameSettings(time, gameSettings) {
+  var t = time || {};
+  var gs = gameSettings || {};
+  var unitDays = {'日':1,'周':7,'月':30,'季':90,'年':365};
+  var days = Number(gs.daysPerTurn);
+
+  if (!(days > 0)) days = Number(t.daysPerTurn);
+  if (!(days > 0) && gs.turnUnit) {
+    days = (Number(gs.turnDuration) || 1) * (unitDays[gs.turnUnit] || 30);
+  }
+  if (!(days > 0)) {
+    var pt = t.perTurn || '1m';
+    if (pt === 'custom' && Number(t.customDays) > 0) days = Number(t.customDays);
+    else {
+      var legacy = {'1d':1,'1w':7,'1m':30,'1s':90,'1y':365};
+      days = legacy[pt] || Number(parseInt(pt, 10)) || 30;
+    }
+  }
+
+  t.daysPerTurn = days;
+  if (days === 1) {
+    t.perTurn = '1d';
+    delete t.customDays;
+  } else if (days === 30) {
+    t.perTurn = '1m';
+    delete t.customDays;
+  } else if (days === 90) {
+    t.perTurn = '1s';
+    delete t.customDays;
+  } else if (days === 365) {
+    t.perTurn = '1y';
+    delete t.customDays;
+  } else {
+    t.perTurn = 'custom';
+    t.customDays = days;
+  }
+  return t;
+}
+
+/**
  * 将"月数"换算为"回合数"
  * @param {number} months - 月数（如冷却24个月、停战12个月）
  * @returns {number} 对应的回合数（至少1）
@@ -500,12 +545,14 @@ function monthlyRatePerTurn(ratePerMonth) {
  * 检测当前回合是否跨越年末
  * @returns {boolean}
  */
-function isYearBoundary() {
+function isYearBoundary(turn) {
   if (!P.time) return false;
   var dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
   if (dpv >= 365) return true; // 年制或更长，每回合都跨年
-  var prevDays = (GM.turn - 1) * dpv;
-  var curDays = GM.turn * dpv;
+  var currentTurn = (turn !== undefined && turn !== null) ? Number(turn) : (GM && GM.turn);
+  if (!isFinite(currentTurn) || currentTurn <= 0) return false;
+  var prevDays = (currentTurn - 1) * dpv;
+  var curDays = currentTurn * dpv;
   return Math.floor(curDays / 365) > Math.floor(prevDays / 365);
 }
 
@@ -554,6 +601,231 @@ function uid(){
   return Date.now().toString(36) + _uidSeq.toString(36).padStart(3, '0') + random().toString(36).slice(2,7);
 }
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+
+// Character loyalty must not change without an attributable gameplay reason.
+(function(global){
+  if (!global || global.adjustCharacterLoyalty) return;
+
+  function _isFiniteNumber(v) {
+    return typeof v === 'number' && isFinite(v);
+  }
+
+  function _clamp100(v) {
+    return Math.max(0, Math.min(100, v));
+  }
+
+  function _loyaltyValue(ch) {
+    return _isFiniteNumber(ch && ch.loyalty) ? ch.loyalty : 50;
+  }
+
+  function _findChar(chOrName) {
+    if (!chOrName) return null;
+    if (typeof chOrName === 'object') return chOrName;
+    var name = String(chOrName);
+    if (typeof global.findCharByName === 'function') {
+      var found = global.findCharByName(name);
+      if (found) return found;
+    }
+    var G = global.GM || {};
+    return (G.chars || []).find(function(c){ return c && c.name === name; }) || null;
+  }
+
+  function _syncAllCharacters(ch, oldValue, newValue, syncRelationValue) {
+    var G = global.GM || {};
+    var ac = (G.allCharacters || []).find(function(c){ return c && ch && c.name === ch.name; });
+    if (!ac) return;
+    ac.loyalty = newValue;
+    if (syncRelationValue || ac.relationValue === oldValue) ac.relationValue = newValue;
+  }
+
+  function _ensureTurnChanges() {
+    var G = global.GM;
+    if (!G) return null;
+    if (!G.turnChanges || typeof G.turnChanges !== 'object' || Array.isArray(G.turnChanges)) G.turnChanges = {};
+    if (!Array.isArray(G.turnChanges.characters)) G.turnChanges.characters = [];
+    return G.turnChanges;
+  }
+
+  function _manualRecordCharChange(name, oldValue, newValue, reason) {
+    var tc = _ensureTurnChanges();
+    if (!tc) return;
+    var item = tc.characters.find(function(c){ return c && c.name === name; });
+    if (!item) {
+      item = { name: name, changes: [] };
+      tc.characters.push(item);
+    }
+    item.changes.push({
+      field: 'loyalty',
+      oldValue: oldValue,
+      newValue: newValue,
+      reason: reason
+    });
+  }
+
+  function _recordLoyaltyMemory(ch, oldValue, newValue, reason, source, opts) {
+    if (!ch || !ch.name || oldValue === newValue) return;
+    var delta = newValue - oldValue;
+    var sign = delta > 0 ? '+' + delta : String(delta);
+    var event = '\u5FE0\u8BDA\u53D8\u5316\uFF1A' + reason + '\uFF08' + sign + '\uFF1B' + oldValue + '\u2192' + newValue + '\uFF09';
+    var emotion = delta > 0 ? '\u559C' : delta < 0 ? '\u5FE7' : '\u5E73';
+    var importance = Math.max(2, Math.min(8, Math.ceil(Math.abs(delta) / 5) + 2));
+    var who = (opts && (opts.who || opts.actor || opts.relatedPerson)) || '';
+    if (global.NpcMemorySystem && typeof global.NpcMemorySystem.remember === 'function') {
+      try {
+        global.NpcMemorySystem.remember(ch.name, event, emotion, importance, who, {
+          type: 'loyalty',
+          source: source || 'loyalty',
+          credibility: 100,
+          _noMirror: true
+        });
+        return;
+      } catch (_e) {}
+    }
+    if (!Array.isArray(ch._memory)) ch._memory = [];
+    var G = global.GM || {};
+    var entry = {
+      event: event,
+      emotion: emotion,
+      importance: importance,
+      turn: G.turn || 0,
+      who: who,
+      type: 'loyalty',
+      source: source || 'loyalty',
+      credibility: 100
+    };
+    ch._memory.push(entry);
+    if (G) {
+      if (!Array.isArray(G._memoryArchiveFull)) G._memoryArchiveFull = [];
+      G._memoryArchiveFull.push(Object.assign({}, entry, { char: ch.name, archiveTurn: G.turn || 0 }));
+    }
+  }
+
+  function _recordLoyaltyChange(ch, oldValue, newValue, reason, source, opts) {
+    if (!ch || !ch.name || oldValue === newValue) return;
+    if (typeof global.recordChange === 'function') {
+      try {
+        global.recordChange('characters', ch.name, 'loyalty', oldValue, newValue, reason);
+      } catch (_e) {
+        _manualRecordCharChange(ch.name, oldValue, newValue, reason);
+      }
+    } else {
+      _manualRecordCharChange(ch.name, oldValue, newValue, reason);
+    }
+    var G = global.GM;
+    if (G) {
+      if (!Array.isArray(G._loyaltyLog)) G._loyaltyLog = [];
+      G._loyaltyLog.push({
+        turn: G.turn || 0,
+        name: ch.name,
+        oldValue: oldValue,
+        newValue: newValue,
+        delta: newValue - oldValue,
+        reason: reason,
+        source: source || ''
+      });
+      if (G._loyaltyLog.length > 200) G._loyaltyLog.splice(0, G._loyaltyLog.length - 200);
+    }
+    _recordLoyaltyMemory(ch, oldValue, newValue, reason, source, opts);
+  }
+
+  function _rememberBlocked(ch, value, reason, source) {
+    var G = global.GM;
+    if (!G) return;
+    if (!Array.isArray(G._loyaltyBlocked)) G._loyaltyBlocked = [];
+    G._loyaltyBlocked.push({
+      turn: G.turn || 0,
+      name: ch && ch.name || '',
+      value: value,
+      reason: reason || '',
+      source: source || ''
+    });
+    if (G._loyaltyBlocked.length > 100) G._loyaltyBlocked.splice(0, G._loyaltyBlocked.length - 100);
+  }
+
+  function _hasReason(reason) {
+    return typeof reason === 'string' && reason.trim().length > 0;
+  }
+
+  function _loyaltyReason(reason, opts) {
+    if (_hasReason(reason)) return String(reason).trim();
+    if (opts && opts.ai === true) return opts.defaultReason || 'AI\u63A8\u6F14';
+    if (opts && opts.allowUnattributed) return opts.defaultReason || '\u672A\u6807\u6CE8\u6765\u6E90';
+    return '';
+  }
+
+  function _sourceAlreadyApplied(ch, source, opts) {
+    if (!opts || !opts.oncePerTurn || !source || !ch) return false;
+    var G = global.GM || {};
+    var turn = G.turn || 0;
+    if (!ch._loyaltySourceTurn || typeof ch._loyaltySourceTurn !== 'object') ch._loyaltySourceTurn = {};
+    var key = String(source);
+    if (ch._loyaltySourceTurn[key] === turn) return true;
+    ch._loyaltySourceTurn[key] = turn;
+    return false;
+  }
+
+  function adjustCharacterLoyalty(chOrName, delta, reason, opts) {
+    opts = opts || {};
+    var ch = _findChar(chOrName);
+    var amount = Number(delta);
+    if (!ch || !isFinite(amount)) {
+      return { ok: false, skipped: true, reason: 'invalid-target-or-delta' };
+    }
+    if (amount === 0) return { ok: true, skipped: true, reason: 'zero-delta' };
+    if (opts.round !== false) amount = Math.round(amount);
+    if (opts.maxAbs !== undefined) {
+      var maxAbs = Math.abs(Number(opts.maxAbs) || 0);
+      if (maxAbs > 0) amount = Math.max(-maxAbs, Math.min(maxAbs, amount));
+    }
+    if (amount === 0) return { ok: true, skipped: true, reason: 'zero-delta' };
+    var cleanReason = _loyaltyReason(reason, opts);
+    if (!cleanReason) {
+      _rememberBlocked(ch, amount, reason, opts.source);
+      return { ok: false, blocked: true, reason: 'missing-reason' };
+    }
+    if (_sourceAlreadyApplied(ch, opts.source, opts)) {
+      return { ok: true, skipped: true, duplicate: true };
+    }
+    var oldValue = _loyaltyValue(ch);
+    var newValue = _clamp100(oldValue + amount);
+    if (newValue === oldValue) return { ok: true, skipped: true, oldValue: oldValue, newValue: newValue, delta: 0 };
+    ch.loyalty = newValue;
+    if (opts.syncAllCharacters !== false) _syncAllCharacters(ch, oldValue, newValue, false);
+    _recordLoyaltyChange(ch, oldValue, newValue, cleanReason, opts.source, opts);
+    return { ok: true, oldValue: oldValue, newValue: newValue, delta: newValue - oldValue, reason: cleanReason };
+  }
+
+  function setCharacterLoyalty(chOrName, value, reason, opts) {
+    opts = opts || {};
+    var ch = _findChar(chOrName);
+    var target = Number(value);
+    if (!ch || !isFinite(target)) return { ok: false, skipped: true, reason: 'invalid-target-or-value' };
+    var cleanReason = _loyaltyReason(reason, opts);
+    if (!cleanReason) {
+      _rememberBlocked(ch, target, reason, opts.source);
+      return { ok: false, blocked: true, reason: 'missing-reason' };
+    }
+    var oldValue = _loyaltyValue(ch);
+    target = _clamp100(opts.round === false ? target : Math.round(target));
+    if (opts.maxJump !== undefined) {
+      var maxJump = Math.abs(Number(opts.maxJump) || 0);
+      if (maxJump > 0) target = _clamp100(oldValue + Math.max(-maxJump, Math.min(maxJump, target - oldValue)));
+    }
+    if (target === oldValue) return { ok: true, skipped: true, oldValue: oldValue, newValue: target, delta: 0 };
+    ch.loyalty = target;
+    if (opts.syncAllCharacters !== false) _syncAllCharacters(ch, oldValue, target, true);
+    _recordLoyaltyChange(ch, oldValue, target, cleanReason, opts.source, opts);
+    return { ok: true, oldValue: oldValue, newValue: target, delta: target - oldValue, reason: cleanReason };
+  }
+
+  global.adjustCharacterLoyalty = adjustCharacterLoyalty;
+  global.setCharacterLoyalty = setCharacterLoyalty;
+  if (!global.TM) global.TM = {};
+  global.TM.loyalty = {
+    adjust: adjustCharacterLoyalty,
+    set: setCharacterLoyalty
+  };
+})(typeof window !== 'undefined' ? window : (typeof globalThis !== 'undefined' ? globalThis : this));
 /** prompt 内字数指引——每条发言直接按用户设置范围，不做倍率
  *  category: 'wd'=问对, 'cy'=朝议（默认 cy） */
 function _aiDialogueWordHint(category) {

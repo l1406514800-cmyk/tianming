@@ -22,10 +22,29 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const childProcess = require('child_process');
 
 const SCENARIO_JS = path.resolve(__dirname, '..', 'scenarios', 'tianqi7-1627.js');
 const TARGET_JSON = path.resolve(__dirname, '..', '..', 'scenarios', '天启七年·九月（官方）.json');
+const MERGE_SUPPLEMENT = path.resolve(__dirname, 'merge-tianqi-historical-supplement.js');
+const BUILD_TIANQI_MAP = path.resolve(__dirname, 'build-tianqi-preview-map.js');
+const ATTACH_TIANQI_MAP = path.resolve(__dirname, 'attach-tianqi-map-to-official-scenario.js');
 const SID = 'sc-tianqi7-1627';
+const args = new Set(process.argv.slice(2));
+
+if (args.has('--help') || args.has('-h')) {
+  console.log([
+    'Usage: node web/scripts/export-official-scenario.js [--base-only]',
+    '',
+    'Exports web/scenarios/tianqi7-1627.js to scenarios/天启七年·九月（官方）.json.',
+    'By default it then applies the historical supplement, rebuilds the Tianqi Ming-2 map asset, and attaches it to the scenario.',
+    '',
+    'Options:',
+    '  --base-only   export the JS source snapshot without applying the historical map supplement',
+    '  --help, -h    show this help',
+  ].join('\n'));
+  process.exit(0);
+}
 
 global.P = {
   scenarios: [], scripts: [],
@@ -62,18 +81,32 @@ setTimeout(function () {
   });
 
   fs.writeFileSync(TARGET_JSON, JSON.stringify(out, null, 2), 'utf8');
+  if (!args.has('--base-only') && fs.existsSync(MERGE_SUPPLEMENT)) {
+    if (fs.existsSync(BUILD_TIANQI_MAP)) {
+      childProcess.execFileSync(process.execPath, [BUILD_TIANQI_MAP], { stdio: 'inherit' });
+    }
+    childProcess.execFileSync(process.execPath, [MERGE_SUPPLEMENT], { stdio: 'inherit' });
+    if (fs.existsSync(BUILD_TIANQI_MAP)) {
+      childProcess.execFileSync(process.execPath, [BUILD_TIANQI_MAP], { stdio: 'inherit' });
+    }
+    if (fs.existsSync(ATTACH_TIANQI_MAP)) {
+      childProcess.execFileSync(process.execPath, [ATTACH_TIANQI_MAP], { stdio: 'inherit' });
+    }
+  }
+
+  const finalOut = JSON.parse(fs.readFileSync(TARGET_JSON, 'utf8'));
   const stat = fs.statSync(TARGET_JSON);
 
   console.log('[export] written → ' + TARGET_JSON);
   console.log('[export] size: ' + (stat.size / 1024).toFixed(1) + ' KB');
-  console.log('[export] counts: chars=' + out.characters.length
-    + ' facs=' + out.factions.length
-    + ' parties=' + out.parties.length
-    + ' classes=' + out.classes.length
-    + ' vars=' + out.variables.length
-    + ' events=' + out.events.length
-    + ' rels=' + out.relations.length
-    + ' items=' + out.items.length
-    + ' rigid=' + out.rigidHistoryEvents.length);
+  console.log('[export] counts: chars=' + finalOut.characters.length
+    + ' facs=' + finalOut.factions.length
+    + ' parties=' + finalOut.parties.length
+    + ' classes=' + finalOut.classes.length
+    + ' vars=' + finalOut.variables.length
+    + ' events=' + finalOut.events.length
+    + ' rels=' + finalOut.relations.length
+    + ' items=' + finalOut.items.length
+    + ' rigid=' + finalOut.rigidHistoryEvents.length);
   process.exit(0);
 }, 300);

@@ -286,7 +286,7 @@ function startKejuExam(opts) {
       totalDays += (P.keju.stageDurationDays[s]||0);
     });
   }
-  var _dpt2 = (P.time && P.time.daysPerTurn) || 30;
+  var _dpt2 = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : ((P.time && P.time.daysPerTurn) || 30);
   var _turns = Math.ceil(totalDays / Math.max(1, _dpt2));
   toast((isEnke ? '\uD83C\uDF89 \u6069\u79D1' : '\uD83D\uDCDC \u79D1\u4E3E') + '\u5F00\u59CB\u00B7\u9884\u8BA1 ' + totalDays + ' \u65E5 (\u7EA6 ' + _turns + ' \u56DE\u5408)\u00B7\u9700\u4E32\u4E8B\u7684\u6AAF\u6BB5\u4F1A\u9010\u6B21\u63D0\u8BF7\u9661\u4E0B\u5B9A\u593A');
 }
@@ -3144,9 +3144,11 @@ if (typeof window !== 'undefined') {
 function _kejuAutoAssign() {
   if (!GM._kejuPendingAssignment || GM._kejuPendingAssignment.length === 0) return;
   var assigned = [];
+  var assignmentWaitTurns = (typeof turnsForMonths === 'function') ? turnsForMonths(2) : 2;
+  var assignmentExpireTurns = (typeof turnsForMonths === 'function') ? turnsForMonths(6) : 6;
   GM._kejuPendingAssignment = GM._kejuPendingAssignment.filter(function(p) {
-    // 等待2回合（模拟铨选时间）
-    if (GM.turn - p.enrollTurn < 2) return true;
+    // 等待约2个月（模拟铨选时间）
+    if (GM.turn - p.enrollTurn < assignmentWaitTurns) return true;
     var ch = typeof findCharByName === 'function' ? findCharByName(p.name) : null;
     if (!ch || ch.alive === false) return false;
     // 已有官职则移除
@@ -3169,7 +3171,13 @@ function _kejuAutoAssign() {
       })(GM.officeTree);
     }
     if (bestPost) {
-      bestPost.ref.holder = p.name;
+      if (typeof _offSeatPersonInPosition === 'function') {
+        _offSeatPersonInPosition(bestPost.ref, p.name, { replace: false });
+      } else if (typeof _offAppointPerson === 'function') {
+        _offAppointPerson(bestPost.ref, p.name);
+      } else {
+        bestPost.ref.holder = p.name;
+      }
       ch.title = bestPost.pos;
       ch.officialTitle = bestPost.dept + bestPost.pos;
       assigned.push(p.name + '任' + bestPost.dept + bestPost.pos);
@@ -3178,8 +3186,8 @@ function _kejuAutoAssign() {
       }
       return false;
     }
-    // 无空缺则继续等待，但超过6回合就放弃
-    return GM.turn - p.enrollTurn < 6;
+    // 无空缺则继续等待，但超过约6个月就放弃
+    return GM.turn - p.enrollTurn < assignmentExpireTurns;
   });
   if (assigned.length > 0 && typeof addEB === 'function') {
     var _quanDept2 = (typeof findOfficeByFunction === 'function') ? (findOfficeByFunction('铨选') || findOfficeByFunction('吏')) : null;
@@ -3206,4 +3214,3 @@ function closeKejuModal() {
 // ═══════════════════════════════════════════════════════════════════════
 
 // ─── 阶段 1：朝前筹备弹窗 ───
-

@@ -262,8 +262,10 @@ function getTerrainCombatModifier(terrain, attackerType) {
 function calculateDistance(region1, region2) {
     if (!region1.center || !region2.center) return Infinity;
 
-    const dx = region1.center[0] - region2.center[0];
-    const dy = region1.center[1] - region2.center[1];
+    const c1 = Array.isArray(region1.center) ? region1.center : [region1.center.x, region1.center.y];
+    const c2 = Array.isArray(region2.center) ? region2.center : [region2.center.x, region2.center.y];
+    const dx = c1[0] - c2[0];
+    const dy = c1[1] - c2[1];
     return Math.sqrt(dx * dx + dy * dy);
 }
 
@@ -346,6 +348,11 @@ function _miFindPath(startId, endId, mapData, owner) {
  */
 function applyAIMapChanges(aiResponse, mapData) {
     if (!aiResponse.map_changes) return;
+
+    if (typeof TMMapRuntime !== 'undefined' && TMMapRuntime && typeof TMMapRuntime.applyAIMapChanges === 'function') {
+        TMMapRuntime.applyAIMapChanges(aiResponse, mapData);
+        return;
+    }
 
     const changes = aiResponse.map_changes;
 

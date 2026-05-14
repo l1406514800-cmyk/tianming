@@ -274,6 +274,7 @@ function openSettings(){
     "<div style=\"display:flex;gap:0.5rem;flex-wrap:wrap;\">"+
     "<button class=\"bt bp bsm\" onclick=\"if(typeof runSelfTests==='function'){runSelfTests();toast('自检完成，查看控制台');}\">\u8FD0\u884C\u81EA\u68C0</button>"+
     "<button class=\"bt bp bsm\" onclick=\"if(typeof ErrorMonitor!=='undefined'){var t=ErrorMonitor.exportText();navigator.clipboard.writeText(t).then(function(){toast('错误日志已复制到剪贴板('+ErrorMonitor.count()+'条)')}).catch(function(){prompt('请手动复制:',t);});}else{toast('无错误监控');}\">"+"\u5BFC\u51FA\u9519\u8BEF\u65E5\u5FD7 "+(typeof ErrorMonitor!=='undefined'?'('+ErrorMonitor.count()+')':'')+"</button>"+
+    "<button class=\"bt bp bsm\" onclick=\"if(typeof openMemoryDiagnostics==='function'){openMemoryDiagnostics();}else{toast('记忆诊断未加载');}\">记忆诊断</button>"+
     "<button class=\"bt bp bsm\" onclick=\"if(typeof DebugLog!=='undefined'){DebugLog.enable('all');toast('已启用全部调试日志');}\">\u5F00\u542F\u8C03\u8BD5\u65E5\u5FD7</button>"+
     "</div></div>";
 
@@ -490,7 +491,19 @@ function _toggleSecondaryEnabled(on) {
 // P15: 通用 P.conf 字段开关·切换 boolean 值并保存
 function _togglePConf(confKey, on) {
   if (!P.conf) P.conf = {};
-  P.conf[confKey] = !!on;
+  if (confKey === 'npcAiPrecision') {
+    if (window.TM && TM.FactionNpcSettings && typeof TM.FactionNpcSettings.setEnabled === 'function') {
+      TM.FactionNpcSettings.setEnabled(!!on);
+    } else {
+      P.conf.npcAiPrecision = !!on;
+      if (on) P.conf.npcAiPrecisionMode = 'eager';
+      else if (window.TM && TM.FactionNpcInTurnDriver && typeof TM.FactionNpcInTurnDriver.cancelInTurnTimers === 'function') {
+        TM.FactionNpcInTurnDriver.cancelInTurnTimers();
+      }
+    }
+  } else {
+    P.conf[confKey] = !!on;
+  }
   if (typeof saveP === 'function') saveP();
   var labels = {
     recallGateEnabled: { on: '已启用召回节流·常规回合跳过 SC_RECALL 节省 API', off: '已关闭召回节流·每回合都全跑 5 源召回' },

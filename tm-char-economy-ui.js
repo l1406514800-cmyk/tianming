@@ -31,6 +31,12 @@
   }
 
   // ─── 名望 印章 ───
+  function _turnsForMonthsLocal(months) {
+    if (typeof global.turnsForMonths === 'function') return global.turnsForMonths(months);
+    var dpv = (typeof global._getDaysPerTurn === 'function') ? global._getDaysPerTurn() : 30;
+    return Math.max(1, Math.ceil((months * 30) / Math.max(1, dpv)));
+  }
+
   function renderFameSeal(fame) {
     fame = fame || 0;
     var absF = Math.abs(fame);
@@ -439,7 +445,7 @@
     // Hook: 创建一个 investigation event
     if (!GM._charInvestigations) GM._charInvestigations = [];
     GM._charInvestigations.push({
-      target: charName, startTurn: GM.turn, returnTurn: GM.turn + 3
+      target: charName, startTurn: GM.turn, returnTurn: GM.turn + _turnsForMonthsLocal(3)
     });
   }
 

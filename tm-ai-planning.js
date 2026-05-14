@@ -435,10 +435,16 @@ async function aiDeepReadScenario() {
   _sortedFacs.forEach(function(f, _fi) {
     // D10: 压缩模式下排名30之后的势力只注入一行
     if (_compressFacs && _fi >= 30) {
-      blockC += '  ' + f.name + ' 实力' + (f.strength||50) + (f.leader ? ' 首领:'+f.leader : '') + (f.isPlayer ? ' ★' : '') + '\n';
+      // Phase B4·优先 derivedStrength·fallback 静态
+      var _stren_short = (f.derivedStrength && f.derivedStrength.value) || (f.strength || 50);
+      var _strLab_short = (f.derivedStrength && f.derivedStrength.label) ? '/' + f.derivedStrength.label : '';
+      blockC += '  ' + f.name + ' 实力' + _stren_short + _strLab_short + (f.leader ? ' 首领:'+f.leader : '') + (f.isPlayer ? ' ★' : '') + '\n';
       return;
     }
-    var line = f.name + ' 实力' + (f.strength||50);
+    // Phase B4·2026-05-10·优先 derived 数据·fallback 静态字段
+    var _stren = (f.derivedStrength && f.derivedStrength.value) || (f.strength || 50);
+    var _strenLabel = (f.derivedStrength && f.derivedStrength.label) ? '/' + f.derivedStrength.label : '';
+    var line = f.name + ' 实力' + _stren + _strenLabel;
     if (f.leader) line += ' 首领:' + f.leader;
     if (f.type) line += ' 类型:' + f.type;
     if (f.territory) line += ' 领地:' + f.territory;
@@ -449,6 +455,42 @@ async function aiDeepReadScenario() {
     if (f.economy) line += ' \u7ECF\u6D4E:' + f.economy;
     if (f.playerRelation !== undefined && f.playerRelation !== 0) line += ' \u5BF9\u7389\u5173\u7CFB:' + f.playerRelation;
     if (f.resources) line += ' \u8D44\u6E90:' + f.resources;
+    // Phase B4·派生指标 (健康/凝聚/财政压)·让 AI 看 derivation chain·而非只读硬填 strength
+    if (f.derivedHealth && f.derivedHealth.labels) {
+      line += ' 健康:' + f.derivedHealth.overall + '/' + f.derivedHealth.labels.overall;
+    }
+    if (f.derivedCohesion && f.derivedCohesion.labels) {
+      line += ' 凝聚:' + f.derivedCohesion.overall + '/' + f.derivedCohesion.labels.overall;
+    }
+    if (f.derivedEconomy && typeof f.derivedEconomy.fiscalStress === 'number') {
+      line += ' 财政压:' + f.derivedEconomy.fiscalStress;
+    }
+    // Phase C7+G·NPC 内政最近 trajectory·让 AI 知道 NPC 已下什么诏/有什么奏/LLM 决策动机
+    if (Array.isArray(f.npcEdicts) && f.npcEdicts.length > 0) {
+      var lastE = f.npcEdicts[f.npcEdicts.length - 1];
+      line += ' 近诏:' + lastE.type + '(' + lastE.trigger + ')';
+    }
+    if (Array.isArray(f.npcMemorials) && f.npcMemorials.length > 0) {
+      var lastM = f.npcMemorials[f.npcMemorials.length - 1];
+      line += ' 近奏:[' + lastM.type + '/' + lastM.status + ']';
+    }
+    if (Array.isArray(f.npcChaoyi) && f.npcChaoyi.length > 0) {
+      var lastCy = f.npcChaoyi[f.npcChaoyi.length - 1];
+      line += ' 近议:' + lastCy.type;
+    }
+    if (Array.isArray(f.npcOfficeActions) && f.npcOfficeActions.length > 0) {
+      var lastOf = f.npcOfficeActions[f.npcOfficeActions.length - 1];
+      line += ' 近事:' + lastOf.action + '·' + lastOf.target;
+    }
+    if (Array.isArray(f.npcFiscalLedger) && f.npcFiscalLedger.length > 0) {
+      var lastL = f.npcFiscalLedger[f.npcFiscalLedger.length - 1];
+      if (lastL.crisis) line += ' ⚠财政危';
+    }
+    // G·LLM 决策动机 (主君考量)·让 AI 推演看到 NPC 真实意图·不只是数据
+    if (f._lastLlmRationale && f._lastLlmRationale.text) {
+      var rat = String(f._lastLlmRationale.text).slice(0, 60);
+      line += '\n    主君考量(LLM): ' + rat;
+    }
     if (f.mainstream) line += ' 主体:' + f.mainstream;
     if (f.culture) line += ' 文化:' + f.culture;
     if (f.description) line += ' 描述:' + f.description;
@@ -1476,7 +1518,9 @@ async function aiPlanFactionMatrix() {
     var parts = [f.name];
     if (f.isPlayer) parts.push('玩家');
     if (f.leader) parts.push('首领:' + f.leader);
-    if (f.strength != null) parts.push('实力' + f.strength);
+    // Phase B4·优先 derivedStrength·fallback static
+    var _ds = (f.derivedStrength && f.derivedStrength.value) || f.strength;
+    if (_ds != null) parts.push('实力' + _ds + (f.derivedStrength ? '/' + f.derivedStrength.label : ''));
     if (f.goal) parts.push('目标:' + String(f.goal).slice(0, 40));
     return parts.join('·');
   }).join('\n  · ');
@@ -1685,6 +1729,7 @@ var EndTurnHooks = (function() {
   function clear() {
     hooks.before = [];
     hooks.after = [];
+    fragments = [];
     _dbg('[EndTurnHooks] 已清空所有钩子');
   }
 
@@ -1695,15 +1740,64 @@ var EndTurnHooks = (function() {
     return {
       before: hooks.before.length,
       after: hooks.after.length,
-      total: hooks.before.length + hooks.after.length
+      fragments: fragments.length,
+      total: hooks.before.length + hooks.after.length + fragments.length
     };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // [slice 3b.1·2026-05-07] Fragment API
+  // 取代 _origPrompt* before/after 配对的 prompt mutation paradigm
+  // hook 不 mutate P.ai.prompt·而是返回字符串 fragment
+  // prompt-builder (slice 3b.2 起) 显式 collect + join
+  // 详见 web/docs/endturn-data-flow.md §5 obstacle #6
+  // ─────────────────────────────────────────────────────────────
+  var fragments = [];
+
+  /**
+   * 注册一个 prompt fragment 钩子
+   * @param {string} name - fragment 名(用于排序/调试·不影响行为)
+   * @param {Function} fn - (ctx) => string|null·返回 null 表示本回合不贡献
+   * @param {Object} [opts] - 选项·{position: 'suffix'(默认) | 'prefix'}·prefix 用于游戏模式之类需在 sysP 之前注入的指令
+   */
+  function registerFragment(name, fn, opts) {
+    if (typeof fn !== 'function') {
+      console.error('[EndTurnHooks] registerFragment: fn 必须是函数', name);
+      return;
+    }
+    var position = (opts && opts.position === 'prefix') ? 'prefix' : 'suffix';
+    fragments.push({ name: name || 'anonymous', fn: fn, position: position });
+    _dbg('[EndTurnHooks] 注册 fragment:', name, position);
+  }
+
+  /**
+   * 收集所有已注册 fragment·按注册顺序串接
+   * @param {Object} [ctx] - 传给每个 fragment fn·留接口给 slice 3c
+   * @returns {Array<{name:string,text:string,position:string}>} - 仅含返回非空字符串的 fragment·prompt-builder 按 position 自行 prefix/suffix
+   */
+  function collectFragments(ctx) {
+    var out = [];
+    for (var i = 0; i < fragments.length; i++) {
+      var f = fragments[i];
+      try {
+        var text = f.fn(ctx);
+        if (typeof text === 'string' && text.length > 0) {
+          out.push({ name: f.name, text: text, position: f.position || 'suffix' });
+        }
+      } catch (e) {
+        try { console.warn('[EndTurnHooks] fragment ' + f.name + ' threw·skipped', e); } catch(_){}
+      }
+    }
+    return out;
   }
 
   return {
     register: register,
     execute: execute,
     clear: clear,
-    getStats: getStats
+    getStats: getStats,
+    registerFragment: registerFragment,
+    collectFragments: collectFragments
   };
 })();
 

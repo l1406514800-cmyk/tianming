@@ -101,7 +101,7 @@
     // 9.4 环保政策 × 皇权可行度（推政策需一定皇权）
     var activePolicies = (E.activePolicies || []).length + (E.activeRecoveries || []).length;
     if (activePolicies > 3 && global._adjAuthority) {
-      global._adjAuthority('huangquan', -0.1 * mr);
+      global._adjAuthority('huangquan', -0.1 * mr, '\u73af\u653f\u4e8b\u52a1\u8fc7\u591a\u7275\u5236\u4e2d\u67a2', { source:'environment-active-policies' });
     }
     // 9.5 腐败对环政效率的折损
     if (G.corruption && G.corruption.overall > 50 && E.activePolicies) {

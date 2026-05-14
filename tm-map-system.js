@@ -43,6 +43,7 @@ function initMapSystem() {
       factionColors: {}  // 势力颜色映射
     };
   }
+  ensureMapDataScaffold(GM.mapData);
 
   // 初始化势力颜色
   assignFactionColors();
@@ -50,6 +51,364 @@ function initMapSystem() {
   // 初始化地形类型定义
   initTerrainTypes();
 }
+
+function ensureMapDataScaffold(mapData) {
+  if (!mapData || typeof mapData !== 'object') return mapData;
+  if (!mapData.cities) mapData.cities = {};
+  if (!mapData.polygons) mapData.polygons = {};
+  if (!mapData.edges) mapData.edges = {};
+  if (!mapData.terrains) mapData.terrains = {};
+  if (!Array.isArray(mapData.armies)) mapData.armies = [];
+  if (!Array.isArray(mapData.battles)) mapData.battles = [];
+  if (!Array.isArray(mapData.regions)) mapData.regions = [];
+  if (!Array.isArray(mapData.items)) mapData.items = [];
+  if (!Array.isArray(mapData.roads)) mapData.roads = [];
+  if (!mapData.config) {
+    mapData.config = {
+      width: mapData.width || 1200,
+      height: mapData.height || 800,
+      backgroundColor: '#f5f5dc',
+      borderColor: '#000000',
+      borderWidth: 2,
+      highlightColor: 'rgba(255, 255, 255, 0.3)',
+      selectedColor: 'rgba(255, 255, 0, 0.3)'
+    };
+  } else {
+    if (!mapData.config.width) mapData.config.width = mapData.width || 1200;
+    if (!mapData.config.height) mapData.config.height = mapData.height || 800;
+    if (!mapData.config.backgroundColor) mapData.config.backgroundColor = '#f5f5dc';
+    if (!mapData.config.borderColor) mapData.config.borderColor = '#000000';
+    if (!mapData.config.borderWidth) mapData.config.borderWidth = 2;
+    if (!mapData.config.highlightColor) mapData.config.highlightColor = 'rgba(255, 255, 255, 0.3)';
+    if (!mapData.config.selectedColor) mapData.config.selectedColor = 'rgba(255, 255, 0, 0.3)';
+  }
+  if (!mapData.state) {
+    mapData.state = {
+      hoveredCityId: null,
+      selectedCityId: null,
+      scale: 1.0,
+      offsetX: 0,
+      offsetY: 0,
+      showTerrain: true
+    };
+  }
+  if (!mapData.factionColors) mapData.factionColors = {};
+  if (mapData.enabled === undefined) mapData.enabled = true;
+  return mapData;
+}
+
+function getLiveMapData() {
+  if (typeof GM !== 'undefined' && GM && GM.mapData && GM.mapData.regions) return GM.mapData;
+  if (typeof P !== 'undefined' && P && P.map && P.map.regions) return P.map;
+  if (typeof P !== 'undefined' && P && P.mapData && P.mapData.regions) return P.mapData;
+  return null;
+}
+
+function cloneMapValue(value) {
+  if (!value) return value;
+  if (typeof deepClone === 'function') return deepClone(value);
+  return JSON.parse(JSON.stringify(value));
+}
+
+function asPointArray(value) {
+  if (!Array.isArray(value)) return [];
+  if (value.length > 0 && typeof value[0] === 'number') {
+    var pairs = [];
+    for (var i = 0; i < value.length - 1; i += 2) {
+      pairs.push([Number(value[i]), Number(value[i + 1])]);
+    }
+    return pairs;
+  }
+  if (value.length > 0 && Array.isArray(value[0])) {
+    return value.map(function(p) { return [Number(p[0]), Number(p[1])]; });
+  }
+  return value.map(function(p) { return [Number(p.x), Number(p.y)]; });
+}
+
+function pointsToFlat(points) {
+  var flat = [];
+  points.forEach(function(p) {
+    flat.push(Number(p[0]) || 0, Number(p[1]) || 0);
+  });
+  return flat;
+}
+
+function pointsToObjects(points) {
+  return points.map(function(p) { return { x: Number(p[0]) || 0, y: Number(p[1]) || 0 }; });
+}
+
+function parsePathPoints(path) {
+  if (!path || typeof path !== 'string') return [];
+  var nums = path.match(/-?\d+(?:\.\d+)?/g);
+  if (!nums || nums.length < 6) return [];
+  var points = [];
+  for (var i = 0; i < nums.length - 1; i += 2) {
+    points.push([Number(nums[i]), Number(nums[i + 1])]);
+  }
+  return points;
+}
+
+function normalizeCenter(region, points) {
+  if (Array.isArray(region.center) && region.center.length >= 2) return [Number(region.center[0]) || 0, Number(region.center[1]) || 0];
+  if (region.center && typeof region.center === 'object') return [Number(region.center.x) || 0, Number(region.center.y) || 0];
+  if (region.centroid && typeof region.centroid === 'object') return [Number(region.centroid.x) || 0, Number(region.centroid.y) || 0];
+  if (!points || !points.length) return [0, 0];
+  var sx = 0, sy = 0;
+  points.forEach(function(p) { sx += Number(p[0]) || 0; sy += Number(p[1]) || 0; });
+  return [sx / points.length, sy / points.length];
+}
+
+function findScenarioFactionByMapValue(value, mapData) {
+  if (!value) return null;
+  var factions = (typeof GM !== 'undefined' && GM && GM.facs) || (typeof P !== 'undefined' && P && P.factions) || [];
+  var mapFactions = (mapData && mapData.factions) || {};
+  var directMeta = mapFactions[value] || null;
+  var directKey = directMeta ? value : null;
+  var candidates = [value];
+  if (directMeta) {
+    candidates.push(directMeta.label, directMeta.scenarioFactionId, directMeta.scenarioFactionName, directMeta.short);
+  }
+  Object.keys(mapFactions).forEach(function(key) {
+    var meta = mapFactions[key] || {};
+    if (key === value || meta.label === value || meta.short === value || meta.scenarioFactionId === value || meta.scenarioFactionName === value) {
+      candidates.push(key, meta.label, meta.scenarioFactionId, meta.scenarioFactionName, meta.short);
+      directKey = directKey || key;
+      directMeta = directMeta || meta;
+    }
+  });
+  for (var i = 0; i < candidates.length; i++) {
+    var needle = candidates[i];
+    if (!needle) continue;
+    var hit = factions.find(function(f) { return f && (f.id === needle || f.name === needle); });
+    if (hit) return { id: hit.id || hit.name, key: directKey || (hit.id || hit.name), name: hit.name || hit.id, color: hit.color || (directMeta && directMeta.color) || '' };
+  }
+  if (directMeta) {
+    return {
+      id: directMeta.scenarioFactionId || value,
+      key: directKey || value,
+      name: directMeta.scenarioFactionName || directMeta.label || value,
+      color: directMeta.color || ''
+    };
+  }
+  return { id: value, key: value, name: value, color: '' };
+}
+
+function normalizeGameMapRuntime(mapData) {
+  if (!mapData || typeof mapData !== 'object') return mapData;
+  ensureMapDataScaffold(mapData);
+  mapData.width = mapData.width || mapData.config.width || 1200;
+  mapData.height = mapData.height || mapData.config.height || 800;
+  mapData.config.width = mapData.width;
+  mapData.config.height = mapData.height;
+
+  mapData.regions.forEach(function(region, idx) {
+    if (!region) return;
+    if (!region.id) region.id = region.name || ('region_' + idx);
+    if (!region.name) region.name = region.title || region.id;
+    var points = asPointArray(region.points);
+    if (!points.length) points = asPointArray(region.coords);
+    if (!points.length) points = asPointArray(region.polygon);
+    if (!points.length) points = parsePathPoints(region.path || region.d);
+    if (points.length) {
+      region.points = points;
+      region.coords = pointsToFlat(points);
+      region.polygon = pointsToObjects(points);
+    }
+    region.center = normalizeCenter(region, points);
+    region.centroid = { x: region.center[0], y: region.center[1] };
+    if (!Array.isArray(region.neighbors)) region.neighbors = [];
+    if (!Array.isArray(region.resources)) {
+      region.resources = String(region.resources || region.data?.specialResources || '').split(/[、，,·\s]+/).filter(Boolean);
+    }
+    if (!region.terrain) region.terrain = region.data?.terrain || 'plains';
+    var ownerValue = region.currentOwner || region.owner || region.factionId || region.ownerKey || '';
+    var resolved = findScenarioFactionByMapValue(ownerValue, mapData);
+    region.owner = resolved.id || ownerValue;
+    region.currentOwner = region.owner;
+    region.controller = region.controller || region.owner;
+    region.ownerKey = region.ownerKey || resolved.key || ownerValue;
+    region.currentOwnerKey = region.currentOwnerKey || region.ownerKey;
+    region.controllerKey = region.controllerKey || region.ownerKey;
+    region.stableFactionId = region.stableFactionId || region.ownerKey;
+    region.factionId = region.owner;
+    region.factionName = region.factionName || resolved.name || ownerValue;
+    region.ownerName = region.ownerName || region.factionName;
+    if (!region.initialOwner) region.initialOwner = region.owner;
+    if (!region.initialOwnerKey) region.initialOwnerKey = region.ownerKey;
+    if (!region.color && resolved.color) region.color = resolved.color;
+    if (region.development === undefined) region.development = Number(region.data?.prosperity ?? region.prosperity ?? 50);
+    if (region.prosperity === undefined) region.prosperity = Number(region.data?.prosperity ?? region.development ?? 50);
+    if (region.troops === undefined) region.troops = Number(region.data?.governanceMilitary?.standingArmy ?? region.data?.publicTreasuryInit?.troops ?? 0);
+    if (!region.events) region.events = '';
+    if (!Array.isArray(region.ownerHistory)) region.ownerHistory = [];
+    region.mutable = region.mutable !== false;
+  });
+
+  if ((!mapData.items || mapData.items.length === 0) && mapData.regions.length) {
+    mapData.items = mapData.regions.map(function(region) {
+      return {
+        id: region.id,
+        name: region.name,
+        type: 'poly',
+        coords: pointsToObjects(asPointArray(region.coords)),
+        center: { x: region.center[0], y: region.center[1] },
+        neighbors: region.neighbors || [],
+        terrain: region.terrain || 'plains',
+        resources: region.resources || [],
+        owner: region.owner || '',
+        characters: region.characters || [],
+        troops: region.troops || 0,
+        development: region.development || 50,
+        events: region.events || '',
+        color: region.color || '#cccccc'
+      };
+    });
+  }
+  return mapData;
+}
+
+function bindRuntimeMapState(sourceMap) {
+  if (!sourceMap || !sourceMap.regions) return null;
+  var liveMap = cloneMapValue(sourceMap);
+  normalizeGameMapRuntime(liveMap);
+  if (typeof GM !== 'undefined' && GM) GM.mapData = liveMap;
+  if (typeof P !== 'undefined' && P) {
+    P.map = liveMap;
+    P.mapData = liveMap;
+  }
+  return liveMap;
+}
+
+function findMapRegion(mapData, regionRef) {
+  mapData = mapData || getLiveMapData();
+  if (!mapData || !Array.isArray(mapData.regions)) return null;
+  return mapData.regions.find(function(region) {
+    return region && (region.id === regionRef || region.name === regionRef || region.adminBinding === regionRef || region.mapRegionId === regionRef);
+  }) || null;
+}
+
+function pushMapTurnChange(change) {
+  if (typeof GM === 'undefined' || !GM) return;
+  if (!GM.turnChanges) GM.turnChanges = { variables: [], characters: [], factions: [], parties: [], classes: [], military: [], map: [] };
+  if (!Array.isArray(GM.turnChanges.map)) GM.turnChanges.map = [];
+  GM.turnChanges.map.push(change);
+}
+
+function setMapRegionOwner(regionRef, newOwner, opts) {
+  opts = opts || {};
+  var mapData = opts.mapData || getLiveMapData();
+  var region = findMapRegion(mapData, regionRef);
+  if (!region) return null;
+  var resolved = findScenarioFactionByMapValue(newOwner, mapData);
+  var oldOwner = region.owner;
+  var oldOwnerKey = region.ownerKey;
+  region.owner = resolved.id || newOwner;
+  region.currentOwner = region.owner;
+  region.controller = region.owner;
+  region.ownerKey = resolved.key || newOwner;
+  region.currentOwnerKey = region.ownerKey;
+  region.controllerKey = region.ownerKey;
+  region.stableFactionId = region.ownerKey;
+  region.factionId = region.owner;
+  region.factionName = resolved.name || newOwner;
+  region.ownerName = region.factionName;
+  if (resolved.color) region.color = resolved.color;
+  if (!Array.isArray(region.ownerHistory)) region.ownerHistory = [];
+  region.ownerHistory.push({
+    turn: typeof GM !== 'undefined' && GM ? GM.turn : 0,
+    from: oldOwner,
+    fromKey: oldOwnerKey,
+    to: region.owner,
+    toKey: region.ownerKey,
+    reason: opts.reason || '领地易主'
+  });
+  if (region.events !== undefined) region.events += (region.events ? '\n' : '') + (opts.reason || '领地易主');
+  pushMapTurnChange({ regionId: region.id, regionName: region.name, field: 'owner', oldValue: oldOwner, newValue: region.owner, reason: opts.reason || '领地易主' });
+  if (typeof recordChange === 'function') {
+    try { recordChange('map', region.name, 'owner', oldOwner, region.owner, opts.reason || '领地易主'); } catch (_) {}
+  }
+  if (typeof updateMapColors === 'function') updateMapColors();
+  return region;
+}
+
+function updateMapRegionFields(regionRef, patch, opts) {
+  opts = opts || {};
+  var mapData = opts.mapData || getLiveMapData();
+  var region = findMapRegion(mapData, regionRef);
+  if (!region || !patch || typeof patch !== 'object') return null;
+  Object.keys(patch).forEach(function(key) {
+    if (key === 'owner' || key === 'currentOwner' || key === 'ownerKey') return;
+    var oldValue = region[key];
+    if (key === 'data' && patch.data && typeof patch.data === 'object') {
+      region.data = Object.assign({}, region.data || {}, patch.data);
+    } else {
+      region[key] = patch[key];
+    }
+    pushMapTurnChange({ regionId: region.id, regionName: region.name, field: key, oldValue: oldValue, newValue: region[key], reason: opts.reason || '地块字段变化' });
+  });
+  return region;
+}
+
+function applyRuntimeAIMapChanges(aiResponse, mapData) {
+  if (!aiResponse || !aiResponse.map_changes) return;
+  var changes = aiResponse.map_changes;
+  (changes.ownership_changes || []).forEach(function(change) {
+    setMapRegionOwner(change.region_id || change.region_name, change.new_owner, { mapData: mapData, reason: change.reason || 'AI推演领地易主' });
+  });
+  (changes.troop_changes || []).forEach(function(change) {
+    var region = findMapRegion(mapData, change.region_id || change.region_name);
+    if (region) updateMapRegionFields(region.id, { troops: Math.max(0, Number(region.troops || 0) + Number(change.delta || 0)) }, { mapData: mapData, reason: change.reason || 'AI推演驻军变化' });
+  });
+  (changes.development_changes || []).forEach(function(change) {
+    var region = findMapRegion(mapData, change.region_id || change.region_name);
+    if (region) updateMapRegionFields(region.id, { development: clamp(Number(region.development || 50) + Number(change.delta || 0), 0, 100) }, { mapData: mapData, reason: change.reason || 'AI推演发展度变化' });
+  });
+  (changes.events || []).forEach(function(event) {
+    var region = findMapRegion(mapData, event.region_id || event.region_name);
+    if (region) updateMapRegionFields(region.id, { events: (region.events ? region.events + '\n' : '') + (event.description || '') }, { mapData: mapData, reason: 'AI推演地块事件' });
+  });
+}
+
+function getMapAIContextData(mapData) {
+  mapData = normalizeGameMapRuntime(mapData || getLiveMapData());
+  if (!mapData) return null;
+  return {
+    id: mapData.id || '',
+    name: mapData.name || '',
+    width: mapData.width || 0,
+    height: mapData.height || 0,
+    regionCount: mapData.regions.length,
+    regions: mapData.regions.map(function(region) {
+      return {
+        id: region.id,
+        name: region.name,
+        owner: region.owner,
+        ownerKey: region.ownerKey,
+        factionName: region.factionName,
+        terrain: region.terrain,
+        neighbors: region.neighbors || [],
+        development: region.development,
+        prosperity: region.prosperity,
+        troops: region.troops,
+        adminBinding: region.adminBinding,
+        mutable: region.mutable !== false
+      };
+    })
+  };
+}
+
+var TMMapRuntime = {
+  bind: bindRuntimeMapState,
+  normalize: normalizeGameMapRuntime,
+  getMap: getLiveMapData,
+  findRegion: findMapRegion,
+  setRegionOwner: setMapRegionOwner,
+  updateRegion: updateMapRegionFields,
+  applyAIMapChanges: applyRuntimeAIMapChanges,
+  toAIContext: getMapAIContextData
+};
+if (typeof window !== 'undefined') window.TMMapRuntime = TMMapRuntime;
+if (typeof globalThis !== 'undefined') globalThis.TMMapRuntime = TMMapRuntime;
 
 /**
  * 自动为势力分配颜色
@@ -367,18 +726,21 @@ function updateMapColors() {
     P.map.regions.forEach(function(region) {
       if (!region) return;
 
-      // 根据 owner 查找对应势力
-      var owner = region.owner;
+      // 根据 owner/currentOwner/ownerKey 查找对应势力
+      var owner = region.currentOwner || region.owner || region.factionId || region.ownerKey;
       if (!owner) {
         region.color = '#cccccc'; // 无主地块为灰色
         return;
       }
 
       // 查找势力
-      var faction = GM.facs ? GM.facs.find(function(f) { return f.name === owner; }) : null;
+      var faction = GM.facs ? GM.facs.find(function(f) { return f.name === owner || f.id === owner || f.name === region.factionName || f.id === region.factionId; }) : null;
       var baseColor = null;
       if (faction && faction.color) baseColor = faction.color;
       else if (GM.mapData && GM.mapData.factionColors && GM.mapData.factionColors[owner]) baseColor = GM.mapData.factionColors[owner].main;
+      else if (GM.mapData && GM.mapData.factionColors && region.factionName && GM.mapData.factionColors[region.factionName]) baseColor = GM.mapData.factionColors[region.factionName].main;
+      else if (GM.mapData && GM.mapData.factions && region.ownerKey && GM.mapData.factions[region.ownerKey]) baseColor = GM.mapData.factions[region.ownerKey].color;
+      else if (region.factionColor) baseColor = region.factionColor;
       if (!baseColor) { region.color = '#cccccc'; return; }
       // 按 autonomy 覆盖或混合——非直辖显示管辖类型色
       var _autType = _regionAutonomyMap[region.id];
@@ -398,18 +760,24 @@ function updateMapColors() {
     P.map.items.forEach(function(item) {
       if (!item) return;
 
-      var owner = item.owner;
+      var owner = item.currentOwner || item.owner || item.factionId || item.ownerKey;
       if (!owner) {
         item.color = '#cccccc';
         return;
       }
 
-      var faction = GM.facs ? GM.facs.find(function(f) { return f.name === owner; }) : null;
+      var faction = GM.facs ? GM.facs.find(function(f) { return f.name === owner || f.id === owner || f.name === item.factionName || f.id === item.factionId; }) : null;
       if (faction && faction.color) {
         item.color = faction.color;
         updateCount++;
       } else if (GM.mapData && GM.mapData.factionColors && GM.mapData.factionColors[owner]) {
         item.color = GM.mapData.factionColors[owner].main;
+        updateCount++;
+      } else if (GM.mapData && GM.mapData.factions && item.ownerKey && GM.mapData.factions[item.ownerKey]) {
+        item.color = GM.mapData.factions[item.ownerKey].color;
+        updateCount++;
+      } else if (item.factionColor) {
+        item.color = item.factionColor;
         updateCount++;
       } else {
         item.color = '#cccccc';
@@ -1435,13 +1803,24 @@ function initGameMap() {
   }
 
   // 同步地图数据格式（确保两种格式都可用）
+  if (GM.mapData && GM.mapData.regions && GM.mapData.regions.length > 0) {
+    normalizeGameMapRuntime(GM.mapData);
+    P.map = GM.mapData;
+    P.mapData = GM.mapData;
+  } else if (P.map && P.map.regions && P.map.regions.length > 0) {
+    bindRuntimeMapState(P.map);
+  } else if (P.mapData && P.mapData.regions && P.mapData.regions.length > 0) {
+    bindRuntimeMapState(P.mapData);
+  }
   syncGameMapData();
 
   initMapSystem();
 
   var scenario = P.scenarios.find(function(s) { return s.id === GM.sid; });
-  if (scenario && scenario.mapData) {
+  if (scenario && scenario.mapData && (scenario.mapData.cities || scenario.mapData.polygons)) {
     loadMapFromScenario(scenario);
+  } else if (GM.mapData && GM.mapData.regions && GM.mapData.regions.length > 0) {
+    updateMapColors();
   } else {
     createSampleMapData();
   }
@@ -1467,7 +1846,7 @@ function syncGameMapData() {
     if (!r.development && r.development !== 0) r.development = 50;
     if (!r.troops && r.troops !== 0) r.troops = 0;
     // 为缺失坐标的区域生成网格占位坐标
-    var hasCoords = (r.coords && r.coords.length > 0) || (r.polygon && r.polygon.length > 0);
+    var hasCoords = asPointArray(r.coords).length > 0 || asPointArray(r.polygon).length > 0 || asPointArray(r.points).length > 0;
     if (!hasCoords) {
       var col = idx % gridCols, row = Math.floor(idx / gridCols);
       var cx = (col + 1) * cellW, cy = (row + 1) * cellH;
@@ -1476,14 +1855,14 @@ function syncGameMapData() {
       if (!r.polygon || r.polygon.length === 0) r.polygon = r.coords.slice();
       console.warn('[地图校验] 为区域 "' + r.name + '" 生成占位坐标');
     }
-    if (!r.center || (!r.center.x && !r.center.y)) {
-      var pts = r.coords || r.polygon || [];
+    if (!r.center || (Array.isArray(r.center) ? (r.center.length < 2) : (!r.center.x && !r.center.y))) {
+      var pts = asPointArray(r.coords);
+      if (!pts.length) pts = asPointArray(r.polygon);
+      if (!pts.length) pts = asPointArray(r.points);
       if (pts.length > 0) {
-        var sx = 0, sy = 0;
-        pts.forEach(function(p) { sx += (p.x||0); sy += (p.y||0); });
-        r.center = { x: sx / pts.length, y: sy / pts.length };
+        r.center = normalizeCenter(r, pts);
       } else {
-        r.center = { x: 0, y: 0 };
+        r.center = [0, 0];
       }
     }
   });
@@ -1668,8 +2047,9 @@ function syncBattlesToMap() {
   }
 
   // 清理旧战斗（超过3回合的）
+  var battleKeepTurns = (typeof turnsForMonths === 'function') ? turnsForMonths(3) : 3;
   GM.mapData.battles = GM.mapData.battles.filter(function(battle) {
-    return GM.turn - battle.turn <= 3;
+    return GM.turn - battle.turn <= battleKeepTurns;
   });
 }
 
@@ -1953,3 +2333,352 @@ function calculateSupplyLine(baseCityId, armyCityId, factionName) {
   return { path: pathResult.path, efficiency: efficiency, isCut: isCut };
 }
 
+
+// ============================================================
+// Phase 3 (2026-05-03)·从 tm-chaoyi-misc.js redistribute
+// 原 misc.js L186-529·drawMinimap + InteractiveMap object + openInteractiveMap + closeInteractiveMap
+// ============================================================
+function drawMinimap(){
+  var c=_$("g-minimap");if(!c)return;
+  if(!P.mapData || !P.mapData.regions || P.mapData.regions.length === 0) return;
+  var ctx=c.getContext("2d");
+  ctx.fillStyle="#1a1a2e";ctx.fillRect(0,0,c.width,c.height);
+  var scale=c.width/(P.mapData.width||800);
+  P.mapData.regions.forEach(function(r){
+    ctx.save();ctx.globalAlpha=0.35;ctx.fillStyle=r.color||"#c9a84c";
+    if(r.type==="rect"&&r.rect){
+      ctx.fillRect(r.rect.x*scale,r.rect.y*scale,r.rect.w*scale,r.rect.h*scale);
+      ctx.globalAlpha=1;ctx.fillStyle="#fff";ctx.font=Math.max(7,9*scale)+"px sans-serif";ctx.textAlign="center";
+      ctx.fillText(r.name,(r.rect.x+r.rect.w/2)*scale,(r.rect.y+r.rect.h/2)*scale+3);
+    }else if(r.type==="point"&&r.point){
+      ctx.globalAlpha=0.8;ctx.beginPath();ctx.arc(r.point.x*scale,r.point.y*scale,4,0,Math.PI*2);ctx.fill();
+      ctx.globalAlpha=1;ctx.fillStyle="#fff";ctx.font="7px sans-serif";ctx.textAlign="center";
+      ctx.fillText(r.name,r.point.x*scale,r.point.y*scale-7);
+    }else if(r.type==="poly"&&r.points&&r.points.length>2){
+      ctx.beginPath();ctx.moveTo(r.points[0][0]*scale,r.points[0][1]*scale);
+      r.points.forEach(function(p){ctx.lineTo(p[0]*scale,p[1]*scale);});
+      ctx.closePath();ctx.fill();
+    }
+    ctx.restore();
+  });
+}
+
+// ============================================================
+//  交互式地图系统
+// ============================================================
+
+var InteractiveMap = {
+  canvas: null,
+  ctx: null,
+  scale: 1,
+  offsetX: 0,
+  offsetY: 0,
+  isDragging: false,
+  dragStartX: 0,
+  dragStartY: 0,
+  selectedRegion: null,
+  hoveredRegion: null,
+
+  // 初始化
+  init: function(canvas) {
+    this.canvas = canvas;
+    this.ctx = canvas.getContext('2d');
+    this.scale = 1;
+    this.offsetX = 0;
+    this.offsetY = 0;
+
+    // 绑定事件
+    this.bindEvents();
+
+    // 绘制地图
+    this.draw();
+  },
+
+  // 绑定事件
+  bindEvents: function() {
+    var self = this;
+
+    // 鼠标滚轮缩放
+    this.canvas.addEventListener('wheel', function(e) {
+      e.preventDefault();
+      var delta = e.deltaY > 0 ? 0.9 : 1.1;
+      var newScale = self.scale * delta;
+
+      // 限制缩放范围
+      if (newScale < 0.5) newScale = 0.5;
+      if (newScale > 3) newScale = 3;
+
+      // 计算缩放中心
+      var rect = self.canvas.getBoundingClientRect();
+      var mouseX = e.clientX - rect.left;
+      var mouseY = e.clientY - rect.top;
+
+      // 调整偏移以保持鼠标位置不变
+      self.offsetX = mouseX - (mouseX - self.offsetX) * (newScale / self.scale);
+      self.offsetY = mouseY - (mouseY - self.offsetY) * (newScale / self.scale);
+
+      self.scale = newScale;
+      self.draw();
+    });
+
+    // 鼠标拖拽平移
+    this.canvas.addEventListener('mousedown', function(e) {
+      self.isDragging = true;
+      self.dragStartX = e.clientX - self.offsetX;
+      self.dragStartY = e.clientY - self.offsetY;
+    });
+
+    this.canvas.addEventListener('mousemove', function(e) {
+      if (self.isDragging) {
+        self.offsetX = e.clientX - self.dragStartX;
+        self.offsetY = e.clientY - self.dragStartY;
+        self.draw();
+      } else {
+        // 检测悬停区域
+        var rect = self.canvas.getBoundingClientRect();
+        var mouseX = (e.clientX - rect.left - self.offsetX) / self.scale;
+        var mouseY = (e.clientY - rect.top - self.offsetY) / self.scale;
+
+        self.hoveredRegion = self.getRegionAt(mouseX, mouseY);
+        self.draw();
+      }
+    });
+
+    this.canvas.addEventListener('mouseup', function(e) {
+      if (self.isDragging) {
+        self.isDragging = false;
+      } else {
+        // 点击选择区域
+        var rect = self.canvas.getBoundingClientRect();
+        var mouseX = (e.clientX - rect.left - self.offsetX) / self.scale;
+        var mouseY = (e.clientY - rect.top - self.offsetY) / self.scale;
+
+        var region = self.getRegionAt(mouseX, mouseY);
+        if (region) {
+          self.selectedRegion = region;
+          self.showRegionInfo(region);
+          self.draw();
+        }
+      }
+    });
+
+    this.canvas.addEventListener('mouseleave', function() {
+      self.isDragging = false;
+      self.hoveredRegion = null;
+      self.draw();
+    });
+  },
+
+  // 获取指定坐标的区域
+  getRegionAt: function(x, y) {
+    if (!P.mapData || !P.mapData.regions) return null;
+
+    for (var i = P.mapData.regions.length - 1; i >= 0; i--) {
+      var r = P.mapData.regions[i];
+
+      if (r.type === 'rect' && r.rect) {
+        if (x >= r.rect.x && x <= r.rect.x + r.rect.w &&
+            y >= r.rect.y && y <= r.rect.y + r.rect.h) {
+          return r;
+        }
+      } else if (r.type === 'point' && r.point) {
+        var dist = Math.sqrt(Math.pow(x - r.point.x, 2) + Math.pow(y - r.point.y, 2));
+        if (dist <= 10) return r;
+      } else if (r.type === 'poly' && r.points && r.points.length > 2) {
+        if (this.isPointInPolygon(x, y, r.points)) return r;
+      }
+    }
+
+    return null;
+  },
+
+  // 判断点是否在多边形内
+  isPointInPolygon: function(x, y, points) {
+    var inside = false;
+    for (var i = 0, j = points.length - 1; i < points.length; j = i++) {
+      var xi = points[i][0], yi = points[i][1];
+      var xj = points[j][0], yj = points[j][1];
+
+      var intersect = ((yi > y) !== (yj > y)) &&
+                      (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+      if (intersect) inside = !inside;
+    }
+    return inside;
+  },
+
+  // 绘制地图
+  draw: function() {
+    if (!this.ctx || !P.mapData || !P.mapData.regions) return;
+
+    var ctx = this.ctx;
+    var w = this.canvas.width;
+    var h = this.canvas.height;
+
+    // 清空画布
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fillRect(0, 0, w, h);
+
+    // 应用变换
+    ctx.save();
+    ctx.translate(this.offsetX, this.offsetY);
+    ctx.scale(this.scale, this.scale);
+
+    // 绘制所有区域
+    P.mapData.regions.forEach(function(r) {
+      var isSelected = this.selectedRegion && this.selectedRegion.name === r.name;
+      var isHovered = this.hoveredRegion && this.hoveredRegion.name === r.name;
+
+      ctx.save();
+
+      // 设置透明度和颜色
+      ctx.globalAlpha = isSelected ? 0.7 : (isHovered ? 0.5 : 0.35);
+      ctx.fillStyle = r.color || '#c9a84c';
+
+      // 绘制区域形状
+      if (r.type === 'rect' && r.rect) {
+        ctx.fillRect(r.rect.x, r.rect.y, r.rect.w, r.rect.h);
+
+        // 绘制边框
+        if (isSelected || isHovered) {
+          ctx.strokeStyle = isSelected ? '#ffd700' : '#fff';
+          ctx.lineWidth = 2 / this.scale;
+          ctx.strokeRect(r.rect.x, r.rect.y, r.rect.w, r.rect.h);
+        }
+
+        // 绘制文字
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#fff';
+        ctx.font = (14 / this.scale) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(r.name, r.rect.x + r.rect.w / 2, r.rect.y + r.rect.h / 2 + 5);
+      } else if (r.type === 'point' && r.point) {
+        ctx.globalAlpha = 0.8;
+        ctx.beginPath();
+        ctx.arc(r.point.x, r.point.y, 6 / this.scale, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 绘制文字
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#fff';
+        ctx.font = (12 / this.scale) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(r.name, r.point.x, r.point.y - 10 / this.scale);
+      } else if (r.type === 'poly' && r.points && r.points.length > 2) {
+        ctx.beginPath();
+        ctx.moveTo(r.points[0][0], r.points[0][1]);
+        r.points.forEach(function(p) {
+          ctx.lineTo(p[0], p[1]);
+        });
+        ctx.closePath();
+        ctx.fill();
+
+        // 绘制边框
+        if (isSelected || isHovered) {
+          ctx.strokeStyle = isSelected ? '#ffd700' : '#fff';
+          ctx.lineWidth = 2 / this.scale;
+          ctx.stroke();
+        }
+
+        // 计算中心点绘制文字
+        var centerX = r.points.reduce(function(sum, p) { return sum + p[0]; }, 0) / r.points.length;
+        var centerY = r.points.reduce(function(sum, p) { return sum + p[1]; }, 0) / r.points.length;
+
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = '#fff';
+        ctx.font = (14 / this.scale) + 'px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(r.name, centerX, centerY + 5);
+      }
+
+      ctx.restore();
+    }.bind(this));
+
+    ctx.restore();
+
+    // 绘制控制提示
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(10, 10, 200, 60);
+    ctx.fillStyle = '#fff';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('滚轮缩放 | 拖拽平移', 20, 30);
+    ctx.fillText('点击区域查看详情', 20, 50);
+    ctx.fillText('缩放: ' + (this.scale * 100).toFixed(0) + '%', 20, 65);
+  },
+
+  // 显示区域信息
+  showRegionInfo: function(region) {
+    var infoDiv = document.getElementById('map-region-info');
+    if (!infoDiv) return;
+
+    var html = '<h4 style="color:var(--gold);margin-bottom:0.5rem;">' + region.name + '</h4>';
+
+    // 显示控制者
+    if (region.controller) {
+      html += '<div style="margin-bottom:0.3rem;"><strong>控制者:</strong> ' + region.controller + '</div>';
+    }
+
+    // 显示人口
+    if (region.population) {
+      html += '<div style="margin-bottom:0.3rem;"><strong>人口:</strong> ' + region.population + '</div>';
+    }
+
+    // 显示收入
+    if (region.income) {
+      html += '<div style="margin-bottom:0.3rem;"><strong>收入:</strong> ' + region.income + '</div>';
+    }
+
+    // 显示描述
+    if (region.desc) {
+      html += '<div style="margin-top:0.5rem;color:var(--txt-d);font-size:0.85rem;">' + region.desc + '</div>';
+    }
+
+    infoDiv.innerHTML = html;
+  }
+};
+
+// 打开交互式地图
+function openInteractiveMap() {
+  if (!P.mapData || !P.mapData.regions || P.mapData.regions.length === 0) {
+    toast('❌ 当前剧本没有地图数据');
+    return;
+  }
+
+  var ov = document.createElement('div');
+  ov.className = 'generic-modal-overlay';
+  ov.id = 'interactive-map-overlay';
+
+  var html = '<div class="generic-modal" style="max-width:90vw;max-height:90vh;width:1200px;display:flex;flex-direction:column;">';
+  html += '<div class="generic-modal-header">';
+  html += '<h3>🗺️ 交互式地图</h3>';
+  html += '<button onclick="closeInteractiveMap()">✕</button>';
+  html += '</div>';
+
+  html += '<div style="flex:1;display:flex;overflow:hidden;">';
+
+  // 左侧地图画布
+  html += '<div style="flex:1;position:relative;">';
+  html += '<canvas id="interactive-map-canvas" width="900" height="600" style="width:100%;height:100%;cursor:grab;"></canvas>';
+  html += '</div>';
+
+  // 右侧信息面板
+  html += '<div style="width:280px;border-left:1px solid var(--bg-3);padding:1rem;overflow-y:auto;">';
+  html += '<div id="map-region-info" style="color:var(--txt-d);font-size:0.9rem;">点击地图区域查看详情</div>';
+  html += '</div>';
+
+  html += '</div>';
+  html += '</div>';
+
+  ov.innerHTML = html;
+  document.body.appendChild(ov);
+
+  // 初始化交互式地图
+  var canvas = document.getElementById('interactive-map-canvas');
+  if (canvas) {
+    InteractiveMap.init(canvas);
+  }
+}
+
+function closeInteractiveMap() {
+  var ov = document.getElementById('interactive-map-overlay');
+  if (ov) ov.remove();
+}

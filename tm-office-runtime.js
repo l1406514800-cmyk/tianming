@@ -1583,7 +1583,10 @@ function _officeApplyBindingHint(root, ch, dept, pos, grade, partyName, config) 
   root._officeBindingLog.push(entry);
   if (hint === 'region' || hint === 'local' || hint === 'province') {
     var oldLoyalty = _officeCharStat(ch, 'loyalty', 50);
-    if (ch) ch.loyalty = Math.max(0, oldLoyalty - config.loyalty);
+    if (ch) {
+      if (typeof root.adjustCharacterLoyalty === 'function') root.adjustCharacterLoyalty(ch, -config.loyalty, '\u5730\u65B9\u6743\u8D23\u7ED1\u5B9A\u538B\u529B\uFF1A' + (pos && pos.name || ''), { source:'office-binding-local-pressure' });
+      else ch.loyalty = Math.max(0, oldLoyalty - config.loyalty);
+    }
     entry.effect = 'loyalty';
     entry.delta = -config.loyalty;
   } else if (hint === 'ministry' || hint === 'dept' || hint === 'central') {
@@ -2144,7 +2147,17 @@ function _offSelectCandidate(charName, deptName, posName) {
 var _OFF_PICKER = null;
 
 function _offOpenPicker(pathArr, deptName, posName, currentHolder) {
-  var pos = getOffNode(pathArr) || { name: posName, desc: '', duties: '', rank: '' };
+  var pos = null;
+  try { pos = getOffNode(pathArr); } catch(_){}
+  if (!pos || pos.name !== posName) {
+    try {
+      if (typeof _offFindPositionByName === 'function') {
+        var _hit = _offFindPositionByName(posName, deptName, GM.officeTree || []);
+        if (_hit && _hit.pos) pos = _hit.pos;
+      }
+    } catch(_){}
+  }
+  pos = pos || { name: posName, desc: '', duties: '', rank: '' };
   var capital = GM._capital || '京城';
   var dutyText = (pos.desc||'') + (pos.duties||'') + deptName + posName;
   var isMilitary = /兵|军|卫|武|都督|将|都指挥|总兵|参将/.test(dutyText);

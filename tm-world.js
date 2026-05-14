@@ -528,6 +528,12 @@ function buildAIContext(deepMode) {
   var _M = deepMode ? 5 : _ctxF;
   function _sl(str, base) { return str ? String(str).slice(0, Math.round(base * _M)) : ''; }
   function _sn(arr, base) { return arr ? arr.slice(0, Math.round(base * (deepMode ? 3 : _ctxF))) : []; }
+  function _memText(entry) {
+    if (typeof memoryEntryText === 'function') return memoryEntryText(entry);
+    if (entry == null) return '';
+    if (typeof entry === 'string') return entry;
+    return String(entry.content || entry.text || entry.summary || entry.title || '');
+  }
 
   // 玩家身份概要（让AI在所有上下文前先了解视角）
   if (P.playerInfo) {
@@ -654,10 +660,12 @@ function buildAIContext(deepMode) {
     }
   });
   // 时间刻度（让AI理解每回合代表多久，从而合理估算变量变化量）
-  if (P.time && P.time.perTurn) {
-    var _ptDesc = {'1d':'\u6BCF\u56DE\u5408=1\u5929','1m':'\u6BCF\u56DE\u5408=1\u4E2A\u6708','1s':'\u6BCF\u56DE\u5408=1\u5B63\u5EA6','1y':'\u6BCF\u56DE\u5408=1\u5E74'};
-    var _ptText = _ptDesc[P.time.perTurn] || '';
-    if (P.time.perTurn === 'custom' && P.time.customDays) _ptText = '\u6BCF\u56DE\u5408=' + P.time.customDays + '\u5929';
+  if (P.time) {
+    var _dpvCtx = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : ((P.time && P.time.daysPerTurn) || 30);
+    var _ptText = '\u6BCF\u56DE\u5408=' + _dpvCtx + '\u5929';
+    if (_dpvCtx === 30) _ptText = '\u6BCF\u56DE\u5408=1\u4E2A\u6708';
+    else if (_dpvCtx === 90) _ptText = '\u6BCF\u56DE\u5408=1\u5B63\u5EA6';
+    else if (_dpvCtx === 365) _ptText = '\u6BCF\u56DE\u5408=1\u5E74';
     if (_ptText) ctx += '  \u65F6\u95F4\u523B\u5EA6\uFF1A' + _ptText + '\u3002\u53D8\u91CF\u53D8\u5316\u91CF\u5E94\u4E0E\u6B64\u5339\u914D\u3002\n';
   }
   // 变量附加信息与关联规则（编辑者定义的一切传给AI）
@@ -1545,7 +1553,7 @@ function buildAIContext(deepMode) {
   if (GM._foreshadows && GM._foreshadows.length > 0) {
     ctx += '\u3010\u672A\u7ADF\u4F0F\u7B14\u3011\n';
     GM._foreshadows.forEach(function(f) {
-      ctx += '  T' + f.turn + ': ' + f.text + '\n';
+      ctx += '  T' + f.turn + ': ' + _memText(f) + '\n';
     });
     ctx += '  \u203B \u4EE5\u4E0A\u4F0F\u7B14\u5E94\u5728\u672C\u56DE\u5408\u6216\u672A\u67652-3\u56DE\u5408\u5185\u5F97\u5230\u56DE\u5E94/\u53D1\u5C55\u3002\u5DF2\u5B9E\u73B0\u7684\u4F0F\u7B14\u4F1A\u81EA\u52A8\u6E05\u9664\u3002\n';
   }
@@ -1554,7 +1562,7 @@ function buildAIContext(deepMode) {
   if (GM._aiMemory && GM._aiMemory.length > 0) {
     ctx += '\u3010AI\u5386\u53F2\u8BB0\u5FC6\u3011\n';
     GM._aiMemory.slice(-8).forEach(function(m) {
-      ctx += '  T' + m.turn + ': ' + m.text + '\n';
+      ctx += '  T' + m.turn + ': ' + _memText(m) + '\n';
     });
   }
 

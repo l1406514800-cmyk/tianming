@@ -14,6 +14,12 @@
  *    [波 3] §-  阶段 6 用印颁行   (朝代差异化 + 党派阻挠)
  *    [波 4] §-  阶段 7 追责回响   (N 回合后强制复盘)
  *
+ *  Domain: 廷议 / 弹劾 (七阶段流程)
+ *  Refactor notes:
+ *    Phase 3·rename → tm-tinyi.js (active 唯一)
+ *    Phase 5·namespace TM.Tinyi
+ *  见 web/docs/architecture-map.md §1 行 2
+ *
  *  跨阶段：
  *    [波 1] §1  党派访问层   (GM.parties 动态层封装·剧本 + 运行时合并)
  *    [波 1] §2  实时插言     (5 选项浮层·任意时刻打断 AI 流式输出)
@@ -1076,8 +1082,7 @@ function _ty3_paDoHold(topic, meta) {
   if (!GM._ccHeldItems) GM._ccHeldItems = [];
   GM._ccHeldItems.push(_ty3_makeHeldItem(topic, '\u8bae\u524d\u7559\u4e2d', { meta: meta || null }));
   // 皇权 -1
-  if (GM.huangquan && typeof GM.huangquan.index === 'number') GM.huangquan.index = Math.max(0, GM.huangquan.index - 1);
-  else if (GM.vars && GM.vars['皇权'] && typeof GM.vars['皇权'].value === 'number') GM.vars['皇权'].value = Math.max(0, GM.vars['皇权'].value - 1);
+  _ty3_adjustHuangquan(-1, '\u8bae\u524d\u7559\u4e2d\u524a\u5f31\u7687\u6743', 'tinyi-held-item');
   // Proposer prestige penalty when metadata is present.
   if (meta && meta.proposer) {
     var ch = (typeof findCharByName === 'function') ? findCharByName(meta.proposer) : null;
@@ -1178,6 +1183,21 @@ function _ty3_readHuangquan() {
   if (GM.huangquan && typeof GM.huangquan.index === 'number') return GM.huangquan.index;
   if (GM.vars && GM.vars['皇权'] && typeof GM.vars['皇权'].value === 'number') return GM.vars['皇权'].value;
   return 50;
+}
+
+function _ty3_adjustHuangquan(delta, reason, source) {
+  if (typeof AuthorityEngines !== 'undefined' && AuthorityEngines.adjustHuangquan) {
+    return AuthorityEngines.adjustHuangquan(source || 'tinyi-v3', delta, reason || '\u5ef7\u8bae\u7275\u52a8\u7687\u6743');
+  }
+  if (GM.huangquan && typeof GM.huangquan.index === 'number') {
+    GM.huangquan.index = Math.max(0, Math.min(100, GM.huangquan.index + delta));
+    return { ok: true };
+  }
+  if (GM.vars && GM.vars['\u7687\u6743'] && typeof GM.vars['\u7687\u6743'].value === 'number') {
+    GM.vars['\u7687\u6743'].value = Math.max(0, Math.min(100, GM.vars['\u7687\u6743'].value + delta));
+    return { ok: true };
+  }
+  return { ok: false };
 }
 
 function _ty3_computeArchonGrade() {
@@ -1281,8 +1301,7 @@ function _ty3_dgPick(choice) {
   var bg = document.getElementById('ty3-dgrade-bg');
   if (bg) bg.remove();
   if (choice === 'force') {
-    if (GM.huangquan && typeof GM.huangquan.index === 'number') GM.huangquan.index = Math.max(0, GM.huangquan.index - 8);
-    else if (GM.vars && GM.vars['皇权']) GM.vars['皇权'].value = Math.max(0, (GM.vars['皇权'].value || 50) - 8);
+    _ty3_adjustHuangquan(-8, '\u786c\u63a8\u8bcf\u4ee4\u6298\u635f\u7687\u6743', 'tinyi-force-choice');
     var _oldS = (typeof GM.partyStrife === 'number') ? GM.partyStrife : 50;
     if (typeof GM.partyStrife === 'number') GM.partyStrife = Math.min(100, GM.partyStrife + 5);
     if (typeof toast === 'function') toast('硬推·皇权-8·' + _ty3_strifeChange(_oldS, GM.partyStrife));
@@ -2543,9 +2562,9 @@ function _ty3_phase3_qinDing(name, partyKey) {
   var pickedParty = ch.party || '';
   var contested = (biggestParty && biggestParty !== pickedParty && biggestInfl >= 60);
   var hqDelta = contested ? -3 : -1;
-  if (GM.huangquan && typeof GM.huangquan.index === 'number') GM.huangquan.index = Math.max(0, GM.huangquan.index + hqDelta);
-  else if (GM.vars && GM.vars['皇权']) GM.vars['皇权'].value = Math.max(0, (GM.vars['皇权'].value || 50) + hqDelta);
-  ch.loyalty = Math.min(100, (ch.loyalty || 50) + 3);
+  _ty3_adjustHuangquan(hqDelta, contested ? '\u94a6\u70b9\u4eba\u9009\u906d\u5f3a\u515a\u63a3\u8098' : '\u94a6\u70b9\u4eba\u9009\u7275\u52a8\u5ef7\u8bae', 'tinyi-qinding');
+  if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(ch, 3, '\u94A6\u70B9\u4EBA\u9009', { source:'tinyi-v3-qinding' });
+  else ch.loyalty = Math.min(100, ((typeof ch.loyalty === 'number' && isFinite(ch.loyalty)) ? ch.loyalty : 50) + 3);
   ch.favor = Math.min(100, (ch.favor || 0) + 5);
   ch.prestige = Math.min(100, (ch.prestige || 50) + 2);
   if (contested) {
@@ -2582,7 +2601,8 @@ function _ty3_phase3_doPublicVote() {
   }
   var ch = (typeof findCharByName === 'function') ? findCharByName(winner.name) : null;
   if (ch) {
-    ch.loyalty = Math.min(100, (ch.loyalty || 50) + 5);
+    if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(ch, 5, '\u5EAD\u63A8\u6240\u5B9A', { source:'tinyi-v3-public-vote' });
+    else ch.loyalty = Math.min(100, ((typeof ch.loyalty === 'number' && isFinite(ch.loyalty)) ? ch.loyalty : 50) + 5);
     ch.prestige = Math.min(100, (ch.prestige || 50) + 1);
   }
   if (typeof addCYBubble === 'function') addCYBubble('内侍', '〔 廷推所定：' + winner.name + ' 〕', true);
@@ -2871,8 +2891,7 @@ function _ty3_phase6_resolveSeal(force, ctx) {
   if (force && hostile) {
     detail.forced = true;
     detail.blockerParty = hostile.partyName || '';
-    if (GM.huangquan && typeof GM.huangquan.index === 'number') GM.huangquan.index = Math.max(0, GM.huangquan.index - 5);
-    else if (GM.vars && GM.vars['皇权']) GM.vars['皇权'].value = Math.max(0, (GM.vars['皇权'].value||50) - 5);
+    _ty3_adjustHuangquan(-5, '\u5f3a\u884c\u63a8\u8fdb\u53d7\u515a\u6d3e\u963b\u6ede', 'tinyi-hostile-forced');
   } else if (hostile) {
     var roll = (typeof ctx.roll === 'number') ? ctx.roll : Math.random();
     if (roll < (hostile.holdProb || 0)) {
@@ -2979,8 +2998,7 @@ function _ty3_phase6_doSeal(force) {
     if (ph0) ph0.cohesion = Math.min(100, (parseInt(ph0.cohesion, 10) || 50) + 3);
     var siOld = (typeof GM.partyStrife === 'number') ? GM.partyStrife : 50;
     if (typeof GM.partyStrife === 'number') GM.partyStrife = Math.min(100, GM.partyStrife + 4);
-    if (GM.huangquan && typeof GM.huangquan.index === 'number') GM.huangquan.index = Math.max(0, GM.huangquan.index - 5);
-    else if (GM.vars && GM.vars['皇权']) GM.vars['皇权'].value = Math.max(0, (GM.vars['皇权'].value || 50) - 5);
+    _ty3_adjustHuangquan(-5, '\u5f3a\u884c\u7528\u5370\u53d7\u515a\u6d3e\u963b\u6ede', 'tinyi-force-seal');
     if (typeof addCYBubble === 'function') addCYBubble('内侍', '〔 强行用印·阻于 ' + hostile.partyName + '·皇威 -5·' +  + _ty3_strifeChange(siOld, GM.partyStrife), true);
     if (typeof addEB === 'function') addEB('Seal', 'Forced seal against ' + hostile.partyName + '; ' + _ty3_strifeChange(siOld, GM.partyStrife));
   } else {
@@ -3849,7 +3867,7 @@ function _ty3_tickChronicleTracks() {
       }
     } catch (_pteE) {}
     var startTurn = t.startTurn || GM.turn;
-    var expectedEnd = t.expectedEndTurn || (startTurn + 12);
+    var expectedEnd = t.expectedEndTurn || (startTurn + ((typeof turnsForMonths === 'function') ? turnsForMonths(12) : 12));
     var totalTurns = Math.max(1, expectedEnd - startTurn);
     var elapsed = (GM.turn || startTurn) - startTurn;
     var naturalProgress = Math.min(99, Math.round(elapsed / totalTurns * 90) + 5);

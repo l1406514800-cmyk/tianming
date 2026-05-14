@@ -1021,10 +1021,20 @@ function updatePartyLoyaltyLink() {
     if (!myParty) return;
     if (myParty.status === '\u88AB\u538B\u5236' || (myParty.influence || 0) < 15) {
       // 被压制党派成员：忠诚度缓慢下降
-      c.loyalty = Math.max(0, (c.loyalty || 50) - 2 * _ms);
+      if (typeof adjustCharacterLoyalty === 'function') {
+        adjustCharacterLoyalty(c, -2 * _ms, '\u6240\u5C5E\u515A\u6D3E\u88AB\u538B\u5236', { source:'party-loyalty-link:' + myParty.name, oncePerTurn:true });
+      } else {
+        var oldL1 = (typeof c.loyalty === 'number' && isFinite(c.loyalty)) ? c.loyalty : 50;
+        c.loyalty = Math.max(0, oldL1 - 2 * _ms);
+      }
     } else if (myParty.status === '\u6D3B\u8DC3' && (myParty.influence || 0) > 60) {
       // 得势党派成员：忠诚度微升
-      c.loyalty = Math.min(100, (c.loyalty || 50) + 1 * _ms);
+      if (typeof adjustCharacterLoyalty === 'function') {
+        adjustCharacterLoyalty(c, 1 * _ms, '\u6240\u5C5E\u515A\u6D3E\u5F97\u52BF', { source:'party-loyalty-link:' + myParty.name, oncePerTurn:true });
+      } else {
+        var oldL2 = (typeof c.loyalty === 'number' && isFinite(c.loyalty)) ? c.loyalty : 50;
+        c.loyalty = Math.min(100, oldL2 + 1 * _ms);
+      }
     }
   });
 }
@@ -2023,4 +2033,3 @@ var TerritoryProductionSystem = (function() {
 })();
 
 // ============================================================
-

@@ -1201,7 +1201,7 @@
     if (G.currency && G.currency.coins && G.currency.coins.paper) {
       var pp = G.currency.coins.paper;
       if (pp.enabled) {
-        var PRESETS = (typeof global.PhaseH !== 'undefined' && global.PhaseH.PAPER_DATA_25) || [];
+        var PRESETS = (typeof global.CurrencyEngine !== 'undefined' && global.CurrencyEngine.PAPER_DATA_25) || [];
         var current = PRESETS.find(function(p){return p.id === pp.activePreset;});
         var ph = '<div style="padding:6px 8px;background:var(--bg-2);border-left:3px solid var(--gold);border-radius:3px;font-size:0.76rem;">';
         if (current) {
@@ -1264,7 +1264,7 @@
     // § 五封建财政
     if (G.feudalHoldings && G.feudalHoldings.length > 0) {
       var fth = '';
-      var TYPES = (typeof global.PhaseH !== 'undefined' && global.PhaseH.FEUDAL_HOLDING_TYPES) || {};
+      var TYPES = (typeof global.FeudalCore !== 'undefined' && global.FeudalCore.FEUDAL_HOLDING_TYPES) || {};
       G.feudalHoldings.forEach(function(fh2) {
         var rule = TYPES[fh2.type] || {};
         var col = fh2.loyalty < 0.3 ? 'var(--vermillion-400)' : fh2.loyalty < 0.6 ? 'var(--amber-400)' : '#6aa88a';

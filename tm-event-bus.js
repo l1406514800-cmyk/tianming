@@ -14,6 +14,10 @@
 (function(global) {
   'use strict';
 
+  function _turnsForMonthsLocal(months) {
+    return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  事件总线
   // ═══════════════════════════════════════════════════════════════════
@@ -200,7 +204,15 @@
   var BANKRUPTCY_STEPS = [
     { id:1, name:'俸禄半发',    effect:function(G){ G._salaryPayRatio = 0.5; if (global.addEB) global.addEB('破产', '俸禄减半'); } },
     { id:2, name:'官员离心',    effect:function(G){
-        (G.chars || []).forEach(function(c){ if (c.alive!==false) c.loyalty = Math.max(0, (c.loyalty||50) - 5); });
+        (G.chars || []).forEach(function(c){
+          if (!c || c.alive===false) return;
+          if (global.adjustCharacterLoyalty) {
+            global.adjustCharacterLoyalty(c, -5, '\u56FD\u5E93\u7834\u4EA7\u00B7\u4FF8\u7984\u534A\u53D1', { source:'bankruptcy-official-alienation' });
+          } else {
+            var oldL = (typeof c.loyalty === 'number' && isFinite(c.loyalty)) ? c.loyalty : 50;
+            c.loyalty = Math.max(0, oldL - 5);
+          }
+        });
         if (global.addEB) global.addEB('破产', '百官怨声四起');
     } },
     { id:3, name:'驿站坍塌',    effect:function(G){
@@ -227,7 +239,9 @@
     } },
     { id:7, name:'朝廷崩溃',    effect:function(G){
         if (typeof G.huangwei === 'object') G.huangwei.index = Math.max(0, G.huangwei.index - 20);
-        if (typeof G.huangquan === 'object') G.huangquan.index = Math.max(0, G.huangquan.index - 15);
+        if (global.AuthorityEngines && global.AuthorityEngines.adjustHuangquan) {
+          global.AuthorityEngines.adjustHuangquan('idleGovern', -15, '\u671d\u5ef7\u5d29\u6e83');
+        } else if (typeof G.huangquan === 'object') G.huangquan.index = Math.max(0, G.huangquan.index - 15);
         if (global.addEB) global.addEB('破产', '朝廷濒于瓦解');
     } }
   ];
@@ -253,7 +267,7 @@
     // 每过 3 回合升级一步
     if (!bs.firstTurn) bs.firstTurn = ctx.turn || 0;
     var elapsedTurns = (ctx.turn || 0) - bs.firstTurn;
-    var targetStep = Math.min(7, Math.floor(elapsedTurns / 3) + 1);
+    var targetStep = Math.min(7, Math.floor(elapsedTurns / _turnsForMonthsLocal(3)) + 1);
     while (bs.activatedStep < targetStep) {
       bs.activatedStep++;
       var step = BANKRUPTCY_STEPS[bs.activatedStep - 1];

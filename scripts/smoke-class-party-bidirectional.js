@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { readSource: readEndturnSource } = require('./smoke-endturn-baseline-helpers');
 
 const ROOT = path.resolve(__dirname, '..');
 let ASSERTS = 0;
@@ -146,7 +147,7 @@ assert(tinyiText.indexOf('tinyi-stage6-blocked') >= 0, 'tinyi should propagate b
 assert(tinyiText.indexOf('tinyi-stage7-follow-up') >= 0, 'tinyi should propagate follow-up outcomes');
 assert(tinyiText.indexOf('if (force && hostile)') < tinyiText.indexOf('function _ty3_phase6_doSeal') || tinyiText.indexOf('/*\n  if (force && hostile)') < 0, 'old phase6 unreachable body should not remain commented in place');
 
-const inferText = fs.readFileSync(path.join(ROOT, 'tm-endturn-ai-infer.js'), 'utf8');
+const inferText = readEndturnSource();
 assert(inferText.indexOf('partyOutcomeRef') >= 0, 'AI prompt/sample should mention class_changes.partyOutcomeRef');
 
 console.log('[smoke-class-party-bidirectional] pass assertions=' + ASSERTS);

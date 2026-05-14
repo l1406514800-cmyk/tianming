@@ -72,17 +72,47 @@
       _tyrantDecadence: GM._tyrantDecadence,
       // 玩家档案侧信息
       sid: GM.sid,
-      _capital: GM._capital
+      _capital: GM._capital,
+      // Phase G 后·势力 NPC trajectory·让回滚 (loadSnapshot) 也保留 NPC 内政历史
+      // 否则回滚到某回合·NPC memorial/edict/chaoyi/office/ledger/rationale 全丢
+      _facsNpcState: _captureFacsNpcState(GM.facs)
     };
+  }
+
+  // 抽 facs 中的 NPC trajectory 字段·避免整个 facs deepClone (大)
+  function _captureFacsNpcState(facs) {
+    if (!Array.isArray(facs)) return [];
+    return facs.map(function(f){
+      if (!f || !f.name) return null;
+      var snap = { name: f.name };
+      ['npcMemorials', 'npcEdicts', 'npcChaoyi', 'npcOfficeActions', 'npcFiscalLedger',
+       '_lastLlmRationale', '_fiscalCrisis', '_fiscalDebt', '_rebellionSponsoredTurn', '_rumorTurn'].forEach(function(k){
+        if (f[k] !== undefined) snap[k] = _deepClone(f[k]);
+      });
+      return snap;
+    }).filter(function(x){ return x; });
   }
 
   function _applyCapturedState(snap) {
     if (!snap || typeof GM === 'undefined') return false;
-    // 只覆盖快照里有的键·避免误删运行时字段
     Object.keys(snap).forEach(function(k) {
       if (k === 'ts') return;
       if (k === 'turn') { GM.turn = snap.turn; return; }
-      // structuredClone 出来的字段直接赋值
+      if (k === '_facsNpcState') {
+        // Phase G·还原 NPC trajectory 到 GM.facs[i]·按 name match·不直接赋 GM 顶层
+        if (Array.isArray(snap[k]) && Array.isArray(GM.facs)) {
+          snap[k].forEach(function(facSnap){
+            if (!facSnap || !facSnap.name) return;
+            var fac = GM.facs.find(function(x){ return x && x.name === facSnap.name; });
+            if (!fac) return;
+            Object.keys(facSnap).forEach(function(fk){
+              if (fk === 'name') return;
+              fac[fk] = facSnap[fk];
+            });
+          });
+        }
+        return;
+      }
       GM[k] = snap[k];
     });
     return true;

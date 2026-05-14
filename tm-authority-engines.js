@@ -10,6 +10,10 @@
  *  - 设计方案-变量联动总表.md（7×6 = 42 项联动矩阵）
  *
  * 腐败系统由 tm-corruption-engine.js 已有实现。
+ *
+ * Phase 3 R12d (2026-05-04): inline tm-phase-f1-fixes.js LAYERED override.
+ *  - _updatePerceivedHuangwei now uses the full five-stage polish model.
+ *  - PhaseF1 compatibility namespace is a defensive shim; no separate patch file.
  */
 (function(global) {
   'use strict';
@@ -105,10 +109,23 @@
 
   function _updatePerceivedHuangwei(hw) {
     var t = hw.index;
-    if (t > 85) hw.perceivedIndex = Math.min(100, t + 8);        // 暴君段高估
-    else if (t > 70) hw.perceivedIndex = t;
-    else if (t < 30) hw.perceivedIndex = t + 10;                   // 地方粉饰
-    else hw.perceivedIndex = t;
+    var corruptMult = 1;
+    var G = global.GM;
+    if (G && G.corruption && typeof G.corruption === 'object') {
+      var corr = G.corruption.overall || 0;
+      corruptMult = 1 + corr / 200;
+    }
+    if (t >= 90) {
+      hw.perceivedIndex = Math.min(100, t + 8 * corruptMult);
+    } else if (t >= 70) {
+      hw.perceivedIndex = Math.min(100, t + 2 * corruptMult);
+    } else if (t >= 50) {
+      hw.perceivedIndex = Math.min(100, t + 3 * corruptMult);
+    } else if (t >= 30) {
+      hw.perceivedIndex = Math.min(100, t + 6 * corruptMult);
+    } else {
+      hw.perceivedIndex = Math.max(0, t + Math.min(4, corruptMult * 2));
+    }
   }
 
   function adjustHuangwei(source, delta, reason) {
@@ -164,11 +181,18 @@
     // 自然衰减（无事迹 → 缓慢下降）
     var totalAction = 0;
     Object.keys(hw.sources).forEach(function(s) { totalAction += hw.sources[s]; });
-    if (totalAction < 1 && (ctx.turn - (hw.history.lastActionTurn || 0)) > 6) {
+    var idleTurns = (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(6) : 6;
+    if (totalAction < 1 && (ctx.turn - (hw.history.lastActionTurn || 0)) > idleTurns) {
       adjustHuangwei('idleGovern', -0.3 * mr, '无事迹');
     }
     // 怠政自动触发
-    if (global.GM._edictTracker && global.GM._edictTracker.length === 0 && (ctx.turn % 12 === 0)) {
+    var yearBoundary = (typeof global.isYearBoundary === 'function')
+      ? global.isYearBoundary(ctx.turn)
+      : (function(t) {
+          t = Number(t || 0);
+          return t > 0 && Math.floor((t * 30) / 365) > Math.floor(((t - 1) * 30) / 365);
+        })(ctx.turn);
+    if (global.GM._edictTracker && global.GM._edictTracker.length === 0 && yearBoundary) {
       adjustHuangwei('idleGovern', -1 * mr, '久无诏令');
     }
     _updatePerceivedHuangwei(hw);
@@ -228,18 +252,167 @@
     return 'weak';
   }
 
-  function adjustHuangquan(source, delta, reason) {
+  function _authorityCleanReason(reason, opts) {
+    if (typeof reason === 'string' && reason.trim()) return reason.trim();
+    if (opts && typeof opts.defaultReason === 'string' && opts.defaultReason.trim()) return opts.defaultReason.trim();
+    if (opts && opts.ai) return '\u0041\u0049\u63a8\u6f14';
+    if (opts && opts.allowUnattributed) return '\u672a\u6807\u6ce8\u6765\u6e90';
+    return '';
+  }
+
+  function _rememberAuthorityBlocked(kind, delta, reason, source) {
+    var G = global.GM;
+    if (!G) return;
+    if (!G._authorityBlocked) G._authorityBlocked = [];
+    G._authorityBlocked.push({
+      kind: kind,
+      source: source || '',
+      delta: delta,
+      reason: reason || 'missing-reason',
+      turn: G.turn || 0,
+      seq: G._authorityBlocked.length + 1
+    });
+    if (G._authorityBlocked.length > 100) G._authorityBlocked = G._authorityBlocked.slice(-100);
+  }
+
+  function _recordAuthorityChange(kind, label, path, oldValue, newValue, reason, source) {
+    var G = global.GM;
+    if (!G || oldValue === newValue) return;
+    if (!G.turnChanges) G.turnChanges = {};
+    if (!G.turnChanges.variables) G.turnChanges.variables = [];
+    var cleanReason = reason || '\u672a\u6807\u6ce8\u6765\u6e90';
+    var entry = G.turnChanges.variables.find(function(v){ return v && v.path === path; });
+    if (entry) {
+      entry.newValue = newValue;
+      entry.delta = newValue - (typeof entry.oldValue === 'number' ? entry.oldValue : oldValue);
+      entry.reason = cleanReason;
+      entry.reasons = entry.reasons || [];
+      entry.reasons.push({ type: source || kind, amount: newValue - oldValue, desc: cleanReason });
+    } else {
+      G.turnChanges.variables.push({
+        name: label,
+        label: label,
+        path: path,
+        oldValue: oldValue,
+        newValue: newValue,
+        delta: newValue - oldValue,
+        reason: cleanReason,
+        reasons: [{ type: source || kind, amount: newValue - oldValue, desc: cleanReason }]
+      });
+    }
+    if (!G._authorityLog) G._authorityLog = [];
+    G._authorityLog.push({
+      kind: kind,
+      label: label,
+      path: path,
+      source: source || '',
+      oldValue: oldValue,
+      newValue: newValue,
+      delta: newValue - oldValue,
+      reason: cleanReason,
+      turn: G.turn || 0,
+      seq: G._authorityLog.length + 1
+    });
+    if (G._authorityLog.length > 200) G._authorityLog = G._authorityLog.slice(-200);
+  }
+
+  function getUnifiedHuangquanPhaseHandler() {
+    var G = global.GM;
+    if (!G || !G.huangquan) return null;
+    var idx = G.huangquan.index || 55;
+    if (idx >= 70) return {
+      phase: 'absolute',
+      name: '专制段',
+      decreeMode: 'fiveElementsStrict',
+      ministerBehavior: 'obedient',
+      aiObjectionRate: 0.1,
+      memorialFilterActive: false,
+      executionMult: 1.2,
+      description: '皇权在上，纲纪严明；五要素不全则圣裁补全'
+    };
+    if (idx >= 35) return {
+      phase: 'balanced',
+      name: '制衡段',
+      decreeMode: 'ministerAmplify',
+      ministerBehavior: 'proactive',
+      aiObjectionRate: 0.25,
+      memorialFilterActive: false,
+      executionMult: 1.0,
+      description: '上下协力，大臣补全诏命细节'
+    };
+    return {
+      phase: 'minister',
+      name: '权臣段',
+      decreeMode: 'ministerIntercept',
+      ministerBehavior: 'intercept',
+      aiObjectionRate: 0.5,
+      memorialFilterActive: true,
+      executionMult: 0.5,
+      description: '权臣坐大，诏命被阻或篡改'
+    };
+  }
+
+  function checkDecreeRealtime(text) {
+    var handler = getUnifiedHuangquanPhaseHandler();
+    if (!handler) return { ok: true };
+    if (handler.decreeMode !== 'fiveElementsStrict') {
+      return { ok: true, mode: handler.decreeMode, suggest: 'AI 将按朝代惯例补全' };
+    }
+    var source = String(text || '');
+    var elements = {
+      time:  /(春|夏|秋|冬|月|日|岁|限|期|即日|立|年底|半年)/,
+      place: /(京|省|府|县|道|路|州|全国|天下|边|畿|江南|河北|中原)/,
+      who:   /(尚书|侍郎|令|丞|御史|将军|总督|巡抚|知|提督|宣抚|节度|刺史)/,
+      money: /(帑|银|钱|粮|布|万|石|支|拨|出|自.*出|由.*支)/,
+      audit: /(限|考|核|验|察|赏|罚|功|过|黜陟|迁)/
+    };
+    var labels = { time: '时日', place: '地点', who: '执行人', money: '经费', audit: '考核' };
+    var missing = [];
+    Object.keys(elements).forEach(function(k) {
+      if (!elements[k].test(source)) missing.push(labels[k]);
+    });
+    return {
+      ok: missing.length === 0,
+      mode: 'fiveElementsStrict',
+      missing: missing,
+      phase: handler.name,
+      suggest: missing.length > 0 ? ('陛下此诏，尚缺 ' + missing.join('、') + '，请圣裁。') : '五要素具备，可即下。'
+    };
+  }
+
+  function adjustHuangquan(source, delta, reason, opts) {
     var hq = _ensureHuangquan();
-    if (!hq) return;
-    hq.index = Math.max(0, Math.min(100, hq.index + delta));
-    if (delta > 0 && hq.sources[source] !== undefined) hq.sources[source] += delta;
-    if (delta < 0 && hq.drains[source] !== undefined) hq.drains[source] += -delta;
+    if (!hq) return { ok: false, reason: 'missing-huangquan' };
+    var amount = Number(delta);
+    if (!isFinite(amount) || amount === 0) return { ok: false, reason: 'invalid-delta' };
+    var cleanReason = _authorityCleanReason(reason, opts);
+    if (!cleanReason) {
+      _rememberAuthorityBlocked('huangquan', amount, 'missing-reason', source);
+      return { ok: false, blocked: true, reason: 'missing-reason' };
+    }
+    var oldValue = typeof hq.index === 'number' && isFinite(hq.index) ? hq.index : 55;
+    hq.index = Math.max(0, Math.min(100, oldValue + amount));
+    var applied = hq.index - oldValue;
+    if (applied > 0 && hq.sources[source] !== undefined) hq.sources[source] += applied;
+    if (applied < 0 && hq.drains[source] !== undefined) hq.drains[source] += -applied;
     var newPhase = _getHuangquanPhase(hq.index);
     if (newPhase !== hq.phase) {
       hq.phase = newPhase;
       if (global.addEB) global.addEB('皇权', '转入 ' + HUANGQUAN_PHASE[newPhase].name + '（' + Math.round(hq.index) + '）');
     }
-    hq.trend = delta > 0 ? 'rising' : delta < 0 ? 'falling' : 'stable';
+    hq.trend = applied > 0 ? 'rising' : applied < 0 ? 'falling' : 'stable';
+    _recordAuthorityChange('huangquan', '\u7687\u6743', 'huangquan.index', oldValue, hq.index, cleanReason, source);
+    return { ok: true, oldValue: oldValue, newValue: hq.index, delta: applied, reason: cleanReason };
+  }
+
+  function setHuangquan(value, reason, opts) {
+    var hq = _ensureHuangquan();
+    if (!hq) return { ok: false, reason: 'missing-huangquan' };
+    var target = Number(value);
+    if (!isFinite(target)) return { ok: false, reason: 'invalid-value' };
+    target = Math.max(0, Math.min(100, target));
+    var oldValue = typeof hq.index === 'number' && isFinite(hq.index) ? hq.index : 55;
+    return adjustHuangquan((opts && opts.source) || 'set', target - oldValue, reason, opts);
   }
 
   function _tickHuangquan(ctx, mr) {
@@ -282,7 +455,12 @@
     // 其他大臣被震慑，忠诚临时上升但长期降
     (global.GM.chars || []).forEach(function(c) {
       if (c.alive !== false && c.officialTitle) {
-        c.loyalty = Math.min(100, (c.loyalty || 50) + 3);
+        if (global.adjustCharacterLoyalty) {
+          global.adjustCharacterLoyalty(c, 3, '\u7687\u6743\u6E05\u6D17' + targetName + '\u540E\u767E\u5B98\u9707\u6151', { source:'authority-purge-shock' });
+        } else {
+          var oldL = (typeof c.loyalty === 'number' && isFinite(c.loyalty)) ? c.loyalty : 50;
+          c.loyalty = Math.min(100, oldL + 3);
+        }
         c.stress = Math.min(100, (c.stress || 0) + 15);
       }
     });
@@ -361,6 +539,47 @@
       if (global.addEB) global.addEB('民心', '转入 ' + MINXIN_PHASE[newPhase].name + '（' + Math.round(mx.trueIndex) + '）');
     }
     mx.trend = delta > 0 ? 'rising' : delta < 0 ? 'falling' : 'stable';
+  }
+
+  function applyTyrantExecutionAmplification(executionPlan) {
+    var G = global.GM;
+    if (!G.huangwei || !G.huangwei.tyrantSyndrome || !G.huangwei.tyrantSyndrome.active) return executionPlan;
+    var ts = G.huangwei.tyrantSyndrome;
+    if (executionPlan.type === 'corvee') {
+      executionPlan.scale = (executionPlan.scale || 1) * 1.3;
+      executionPlan.deathRate = (executionPlan.deathRate || 0.05) * 1.2;
+    }
+    if (executionPlan.type === 'refugeeResettlement') {
+      executionPlan.coerced = true;
+      if (global.addEB) global.addEB('暴君', '招抚变强徙');
+      if (global._adjAuthority) global._adjAuthority('minxin', -5);
+    }
+    if (executionPlan.type === 'envPolicy') {
+      executionPlan.penalty = 'extreme';
+    }
+    if (executionPlan.type === 'punishment') {
+      executionPlan.scopeMult = 3;
+    }
+    if (!ts.overExecutionLog) ts.overExecutionLog = [];
+    ts.overExecutionLog.push({ turn: G.turn, plan: executionPlan.type, overScale: 1.3 });
+    if (ts.overExecutionLog.length > 20) ts.overExecutionLog.splice(0, ts.overExecutionLog.length - 20);
+    return executionPlan;
+  }
+
+  function filterQueryOptionsByPhase(allOptions) {
+    var G = global.GM;
+    var hq = G.huangquan && G.huangquan.index || 55;
+    if (hq >= 75) {
+      return allOptions.slice(0, 3);
+    } else if (hq >= 35) {
+      return allOptions;
+    } else {
+      var pm = G.huangquan.powerMinister;
+      if (!pm) return allOptions;
+      return allOptions.filter(function(o) {
+        return !(o.route === 'integrity' && pm.faction && pm.faction.length > 0);
+      });
+    }
   }
 
   function _updateMinxinPerceived() {
@@ -562,7 +781,7 @@
       if (hw.index > 80) adjustMinxin('imperialVirtue', 0.05 * mr);
       else if (hw.index < 30) adjustMinxin('imperialVirtue', -0.1 * mr);
       // 皇威 → 皇权
-      if (hw.index > 85) adjustHuangquan('personalRule', 0.03 * mr);
+      if (hw.index > 85) adjustHuangquan('personalRule', 0.03 * mr, '\u7687\u5a01\u6781\u76db\u4f20\u5bfc');
     }
   }
 
@@ -627,9 +846,12 @@
   function getMinxinValue() { var G = global.GM; if (!G) return 60; return (G.minxin && typeof G.minxin === 'object') ? (G.minxin.trueIndex || 60) : (G.minxin || 60); }
 
   // 通用调节（兼容对象或数字形式，供旧代码调用）
-  global._adjAuthority = function(name, delta) {
+  global._adjAuthority = function(name, delta, reason, opts) {
     var G = global.GM;
     if (!G) return;
+    if (name === 'huangquan') {
+      return adjustHuangquan((opts && opts.source) || 'legacy-adj-authority', delta, reason, opts);
+    }
     var v = G[name];
     if (v === undefined || v === null) return;
     if (typeof v === 'number') {
@@ -645,7 +867,10 @@
     tick: tick,
     adjustHuangwei: adjustHuangwei,
     adjustHuangquan: adjustHuangquan,
+    setHuangquan: setHuangquan,
     adjustMinxin: adjustMinxin,
+    applyTyrantExecutionAmplification: applyTyrantExecutionAmplification,
+    filterQueryOptionsByPhase: filterQueryOptionsByPhase,
     getHuangweiValue: getHuangweiValue,
     getHuangquanValue: getHuangquanValue,
     getMinxinValue: getMinxinValue,
@@ -659,7 +884,29 @@
     HUANGQUAN_SOURCES_8: HUANGQUAN_SOURCES_8,
     HUANGQUAN_DRAINS_8: HUANGQUAN_DRAINS_8,
     MINXIN_SOURCES_14: MINXIN_SOURCES_14,
+    _updatePerceivedHuangwei_f1: _updatePerceivedHuangwei,
+    getUnifiedHuangquanPhaseHandler: getUnifiedHuangquanPhaseHandler,
+    checkDecreeRealtime: checkDecreeRealtime,
     VERSION: 1
+  };
+
+  global.applyTyrantExecutionAmplification = applyTyrantExecutionAmplification;
+  global.filterQueryOptionsByPhase = filterQueryOptionsByPhase;
+  global.checkDecreeRealtime = checkDecreeRealtime;
+  global.PhaseF1 = {
+    init: function(){},
+    tick: function(){},
+    updatePerceivedHuangwei: _updatePerceivedHuangwei,
+    rotateOfficialsWithDecay: function(pmName) {
+      if (!global.PhaseD || !global.PhaseD.COUNTER_STRATEGIES || !global.PhaseD.COUNTER_STRATEGIES.rotate_officials) return { ok: false };
+      var G = global.GM;
+      var pm = G && G.huangquan && G.huangquan.powerMinister;
+      if (!pm || pm.name !== pmName) return { ok: false };
+      return global.PhaseD.COUNTER_STRATEGIES.rotate_officials.effect(G);
+    },
+    getUnifiedHuangquanPhaseHandler: getUnifiedHuangquanPhaseHandler,
+    checkDecreeRealtime: checkDecreeRealtime,
+    VERSION: 2
   };
 
 })(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));

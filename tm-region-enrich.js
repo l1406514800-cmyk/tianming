@@ -13,6 +13,10 @@
 (function(global) {
   'use strict';
 
+  function _turnsForMonthsLocal(months) {
+    return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
+  }
+
   function _flattenDivisions(nodes, out) {
     out = out || [];
     if (!Array.isArray(nodes)) return out;
@@ -141,9 +145,77 @@
   }
 
   /** 屯田军镇 */
-  function registerMilitaryFarm(spec) {
+  function _playerFactionName(G, spec) {
+    if (spec && spec.faction) return spec.faction;
+    var player = global.P || {};
+    if (player.playerInfo && player.playerInfo.factionName) return player.playerInfo.factionName;
+    var pc = G && Array.isArray(G.chars) ? G.chars.find(function(c){ return c && c.isPlayer; }) : null;
+    if (pc && pc.faction) return pc.faction;
+    var pf = G && Array.isArray(G.facs) ? G.facs.find(function(f){ return f && (f.isPlayer || f.player || f.name === player.playerFaction); }) : null;
+    return (pf && pf.name) || '';
+  }
+
+  function _createMilitaryFarmArmy(farm, spec) {
     var G = global.GM;
-    if (!G.population) return null;
+    if (!G || !farm) return null;
+    if (!Array.isArray(G.armies)) G.armies = [];
+    var soldiers = Math.max(0, Math.floor(Number(farm.garrison || spec.garrison || 0) || 0));
+    if (soldiers <= 0) return null;
+    var armyId = farm.id + '_army';
+    var existing = G.armies.find(function(a){ return a && (a.id === armyId || a._militaryFarmId === farm.id); });
+    if (existing) return existing;
+    var factionName = _playerFactionName(G, spec || {});
+    var army = {
+      id: armyId,
+      name: (farm.name || spec.name || '军屯') + '戍军',
+      faction: '',
+      branch: 'tuntian',
+      type: '屯田军',
+      armyType: '屯田军',
+      soldiers: soldiers,
+      size: soldiers,
+      strength: soldiers,
+      morale: Number(spec.morale) || 68,
+      supply: Number(spec.supply) || 82,
+      training: Number(spec.training) || 45,
+      loyalty: Number(spec.loyalty) || 65,
+      control: Number(spec.control) || 70,
+      controlLevel: Number(spec.controlLevel) || 70,
+      location: farm.region || spec.region || farm.name || '',
+      garrison: farm.region || spec.region || farm.name || '',
+      commander: spec.commander || '',
+      equipment: Array.isArray(spec.equipment) ? spec.equipment : [],
+      composition: [{ type: '屯田军', count: soldiers }],
+      salary: [{ resource: 'grain', amount: Math.round(soldiers * 0.6), unit: '石/年' }],
+      state: 'garrison',
+      source: 'military_farm',
+      _militaryFarmId: farm.id,
+      _createdTurn: G.turn || 0
+    };
+    G.armies.push(army);
+    if (factionName) {
+      try {
+        if (global.TM && TM.FactionMembership && typeof TM.FactionMembership.assignArmy === 'function') {
+          TM.FactionMembership.assignArmy(army, factionName, { reason: '设立军屯', silent: true });
+        } else {
+          army.faction = factionName;
+        }
+      } catch(_) {
+        army.faction = factionName;
+      }
+    }
+    try { if (typeof global.syncMilitarySources === 'function') global.syncMilitarySources(G); } catch(_) {}
+    try { if (global.TM && TM.FactionIndex && typeof TM.FactionIndex.rebuild === 'function') TM.FactionIndex.rebuild(); } catch(_) {}
+    try { if (typeof global.renderTopBarVars === 'function') global.renderTopBarVars(); } catch(_) {}
+    try { if (typeof global.syncArmiesToMap === 'function') global.syncArmiesToMap(); } catch(_) {}
+    try { if (typeof global.renderMap === 'function') global.renderMap(); } catch(_) {}
+    return army;
+  }
+
+  function registerMilitaryFarm(spec) {
+    spec = spec || {};
+    var G = global.GM;
+    if (!G || !G.population) return null;
     if (!G.population.militaryFarms) G.population.militaryFarms = [];
     var farm = {
       id: 'mf_' + (G.turn || 0) + '_' + Math.floor(Math.random()*10000),
@@ -156,6 +228,10 @@
       createdTurn: G.turn || 0
     };
     G.population.militaryFarms.push(farm);
+    if (spec.createArmy !== false) {
+      var army = _createMilitaryFarmArmy(farm, spec);
+      if (army) farm.linkedArmyId = army.id || '';
+    }
     if (global.addEB) global.addEB('军屯', '建 ' + farm.name + '（' + farm.acres + ' 亩）');
     return farm;
   }
@@ -499,7 +575,7 @@
       var deaths = Math.floor(e.affected * profile.mortality * 0.05 * mr);
       e.deaths = (e.deaths || 0) + deaths;
       if (G.population.national) G.population.national.mouths = Math.max(0, G.population.national.mouths - deaths);
-      if ((G.turn - e.startTurn) > 24 || Math.random() < 0.02 * mr) e.status = 'ended';
+      if ((G.turn - e.startTurn) > _turnsForMonthsLocal(24) || Math.random() < 0.02 * mr) e.status = 'ended';
     });
     // 新疫病触发（低概率）
     if (Math.random() < 0.003 * mr) {

@@ -128,7 +128,8 @@ function applyCharacterDeaths(p1) {
                     fac.vassals.forEach(function(vn) {
                       var vRuler = GM.chars ? GM.chars.find(function(c) { return c.faction === vn && c.alive !== false && (c.position === '\u541B\u4E3B' || c.position === '\u9996\u9886'); }) : null;
                       if (vRuler) {
-                        vRuler.loyalty = Math.max(0, (vRuler.loyalty || 50) - 10);
+                        if (typeof adjustCharacterLoyalty === 'function') adjustCharacterLoyalty(vRuler, -10, '\u5B97\u4E3B\u4E4B\u6B7B', { source:'liege-death-vassal-loyalty' });
+                        else vRuler.loyalty = Math.max(0, ((typeof vRuler.loyalty === 'number' && isFinite(vRuler.loyalty)) ? vRuler.loyalty : 50) - 10);
                         addEB('\u5C01\u81E3\u52A8\u6001', vn + '\u5C01\u81E3' + vRuler.name + '\u56E0\u5B97\u4E3B\u4E4B\u6B7B\u5FE0\u8BDA\u5EA6\u4E0B\u964D');
                       }
                     });

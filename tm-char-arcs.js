@@ -59,6 +59,32 @@
     });
   }
 
+  function _buildPromptComposerCharBlocks(chars, options) {
+    var composer = (global.TM && global.TM.PromptComposer) ? global.TM.PromptComposer : null;
+    if (!composer || !Array.isArray(chars)) return '';
+    var out = '';
+    try {
+      chars.forEach(function(c) {
+        if (!c) return;
+        if (typeof composer.buildAiPersonaText === 'function') out += composer.buildAiPersonaText(c, options) || '';
+        if (typeof composer.buildRecognitionState === 'function') out += composer.buildRecognitionState(c) || '';
+      });
+    } catch (_) {}
+    return out;
+  }
+
+  function _getCharArcBatchPersonaMaxLen() {
+    var composer = (global.TM && global.TM.PromptComposer) ? global.TM.PromptComposer : null;
+    var sc = null;
+    try {
+      sc = (typeof findScenarioById === 'function' && global.GM && GM.sid) ? findScenarioById(GM.sid) : null;
+    } catch (_) {}
+    if (composer && typeof composer.getBatchPersonaMaxLen === 'function') return composer.getBatchPersonaMaxLen(sc, 200);
+    var req = sc && sc.modelRequirements;
+    var v = req && Number(req.batchPersonaMaxLen);
+    return isFinite(v) && v >= 0 ? v : 200;
+  }
+
   function _buildPrompt(keyChars) {
     var turnTxt = (typeof getTSText === 'function') ? getTSText(GM.turn || 1) : ('T' + (GM.turn || 1));
     var ctxList = keyChars.map(function(c) {
@@ -78,10 +104,12 @@
         recentEvents: _collectRecentEventsAboutChar(c.name, 5)
       };
     });
+    var npcContextExtra = _buildPromptComposerCharBlocks(keyChars, keyChars.length > 5 ? { maxLen: _getCharArcBatchPersonaMaxLen() } : null);
 
     var prompt = '你是剧作师·负责推进主要 NPC 的情节弧。基于以下 NPC 的当前状态+近 5 回合所涉编年事件·为每位 NPC 推进/起草未来 3-5 回合的心理走向。\n\n' +
       '【当前时间】' + turnTxt + '\n\n' +
       '【NPC 快照】\n' + JSON.stringify(ctxList, null, 2) +
+      (npcContextExtra ? '\n\n【NPC 补充上下文】' + npcContextExtra : '') +
       '\n\n【输出 JSON】对每位 NPC 输出：\n' +
       '{\n' +
       '  "NPC姓名": {\n' +

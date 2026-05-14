@@ -1,0 +1,2081 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>B 方案 shell v2·天命 Phase 8</title>
+<style>
+:root{
+  --bg:#1a1410;--bg2:#241e18;
+  --gold-300:#d4be7a;--gold-400:#c9a045;--gold-500:#b8983e;--gold-d:#8a7332;
+  --verm-400:#c04030;--verm-600:#8f3428;
+  --celadon:#7eb8a7;--indigo:#5a6fa8;--amber:#c9a045;
+  --ink-300:#6b5d47;--ink-500:#a89a7e;--ink-700:#d4c9b0;--ink-900:#f4eadd;
+  --bdr:rgba(184,154,83,0.22);--bdr-m:rgba(184,154,83,0.35);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;width:100%;overflow:hidden;}
+body{font-family:"STKaiti","KaiTi","楷体",serif;background:var(--bg);color:var(--ink-700);letter-spacing:.05em;font-size:14px;}
+
+/* ═══ 顶栏 ═══ */
+#topbar{
+  position:fixed;top:0;left:0;right:0;height:56px;z-index:50;
+  display:flex;align-items:center;padding:0 14px;gap:10px;
+  background:linear-gradient(180deg,rgba(36,30,24,.95),rgba(18,16,14,.95));
+  border-bottom:1px solid var(--bdr);backdrop-filter:blur(8px);
+}
+/* 问天 btn·中式印章·四角金线 + 凹凸 emboss */
+.tb-wentian{
+  padding:7px 16px;
+  background:
+    radial-gradient(circle at 30% 28%,rgba(184,154,83,.18),rgba(140,40,30,.10) 65%,rgba(36,30,24,.4) 100%),
+    linear-gradient(180deg,rgba(36,30,24,.6),rgba(26,20,16,.4));
+  border:1px solid var(--gold-d);
+  color:var(--gold-300);
+  font-family:"STKaiti","KaiTi","楷体",serif;
+  font-size:13px;letter-spacing:.42em;
+  cursor:pointer;border-radius:3px;transition:all .18s;
+  flex-shrink:0;font-weight:500;
+  box-shadow:inset 0 0 4px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.05);
+  text-shadow:0 0 4px rgba(0,0,0,.55);
+  position:relative;
+}
+.tb-wentian::before,.tb-wentian::after{content:"";position:absolute;width:5px;height:5px;pointer-events:none;}
+.tb-wentian::before{top:2px;left:2px;border-top:1px solid var(--gold-d);border-left:1px solid var(--gold-d);opacity:.7;}
+.tb-wentian::after{bottom:2px;right:2px;border-bottom:1px solid var(--gold-d);border-right:1px solid var(--gold-d);opacity:.7;}
+.tb-wentian:hover{
+  background:
+    radial-gradient(circle at 30% 28%,rgba(212,190,122,.28),rgba(184,154,83,.15) 65%,rgba(60,45,25,.5) 100%),
+    linear-gradient(180deg,rgba(60,45,25,.7),rgba(36,30,24,.5));
+  border-color:var(--gold-300);
+  box-shadow:inset 0 0 4px rgba(0,0,0,.4),0 0 12px rgba(184,154,83,.35);
+}
+
+/* weather·节气印 + 物候批注 */
+.tb-weather{display:flex;align-items:center;gap:9px;padding:0 14px;margin-left:4px;border-left:1px solid var(--bdr);flex-shrink:0;cursor:default;position:relative;}
+.tb-w-seal{
+  width:34px;height:34px;border-radius:50%;
+  background:radial-gradient(circle at 32% 28%,rgba(232,180,90,.5),rgba(150,90,40,.32) 60%,rgba(60,30,15,.6) 100%);
+  border:1.2px solid #c08838;
+  display:flex;align-items:center;justify-content:center;
+  color:#f4c878;font-size:14px;
+  box-shadow:inset 0 0 4px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.08);
+  text-shadow:0 0 4px rgba(0,0,0,.6);
+  font-family:"STKaiti","KaiTi","楷体",serif;font-weight:600;
+  position:relative;letter-spacing:0;
+}
+.tb-w-seal::after{
+  content:"";position:absolute;inset:1px;border-radius:50%;
+  background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.12),transparent 60%);
+  pointer-events:none;
+}
+.tb-w-info{display:flex;flex-direction:column;justify-content:center;}
+.tb-w-name{font-size:12.5px;color:var(--amber);letter-spacing:.2em;line-height:1.2;font-family:"STKaiti","KaiTi",serif;font-weight:500;}
+.tb-w-desc{font-size:10.5px;color:var(--ink-300);letter-spacing:.08em;line-height:1.2;font-style:italic;margin-top:1px;}
+
+/* 7 var 印石区·共享容器 */
+.tb-vars{display:flex;align-items:stretch;flex:1;min-width:0;overflow-x:auto;border-left:1px solid var(--bdr);margin-left:4px;}
+
+/* base·适用 simple + wide·公共 */
+.tb-var{
+  position:relative;flex-shrink:0;
+  border-right:1px solid var(--bdr);
+  cursor:pointer;
+  transition:background .15s;
+}
+.tb-var:hover{background:rgba(184,154,83,.08);}
+
+/* simple var·icon + body 横排 (5 simple vars: 户口/吏治/民心/皇权/皇威) */
+.tb-var:not(.wide){
+  display:flex;flex-direction:row;align-items:center;
+  gap:7px;padding:4px 12px;
+  min-width:104px;
+}
+.tb-var:not(.wide):hover .icn{
+  box-shadow:inset 0 0 4px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08),0 0 8px rgba(212,190,122,.45);
+  border-color:rgba(228,206,140,.85);
+}
+.tb-vbody{
+  display:flex;flex-direction:column;justify-content:center;line-height:1.05;flex:1;min-width:0;
+}
+.tb-vn{
+  font-size:9.5px;color:var(--ink-300);
+  letter-spacing:.28em;line-height:1.2;
+  font-style:italic;margin-bottom:2px;
+  position:relative;padding-left:7px;
+}
+.tb-vn::before{
+  content:"";position:absolute;left:0;top:50%;
+  width:3px;height:3px;background:var(--gold-d);
+  border-radius:50%;opacity:.7;transform:translateY(-50%);
+  box-shadow:0 0 3px rgba(184,154,83,.4);
+}
+.tb-vv{
+  font-size:14px;color:var(--gold-300);
+  letter-spacing:.04em;line-height:1.2;
+  font-weight:600;
+  display:flex;align-items:baseline;gap:5px;
+  font-family:"STSong","SimSun","Songti SC",serif;
+  font-feature-settings:"tnum" 1;
+}
+.tb-var.warn .tb-vv{color:#e88a78;}
+.tb-var.good .tb-vv{color:var(--celadon);}
+.tb-vv .trend{font-size:10px;color:var(--ink-300);font-weight:400;font-family:"STSong","SimSun",serif;}
+.tb-vv .trend.up{color:var(--celadon);}
+.tb-vv .trend.dn{color:var(--verm-400);}
+.tb-vv .phase{font-size:9.5px;color:var(--ink-300);font-style:italic;font-weight:400;letter-spacing:.18em;font-family:"STKaiti","KaiTi",serif;}
+.tb-var.warn .tb-vv .phase{color:var(--verm-400);}
+.tb-var.good .tb-vv .phase{color:var(--celadon);}
+
+/* simple var·5 个 印章 颜色 */
+.icn-hu{    /* 户·纸笺暖 */
+  color:#ecd2a0;border-color:#a07c40;
+  background:radial-gradient(circle at 32% 28%,rgba(232,206,160,.5),rgba(110,82,40,.32) 60%,rgba(40,28,15,.55) 100%);
+}
+.icn-li{    /* 吏·靛墨 */
+  color:#a8c0d8;border-color:#3e5878;
+  background:radial-gradient(circle at 32% 28%,rgba(160,196,228,.45),rgba(48,68,108,.32) 60%,rgba(15,22,40,.6) 100%);
+}
+.icn-min{   /* 民·素土青 */
+  color:#cce0a8;border-color:#6a8060;
+  background:radial-gradient(circle at 32% 28%,rgba(196,222,168,.45),rgba(80,108,68,.32) 60%,rgba(28,40,22,.55) 100%);
+}
+.icn-huang{ /* 皇·御黄 */
+  color:#fdd87c;border-color:#c89438;
+  background:radial-gradient(circle at 32% 28%,rgba(248,200,108,.55),rgba(140,90,28,.32) 60%,rgba(50,30,10,.6) 100%);
+}
+.icn-wei{   /* 威·朱玺 */
+  color:#f4b8a4;border-color:#a04a3a;
+  background:radial-gradient(circle at 32% 28%,rgba(232,148,124,.5),rgba(140,52,42,.35) 60%,rgba(60,18,12,.6) 100%);
+}
+
+/* warn 态在 icn-li (吏治渐弊)·墨更深·边框红斑 */
+.tb-var.warn .icn-li{
+  border-color:rgba(192,80,68,.72);
+  background:radial-gradient(circle at 32% 28%,rgba(228,150,128,.42),rgba(58,68,98,.45) 60%,rgba(35,22,30,.65) 100%);
+}
+
+/* ═══ 帑廪 / 内帑·wide var·明代户部档案 / 朱批 风骨 ═══ */
+.tb-var.wide{
+  min-width:230px;
+  padding:5px 14px 4px;
+  position:relative;
+  display:flex;flex-direction:column;justify-content:center;
+  /* 极淡羊皮底·与简版 var 区分·像档案条 */
+  background:
+    radial-gradient(ellipse at 50% 0%,rgba(184,154,83,.05),transparent 70%),
+    linear-gradient(180deg,rgba(0,0,0,.12),transparent 80%);
+}
+
+/* name·档案旁注式·金圆点 + 宽字距 */
+.tb-var.wide .tb-vn{
+  font-size:9.5px;color:var(--ink-300);
+  letter-spacing:.32em;line-height:1.2;
+  margin-bottom:2px;font-style:italic;
+  position:relative;padding-left:7px;
+}
+.tb-var.wide .tb-vn::before{
+  content:"";position:absolute;left:0;top:50%;
+  width:3px;height:3px;background:var(--gold-d);
+  border-radius:50%;opacity:.7;transform:translateY(-50%);
+  box-shadow:0 0 3px rgba(184,154,83,.4);
+}
+
+/* 子项排 */
+.tb-var.wide .tb-vsubs{
+  display:flex;align-items:center;gap:14px;
+  line-height:1.05;margin-top:0;
+}
+
+/* 单子项·icon + 值堆·hover 微浮 */
+.tb-var.wide .tb-vs{
+  display:flex;align-items:center;gap:7px;
+  padding:1px 4px;border-radius:3px;
+  transition:background .18s,transform .15s;
+  cursor:default;
+}
+.tb-var.wide .tb-vs:hover{
+  background:rgba(184,154,83,.10);
+  transform:translateY(-1px);
+}
+.tb-var.wide .tb-vs:hover .icn{
+  box-shadow:
+    inset 0 0 4px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 0 9px rgba(212,190,122,.5);
+  border-color:rgba(228,206,140,.85);
+}
+
+/* ═══ 印章 icon·共享 base + 4 色 ═══ */
+.icn{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:21px;height:21px;border-radius:50%;
+  border:1.2px solid;
+  font-family:"STKaiti","KaiTi","楷体",serif;
+  font-size:11.5px;letter-spacing:0;line-height:1;
+  flex-shrink:0;font-weight:600;
+  text-shadow:0 0 3px rgba(0,0,0,.7),0 1px 0 rgba(255,255,255,.05);
+  box-shadow:
+    inset 0 0 4px rgba(0,0,0,.5),
+    inset 0 1px 0 rgba(255,255,255,.08);
+  transition:box-shadow .18s,border-color .18s;
+  position:relative;
+}
+.icn::after{
+  content:"";position:absolute;inset:1px;border-radius:50%;
+  background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.10),transparent 60%);
+  pointer-events:none;
+}
+
+.icn-yin{    /* 银·象牙白·清光 */
+  color:#f3e2b6;border-color:#c9a45a;
+  background:radial-gradient(circle at 32% 28%,rgba(232,212,160,.6),rgba(110,82,40,.32) 60%,rgba(40,28,15,.55) 100%);
+}
+.icn-liang{  /* 粮·琥珀·禾穗 */
+  color:#f4c478;border-color:#b88130;
+  background:radial-gradient(circle at 32% 28%,rgba(228,166,80,.55),rgba(110,72,18,.32) 60%,rgba(40,24,8,.6) 100%);
+}
+.icn-bu{     /* 布·素绢青·素丝 */
+  color:#bfdfd0;border-color:#5e9080;
+  background:radial-gradient(circle at 32% 28%,rgba(178,222,206,.5),rgba(58,108,96,.32) 60%,rgba(20,40,32,.6) 100%);
+}
+.icn-zhen{   /* 珍·内帑玉色·jade */
+  color:#b8e0d8;border-color:#5a8a85;
+  background:radial-gradient(circle at 32% 28%,rgba(160,216,212,.5),rgba(45,98,95,.32) 60%,rgba(15,38,38,.6) 100%);
+}
+
+/* 值堆·主值 b + 变化量 sd */
+.tb-var.wide .sv{
+  display:flex;flex-direction:column;align-items:flex-start;
+  line-height:1.05;min-width:46px;
+}
+.tb-var.wide .sv b{
+  font-size:13.5px;color:var(--gold-300);font-weight:600;
+  font-family:"STSong","SimSun","Songti SC",serif;
+  letter-spacing:.02em;line-height:1.12;
+  font-feature-settings:"tnum" 1;
+}
+.tb-var.wide .sv .sd{
+  font-size:9.5px;letter-spacing:.05em;
+  font-family:"STSong","SimSun",serif;font-weight:500;
+  line-height:1.1;margin-top:1px;
+  font-feature-settings:"tnum" 1;
+}
+.tb-var.wide .sv .sd.up{color:var(--celadon);}
+.tb-var.wide .sv .sd.dn{color:var(--verm-400);}
+.tb-var.wide .sv .sd.flat{color:var(--ink-300);}
+
+/* 隐藏旧 .sk (icon 替代) */
+.tb-var.wide .tb-vs .sk{display:none;}
+
+/* ═══ 危机态·亏空·内层呼吸式红墨晕 ═══ */
+.tb-var.wide.crisis{
+  background:
+    radial-gradient(ellipse at 50% 100%,rgba(192,64,48,.22),transparent 70%),
+    linear-gradient(180deg,rgba(0,0,0,.12),transparent 80%);
+  animation:crisis-breathe 2.4s ease-in-out infinite;
+}
+@keyframes crisis-breathe{
+  0%,100%{box-shadow:inset 0 0 8px rgba(192,64,48,.22),inset 0 -1px 0 rgba(192,64,48,.40);}
+  50%{box-shadow:inset 0 0 20px rgba(192,64,48,.50),inset 0 -1px 0 rgba(192,64,48,.70);}
+}
+.tb-var.wide.crisis .tb-vn{color:#e88a78;}
+.tb-var.wide.crisis .icn-yin{
+  border-color:rgba(228,128,108,.85);
+  box-shadow:inset 0 0 4px rgba(0,0,0,.45),0 0 8px rgba(192,64,48,.45);
+}
+.tb-var.wide.crisis .tb-vs[data-stock="yin"] .sv b{color:#e88a78;}
+
+/* ═══ 月结动画·墨滴落 + 主值轻搏 ═══ */
+@keyframes ink-drop{
+  0%{opacity:0;transform:translateY(-4px);}
+  30%{opacity:1;}
+  100%{opacity:1;transform:translateY(0);}
+}
+@keyframes value-pulse{
+  0%{text-shadow:0 0 10px currentColor;transform:scale(1.10);}
+  100%{text-shadow:none;transform:scale(1);}
+}
+.tb-var.wide .sv.settled b{animation:value-pulse 1.4s ease-out;display:inline-block;}
+.tb-var.wide .sv.settled .sd{animation:ink-drop 1.4s ease-out;}
+
+/* 全部变量 chip·档案签 */
+.tb-chip{
+  padding:6px 14px;
+  background:linear-gradient(180deg,rgba(36,30,24,.6),rgba(26,20,16,.4));
+  border:1px solid var(--bdr);color:var(--ink-500);
+  font-family:"STKaiti","KaiTi","楷体",serif;
+  font-size:11.5px;letter-spacing:.24em;
+  cursor:pointer;border-radius:3px;flex-shrink:0;margin-left:4px;
+  transition:all .15s;
+  box-shadow:inset 0 0 3px rgba(0,0,0,.3);
+  position:relative;
+}
+.tb-chip:hover{
+  border-color:var(--gold-d);color:var(--gold-300);
+  background:linear-gradient(180deg,rgba(60,45,25,.5),rgba(36,30,24,.4));
+  box-shadow:inset 0 0 3px rgba(0,0,0,.3),0 0 8px rgba(184,154,83,.2);
+}
+
+/* 时间区 (与之前同·user 评 OK) */
+.tb-time{
+  display:flex;flex-direction:column;justify-content:center;align-items:flex-end;
+  padding:4px 14px;margin-left:8px;
+  border-left:1px solid var(--bdr);
+  cursor:pointer;flex-shrink:0;transition:background .15s;
+  position:relative;
+}
+.tb-time:hover{background:rgba(184,154,83,.06);}
+.tb-time.pinned{background:rgba(184,154,83,.08);}
+.tb-time.pinned::before{
+  content:"钉";position:absolute;top:2px;left:4px;
+  font-size:9px;color:var(--gold-400);
+  border:1px solid var(--gold-d);padding:0 3px;border-radius:2px;
+  letter-spacing:0;line-height:1.3;
+}
+.tb-time-main{font-size:13.5px;color:var(--gold-300);letter-spacing:.1em;line-height:1.3;white-space:nowrap;}
+.tb-time-sub{font-size:10.5px;color:var(--ink-300);letter-spacing:.08em;line-height:1.2;white-space:nowrap;font-style:italic;}
+
+/* time popover (hover 显·click 钉) */
+#timepop{
+  position:fixed;top:58px;right:16px;min-width:230px;padding:12px 16px;
+  background:linear-gradient(to bottom,rgba(36,30,24,.97),rgba(18,16,14,.98));
+  border:1px solid var(--gold-d);border-radius:5px;
+  box-shadow:0 8px 24px rgba(0,0,0,.55);
+  z-index:120;font-size:12.5px;line-height:1.7;
+  opacity:0;pointer-events:none;
+  transform:translateY(-4px);
+  transition:opacity .15s,transform .15s;
+}
+#timepop.show{opacity:1;pointer-events:auto;transform:translateY(0);}
+#timepop.pinned{border-color:var(--gold-400);box-shadow:0 8px 24px rgba(0,0,0,.55),0 0 0 1px rgba(201,160,69,.3);}
+.tp-title{font-size:13px;color:var(--gold-400);text-align:center;letter-spacing:.18em;margin-bottom:4px;}
+.tp-pin-hint{font-size:9.5px;color:var(--ink-300);text-align:center;font-style:italic;letter-spacing:.08em;margin-bottom:6px;}
+.tp-row{display:flex;justify-content:space-between;gap:12px;}
+.tp-k{color:var(--ink-300);}.tp-v{color:var(--gold-300);}
+.tp-divider{height:1px;background:linear-gradient(to right,transparent,var(--gold-d),transparent);margin:5px 0;opacity:.5;}
+
+/* var pinned 标记 */
+.tb-var.pinned{background:rgba(184,154,83,.12);}
+.tb-var.pinned::before{
+  content:"钉";position:absolute;top:1px;right:2px;
+  font-size:8px;color:var(--gold-400);
+  border:1px solid var(--gold-d);padding:0 2px;border-radius:2px;
+  letter-spacing:0;line-height:1.3;font-style:normal;
+}
+
+/* var popover */
+#varpop{
+  position:fixed;min-width:260px;max-width:300px;padding:12px 16px;
+  background:linear-gradient(to bottom,rgba(36,30,24,.97),rgba(18,16,14,.98));
+  border:1px solid var(--gold-d);border-radius:5px;
+  box-shadow:0 8px 24px rgba(0,0,0,.55);
+  z-index:120;font-size:12px;line-height:1.7;
+  opacity:0;pointer-events:none;
+  transform:translateY(-4px);
+  transition:opacity .15s,transform .15s;
+}
+#varpop.show{opacity:1;pointer-events:auto;transform:translateY(0);}
+#varpop.pinned{border-color:var(--gold-400);box-shadow:0 8px 24px rgba(0,0,0,.55),0 0 0 1px rgba(201,160,69,.3);}
+.vp-title{font-size:13.5px;color:var(--gold-300);letter-spacing:.18em;text-align:center;display:flex;align-items:baseline;justify-content:center;gap:8px;margin-bottom:2px;}
+.vp-pill{display:inline-block;padding:0 7px;font-size:10px;letter-spacing:.1em;border-radius:8px;line-height:1.5;font-style:normal;font-weight:500;}
+.vp-pill.ok{background:rgba(106,154,127,.12);color:var(--celadon);border:1px solid rgba(106,154,127,.4);}
+.vp-pill.warn{background:rgba(192,64,48,.12);color:var(--verm-400);border:1px solid rgba(192,64,48,.4);}
+.vp-pill.note{background:rgba(184,154,83,.1);color:var(--gold-300);border:1px solid var(--gold-d);}
+.vp-section{font-size:10px;color:var(--ink-300);letter-spacing:.22em;margin:6px 0 3px;padding-bottom:2px;font-style:italic;border-bottom:1px solid var(--bdr);}
+.vp-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;line-height:1.5;}
+.vp-k{color:var(--ink-300);font-style:italic;font-size:11px;letter-spacing:.05em;flex-shrink:0;}
+.vp-v{color:var(--gold-300);font-family:"STSong","SimSun",serif;text-align:right;}
+.vp-v .dt{font-size:10px;margin-left:6px;letter-spacing:.02em;}
+.vp-v .dt.up{color:var(--celadon);}
+.vp-v .dt.dn{color:var(--verm-400);}
+.vp-v .dt.flat{color:var(--ink-300);}
+.vp-divider{height:1px;background:linear-gradient(to right,transparent,var(--gold-d),transparent);margin:5px 0;opacity:.5;}
+.vp-hint{font-size:9.5px;color:var(--ink-300);text-align:center;font-style:italic;letter-spacing:.08em;margin-top:8px;border-top:1px solid var(--bdr);padding-top:5px;}
+
+/* ═══ 主舞台·底栏已删·延伸到底 ═══ */
+#stage{position:fixed;top:56px;left:0;right:0;bottom:0;display:flex;}
+
+/* ═══ 中央地图·舆图羊皮 + 水墨晕 ═══ */
+#mapwrap{
+  flex:1;position:relative;overflow:hidden;
+  background:
+    radial-gradient(ellipse at 35% 38%,rgba(180,160,108,.08),transparent 55%),
+    radial-gradient(ellipse at 75% 65%,rgba(140,90,52,.06),transparent 60%),
+    linear-gradient(180deg,#231d15 0%,#1a1510 60%,#15110b 100%);
+}
+/* 羊皮粒纹·subtle paper grain */
+.map-bg{
+  position:absolute;inset:0;opacity:.22;pointer-events:none;
+  background-image:
+    repeating-linear-gradient(33deg,transparent 0,transparent 32px,rgba(184,154,83,.05) 32px,rgba(184,154,83,.05) 33px),
+    repeating-linear-gradient(-33deg,transparent 0,transparent 32px,rgba(184,154,83,.04) 32px,rgba(184,154,83,.04) 33px),
+    radial-gradient(circle at 10% 20%,rgba(184,154,83,.05),transparent 25%),
+    radial-gradient(circle at 88% 78%,rgba(140,90,52,.06),transparent 22%);
+}
+/* 暗角·vignette */
+.map-bg::after{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 50%,transparent 50%,rgba(0,0,0,.45) 100%);
+  pointer-events:none;
+}
+
+/* 省·舆图墨拓·非纯色块 */
+.map-prov{
+  position:absolute;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  cursor:pointer;border:none;
+  transition:transform .14s,filter .14s;
+  font-family:"STKaiti","KaiTi","楷体",serif;
+  filter:drop-shadow(0 2px 4px rgba(0,0,0,.4));
+}
+/* 省"轮廓"·border + radial fill 像舆图 政区印 */
+.map-prov::before{
+  content:"";position:absolute;inset:0;
+  border:1.5px solid;border-color:inherit;
+  background:
+    radial-gradient(ellipse at 30% 30%,rgba(255,255,255,.10),transparent 60%),
+    var(--prov-fill,rgba(184,154,83,.25));
+  border-radius:8px 4px 8px 4px;
+  box-shadow:inset 0 0 8px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,.06);
+}
+.map-prov:hover{transform:scale(1.05);z-index:5;filter:drop-shadow(0 4px 10px rgba(212,190,122,.55));}
+.map-prov:hover::before{
+  background:
+    radial-gradient(ellipse at 30% 30%,rgba(255,240,200,.18),transparent 60%),
+    var(--prov-fill,rgba(184,154,83,.25));
+  box-shadow:inset 0 0 12px rgba(212,190,122,.35),inset 0 1px 0 rgba(255,255,255,.12);
+}
+.map-prov > *{position:relative;z-index:1;}
+.map-prov .pn{
+  font-size:14px;color:#fcf2dc;letter-spacing:.14em;font-weight:500;
+  text-shadow:0 0 6px rgba(0,0,0,.85),0 1px 0 rgba(0,0,0,.6);
+}
+.map-prov .pm{
+  font-size:10px;color:rgba(248,236,208,.85);margin-top:2px;letter-spacing:.08em;
+  text-shadow:0 0 5px rgba(0,0,0,.8);font-style:italic;
+}
+
+/* 地图底部提示·像 卷轴 题签 */
+.map-hint{
+  position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+  padding:6px 16px;
+  background:linear-gradient(180deg,rgba(36,30,24,.85),rgba(18,16,14,.85));
+  border:1px solid var(--bdr);border-radius:14px;
+  font-size:11px;color:var(--ink-500);letter-spacing:.12em;
+  pointer-events:none;
+  font-family:"STKaiti","KaiTi","楷体",serif;font-style:italic;
+  box-shadow:0 2px 8px rgba(0,0,0,.4);
+}
+
+/* hover tooltip·舆图标签 */
+#mtt{
+  position:fixed;display:none;z-index:80;padding:8px 12px;
+  background:linear-gradient(180deg,rgba(36,30,24,.96),rgba(18,16,14,.97));
+  border:1px solid var(--gold-d);border-radius:3px;
+  font-size:11.5px;color:var(--ink-700);
+  box-shadow:0 5px 16px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.05);
+  pointer-events:none;min-width:170px;
+}
+#mtt.show{display:block;}
+.mtt-n{color:var(--gold-300);font-size:13.5px;letter-spacing:.16em;margin-bottom:4px;font-family:"STKaiti","KaiTi",serif;font-weight:500;border-bottom:1px solid var(--bdr);padding-bottom:3px;}
+.mtt-r{display:flex;justify-content:space-between;font-size:11px;line-height:1.55;}
+.mtt-k{color:var(--ink-300);font-style:italic;}
+.mtt-v{color:var(--gold-300);font-family:"STSong","SimSun",serif;}
+
+/* ═══ province popup·EU4 风 + 卷轴档案 升级 ═══ */
+#ppop{
+  position:fixed;display:none;z-index:90;width:380px;max-height:76vh;overflow-y:auto;
+  background:
+    radial-gradient(ellipse at 50% 0%,rgba(184,154,83,.06),transparent 50%),
+    linear-gradient(180deg,rgba(36,30,24,.97),rgba(18,16,14,.98));
+  border:1px solid var(--gold-d);border-radius:4px;
+  box-shadow:0 12px 32px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.05);
+}
+#ppop.show{display:block;}
+/* 卷轴顶端的金线·像档案夹 */
+#ppop::before{
+  content:"";position:absolute;top:0;left:8%;right:8%;height:1px;
+  background:linear-gradient(to right,transparent,var(--gold-400),transparent);
+  opacity:.6;
+}
+
+.pp-top{
+  display:flex;align-items:center;gap:8px;padding:10px 14px 9px;
+  border-bottom:1px solid var(--bdr-m);
+  background:
+    linear-gradient(to right,rgba(140,40,30,.18),transparent 50%,rgba(184,154,83,.05) 100%);
+  position:relative;
+}
+.pp-top::after{
+  content:"";position:absolute;bottom:-1px;left:14px;right:14px;height:1px;
+  background:linear-gradient(to right,transparent,var(--gold-d),transparent);
+  opacity:.7;
+}
+.pp-name{
+  flex:1;font-size:16px;color:var(--gold-300);letter-spacing:.18em;
+  font-family:"STKaiti","KaiTi","楷体",serif;font-weight:500;
+  text-shadow:0 0 4px rgba(0,0,0,.4);
+}
+.pp-level{
+  font-size:10.5px;color:var(--ink-300);letter-spacing:.12em;
+  font-style:italic;font-family:"STKaiti","KaiTi",serif;
+}
+.pp-close{
+  width:24px;height:24px;background:transparent;
+  border:1px solid var(--bdr);color:var(--ink-500);
+  cursor:pointer;border-radius:3px;font-size:13px;line-height:1;font-family:inherit;
+  transition:all .15s;
+}
+.pp-close:hover{color:var(--verm-400);border-color:var(--verm-400);background:rgba(192,64,48,.08);}
+
+.pp-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:10px 12px;}
+.pp-zone{
+  padding:7px 10px;margin:3px;border-radius:3px;
+  background:linear-gradient(180deg,rgba(0,0,0,.22),rgba(0,0,0,.10));
+  border:1px solid var(--bdr);
+  position:relative;
+  transition:border-color .15s,background .15s;
+}
+.pp-zone:hover{
+  border-color:var(--gold-d);
+  background:linear-gradient(180deg,rgba(184,154,83,.08),rgba(0,0,0,.10));
+}
+.pp-zt{
+  font-size:10.5px;color:var(--gold-400);letter-spacing:.22em;
+  margin-bottom:5px;text-align:center;
+  font-family:"STKaiti","KaiTi",serif;font-style:italic;
+  position:relative;padding-bottom:4px;
+}
+.pp-zt::after{
+  content:"";position:absolute;bottom:0;left:30%;right:30%;height:1px;
+  background:linear-gradient(to right,transparent,var(--gold-d),transparent);
+  opacity:.55;
+}
+.pp-zr{display:flex;justify-content:space-between;font-size:11.5px;line-height:1.6;align-items:baseline;}
+.pp-zk{color:var(--ink-300);font-style:italic;font-size:10.5px;letter-spacing:.05em;flex-shrink:0;}
+.pp-zv{
+  color:var(--ink-700);text-align:right;
+  font-family:"STSong","SimSun",serif;
+  font-feature-settings:"tnum" 1;
+}
+.pp-zv.link{
+  color:var(--gold-300);cursor:pointer;
+  text-decoration:underline dotted rgba(184,154,83,.5);
+  text-underline-offset:2px;
+}
+.pp-zv.link:hover{color:var(--gold-400);text-decoration-color:var(--gold-400);}
+
+.pp-tabs{display:flex;border-top:1px solid var(--bdr-m);background:rgba(0,0,0,.18);}
+.pp-tab{
+  flex:1;padding:9px 0;text-align:center;
+  font-size:12px;color:var(--ink-500);letter-spacing:.2em;
+  cursor:pointer;border-bottom:2px solid transparent;
+  font-family:"STKaiti","KaiTi",serif;
+  transition:all .15s;
+}
+.pp-tab:hover{color:var(--gold-300);}
+.pp-tab.active{
+  color:var(--gold-300);border-bottom-color:var(--gold-400);
+  background:linear-gradient(180deg,rgba(184,154,83,.10),transparent);
+  text-shadow:0 0 6px rgba(184,154,83,.3);
+}
+.pp-tab-body{padding:10px 14px;font-size:11.5px;color:var(--ink-700);line-height:1.7;min-height:60px;}
+.pp-tr{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px dashed var(--bdr);font-family:"STSong","SimSun",serif;}
+.pp-tr:last-child{border-bottom:none;}
+
+/* ═══ 右栏 CK3 vertical 列·印章 icon 化 ═══ */
+#rightcol{
+  width:42px;flex-shrink:0;
+  background:
+    linear-gradient(180deg,rgba(36,30,24,.88),rgba(18,16,14,.88)),
+    radial-gradient(ellipse at 50% 0%,rgba(184,154,83,.04),transparent 70%);
+  border-left:1px solid var(--bdr);
+  display:flex;flex-direction:column;
+  box-shadow:inset 1px 0 0 rgba(255,255,255,.03);
+}
+.rc-icon{
+  width:42px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--ink-500);
+  border-bottom:1px solid var(--bdr);
+  font-size:14px;font-family:"STKaiti","KaiTi","楷体",serif;
+  transition:all .18s;position:relative;
+  font-weight:500;
+}
+/* icon 悬浮态·金光晕 */
+.rc-icon::before{
+  content:"";position:absolute;
+  width:26px;height:26px;border-radius:50%;
+  border:1px solid transparent;
+  transition:border-color .18s,box-shadow .18s,background .18s;
+  pointer-events:none;
+}
+.rc-icon:hover::before{
+  border-color:rgba(184,154,83,.55);
+  box-shadow:0 0 8px rgba(184,154,83,.3);
+  background:radial-gradient(circle,rgba(184,154,83,.10),transparent 70%);
+}
+.rc-icon:hover{color:var(--gold-300);}
+.rc-icon.active{color:var(--gold-300);}
+.rc-icon.active::before{
+  border-color:var(--gold-400);
+  background:radial-gradient(circle,rgba(184,154,83,.18),rgba(140,40,30,.10) 70%);
+  box-shadow:inset 0 0 4px rgba(0,0,0,.4),0 0 10px rgba(184,154,83,.4);
+}
+.rc-icon.active::after{
+  content:"";position:absolute;left:0;top:8px;bottom:8px;
+  width:2px;background:var(--gold-400);
+  box-shadow:0 0 4px rgba(184,154,83,.5);
+}
+.rc-icon[data-tip]:hover .rc-tooltip,.rc-icon[data-tip]:hover::part(tip){display:block;}
+.rc-icon[data-tip]:hover::after{
+  content:attr(data-tip);position:absolute;right:calc(100% + 8px);top:50%;
+  transform:translateY(-50%);
+  padding:4px 10px;
+  background:linear-gradient(180deg,rgba(36,30,24,.96),rgba(18,16,14,.97));
+  border:1px solid var(--gold-d);border-radius:3px;
+  color:var(--gold-300);font-size:11.5px;letter-spacing:.1em;
+  white-space:nowrap;z-index:120;pointer-events:none;
+  box-shadow:0 4px 12px rgba(0,0,0,.5);
+  font-family:"STKaiti","KaiTi",serif;
+}
+.rc-spacer{flex:1;}
+
+/* 右栏展开 panel·档案抽屉 */
+#rpanel{
+  width:0;flex-shrink:0;overflow:hidden;
+  background:
+    linear-gradient(180deg,rgba(36,30,24,.96),rgba(18,16,14,.96)),
+    radial-gradient(ellipse at 50% 0%,rgba(184,154,83,.04),transparent 60%);
+  border-left:1px solid var(--bdr);transition:width .18s;
+}
+#rpanel.show{width:300px;overflow-y:auto;}
+.rp-head{
+  padding:11px 14px;border-bottom:1px solid var(--bdr-m);
+  display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(to right,rgba(184,154,83,.06),transparent);
+  position:relative;
+}
+.rp-head::after{
+  content:"";position:absolute;bottom:-1px;left:14px;right:14px;height:1px;
+  background:linear-gradient(to right,transparent,var(--gold-d),transparent);
+  opacity:.7;
+}
+.rp-title{
+  font-size:14.5px;color:var(--gold-300);letter-spacing:.24em;
+  font-family:"STKaiti","KaiTi",serif;font-weight:500;
+}
+.rp-close{
+  width:24px;height:24px;background:transparent;
+  border:1px solid var(--bdr);color:var(--ink-500);
+  cursor:pointer;border-radius:3px;font-size:13px;line-height:1;font-family:inherit;
+  transition:all .15s;
+}
+.rp-close:hover{color:var(--verm-400);border-color:var(--verm-400);}
+.rp-body{padding:18px 14px;}
+.rp-ph{
+  border:1px dashed var(--bdr-m);border-radius:4px;
+  padding:30px 16px;text-align:center;
+  color:var(--ink-500);font-size:12px;letter-spacing:.18em;line-height:2;
+  background:radial-gradient(ellipse at 50% 0%,rgba(184,154,83,.04),transparent 70%);
+  font-family:"STKaiti","KaiTi",serif;font-style:italic;
+}
+.rp-ph .label{
+  font-size:30px;color:var(--gold-400);letter-spacing:.2em;
+  margin-bottom:10px;font-style:normal;
+  text-shadow:0 0 8px rgba(184,154,83,.3);
+}
+
+/* ═══ character panel (CK3 左侧·默认隐藏·click 弹) ═══ */
+#charpanel{
+  position:fixed;top:56px;left:0;bottom:32px;width:360px;z-index:70;
+  background:linear-gradient(180deg,rgba(36,30,24,.96),rgba(18,16,14,.96));
+  border-right:1px solid var(--gold-d);
+  box-shadow:4px 0 20px rgba(0,0,0,.5);
+  overflow-y:auto;
+  transform:translateX(-100%);transition:transform .2s;
+}
+#charpanel.show{transform:translateX(0);}
+
+/* close bar·返回 + 关 */
+.cp-close-bar{display:flex;justify-content:flex-end;padding:7px 10px;background:linear-gradient(to right,rgba(184,154,83,.04),transparent);border-bottom:1px solid var(--bdr);}
+.cp-close{
+  width:24px;height:24px;background:transparent;border:1px solid var(--bdr);
+  color:var(--ink-500);cursor:pointer;border-radius:3px;font-size:13px;line-height:1;font-family:inherit;
+  transition:all .15s;
+}
+.cp-close:hover{color:var(--verm-400);border-color:var(--verm-400);background:rgba(192,64,48,.06);}
+.cp-back{
+  padding:3px 10px;background:transparent;border:1px solid var(--gold-d);
+  color:var(--gold-300);font-size:11px;border-radius:3px;cursor:pointer;
+  margin-right:auto;display:none;letter-spacing:.18em;
+  font-family:"STKaiti","KaiTi",serif;
+}
+.cp-back.show{display:block;}
+.cp-back:hover{background:rgba(184,154,83,.12);box-shadow:0 0 6px rgba(184,154,83,.2);}
+
+/* portrait·御真影·四角金线 + 水墨晕 */
+.cp-portrait{
+  height:148px;position:relative;
+  background:
+    radial-gradient(ellipse at 50% 35%,rgba(192,64,48,.18),transparent 65%),
+    radial-gradient(ellipse at 30% 80%,rgba(140,90,52,.10),transparent 50%),
+    linear-gradient(135deg,rgba(60,30,22,.5),rgba(36,30,24,.7));
+  display:flex;align-items:center;justify-content:center;
+  border-bottom:1px solid var(--bdr-m);
+  overflow:hidden;
+}
+/* 4 角金线 */
+.cp-portrait::before,.cp-portrait::after{
+  content:"";position:absolute;width:14px;height:14px;pointer-events:none;
+  border-color:var(--gold-d);
+}
+.cp-portrait::before{top:8px;left:8px;border-top:1.5px solid;border-left:1.5px solid;}
+.cp-portrait::after{bottom:8px;right:8px;border-bottom:1.5px solid;border-right:1.5px solid;}
+/* 题签·御真影 */
+.cp-portrait-label{
+  position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
+  font-size:9px;color:var(--ink-300);letter-spacing:.4em;
+  font-family:"STKaiti","KaiTi",serif;font-style:italic;
+  padding:1px 10px;border-top:1px solid rgba(184,154,83,.3);border-bottom:1px solid rgba(184,154,83,.3);
+}
+.cp-face{
+  width:78px;height:88px;
+  background:
+    radial-gradient(ellipse at 35% 30%,#7a5a3a,#4a2a1a 70%,#241410 100%);
+  border:1.5px solid var(--gold-d);
+  border-radius:6px 6px 50% 50%;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--gold-300);font-size:32px;
+  font-family:"STKaiti","KaiTi",serif;font-weight:500;
+  text-shadow:0 0 6px rgba(0,0,0,.5),0 1px 0 rgba(255,255,255,.04);
+  box-shadow:
+    inset 0 0 8px rgba(0,0,0,.4),
+    inset 0 1px 0 rgba(255,255,255,.06),
+    0 0 12px rgba(184,154,83,.18);
+  position:relative;
+}
+.cp-face::after{
+  content:"";position:absolute;inset:2px;border-radius:5px 5px 50% 50%;
+  background:radial-gradient(ellipse at 30% 25%,rgba(255,255,255,.08),transparent 60%);
+  pointer-events:none;
+}
+
+/* 名牌·像 牌位 / 印鉴 */
+.cp-name-block{
+  padding:10px 14px;border-bottom:1px solid var(--bdr);
+  background:linear-gradient(to right,rgba(184,154,83,.05),transparent);
+  position:relative;
+}
+.cp-name-block::after{
+  content:"";position:absolute;bottom:-1px;left:14px;right:14px;height:1px;
+  background:linear-gradient(to right,transparent,var(--gold-d),transparent);
+  opacity:.6;
+}
+.cp-name{
+  font-size:17px;color:var(--gold-300);letter-spacing:.2em;line-height:1.3;
+  font-family:"STKaiti","KaiTi",serif;font-weight:500;
+  text-shadow:0 0 4px rgba(0,0,0,.4);
+}
+.cp-meta{
+  font-size:11px;color:var(--ink-500);letter-spacing:.12em;margin-top:4px;
+  font-family:"STKaiti","KaiTi",serif;font-style:italic;
+}
+
+/* 六气·section */
+.cp-stats{padding:10px 14px;border-bottom:1px solid var(--bdr);}
+.cp-st-title{
+  font-size:10px;color:var(--ink-300);letter-spacing:.32em;margin-bottom:8px;
+  font-style:italic;text-align:center;position:relative;padding-bottom:3px;
+}
+.cp-st-title::after{
+  content:"";position:absolute;bottom:0;left:35%;right:35%;height:1px;
+  background:linear-gradient(to right,transparent,var(--gold-d),transparent);
+  opacity:.5;
+}
+.cp-st-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;}
+.cp-st-k{
+  width:22px;height:22px;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;border:1px solid var(--gold-d);
+  background:radial-gradient(circle at 32% 28%,rgba(184,154,83,.2),rgba(36,30,24,.5));
+  font-size:11px;color:var(--gold-300);letter-spacing:0;line-height:1;
+  font-family:"STKaiti","KaiTi",serif;font-weight:500;
+  flex-shrink:0;
+  text-shadow:0 0 3px rgba(0,0,0,.5);
+  box-shadow:inset 0 0 3px rgba(0,0,0,.4);
+}
+.cp-st-bar{
+  flex:1;height:6px;background:rgba(0,0,0,.55);border-radius:3px;overflow:hidden;
+  border:1px solid rgba(0,0,0,.3);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.4);
+}
+.cp-st-fill{
+  height:100%;
+  background:linear-gradient(to right,#8a7332,#c9a045 70%,#d4be7a);
+  box-shadow:0 0 4px rgba(184,154,83,.4);
+}
+.cp-st-v{
+  width:26px;font-size:11.5px;color:var(--gold-300);text-align:right;
+  font-family:"STSong","SimSun",serif;font-feature-settings:"tnum" 1;
+}
+
+/* 五常·5 印 stamp */
+.cp-wuchang{display:flex;gap:5px;margin-top:10px;justify-content:center;}
+.cp-wc{
+  width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 32% 28%,rgba(232,180,90,.35),rgba(110,72,28,.25) 60%,rgba(40,24,8,.5) 100%);
+  border:1px solid #b88130;
+  font-size:11px;color:#f4c478;letter-spacing:0;
+  font-family:"STKaiti","KaiTi",serif;font-weight:500;line-height:1;
+  text-shadow:0 0 3px rgba(0,0,0,.55);
+  box-shadow:inset 0 0 3px rgba(0,0,0,.4),inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* 章节·section (大志/日程/精力) */
+.cp-sec{padding:9px 14px;border-bottom:1px solid var(--bdr);}
+.cp-sec-t{
+  font-size:10px;color:var(--ink-300);letter-spacing:.32em;margin-bottom:5px;
+  font-family:"STKaiti","KaiTi",serif;font-style:italic;
+  position:relative;padding-left:8px;
+}
+.cp-sec-t::before{
+  content:"";position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:3px;height:3px;background:var(--gold-d);border-radius:50%;
+  box-shadow:0 0 3px rgba(184,154,83,.4);
+}
+.cp-sec-b{
+  font-size:12px;color:var(--ink-700);line-height:1.6;
+  font-family:"STKaiti","KaiTi",serif;
+}
+
+.cp-energy{display:flex;align-items:center;gap:8px;}
+.cp-en-bar{
+  flex:1;height:8px;background:rgba(0,0,0,.55);border-radius:4px;overflow:hidden;
+  border:1px solid rgba(0,0,0,.3);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.4);
+}
+.cp-en-fill{
+  height:100%;
+  background:linear-gradient(to right,#5e9a8a,#7eb8a7 60%,#c9a045);
+  box-shadow:0 0 5px rgba(126,184,167,.4);
+}
+.cp-en-v{
+  font-size:11.5px;color:var(--gold-300);
+  font-family:"STSong","SimSun",serif;font-feature-settings:"tnum" 1;
+}
+
+/* 4 tab·笺 banner 风 */
+.cp-tabs{display:flex;border-bottom:1px solid var(--bdr-m);background:rgba(0,0,0,.18);}
+.cp-tab{
+  flex:1;padding:9px 0;text-align:center;
+  font-size:13px;color:var(--ink-500);letter-spacing:.32em;
+  cursor:pointer;border-bottom:2px solid transparent;
+  font-family:"STKaiti","KaiTi",serif;
+  transition:all .15s;
+}
+.cp-tab:hover{color:var(--gold-300);background:rgba(184,154,83,.04);}
+.cp-tab.active{
+  color:var(--gold-300);border-bottom-color:var(--gold-400);
+  background:linear-gradient(180deg,rgba(184,154,83,.12),transparent);
+  text-shadow:0 0 6px rgba(184,154,83,.3);
+}
+
+.cp-tab-body{padding:10px 14px;}
+
+/* 关系卡·小卷轴肖像 */
+.cp-rel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;}
+.cp-rel-card{
+  display:flex;flex-direction:column;align-items:center;
+  padding:6px 4px 5px;
+  background:linear-gradient(180deg,rgba(36,30,24,.6),rgba(18,16,14,.55));
+  border:1px solid var(--bdr);border-radius:3px;cursor:pointer;
+  transition:all .15s;position:relative;
+}
+.cp-rel-card:hover{
+  border-color:var(--gold-d);
+  background:linear-gradient(180deg,rgba(184,154,83,.10),rgba(36,30,24,.6));
+  transform:translateY(-1px);
+  box-shadow:0 4px 10px rgba(0,0,0,.4),0 0 8px rgba(184,154,83,.2);
+}
+.cp-rel-face{
+  width:36px;height:42px;
+  background:radial-gradient(ellipse at 35% 30%,#5a3a2a,#2a1a10 70%);
+  border:1px solid var(--gold-d);
+  border-radius:4px 4px 50% 50%;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--gold-300);font-size:14px;
+  font-family:"STKaiti","KaiTi",serif;font-weight:500;
+  box-shadow:inset 0 0 4px rgba(0,0,0,.5);
+  text-shadow:0 0 3px rgba(0,0,0,.5);
+}
+.cp-rel-name{
+  font-size:10.5px;color:var(--ink-700);letter-spacing:.05em;margin-top:5px;
+  text-align:center;font-family:"STKaiti","KaiTi",serif;
+}
+.cp-rel-role{
+  font-size:9px;color:var(--ink-300);letter-spacing:.05em;margin-top:1px;
+  font-style:italic;
+}
+
+/* ═══ 下方正中·御案时政·浅色 parchment 卷轴 (匹配原游戏 UI) ═══ */
+#shizheng-btn{
+  position:fixed;bottom:0;left:50%;transform:translateX(-50%);z-index:60;
+  cursor:pointer;
+  padding:11px 56px 10px;min-width:180px;text-align:center;
+  background:
+    radial-gradient(ellipse at 50% 30%,rgba(255,250,232,.4),transparent 70%),
+    linear-gradient(180deg,#f4e8cc 0%,#e8dbb4 55%,#d9c897 100%);
+  border:1px solid #a8895a;border-radius:2px;
+  box-shadow:
+    0 3px 14px rgba(20,12,5,.5),
+    inset 0 1px 0 rgba(255,245,220,.6),
+    inset 0 -1px 2px rgba(120,80,40,.18),
+    inset 0 0 0 0.5px rgba(255,245,220,.2);
+  font-family:"STKaiti","KaiTi","楷体",serif;
+  font-size:15.5px;color:#3d2f1a;letter-spacing:.55em;font-weight:700;
+  text-shadow:0 1px 0 rgba(255,245,220,.45);
+  transition:transform .15s ease-out,box-shadow .15s ease-out;
+  user-select:none;white-space:nowrap;
+}
+/* 4 角铜角·古卷扣 */
+#shizheng-btn::before,#shizheng-btn::after{
+  content:"";position:absolute;width:7px;height:7px;pointer-events:none;
+  border-color:rgba(108,76,32,.7);
+}
+#shizheng-btn::before{top:3px;left:3px;border-top:1.2px solid;border-left:1.2px solid;}
+#shizheng-btn::after{bottom:3px;right:3px;border-bottom:1.2px solid;border-right:1.2px solid;}
+#shizheng-btn:hover{
+  transform:translateX(-50%) translateY(-3px);
+  box-shadow:
+    0 7px 20px rgba(20,12,5,.6),
+    inset 0 1px 0 rgba(255,250,232,.7),
+    inset 0 -1px 2px rgba(120,80,40,.15);
+}
+#shizheng-btn:active{
+  transform:translateX(-50%) translateY(0);
+  box-shadow:
+    0 1px 5px rgba(20,12,5,.55),
+    inset 0 2px 4px rgba(120,80,40,.25),
+    inset 0 1px 0 rgba(255,245,220,.4);
+}
+
+/* ═══ 左下浮·撰写诏书 + 批阅奏章·CSS+SVG 仿制 v5·氛围融合 ═══ */
+.zb-btn{
+  position:fixed;bottom:18px;z-index:60;
+  cursor:pointer;
+  width:100px;height:212px;
+  /* 三阶投影·近暗 + 中漫 + 远软·让牌"沉"在地面 */
+  filter:
+    drop-shadow(0 1px 2px rgba(0,0,0,.6))
+    drop-shadow(0 6px 12px rgba(0,0,0,.5))
+    drop-shadow(0 14px 28px rgba(0,0,0,.35));
+  transition:transform .25s ease-out,filter .25s ease-out;
+  user-select:none;
+  isolation:isolate;
+}
+#zhao-btn{left:14px;}
+#zhao-btn-2{left:120px;}
+
+/* 地面投影·椭圆软阴·把牌"接"在地面上 (核心 - 抑制悬浮感) */
+.zb-btn::before{
+  content:"";
+  position:absolute;
+  bottom:-12px;left:8%;right:8%;
+  height:16px;
+  background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,.6) 0%,rgba(0,0,0,.28) 38%,transparent 76%);
+  filter:blur(3px);
+  z-index:-2;
+  pointer-events:none;
+  transition:all .35s ease-out;
+}
+.zb-btn:hover::before{
+  bottom:-15px;left:5%;right:5%;
+  background:radial-gradient(ellipse at 50% 50%,rgba(0,0,0,.65) 0%,rgba(0,0,0,.32) 40%,transparent 78%);
+}
+
+/* 暖光晕·烛照下的氤氲·牌四周散金辉·与暗 stage 缓融 */
+.zb-btn::after{
+  content:"";
+  position:absolute;
+  inset:-22px -16px -10px -16px;
+  background:
+    radial-gradient(ellipse 62% 52% at 50% 32%,rgba(216,170,82,.18) 0%,rgba(140,90,30,.07) 45%,transparent 78%),
+    radial-gradient(ellipse 48% 64% at 50% 60%,rgba(120,75,28,.1) 0%,transparent 75%);
+  filter:blur(5px);
+  z-index:-1;
+  pointer-events:none;
+  opacity:.86;
+  transition:all .45s ease-out;
+}
+.zb-btn:hover::after{
+  inset:-32px -24px -16px -24px;
+  opacity:1;
+  background:
+    radial-gradient(ellipse 65% 55% at 50% 30%,rgba(232,184,90,.26) 0%,rgba(160,108,38,.11) 45%,transparent 80%),
+    radial-gradient(ellipse 50% 65% at 50% 60%,rgba(140,90,32,.16) 0%,transparent 76%);
+}
+
+/* 呼吸·金线脉动·让牌"活"·非死板 */
+@keyframes zbGoldBreathe{
+  0%,100%{filter:brightness(1) drop-shadow(0 0 0 transparent);}
+  50%{filter:brightness(1.12) drop-shadow(0 0 1.8px rgba(220,175,100,.38));}
+}
+.zb-svg .zb-gold-out{animation:zbGoldBreathe 5.2s ease-in-out infinite;}
+.zb-svg .zb-gold-in{animation:zbGoldBreathe 5.2s ease-in-out -2.6s infinite;}
+/* 第二牌错相位·非同步呼吸 */
+#zhao-btn-2 .zb-svg .zb-gold-out{animation-delay:-1.7s;}
+#zhao-btn-2 .zb-svg .zb-gold-in{animation-delay:-4.3s;}
+
+/* SVG 御牌底·覆全 */
+.zb-svg{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  display:block;
+  pointer-events:none;
+}
+.zb-svg .zb-gold-out,
+.zb-svg .zb-gold-in{transition:stroke .25s,filter .25s;}
+.zb-btn:hover .zb-svg .zb-gold-out{stroke:#f0d088;filter:drop-shadow(0 0 1px rgba(240,208,136,.55));}
+.zb-btn:hover .zb-svg .zb-gold-in{stroke:#f0d088;}
+
+/* 中央诏纸·黄麻笺·多斑做旧 */
+.zb-scroll{
+  position:absolute;top:42px;bottom:44px;left:18px;right:18px;
+  background:
+    radial-gradient(ellipse 12% 7% at 25% 28%,rgba(140,90,40,.18),transparent 72%),
+    radial-gradient(ellipse 8% 5% at 75% 55%,rgba(160,100,50,.14),transparent 76%),
+    radial-gradient(ellipse 6% 4% at 40% 78%,rgba(140,80,30,.16),transparent 70%),
+    radial-gradient(ellipse 5% 3% at 65% 18%,rgba(150,90,40,.12),transparent 72%),
+    radial-gradient(ellipse 4% 3% at 18% 65%,rgba(150,95,45,.13),transparent 72%),
+    repeating-linear-gradient(89deg,rgba(140,100,50,.05) 0px,transparent 1px,transparent 3px),
+    repeating-linear-gradient(91deg,rgba(140,100,50,.04) 0px,transparent 1px,transparent 5px),
+    linear-gradient(180deg,#f5e9c8 0%,#ecddae 50%,#e6d4a0 100%);
+  border-radius:1px;
+  box-shadow:
+    inset 0 0 0 .8px rgba(140,100,50,.5),
+    inset 0 0 12px rgba(140,100,50,.18),
+    inset 0 -3px 5px rgba(140,100,50,.12),
+    0 4px 7px rgba(0,0,0,.55);
+}
+.zb-scroll::before{
+  content:"";position:absolute;inset:-1px;
+  background:linear-gradient(90deg,rgba(140,100,50,.5) 0%,transparent 9%,transparent 91%,rgba(140,100,50,.5) 100%);
+  border-radius:1px;pointer-events:none;
+}
+/* 竖排·诏书字·楷意 + 墨晕 */
+.zb-scroll-text{
+  position:absolute;top:9px;left:50%;transform:translateX(-50%);
+  writing-mode:vertical-rl;
+  font-family:"STKaiti","FZKai-Z03","KaiTi","楷体","FangSong","STSong",serif;
+  font-size:17px;font-weight:700;
+  color:#1c0e04;letter-spacing:.14em;
+  text-shadow:
+    0 0 .6px rgba(20,8,2,.6),
+    0 0 2.2px rgba(40,20,8,.18),
+    0 1px 0 rgba(255,245,220,.42);
+}
+/* 诏纸下·朱玺 */
+.zb-scroll-seal{
+  position:absolute;bottom:6px;left:50%;transform:translateX(-50%);
+  width:14px;height:14px;
+  background:radial-gradient(ellipse at 35% 30%,#d83a2c 0%,#aa2618 58%,#7a1408 100%);
+  border-radius:1.5px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:"STKaiti","SimSun",serif;font-size:8.5px;font-weight:700;
+  color:#f5dec0;letter-spacing:0;line-height:1;
+  box-shadow:inset 0 0 0 .5px #4a0e08,inset 0 -1px 1.5px rgba(0,0,0,.4),0 1px 1px rgba(0,0,0,.4);
+}
+/* 红绳·两道勒书 */
+.zb-rope{
+  position:absolute;left:13px;right:13px;height:3.2px;
+  background:linear-gradient(180deg,#d8423a 0%,#a8281c 55%,#6e1408 100%);
+  box-shadow:
+    inset 0 .5px 0 rgba(255,235,220,.16),
+    inset 0 -.5px 1px rgba(0,0,0,.45),
+    0 1px 2px rgba(140,40,20,.5);
+  z-index:2;
+}
+.zb-rope-1{top:60px;}
+.zb-rope-2{top:136px;}
+.zb-rope::before,.zb-rope::after{
+  content:"";position:absolute;width:4.5px;height:3.2px;top:0;
+  background:linear-gradient(180deg,#8a1c10,#4a0a04);
+  box-shadow:0 1px 1px rgba(0,0,0,.5);
+}
+.zb-rope::before{left:-4.5px;}
+.zb-rope::after{right:-4.5px;}
+
+/* 左挂穗·朱印石 + 红丝穗 */
+.zb-tassel{
+  position:absolute;left:3px;top:55px;width:18px;height:90px;
+  z-index:3;pointer-events:none;
+}
+.zb-tassel-cord{
+  position:absolute;top:0;left:7px;width:1.3px;height:22px;
+  background:linear-gradient(180deg,#c63220,#7a1408);
+  box-shadow:1px 0 0 rgba(0,0,0,.3);
+  transform:rotate(-3deg);transform-origin:top center;
+}
+.zb-tassel-seal{
+  position:absolute;top:19px;left:0;
+  width:14px;height:16px;
+  background:
+    /* 印纹·细横竖暗示篆书·替代 奉天 */
+    linear-gradient(0deg,transparent 23%,rgba(245,216,168,.35) 23.6%,rgba(245,216,168,.35) 24.5%,transparent 25%,transparent 49%,rgba(245,216,168,.32) 49.5%,rgba(245,216,168,.32) 50.4%,transparent 51%,transparent 75%,rgba(245,216,168,.35) 75.6%,rgba(245,216,168,.35) 76.5%,transparent 77%),
+    linear-gradient(90deg,transparent 22%,rgba(245,216,168,.32) 22.5%,rgba(245,216,168,.32) 23.4%,transparent 24%,transparent 49%,rgba(245,216,168,.3) 49.5%,rgba(245,216,168,.3) 50.4%,transparent 51%,transparent 76%,rgba(245,216,168,.32) 76.5%,rgba(245,216,168,.32) 77.4%,transparent 78%),
+    radial-gradient(ellipse at 30% 25%,#d8453a 0%,#b02818 55%,#7a1408 100%);
+  border-radius:2px;
+  box-shadow:
+    inset 0 0 0 .5px #4a0e08,
+    inset 0 -1px 1.5px rgba(0,0,0,.4),
+    0 2px 4px rgba(0,0,0,.55);
+  transform:rotate(2deg);
+}
+.zb-tassel-fringe{
+  position:absolute;top:38px;left:4.5px;width:5.5px;height:22px;
+  background:
+    repeating-linear-gradient(180deg,
+      #c63220 0px,#c63220 .7px,
+      #8a1c10 .7px,#8a1c10 1.4px,
+      transparent 1.4px,transparent 2.1px),
+    linear-gradient(180deg,#a82418 0%,#5a0c04 100%);
+  border-radius:1px 1px 50% 50% / 1px 1px 24% 24%;
+  filter:blur(.35px) drop-shadow(0 2px 3px rgba(0,0,0,.45));
+}
+.zb-tassel-fringe::after{
+  content:"";position:absolute;top:-2px;left:-1px;right:-1px;height:4px;
+  background:linear-gradient(180deg,#7a1408,#4a0a04);
+  border-radius:50% 50% 0 0 / 80% 80% 0 0;
+}
+
+/* 右下·和田玉云 */
+.zb-jade{
+  position:absolute;right:2px;top:144px;
+  width:22px;height:14px;
+  background:
+    radial-gradient(ellipse 60% 70% at 28% 28%,rgba(255,255,255,.58) 0%,transparent 50%),
+    radial-gradient(ellipse at 50% 50%,#cad8be 0%,#9bb59a 50%,#6a8770 100%);
+  border-radius:55% 35% 60% 35% / 55% 50% 50% 50%;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.6),
+    inset 0 -1px 2px rgba(0,0,0,.2),
+    0 2px 3px rgba(0,0,0,.55);
+  z-index:3;
+}
+.zb-jade::before{
+  content:"";position:absolute;left:-4.5px;top:4.5px;
+  width:10px;height:7px;
+  background:radial-gradient(ellipse at 60% 40%,#cad8be 0%,#8aa888 60%,#5a7860 100%);
+  border-radius:55% 40% 60% 30% / 60% 50% 50% 50%;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 1px 2px rgba(0,0,0,.4);
+}
+.zb-jade::after{
+  content:"";position:absolute;left:-2px;top:-1px;
+  width:1.3px;height:8px;
+  background:linear-gradient(180deg,#c63220,#7a1408);
+  transform:rotate(-15deg);
+  border-radius:1px;
+}
+
+/* hover·整牌轻抬·三阶投影 + 暖辉 + 微亮 */
+.zb-btn:hover{
+  transform:translateY(-4px);
+  filter:
+    drop-shadow(0 1px 2px rgba(0,0,0,.55))
+    drop-shadow(0 8px 14px rgba(0,0,0,.45))
+    drop-shadow(0 18px 32px rgba(184,140,60,.34))
+    brightness(1.05);
+}
+.zb-btn:hover .zb-tassel-cord{transform:rotate(-5deg);}
+.zb-btn:hover .zb-tassel-seal{transform:rotate(4deg);}
+.zb-btn .zb-tassel-cord,
+.zb-btn .zb-tassel-seal{transition:transform .35s cubic-bezier(.4,1.5,.6,1);}
+.zb-btn:active{
+  transform:translateY(-1px);
+  filter:
+    drop-shadow(0 1px 2px rgba(0,0,0,.7))
+    drop-shadow(0 4px 8px rgba(0,0,0,.55))
+    brightness(.96);
+}
+
+/* ═══ 右下浮 endTurn·诏付有司 朱玺 ═══ */
+#endturn{position:fixed;bottom:0;right:0;z-index:60;display:flex;flex-direction:column;gap:0;align-items:flex-end;}
+
+/* 诏付有司·朱玺 wax-seal·四角金线·凹凸 emboss·呼吸 glow */
+.et-big{
+  min-width:204px;padding:14px 26px;
+  background:
+    radial-gradient(ellipse at 50% 0%,rgba(212,90,68,.55),transparent 65%),
+    radial-gradient(circle at 30% 30%,rgba(232,140,108,.32),transparent 50%),
+    linear-gradient(180deg,rgba(168,52,40,.96),rgba(108,28,22,.98));
+  color:#fff5e0;
+  font-family:"STKaiti","KaiTi","楷体",serif;
+  font-size:18px;font-weight:600;letter-spacing:.45em;
+  border:1.5px solid var(--gold-d);
+  border-radius:4px;cursor:pointer;text-align:center;
+  position:relative;
+  box-shadow:
+    0 0 0 1px rgba(140,40,30,.65),
+    0 7px 22px rgba(140,40,30,.6),
+    inset 0 0 6px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.12);
+  text-shadow:0 1px 2px rgba(0,0,0,.55),0 0 9px rgba(255,200,160,.32);
+  animation:et-pulse 3s ease-in-out infinite;
+  transition:transform .18s,box-shadow .18s;
+}
+/* 4 角金线 (像玺体凹角装饰) */
+.et-big::before,.et-big::after{
+  content:"";position:absolute;width:9px;height:9px;pointer-events:none;
+  border-color:rgba(212,190,122,.85);
+}
+.et-big::before{top:4px;left:4px;border-top:1.2px solid;border-left:1.2px solid;}
+.et-big::after{bottom:4px;right:4px;border-bottom:1.2px solid;border-right:1.2px solid;}
+.et-big .sub{
+  display:block;font-size:11.5px;letter-spacing:.24em;margin-top:5px;
+  font-style:italic;font-weight:400;
+  color:rgba(255,240,220,.78);
+  text-shadow:0 1px 1px rgba(0,0,0,.5);
+}
+.et-big:hover{
+  transform:translateY(-2px);
+  box-shadow:
+    0 0 0 1px rgba(212,190,122,.75),
+    0 10px 26px rgba(140,40,30,.7),
+    inset 0 0 6px rgba(0,0,0,.45),
+    inset 0 1px 0 rgba(255,255,255,.18);
+}
+.et-big:active{
+  transform:translateY(0);
+  box-shadow:
+    0 0 0 1px rgba(140,40,30,.7),
+    0 3px 10px rgba(140,40,30,.6),
+    inset 0 3px 8px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.05);
+}
+@keyframes et-pulse{
+  0%,100%{
+    box-shadow:
+      0 0 0 1px rgba(140,40,30,.65),
+      0 7px 22px rgba(140,40,30,.6),
+      0 0 0 0 rgba(212,90,68,.45),
+      inset 0 0 6px rgba(0,0,0,.45),
+      inset 0 1px 0 rgba(255,255,255,.12);
+  }
+  50%{
+    box-shadow:
+      0 0 0 1px rgba(140,40,30,.65),
+      0 7px 22px rgba(140,40,30,.6),
+      0 0 0 8px rgba(212,90,68,0),
+      inset 0 0 6px rgba(0,0,0,.45),
+      inset 0 1px 0 rgba(255,255,255,.12);
+  }
+}
+
+/* 底栏 #bottombar 已撤·status 改入顶栏 alerts (后续 content allocation 决) */
+
+/* preview banner·朱印 */
+#banner{
+  position:fixed;top:4px;left:50%;transform:translateX(-50%);z-index:200;
+  padding:3px 14px;
+  background:linear-gradient(180deg,rgba(212,90,68,.85),rgba(168,52,40,.95));
+  color:#fff5e0;font-size:10.5px;letter-spacing:.18em;
+  border-radius:10px;border:1px solid rgba(244,234,221,.35);
+  pointer-events:none;
+  font-family:"STKaiti","KaiTi",serif;
+  box-shadow:0 2px 8px rgba(140,40,30,.4),inset 0 1px 0 rgba(255,255,255,.15);
+  text-shadow:0 1px 1px rgba(0,0,0,.4);
+}
+
+/* mock modal·诏书展开 */
+#modal{position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(2px);}
+#modal.show{display:flex;}
+.mod-card{
+  background:
+    radial-gradient(ellipse at 50% 0%,rgba(184,154,83,.07),transparent 60%),
+    linear-gradient(180deg,rgba(36,30,24,.98),rgba(18,16,14,.98));
+  border:1px solid var(--gold-d);border-radius:4px;
+  padding:22px 26px;min-width:320px;max-width:460px;
+  box-shadow:0 12px 32px rgba(0,0,0,.65),inset 0 1px 0 rgba(255,255,255,.05);
+  position:relative;
+}
+.mod-card::before,.mod-card::after{content:"";position:absolute;width:10px;height:10px;pointer-events:none;border-color:var(--gold-d);}
+.mod-card::before{top:5px;left:5px;border-top:1px solid;border-left:1px solid;}
+.mod-card::after{bottom:5px;right:5px;border-bottom:1px solid;border-right:1px solid;}
+.mod-t{
+  font-size:16px;color:var(--gold-300);letter-spacing:.24em;
+  margin-bottom:12px;text-align:center;
+  font-family:"STKaiti","KaiTi",serif;font-weight:500;
+  position:relative;padding-bottom:8px;
+}
+.mod-t::after{
+  content:"";position:absolute;bottom:0;left:30%;right:30%;height:1px;
+  background:linear-gradient(to right,transparent,var(--gold-d),transparent);
+  opacity:.6;
+}
+.mod-b{
+  font-size:12.5px;color:var(--ink-700);line-height:1.8;margin-bottom:16px;
+  font-family:"STKaiti","KaiTi",serif;
+}
+.mod-a{display:flex;gap:10px;justify-content:flex-end;}
+.mod-btn{
+  padding:6px 16px;border:1px solid var(--bdr-m);background:transparent;
+  color:var(--ink-700);font-family:"STKaiti","KaiTi",serif;
+  font-size:12.5px;letter-spacing:.18em;cursor:pointer;border-radius:3px;
+  transition:all .15s;
+}
+.mod-btn:hover{border-color:var(--gold-d);color:var(--gold-300);background:rgba(184,154,83,.06);}
+.mod-btn.pri{
+  background:linear-gradient(180deg,rgba(168,52,40,.95),rgba(108,28,22,.98));
+  color:#fff5e0;border-color:var(--gold-d);
+  box-shadow:0 0 0 1px rgba(140,40,30,.5),inset 0 1px 0 rgba(255,255,255,.1);
+  text-shadow:0 1px 1px rgba(0,0,0,.4);
+}
+.mod-btn.pri:hover{
+  transform:translateY(-1px);
+  box-shadow:0 0 0 1px rgba(212,190,122,.6),0 4px 12px rgba(140,40,30,.5);
+}
+.mod-btn.pri{background:linear-gradient(135deg,var(--verm-400),var(--verm-600));color:var(--ink-900);border-color:var(--verm-600);}
+</style>
+</head>
+<body>
+
+<div id="banner">B 方案 shell v2·天启 7 年 mock</div>
+
+<!-- ═══ 顶栏 ═══ -->
+<div id="topbar">
+  <button class="tb-wentian" title="问天·与推演 AI 对话">问　天</button>
+
+  <div class="tb-weather" title="四时物候">
+    <div class="tb-w-seal">春</div>
+    <div class="tb-w-info"><div class="tb-w-name">仲春·惊蛰</div><div class="tb-w-desc">雷乃发声</div></div>
+  </div>
+
+  <div class="tb-vars">
+    <div class="tb-var wide" data-key="guoku">
+      <div class="tb-vn">帑　廪</div>
+      <div class="tb-vsubs">
+        <span class="tb-vs" data-stock="yin">
+          <span class="icn icn-yin">银</span>
+          <span class="sv"><b>12,000</b><span class="sd up">+82</span></span>
+        </span>
+        <span class="tb-vs" data-stock="liang">
+          <span class="icn icn-liang">粮</span>
+          <span class="sv"><b>850</b><span class="sd dn">-12</span></span>
+        </span>
+        <span class="tb-vs" data-stock="bu">
+          <span class="icn icn-bu">布</span>
+          <span class="sv"><b>12.0</b><span class="sd flat">±0</span></span>
+        </span>
+      </div>
+    </div>
+    <div class="tb-var wide" data-key="neitang">
+      <div class="tb-vn">内　帑</div>
+      <div class="tb-vsubs">
+        <span class="tb-vs" data-stock="yin">
+          <span class="icn icn-yin">银</span>
+          <span class="sv"><b>2,300</b><span class="sd up">+18</span></span>
+        </span>
+        <span class="tb-vs" data-stock="liang">
+          <span class="icn icn-liang">粮</span>
+          <span class="sv"><b>120</b><span class="sd up">+3</span></span>
+        </span>
+        <span class="tb-vs" data-stock="zhen">
+          <span class="icn icn-zhen">珍</span>
+          <span class="sv"><b>玉 3</b><span class="sd flat">±0</span></span>
+        </span>
+      </div>
+    </div>
+    <div class="tb-var" data-key="hukou">
+      <span class="icn icn-hu">户</span>
+      <div class="tb-vbody">
+        <div class="tb-vn">户　口</div>
+        <div class="tb-vv">5,800 万 <span class="trend up">▲</span></div>
+      </div>
+    </div>
+    <div class="tb-var warn" data-key="lizhi">
+      <span class="icn icn-li">吏</span>
+      <div class="tb-vbody">
+        <div class="tb-vn">吏　治</div>
+        <div class="tb-vv">○●●● <span class="phase">渐弊</span></div>
+      </div>
+    </div>
+    <div class="tb-var" data-key="minxin">
+      <span class="icn icn-min">民</span>
+      <div class="tb-vbody">
+        <div class="tb-vn">民　心</div>
+        <div class="tb-vv">65 <span class="trend">—</span></div>
+      </div>
+    </div>
+    <div class="tb-var" data-key="huangquan">
+      <span class="icn icn-huang">皇</span>
+      <div class="tb-vbody">
+        <div class="tb-vn">皇　权</div>
+        <div class="tb-vv">70 <span class="trend up">▲</span></div>
+      </div>
+    </div>
+    <div class="tb-var good" data-key="huangwei">
+      <span class="icn icn-wei">威</span>
+      <div class="tb-vbody">
+        <div class="tb-vn">皇　威</div>
+        <div class="tb-vv">80 <span class="trend up">▲</span></div>
+      </div>
+    </div>
+  </div>
+
+  <button class="tb-chip" title="剧本自定义变量">全部变量</button>
+
+  <div class="tb-time" id="tb-time" title="鼠标移到查看 / 点击钉住">
+    <div class="tb-time-main">天启七年春二月乙巳日</div>
+    <div class="tb-time-sub">公元 1627 年</div>
+  </div>
+</div>
+
+<!-- 7 var 共享 popover (hover/pin) -->
+<div id="varpop"></div>
+
+<div id="timepop">
+  <div class="tp-title">天 时</div>
+  <div class="tp-pin-hint">移开自动隐 · 点时间区钉住</div>
+  <div class="tp-row"><span class="tp-k">主历</span><span class="tp-v">天启七年春二月乙巳日</span></div>
+  <div class="tp-row"><span class="tp-k">公元</span><span class="tp-v">1627 年</span></div>
+  <div class="tp-row"><span class="tp-k">岁次</span><span class="tp-v">丁卯 年</span></div>
+  <div class="tp-row"><span class="tp-k">时令</span><span class="tp-v">春</span></div>
+  <div class="tp-row"><span class="tp-k">月分</span><span class="tp-v">仲春·二月</span></div>
+  <div class="tp-row"><span class="tp-k">日辰</span><span class="tp-v">乙巳 日</span></div>
+  <div class="tp-divider"></div>
+  <div class="tp-row"><span class="tp-k">节气</span><span class="tp-v">惊蛰</span></div>
+  <div class="tp-row"><span class="tp-k">物候</span><span class="tp-v">雷乃发声·桃始华</span></div>
+  <div class="tp-row"><span class="tp-k">回合</span><span class="tp-v">第 1 回合</span></div>
+</div>
+
+<!-- ═══ stage ═══ -->
+<div id="stage">
+
+<!-- 地图 -->
+<div id="mapwrap">
+  <div class="map-bg"></div>
+  <div class="map-prov" data-p="jingzhao" style="left:36%;top:16%;width:118px;height:76px;color:var(--verm-400);--prov-fill:rgba(192,64,48,.35);"><span class="pn">京兆府</span><span class="pm">户 80万 · 民 70</span></div>
+  <div class="map-prov" data-p="yingtian" style="left:60%;top:40%;width:108px;height:70px;color:var(--gold-400);--prov-fill:rgba(184,154,83,.35);"><span class="pn">应天府</span><span class="pm">户 60万 · 民 75</span></div>
+  <div class="map-prov" data-p="suzhou" style="left:68%;top:52%;width:88px;height:56px;color:var(--celadon);--prov-fill:rgba(106,154,127,.35);"><span class="pn">苏州府</span><span class="pm">户 45万 · 商 90</span></div>
+  <div class="map-prov" data-p="hangzhou" style="left:73%;top:63%;width:88px;height:56px;color:var(--indigo);--prov-fill:rgba(90,111,168,.35);"><span class="pn">杭州府</span><span class="pm">户 40万 · 民 80</span></div>
+  <div class="map-prov" data-p="guangzhou" style="left:53%;top:78%;width:88px;height:56px;color:#a06045;--prov-fill:rgba(184,98,68,.4);"><span class="pn">广州府</span><span class="pm">户 30万 · 番舶</span></div>
+  <div class="map-hint">中央地图永驻 · hover 省 → 提示 · click 省 → popup · click 角色名 → 左侧 panel</div>
+</div>
+
+<!-- province popup -->
+<div id="ppop">
+  <div class="pp-top"><span class="pp-name" id="pp-name">—</span><span class="pp-level" id="pp-level">—</span><button class="pp-close" onclick="closeProv()">✕</button></div>
+  <div class="pp-grid" id="pp-grid"></div>
+  <div class="pp-tabs"><div class="pp-tab active" data-t="bld">建筑 / 设施</div><div class="pp-tab" data-t="inst">礼制 / 文化推行</div></div>
+  <div class="pp-tab-body" id="pp-tbody"></div>
+</div>
+
+<!-- 右栏 icon列 -->
+<div id="rightcol">
+  <div class="rc-icon" data-slot="ol" data-tip="outliner·军 / 省 / marked">⊞</div>
+  <div class="rc-icon" data-slot="1" data-tip="Slot 1·待分配">①</div>
+  <div class="rc-icon" data-slot="2" data-tip="Slot 2·待分配">②</div>
+  <div class="rc-icon" data-slot="3" data-tip="Slot 3·待分配">③</div>
+  <div class="rc-icon" data-slot="4" data-tip="Slot 4·待分配">④</div>
+  <div class="rc-icon" data-slot="5" data-tip="Slot 5·待分配">⑤</div>
+  <div class="rc-icon" data-slot="6" data-tip="Slot 6·待分配">⑥</div>
+  <div class="rc-icon" data-slot="7" data-tip="Slot 7·待分配">⑦</div>
+  <div class="rc-icon" data-slot="8" data-tip="Slot 8·待分配">⑧</div>
+  <div class="rc-spacer"></div>
+</div>
+
+<!-- 右栏展开 panel -->
+<div id="rpanel">
+  <div class="rp-head"><span class="rp-title" id="rp-title">—</span><button class="rp-close" onclick="closeRight()">✕</button></div>
+  <div class="rp-body"><div class="rp-ph"><div class="label" id="rp-label">—</div>待 分 配<br><span style="font-size:10px;color:var(--ink-300);">shell only · content TBD</span></div></div>
+</div>
+
+</div>
+
+<!-- character panel (左侧·默认隐藏·CK3 法) -->
+<div id="charpanel">
+  <div class="cp-close-bar">
+    <button class="cp-back" id="cp-back" onclick="setChar('player')">← 朕</button>
+    <button class="cp-close" onclick="closeChar()">✕</button>
+  </div>
+  <div class="cp-portrait">
+    <div class="cp-face" id="cp-face">由</div>
+    <div class="cp-portrait-label">御　真　影</div>
+  </div>
+  <div class="cp-name-block"><div class="cp-name" id="cp-name">朱由校 · 天启帝</div><div class="cp-meta" id="cp-meta">22 岁 · 在位 7 年</div></div>
+  <div class="cp-stats">
+    <div class="cp-st-title">六　气</div>
+    <div class="cp-st-row" id="s-guo"><span class="cp-st-k">果</span><div class="cp-st-bar"><div class="cp-st-fill" style="width:40%"></div></div><span class="cp-st-v">40</span></div>
+    <div class="cp-st-row" id="s-ren"><span class="cp-st-k">仁</span><div class="cp-st-bar"><div class="cp-st-fill" style="width:55%"></div></div><span class="cp-st-v">55</span></div>
+    <div class="cp-st-row" id="s-zhi"><span class="cp-st-k">智</span><div class="cp-st-bar"><div class="cp-st-fill" style="width:35%"></div></div><span class="cp-st-v">35</span></div>
+    <div class="cp-st-row" id="s-wu"><span class="cp-st-k">武</span><div class="cp-st-bar"><div class="cp-st-fill" style="width:30%"></div></div><span class="cp-st-v">30</span></div>
+    <div class="cp-st-row" id="s-xue"><span class="cp-st-k">学</span><div class="cp-st-bar"><div class="cp-st-fill" style="width:50%"></div></div><span class="cp-st-v">50</span></div>
+    <div class="cp-st-row" id="s-gong"><span class="cp-st-k">工</span><div class="cp-st-bar"><div class="cp-st-fill" style="width:85%"></div></div><span class="cp-st-v">85</span></div>
+    <div class="cp-wuchang"><div class="cp-wc">仁</div><div class="cp-wc">义</div><div class="cp-wc">礼</div><div class="cp-wc">智</div><div class="cp-wc">信</div></div>
+  </div>
+  <div class="cp-sec"><div class="cp-sec-t">大　志</div><div class="cp-sec-b" id="cp-goal">中兴帝业·肃清魏党·辽事整顿</div></div>
+  <div class="cp-sec"><div class="cp-sec-t">日　程</div><div class="cp-sec-b">召见户部尚书·阅辽东军报·斋戒</div></div>
+  <div class="cp-sec"><div class="cp-sec-t">精　力</div><div class="cp-sec-b cp-energy"><div class="cp-en-bar"><div class="cp-en-fill" style="width:62%"></div></div><span class="cp-en-v">62 / 100</span></div></div>
+  <div class="cp-tabs">
+    <div class="cp-tab active" data-ct="family">家</div>
+    <div class="cp-tab" data-ct="social">交</div>
+    <div class="cp-tab" data-ct="court">廷</div>
+    <div class="cp-tab" data-ct="vassals">藩</div>
+  </div>
+  <div class="cp-tab-body" id="cp-tbody"></div>
+</div>
+
+<!-- 右下 endTurn 浮·只留大 btn (6 fab + 摘要 已撤·待 content allocation) -->
+<!-- 下方正中·御案时政·古卷扣 parchment -->
+<div id="shizheng-btn" onclick="openShizheng()" title="御案时政·朝政中心">
+  御　案　时　政
+</div>
+
+<!-- 左下浮·撰写诏书·CSS+SVG 仿制 v4 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="zbWood" cx="0.5" cy="0.28" r="0.82">
+      <stop offset="0%" stop-color="#352818"/>
+      <stop offset="55%" stop-color="#1a1108"/>
+      <stop offset="100%" stop-color="#060302"/>
+    </radialGradient>
+    <linearGradient id="zbGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f0cc7c"/>
+      <stop offset="45%" stop-color="#d6b066"/>
+      <stop offset="100%" stop-color="#946f30"/>
+    </linearGradient>
+    <linearGradient id="zbGoldFade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#d6b066" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#8a6830" stop-opacity="0.7"/>
+    </linearGradient>
+    <!-- 木面高光·上方烛照 -->
+    <radialGradient id="zbWoodLight" cx="0.42" cy="0.16" r="0.55">
+      <stop offset="0%" stop-color="#5a4226" stop-opacity="0.55"/>
+      <stop offset="45%" stop-color="#3a2812" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <!-- 木纹·细斑 (深浅交错) -->
+    <radialGradient id="zbWoodStain" cx="0.7" cy="0.55" r="0.4">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <!-- 牌内饰·g·复用 -->
+    <g id="zb-deco-top">
+      <path d="M18 13 Q22 22 28 30 Q32 38 38 44" fill="none" stroke="url(#zbGold)" stroke-width="0.7" opacity="0.78" stroke-linecap="round"/>
+      <line x1="22" y1="22" x2="24.5" y2="23" stroke="url(#zbGold)" stroke-width="0.5" opacity="0.7"/>
+      <line x1="32" y1="38" x2="34.5" y2="39" stroke="url(#zbGold)" stroke-width="0.5" opacity="0.7"/>
+      <path d="M14 14 Q22 11 28 19 Q22 24 14 14 Z" fill="url(#zbGold)" opacity="0.7"/>
+      <path d="M22 24 Q32 22 34 32 Q26 35 22 24 Z" fill="url(#zbGold)" opacity="0.6"/>
+      <path d="M28 32 Q38 32 38 42 Q30 45 28 32 Z" fill="url(#zbGold)" opacity="0.55"/>
+      <path d="M16 24 Q22 26 22 32 Q15 32 16 24 Z" fill="url(#zbGold)" opacity="0.5"/>
+      <path d="M78 14 C73 14 70 18 72 22 C68 23 68 29 72 30 C70 34 76 36 78 32 C84 34 86 28 84 26 C88 24 86 18 82 18 C82 14 80 12 78 14 Z" fill="none" stroke="url(#zbGold)" stroke-width="0.7" opacity="0.75" stroke-linecap="round"/>
+      <path d="M85 36 Q90 36 92 41" fill="none" stroke="url(#zbGold)" stroke-width="0.55" opacity="0.6" stroke-linecap="round"/>
+      <path d="M76 42 Q80 42 82 47" fill="none" stroke="url(#zbGold)" stroke-width="0.5" opacity="0.55" stroke-linecap="round"/>
+      <path d="M48 18 L52 14 L56 18 Z" fill="url(#zbGold)" opacity="0.4"/>
+    </g>
+    <g id="zb-deco-bot">
+      <line x1="30" y1="200" x2="68" y2="200" stroke="url(#zbGold)" stroke-width="1.6" opacity="0.7" stroke-linecap="round"/>
+      <line x1="28" y1="205" x2="70" y2="205" stroke="url(#zbGold)" stroke-width="1.6" opacity="0.65" stroke-linecap="round"/>
+      <line x1="30" y1="210" x2="68" y2="210" stroke="url(#zbGold)" stroke-width="1.6" opacity="0.6" stroke-linecap="round"/>
+      <line x1="28" y1="215" x2="70" y2="215" stroke="url(#zbGold)" stroke-width="1.4" opacity="0.55" stroke-linecap="round"/>
+      <rect x="46" y="196" width="6" height="22" fill="url(#zbGoldFade)" opacity="0.55"/>
+      <line x1="46" y1="196" x2="46" y2="218" stroke="url(#zbGold)" stroke-width="0.5" opacity="0.78"/>
+      <line x1="52" y1="196" x2="52" y2="218" stroke="url(#zbGold)" stroke-width="0.5" opacity="0.78"/>
+      <path d="M49 196 Q44 192 42 196 Q43 199 47 199" fill="none" stroke="url(#zbGold)" stroke-width="0.55" opacity="0.7" stroke-linecap="round"/>
+      <path d="M49 196 Q54 192 56 196 Q55 199 51 199" fill="none" stroke="url(#zbGold)" stroke-width="0.55" opacity="0.7" stroke-linecap="round"/>
+      <path d="M49 218 Q46 222 44 220" fill="none" stroke="url(#zbGold)" stroke-width="0.45" opacity="0.55" stroke-linecap="round"/>
+      <path d="M51 218 Q54 222 56 220" fill="none" stroke="url(#zbGold)" stroke-width="0.45" opacity="0.55" stroke-linecap="round"/>
+      <path d="M80 200 C84 198 88 200 88 204 C90 206 86 210 84 208 C82 212 78 210 78 206 C76 204 78 200 80 200 Z" fill="none" stroke="url(#zbGold)" stroke-width="0.55" opacity="0.62" stroke-linecap="round"/>
+      <path d="M86 211 Q90 211 90 215" fill="none" stroke="url(#zbGold)" stroke-width="0.45" opacity="0.5" stroke-linecap="round"/>
+      <path d="M22 204 Q26 202 28 206 Q26 210 22 208 Q19 206 22 204 Z" fill="none" stroke="url(#zbGold)" stroke-width="0.5" opacity="0.55" stroke-linecap="round"/>
+    </g>
+    <!-- 御牌 silhouette path·共用 -->
+    <path id="zb-plaque-path" d="M54 0 C58 1 60 4 64 5 L84 5 C92 5 100 7 102 14 C104 22 105 30 105 40 L105 190 C105 200 104 208 102 216 C100 223 92 225 84 225 L64 225 C60 226 58 229 54 230 C50 229 48 226 44 225 L24 225 C16 225 8 223 6 216 C4 208 3 200 3 190 L3 40 C3 30 4 22 6 14 C8 7 16 5 24 5 L44 5 C48 4 50 1 54 0 Z"/>
+    <path id="zb-plaque-inner" d="M54 4 C57 5 59 7 62 8 L83 8 C91 8 98 9 100 16 C102 23 103 30 103 40 L103 190 C103 200 102 207 100 214 C98 221 91 222 83 222 L62 222 C59 223 57 225 54 226 C51 225 49 223 46 222 L25 222 C17 222 10 221 8 214 C6 207 5 200 5 190 L5 40 C5 30 6 23 8 16 C10 9 17 8 25 8 L46 8 C49 7 51 5 54 4 Z"/>
+  </defs>
+</svg>
+<div id="zhao-btn" class="zb-btn" onclick="openZhao()" title="撰写诏书·起草政令">
+  <svg class="zb-svg" viewBox="0 0 108 230" preserveAspectRatio="none" aria-hidden="true">
+    <use href="#zb-plaque-path" fill="url(#zbWood)"/>
+    <use href="#zb-plaque-path" fill="url(#zbWoodStain)"/>
+    <use href="#zb-plaque-path" fill="url(#zbWoodLight)"/>
+    <use href="#zb-plaque-path" fill="none" stroke="url(#zbGold)" stroke-width="0.9" class="zb-gold-out"/>
+    <use href="#zb-plaque-inner" fill="none" stroke="url(#zbGoldFade)" stroke-width="0.55" class="zb-gold-in"/>
+    <use href="#zb-deco-top"/>
+    <use href="#zb-deco-bot"/>
+  </svg>
+  <div class="zb-scroll">
+    <div class="zb-scroll-text">撰写诏书</div>
+    <div class="zb-scroll-seal">敕</div>
+  </div>
+  <div class="zb-rope zb-rope-1"></div>
+  <div class="zb-rope zb-rope-2"></div>
+  <div class="zb-tassel">
+    <div class="zb-tassel-cord"></div>
+    <div class="zb-tassel-seal"></div>
+    <div class="zb-tassel-fringe"></div>
+  </div>
+  <div class="zb-jade"></div>
+</div>
+
+<!-- 左下浮·批阅奏章·镜像同款御牌 -->
+<div id="zhao-btn-2" class="zb-btn" onclick="openYueZou()" title="批阅奏章·御览臣工奏报">
+  <svg class="zb-svg" viewBox="0 0 108 230" preserveAspectRatio="none" aria-hidden="true">
+    <use href="#zb-plaque-path" fill="url(#zbWood)"/>
+    <use href="#zb-plaque-path" fill="url(#zbWoodStain)"/>
+    <use href="#zb-plaque-path" fill="url(#zbWoodLight)"/>
+    <use href="#zb-plaque-path" fill="none" stroke="url(#zbGold)" stroke-width="0.9" class="zb-gold-out"/>
+    <use href="#zb-plaque-inner" fill="none" stroke="url(#zbGoldFade)" stroke-width="0.55" class="zb-gold-in"/>
+    <use href="#zb-deco-top"/>
+    <use href="#zb-deco-bot"/>
+  </svg>
+  <div class="zb-scroll">
+    <div class="zb-scroll-text">批阅奏章</div>
+    <div class="zb-scroll-seal">阅</div>
+  </div>
+  <div class="zb-rope zb-rope-1"></div>
+  <div class="zb-rope zb-rope-2"></div>
+  <div class="zb-tassel">
+    <div class="zb-tassel-cord"></div>
+    <div class="zb-tassel-seal"></div>
+    <div class="zb-tassel-fringe"></div>
+  </div>
+  <div class="zb-jade"></div>
+</div>
+
+<div id="endturn">
+  <button class="et-big" onclick="confirmEnd()">诏　付　有　司<span class="sub">朕 意 已 决　付 之 百 司</span></button>
+</div>
+
+<!-- hover tooltip -->
+<div id="mtt"></div>
+
+<!-- 底栏已撤 (user 2026-05-08) -->
+
+
+<!-- modal -->
+<div id="modal" onclick="if(event.target===this)hideMod();"><div class="mod-card"><div class="mod-t" id="mod-t">—</div><div class="mod-b" id="mod-b"></div><div class="mod-a"><button class="mod-btn" onclick="hideMod()">再 议</button><button class="mod-btn pri" onclick="hideMod()">朕 意 已 决</button></div></div></div>
+
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+
+/* ═══ mock data ═══ */
+const PROVS={
+  jingzhao:{name:'京兆府',level:'直隶 · 顺天',geo:{ter:'平原',hu:'80 万',gr:'+0.3%'},fisc:{tax:'银 18 万 / 米 5 万石',del:'85%',mx:'70',dis:'无'},army:{gar:'1.2 万',cmd:'孙承宗',fort:'2 级',war:'无'},demo:{eth:'汉 95% · 回 5%',rel:'儒 / 释 / 道',cls:'士 5% · 农 70% · 工 8% · 商 17%'},queue:'修浚通惠河 40%',trade:'京城商市 12%',gov:'王在晋',govId:'wangzaijin'},
+  yingtian:{name:'应天府',level:'南直 · 留都',geo:{ter:'江南水乡',hu:'60 万',gr:'+0.5%'},fisc:{tax:'银 45 万 / 米 30 万石',del:'92%',mx:'75',dis:'无'},army:{gar:'8000',cmd:'-',fort:'1 级',war:'无'},demo:{eth:'汉 99%',rel:'儒 / 释',cls:'士 8% · 农 60% · 工 12% · 商 20%'},queue:'-',trade:'江南商市 18%',gov:'袁继咸',govId:'yuanjixian'},
+  suzhou:{name:'苏州府',level:'南直',geo:{ter:'江南水乡',hu:'45 万',gr:'+0.4%'},fisc:{tax:'银 38 万 / 绢 6 万匹',del:'88%',mx:'72',dis:'无'},army:{gar:'3000',cmd:'-',fort:'-',war:'无'},demo:{eth:'汉 99%',rel:'儒 / 释',cls:'士 6% · 农 40% · 工 24% · 商 30%'},queue:'-',trade:'丝绸出口 22%',gov:'毛一鹭',govId:'maoyilu'},
+  hangzhou:{name:'杭州府',level:'浙江',geo:{ter:'江南水乡',hu:'40 万',gr:'+0.3%'},fisc:{tax:'银 30 万 / 米 18 万石',del:'90%',mx:'80',dis:'无'},army:{gar:'5000',cmd:'潘世奇',fort:'1 级',war:'无'},demo:{eth:'汉 99%',rel:'儒 / 释 / 道',cls:'士 7% · 农 50% · 工 18% · 商 25%'},queue:'-',trade:'丝茶出口',gov:'潘汝桢',govId:'panruzhen'},
+  guangzhou:{name:'广州府',level:'广东',geo:{ter:'岭南丘陵',hu:'30 万',gr:'+0.6%'},fisc:{tax:'银 25 万 / 米 12 万石',del:'78%',mx:'68',dis:'无'},army:{gar:'8000',cmd:'李逢节',fort:'2 级',war:'警戒·番夷'},demo:{eth:'汉 88% · 越 10% · 番 2%',rel:'儒 / 释 / 番教',cls:'士 4% · 农 50% · 工 18% · 商 28%'},queue:'扩建虎门炮台 25%',trade:'番舶通商 30%',gov:'李待问',govId:'lidaiwen'}
+};
+const CHARS={
+  player:{name:'朱由校 · 天启帝',meta:'22 岁 · 在位 7 年',face:'由',stats:{guo:40,ren:55,zhi:35,wu:30,xue:50,gong:85},goal:'中兴帝业·肃清魏党·辽事整顿',isPlayer:true},
+  zhuyoujian:{name:'朱由检 · 信王',meta:'18 岁 · 皇弟',face:'检',stats:{guo:70,ren:60,zhi:75,wu:40,xue:80,gong:30},goal:'立志肃清阉党'},
+  zhangyan:{name:'张嫣 · 中宫',meta:'21 岁 · 皇后',face:'嫣',stats:{guo:65,ren:80,zhi:70,wu:20,xue:75,gong:45},goal:'坐镇中宫'},
+  keshi:{name:'客氏 · 奉圣夫人',meta:'45 岁 · 乳母',face:'客',stats:{guo:55,ren:30,zhi:65,wu:25,xue:40,gong:35},goal:'与魏忠贤把持后宫'},
+  weizhongxian:{name:'魏忠贤 · 司礼监掌印',meta:'59 岁 · 权宦',face:'忠',stats:{guo:80,ren:20,zhi:75,wu:50,xue:30,gong:55},goal:'排除异己·掌控朝局'},
+  sunchengzong:{name:'孙承宗 · 兵部尚书',meta:'64 岁 · 辅臣',face:'承',stats:{guo:75,ren:80,zhi:85,wu:80,xue:90,gong:40},goal:'整顿辽东军务'},
+  yuanchonghuan:{name:'袁崇焕 · 辽东巡抚',meta:'43 岁 · 边臣',face:'崇',stats:{guo:88,ren:55,zhi:78,wu:85,xue:65,gong:30},goal:'练辽东军·复全辽'},
+  wangzaijin:{name:'王在晋',meta:'55 岁',face:'晋',stats:{guo:60,ren:65,zhi:70,wu:40,xue:75,gong:40}},
+  yuanjixian:{name:'袁继咸',meta:'48 岁',face:'继',stats:{guo:65,ren:70,zhi:72,wu:35,xue:80,gong:35}},
+  maoyilu:{name:'毛一鹭',meta:'52 岁',face:'毛',stats:{guo:55,ren:30,zhi:60,wu:30,xue:55,gong:30}},
+  panruzhen:{name:'潘汝桢',meta:'50 岁',face:'桢',stats:{guo:50,ren:25,zhi:55,wu:25,xue:50,gong:25}},
+  lidaiwen:{name:'李待问',meta:'47 岁',face:'问',stats:{guo:60,ren:60,zhi:68,wu:40,xue:70,gong:40}}
+};
+const TAB_DATA={
+  family:[['朱由检','皇弟','zhuyoujian'],['张嫣','皇后','zhangyan'],['客氏','乳母','keshi']],
+  social:[['孙承宗','辅臣','sunchengzong'],['袁崇焕','边臣','yuanchonghuan'],['魏忠贤','权宦','weizhongxian']],
+  court:[['魏忠贤','权宦','weizhongxian'],['客氏','奉圣','keshi']],
+  vassals:[['王在晋','顺天','wangzaijin'],['袁继咸','应天','yuanjixian'],['毛一鹭','苏州','maoyilu'],['潘汝桢','杭州','panruzhen'],['李待问','广州','lidaiwen']]
+};
+
+/* ═══ 帑廪 / 内帑 演示 helpers·console 调试 ═══ */
+window.demoCrisis=function(key){
+  const el=document.querySelector('.tb-var.wide[data-key="'+(key||'guoku')+'"]');
+  if(el)el.classList.toggle('crisis');
+  return el?(el.classList.contains('crisis')?'crisis on':'crisis off'):'no var';
+};
+window.demoSettle=function(key){
+  const els=document.querySelectorAll('.tb-var.wide[data-key="'+(key||'guoku')+'"] .sv');
+  els.forEach(s=>{s.classList.remove('settled');void s.offsetWidth;s.classList.add('settled');});
+  return els.length+' settled';
+};
+console.log('[B-shell] demo·demoCrisis("guoku") 切危机 / demoSettle("guoku") 月结动画');
+
+/* ═══ 7 var popover·hover 显·click 钉 ═══ */
+const VAR_POP_DATA={
+  guoku:{
+    title:'帑　廪',pill:{kind:'ok',text:'尚 可'},
+    sections:[
+      {title:'三仓·主储',rows:[
+        {k:'银',v:'12,000',dt:'+82',dtk:'up'},
+        {k:'粮',v:'850 万石',dt:'-12',dtk:'dn'},
+        {k:'布',v:'12.0 万匹',dt:'±0',dtk:'flat'}
+      ]},
+      {title:'月度·收支',rows:[
+        {k:'月入',v:'+180 银'},
+        {k:'月支',v:'-98 银'},
+        {k:'年估',v:'+1,200 银'}
+      ]},
+      {title:'警示',rows:[
+        {k:'通胀',v:'0.32 (中)'},
+        {k:'借贷',v:'余 6 月可支'}
+      ]}
+    ]
+  },
+  neitang:{
+    title:'内　帑',pill:{kind:'ok',text:'平 稳'},
+    sections:[
+      {title:'三仓',rows:[
+        {k:'银',v:'2,300',dt:'+18',dtk:'up'},
+        {k:'粮',v:'120 万石',dt:'+3',dtk:'up'},
+        {k:'珍',v:'玉 3 / 锦 200',dt:'±0',dtk:'flat'}
+      ]},
+      {title:'月度',rows:[
+        {k:'月入',v:'+25 银'},
+        {k:'月支',v:'-8 银'}
+      ]},
+      {title:'内廷',rows:[
+        {k:'宗室禄米',v:'压库 5%'},
+        {k:'内廷侵吞',v:'8% (中)'}
+      ]}
+    ]
+  },
+  hukou:{
+    title:'户　口',pill:{kind:'ok',text:'增 长'},
+    sections:[
+      {title:'在籍',rows:[
+        {k:'总口',v:'5,800 万',dt:'+12',dtk:'up'},
+        {k:'总户',v:'1,116 万'},
+        {k:'户均口',v:'5.2'}
+      ]},
+      {title:'流动 / 隐',rows:[
+        {k:'流民',v:'12 万',dt:'+0.5',dtk:'up'},
+        {k:'隐户 (估)',v:'~600 万'},
+        {k:'逃丁 (估)',v:'~80 万'}
+      ]},
+      {title:'阶层',rows:[
+        {k:'士',v:'5%'},
+        {k:'农',v:'70%'},
+        {k:'工',v:'8%'},
+        {k:'商',v:'17%'}
+      ]}
+    ]
+  },
+  lizhi:{
+    title:'吏　治',pill:{kind:'warn',text:'渐 弊'},
+    sections:[
+      {title:'真伪 (差额=信息墙)',rows:[
+        {k:'真实浊度',v:'78 ●●●○ 颓靡'},
+        {k:'朝廷视野',v:'65 ○●●● 渐弊'},
+        {k:'差额',v:'+13',dt:'地方粉饰',dtk:'dn'}
+      ]},
+      {title:'监察',rows:[
+        {k:'纠举',v:'12 件'},
+        {k:'弹劾通过',v:'3 件'},
+        {k:'案件待办',v:'8 件'}
+      ]}
+    ]
+  },
+  minxin:{
+    title:'民　心',pill:{kind:'warn',text:'艰'},
+    sections:[
+      {title:'真伪',rows:[
+        {k:'真实民心',v:'52'},
+        {k:'朝廷视野',v:'65'},
+        {k:'差额',v:'-13',dt:'报喜不报忧',dtk:'dn'}
+      ]},
+      {title:'动向',rows:[
+        {k:'民变',v:'小规模 1 起'},
+        {k:'谶纬',v:'彗星见南方'},
+        {k:'天象',v:'春旱·京畿'}
+      ]}
+    ]
+  },
+  huangquan:{
+    title:'皇　权',pill:{kind:'note',text:'均 势'},
+    sections:[
+      {title:'朝局',rows:[
+        {k:'皇权值',v:'70',dt:'▲',dtk:'up'},
+        {k:'权臣',v:'魏忠贤 50'},
+        {k:'党争烈度',v:'中'}
+      ]},
+      {title:'运行',rows:[
+        {k:'抗疏',v:'2 件待批'},
+        {k:'诏令通过率',v:'92%'},
+        {k:'执行率',v:'78%'}
+      ]}
+    ]
+  },
+  huangwei:{
+    title:'皇　威',pill:{kind:'ok',text:'有 威'},
+    sections:[
+      {title:'真伪',rows:[
+        {k:'真实皇威',v:'75'},
+        {k:'朝廷颂声',v:'80'},
+        {k:'差额',v:'+5',dt:'颂声扭曲',dtk:'flat'}
+      ]},
+      {title:'危机',rows:[
+        {k:'暴君症状',v:'0 / 5'},
+        {k:'失威危机',v:'无'}
+      ]}
+    ]
+  }
+};
+
+function buildVarPop(key){
+  const d=VAR_POP_DATA[key];if(!d)return'';
+  let h='<div class="vp-title">'+d.title+'<span class="vp-pill '+d.pill.kind+'">'+d.pill.text+'</span></div>';
+  for(const sec of d.sections){
+    h+='<div class="vp-section">'+sec.title+'</div>';
+    for(const r of sec.rows){
+      let dt=r.dt?'<span class="dt '+(r.dtk||'')+'">'+r.dt+'</span>':'';
+      h+='<div class="vp-row"><span class="vp-k">'+r.k+'</span><span class="vp-v">'+r.v+dt+'</span></div>';
+    }
+  }
+  h+='<div class="vp-hint">移开自动隐 · 点变量钉住</div>';
+  return h;
+}
+
+let varPinKey=null;
+let varHideTimer=null;
+const varPop=$('varpop');
+
+function showVarPop(key,el){
+  if(varHideTimer){clearTimeout(varHideTimer);varHideTimer=null;}
+  varPop.innerHTML=buildVarPop(key);
+  const r=el.getBoundingClientRect();
+  const popW=280;const vw=window.innerWidth;
+  let left=r.left;
+  if(left+popW>vw-8)left=vw-popW-8;
+  if(left<8)left=8;
+  varPop.style.left=left+'px';
+  varPop.style.top=(r.bottom+4)+'px';
+  varPop.classList.add('show');
+}
+function scheduleHideVarPop(){
+  if(varPinKey)return;
+  if(varHideTimer)clearTimeout(varHideTimer);
+  varHideTimer=setTimeout(()=>{
+    varPop.classList.remove('show');
+    varHideTimer=null;
+  },180);
+}
+
+document.querySelectorAll('.tb-var').forEach(el=>{
+  const key=el.dataset.key;
+  el.addEventListener('mouseenter',()=>{
+    if(varPinKey&&varPinKey!==key)return;  /* 钉住时·hover 别 var 不切 */
+    showVarPop(key,el);
+  });
+  el.addEventListener('mouseleave',scheduleHideVarPop);
+  el.addEventListener('click',e=>{
+    e.stopPropagation();
+    if(varPinKey===key){
+      varPinKey=null;
+      el.classList.remove('pinned');
+      varPop.classList.remove('pinned');
+      scheduleHideVarPop();
+    }else{
+      document.querySelectorAll('.tb-var.pinned').forEach(x=>x.classList.remove('pinned'));
+      varPinKey=key;
+      el.classList.add('pinned');
+      showVarPop(key,el);
+      varPop.classList.add('pinned');
+    }
+  });
+});
+varPop.addEventListener('mouseenter',()=>{if(varHideTimer){clearTimeout(varHideTimer);varHideTimer=null;}});
+varPop.addEventListener('mouseleave',scheduleHideVarPop);
+
+document.addEventListener('click',e=>{
+  if(varPinKey&&!varPop.contains(e.target)&&!e.target.closest('.tb-var')){
+    document.querySelectorAll('.tb-var.pinned').forEach(x=>x.classList.remove('pinned'));
+    varPinKey=null;
+    varPop.classList.remove('pinned');
+    scheduleHideVarPop();
+  }
+});
+
+/* ═══ time popover·hover 显·click 钉 ═══ */
+let timePinned=false;
+let timeHideTimer=null;
+const tbTime=$('tb-time');
+const timePop=$('timepop');
+
+function showTimePop(){
+  if(timeHideTimer){clearTimeout(timeHideTimer);timeHideTimer=null;}
+  timePop.classList.add('show');
+}
+function scheduleHideTimePop(){
+  if(timePinned)return;
+  if(timeHideTimer)clearTimeout(timeHideTimer);
+  timeHideTimer=setTimeout(()=>{
+    timePop.classList.remove('show');
+    timeHideTimer=null;
+  },180);
+}
+
+tbTime.addEventListener('mouseenter',showTimePop);
+tbTime.addEventListener('mouseleave',scheduleHideTimePop);
+timePop.addEventListener('mouseenter',showTimePop);
+timePop.addEventListener('mouseleave',scheduleHideTimePop);
+
+tbTime.addEventListener('click',e=>{
+  e.stopPropagation();
+  timePinned=!timePinned;
+  tbTime.classList.toggle('pinned',timePinned);
+  timePop.classList.toggle('pinned',timePinned);
+  if(timePinned){showTimePop();}
+});
+
+document.addEventListener('click',e=>{
+  if(timePinned&&!timePop.contains(e.target)&&!tbTime.contains(e.target)){
+    timePinned=false;
+    tbTime.classList.remove('pinned');
+    timePop.classList.remove('pinned');
+    scheduleHideTimePop();
+  }
+});
+
+/* ═══ character panel ═══ */
+let curChar='player';
+function openChar(id){
+  const c=CHARS[id||'player'];if(!c)return;
+  curChar=id||'player';
+  $('cp-face').textContent=c.face;$('cp-name').textContent=c.name;$('cp-meta').textContent=c.meta;
+  $('cp-goal').textContent=c.goal||'—';
+  $('cp-back').classList.toggle('show',!c.isPlayer);
+  const s=c.stats||{};
+  ['guo','ren','zhi','wu','xue','gong'].forEach(k=>{const r=$('s-'+k);if(!r)return;r.querySelector('.cp-st-fill').style.width=(s[k]||0)+'%';r.querySelector('.cp-st-v').textContent=s[k]||0;});
+  renderCpTab(document.querySelector('.cp-tab.active').dataset.ct);
+  $('charpanel').classList.add('show');
+}
+function setChar(id){openChar(id);}
+function closeChar(){$('charpanel').classList.remove('show');}
+function renderCpTab(tab){
+  const list=TAB_DATA[tab]||[];
+  $('cp-tbody').innerHTML='<div class="cp-rel-grid">'+list.map(([nm,role,cid])=>{
+    const f=CHARS[cid]?CHARS[cid].face:nm[0];
+    return `<div class="cp-rel-card" onclick="setChar('${cid}')"><div class="cp-rel-face">${f}</div><div class="cp-rel-name">${nm}</div><div class="cp-rel-role">${role}</div></div>`;
+  }).join('')+'</div>';
+}
+document.querySelectorAll('.cp-tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.cp-tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');
+  renderCpTab(t.dataset.ct);
+}));
+renderCpTab('family');
+
+/* ═══ province hover/click ═══ */
+const tt=$('mtt');
+document.querySelectorAll('.map-prov').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{
+    const p=PROVS[el.dataset.p];if(!p)return;
+    tt.innerHTML=`<div class="mtt-n">${p.name}</div><div class="mtt-r"><span class="mtt-k">户口</span><span class="mtt-v">${p.geo.hu}</span></div><div class="mtt-r"><span class="mtt-k">民心</span><span class="mtt-v">${p.fisc.mx}</span></div><div class="mtt-r"><span class="mtt-k">守土</span><span class="mtt-v">${p.gov}</span></div>`;
+    tt.classList.add('show');
+  });
+  el.addEventListener('mousemove',e=>{tt.style.left=(e.clientX+12)+'px';tt.style.top=(e.clientY+12)+'px';});
+  el.addEventListener('mouseleave',()=>tt.classList.remove('show'));
+  el.addEventListener('click',()=>openProv(el.dataset.p));
+});
+
+function openProv(id){
+  const p=PROVS[id];if(!p)return;
+  $('pp-name').textContent=p.name;$('pp-level').textContent=p.level;
+  $('pp-grid').innerHTML=`
+    <div class="pp-zone"><div class="pp-zt">地形 · 户口</div><div class="pp-zr"><span class="pp-zk">地形</span><span class="pp-zv">${p.geo.ter}</span></div><div class="pp-zr"><span class="pp-zk">户口</span><span class="pp-zv">${p.geo.hu}</span></div><div class="pp-zr"><span class="pp-zk">增长</span><span class="pp-zv">${p.geo.gr}</span></div></div>
+    <div class="pp-zone"><div class="pp-zt">人口构成</div><div class="pp-zr"><span class="pp-zk">族群</span><span class="pp-zv">${p.demo.eth}</span></div><div class="pp-zr"><span class="pp-zk">宗教</span><span class="pp-zv">${p.demo.rel}</span></div><div class="pp-zr" style="font-size:10.5px;"><span class="pp-zk">阶</span><span class="pp-zv">${p.demo.cls}</span></div></div>
+    <div class="pp-zone"><div class="pp-zt">税赋 · 民心</div><div class="pp-zr"><span class="pp-zk">年税</span><span class="pp-zv" style="font-size:10.5px;">${p.fisc.tax}</span></div><div class="pp-zr"><span class="pp-zk">缴率</span><span class="pp-zv">${p.fisc.del}</span></div><div class="pp-zr"><span class="pp-zk">民心</span><span class="pp-zv">${p.fisc.mx}</span></div><div class="pp-zr"><span class="pp-zk">灾异</span><span class="pp-zv">${p.fisc.dis}</span></div></div>
+    <div class="pp-zone"><div class="pp-zt">大役 · 队列</div><div class="pp-zr"><span class="pp-zv">${p.queue}</span></div></div>
+    <div class="pp-zone"><div class="pp-zt">驻军 · 防</div><div class="pp-zr"><span class="pp-zk">驻军</span><span class="pp-zv">${p.army.gar}</span></div><div class="pp-zr"><span class="pp-zk">主官</span><span class="pp-zv">${p.army.cmd}</span></div><div class="pp-zr"><span class="pp-zk">城防</span><span class="pp-zv">${p.army.fort}</span></div><div class="pp-zr"><span class="pp-zk">战时</span><span class="pp-zv">${p.army.war}</span></div></div>
+    <div class="pp-zone"><div class="pp-zt">商市 · 贸易</div><div class="pp-zr"><span class="pp-zv">${p.trade}</span></div></div>
+    <div class="pp-zone" style="grid-column:span 2;"><div class="pp-zt">守 土 官</div><div class="pp-zr"><span class="pp-zk">姓名</span><span class="pp-zv link" onclick="openChar('${p.govId}')">${p.gov}</span></div><div class="pp-zr" style="font-size:10px;color:var(--ink-300);"><span></span><span>↑ 点击 → 左侧 character panel</span></div></div>`;
+  $('pp-tbody').innerHTML=ppTab('bld');
+  document.querySelectorAll('.pp-tab').forEach(x=>x.classList.remove('active'));
+  document.querySelector('.pp-tab[data-t="bld"]').classList.add('active');
+  const pop=$('ppop');pop.classList.add('show');
+  const mw=$('mapwrap').getBoundingClientRect();
+  pop.style.left=Math.max(mw.left+20,mw.left+(mw.width-370)/2)+'px';
+  pop.style.top=(mw.top+30)+'px';
+}
+function ppTab(t){
+  if(t==='bld')return'<div class="pp-tr"><span>官署</span><span style="color:var(--gold-300)">已建</span></div><div class="pp-tr"><span>仓库</span><span style="color:var(--gold-300)">已建·容 5 万石</span></div><div class="pp-tr"><span>漕运司</span><span style="color:var(--ink-300)">未建</span></div><div class="pp-tr"><span>武库</span><span style="color:var(--ink-300)">未建</span></div><div class="pp-tr"><span>兵营</span><span style="color:var(--gold-300)">已建</span></div><div class="pp-tr"><span>学</span><span style="color:var(--gold-300)">府学</span></div>';
+  return'<div class="pp-tr"><span>礼制推行</span><span>朱子家礼 80%</span></div><div class="pp-tr"><span>移风易俗</span><span>禁淫祀 35%</span></div><div class="pp-tr"><span>教化</span><span>北方士绅·已成</span></div>';
+}
+document.querySelectorAll('.pp-tab').forEach(t=>t.addEventListener('click',()=>{document.querySelectorAll('.pp-tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');$('pp-tbody').innerHTML=ppTab(t.dataset.t);}));
+function closeProv(){$('ppop').classList.remove('show');}
+
+/* ═══ right menu ═══ */
+let curSlot=null;
+document.querySelectorAll('.rc-icon').forEach(ic=>{
+  ic.addEventListener('click',()=>{
+    const s=ic.dataset.slot;
+    if(curSlot===s){closeRight();return;}
+    document.querySelectorAll('.rc-icon').forEach(x=>x.classList.remove('active'));
+    ic.classList.add('active');curSlot=s;
+    if(s==='ol'){$('rp-title').textContent='Outliner';$('rp-label').textContent='⊞';}
+    else{$('rp-title').textContent='Slot '+s;$('rp-label').textContent=['①','②','③','④','⑤','⑥','⑦','⑧'][s-1];}
+    $('rpanel').classList.add('show');
+  });
+});
+function closeRight(){$('rpanel').classList.remove('show');document.querySelectorAll('.rc-icon').forEach(x=>x.classList.remove('active'));curSlot=null;}
+
+/* ═══ endTurn ═══ */
+function confirmEnd(){$('mod-t').textContent='诏 付 有 司';$('mod-b').innerHTML='本回合 mock·<br>诏 <span style="color:var(--gold-300)">2</span> · 朝议 <span style="color:var(--gold-300)">1</span> · 奏疏 <span style="color:var(--gold-300)">5</span><br><br>未处置·<span style="color:var(--verm-400)">奏疏 3 件未批</span>';$('modal').classList.add('show');}
+function hideMod(){$('modal').classList.remove('show');}
+
+/* ═══ 御案时政·下方正中 ═══ */
+function openShizheng(){
+  $('mod-t').textContent='御 案 时 政';
+  $('mod-b').innerHTML='mock · 朝政中心入口·<br><br>实装时·此处弹时政 dashboard·5 组 16 action·<br>· 内政 (诏 / 科举 / 政区 / 舆情)<br>· 军事 (军令 / 改革 / 地图)<br>· 人事 (任免 / 人物 / 召对)<br>· 外交 (诏 / 出使 / 鸿雁)<br>· 发展 (科技 / 民政 / 朝议)';
+  $('modal').classList.add('show');
+}
+
+/* ═══ 撰写诏书·左下 ═══ */
+function openZhao(){
+  $('mod-t').textContent='撰 写 诏 书';
+  $('mod-b').innerHTML='mock · 起草诏书入口·<br><br>实装时·此处弹诏书草稿编辑面板·分类·<br>· 政令 (政策 / 法度) · 军令 (征伐 / 防守) · 经令 (财赋 / 漕运)<br>· 外交 (邻国 / 朝贡) · 礼令 (祭祀 / 改元) · 其他';
+  $('modal').classList.add('show');
+}
+/* ═══ 批阅奏章·左下 (邻位) ═══ */
+function openYueZou(){
+  $('mod-t').textContent='批 阅 奏 章';
+  $('mod-b').innerHTML='mock · 御览奏报入口·<br><br>实装时·此处弹奏章队列·按部院分类·<br>· 内阁辅奏 · 六部题本 · 都察院风闻 · 边镇塘报 · 翰林票拟 · 通政司转奏<br>· 朱批·御览·留中·驳回 四档处置';
+  $('modal').classList.add('show');
+}
+
+/* ═══ 问天 button ═══ */
+document.querySelector('.tb-wentian').addEventListener('click',()=>{
+  $('mod-t').textContent='问 天';
+  $('mod-b').innerHTML='mock · 与推演 AI 对话入口·实装时弹问天 modal';
+  $('modal').classList.add('show');
+});
+
+/* ═══ 全部变量 button ═══ */
+document.querySelector('.tb-chip').addEventListener('click',()=>{
+  $('mod-t').textContent='全 部 变 量';
+  $('mod-b').innerHTML='mock · 剧本自定义变量列表入口';
+  $('modal').classList.add('show');
+});
+
+/* ═══ keyboard ═══ */
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')return;
+  if(/^[1-8]$/.test(e.key)&&!e.ctrlKey){const ic=document.querySelector('.rc-icon[data-slot="'+e.key+'"]');if(ic)ic.click();return;}
+  if(e.key==='Escape'){
+    if($('modal').classList.contains('show')){hideMod();return;}
+    if($('ppop').classList.contains('show')){closeProv();return;}
+    if($('charpanel').classList.contains('show')){closeChar();return;}
+    if($('rpanel').classList.contains('show')){closeRight();return;}
+    if(varPinKey){document.querySelectorAll('.tb-var.pinned').forEach(x=>x.classList.remove('pinned'));varPinKey=null;varPop.classList.remove('pinned','show');return;}
+    if(varPop.classList.contains('show')){varPop.classList.remove('show');return;}
+    if(timePinned){timePinned=false;tbTime.classList.remove('pinned');timePop.classList.remove('pinned','show');return;}
+    if(timePop.classList.contains('show')){timePop.classList.remove('show');return;}
+  }
+});
+</script>
+</body>
+</html>

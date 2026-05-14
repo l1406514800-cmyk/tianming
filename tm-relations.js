@@ -320,7 +320,7 @@ function summarizeRelation(otherName, r) {
  */
 function ensureFactionRelation(facA, facB) {
   if (!facA || !facB || facA === facB) return null;
-  if (!GM.factionRelationsMap) GM.factionRelationsMap = {};
+  normalizeFactionRelationsMap();
   if (!GM.factionRelationsMap[facA]) GM.factionRelationsMap[facA] = {};
   if (!GM.factionRelationsMap[facA][facB]) {
     GM.factionRelationsMap[facA][facB] = {
@@ -330,8 +330,150 @@ function ensureFactionRelation(facA, facB) {
       warsCount: 0, spiesFrom: 0, spiesTo: 0,
       proxies: []
     };
+    var seed = findFactionRelationRecord(facA, facB);
+    if (seed) mergeFactionRelationRecord(GM.factionRelationsMap[facA][facB], seed, true);
   }
   return GM.factionRelationsMap[facA][facB];
+}
+
+function clampFactionRelationValue(v) {
+  v = parseFloat(v);
+  if (isNaN(v)) v = 0;
+  return Math.max(-100, Math.min(100, v));
+}
+
+function normalizeFactionRelationsMap() {
+  if (typeof GM === 'undefined' || !GM) return {};
+  if (!GM.factionRelationsMap || typeof GM.factionRelationsMap !== 'object' || Array.isArray(GM.factionRelationsMap)) {
+    GM.factionRelationsMap = {};
+  }
+  Object.keys(GM.factionRelationsMap).forEach(function(k) {
+    if (k.indexOf('->') <= 0) return;
+    var parts = k.split('->');
+    var from = parts.shift();
+    var to = parts.join('->');
+    var oldRel = GM.factionRelationsMap[k];
+    if (from && to && oldRel && typeof oldRel === 'object') {
+      if (!GM.factionRelationsMap[from]) GM.factionRelationsMap[from] = {};
+      if (!GM.factionRelationsMap[from][to]) {
+        GM.factionRelationsMap[from][to] = oldRel;
+      } else {
+        Object.keys(oldRel).forEach(function(prop) {
+          if (GM.factionRelationsMap[from][to][prop] === undefined) GM.factionRelationsMap[from][to][prop] = oldRel[prop];
+        });
+      }
+    }
+    delete GM.factionRelationsMap[k];
+  });
+  return GM.factionRelationsMap;
+}
+
+function relationValueToTrustHostility(rel, value, force) {
+  value = clampFactionRelationValue(value);
+  rel.value = value;
+  if (force || rel.trust === undefined) rel.trust = Math.max(0, Math.min(100, 50 + Math.max(0, value) * 0.5 + Math.min(0, value) * 0.25));
+  if (force || rel.hostility === undefined) rel.hostility = Math.max(0, Math.min(100, value < 0 ? Math.abs(value) : 0));
+}
+
+function mergeFactionRelationRecord(rel, record, forceValue) {
+  if (!rel || !record) return rel;
+  if (record.type !== undefined) rel.type = record.type;
+  if (record.desc !== undefined) rel.desc = record.desc;
+  if (record.reason !== undefined && rel.desc === undefined) rel.desc = record.reason;
+  if (record.value !== undefined) relationValueToTrustHostility(rel, record.value, !!forceValue);
+  return rel;
+}
+
+function findFactionRelationRecord(facA, facB) {
+  var list = (typeof GM !== 'undefined' && GM && Array.isArray(GM.factionRelations)) ? GM.factionRelations : [];
+  for (var i = 0; i < list.length; i++) {
+    var r = list[i];
+    if (r && r.from === facA && r.to === facB) return r;
+  }
+  for (var j = 0; j < list.length; j++) {
+    var rr = list[j];
+    if (rr && rr.from === facB && rr.to === facA) return rr;
+  }
+  return null;
+}
+
+function upsertFactionRelationRecord(from, to, patch) {
+  if (!from || !to || from === to) return null;
+  if (!Array.isArray(GM.factionRelations)) GM.factionRelations = [];
+  var found = null;
+  GM.factionRelations.forEach(function(r) {
+    if (r && r.from === from && r.to === to) found = r;
+  });
+  if (!found) {
+    found = { from: from, to: to, type: 'neutral', value: 0, desc: '' };
+    GM.factionRelations.push(found);
+  }
+  if (patch.type !== undefined) found.type = patch.type;
+  if (patch.value !== undefined) found.value = clampFactionRelationValue(patch.value);
+  if (patch.desc !== undefined) found.desc = patch.desc;
+  return found;
+}
+
+function setFactionRelation(from, to, patch, options) {
+  if (!from || !to || from === to) return null;
+  patch = patch || {};
+  options = options || {};
+  normalizeFactionRelationsMap();
+  var rel = ensureFactionRelation(from, to);
+  var reverse = options.mirror === false ? null : ensureFactionRelation(to, from);
+  var delta = patch.delta !== undefined ? patch.delta : patch.relation_delta;
+  delta = parseFloat(delta);
+  if (isNaN(delta)) delta = 0;
+  var baseValue = rel && rel.value !== undefined ? parseFloat(rel.value) : 0;
+  var nextValue = patch.value !== undefined ? clampFactionRelationValue(patch.value) : clampFactionRelationValue(baseValue + delta);
+  var nextType = patch.type !== undefined ? patch.type : patch.new_type;
+  var desc = patch.desc !== undefined ? patch.desc : (patch.event || patch.reason || '');
+  var turn = (typeof GM !== 'undefined' && GM && GM.turn) || 1;
+
+  [rel, reverse].forEach(function(r) {
+    if (!r) return;
+    relationValueToTrustHostility(r, nextValue, true);
+    if (nextType !== undefined) r.type = nextType;
+    if (desc) r.desc = desc;
+    if (!Array.isArray(r.historicalEvents)) r.historicalEvents = [];
+    if (delta || desc || nextType !== undefined) {
+      r.historicalEvents.push({ turn: turn, event: desc || nextType || 'relation_shift', delta: delta });
+      if (r.historicalEvents.length > 20) r.historicalEvents = r.historicalEvents.slice(-20);
+    }
+  });
+
+  var listPatch = { value: nextValue };
+  if (nextType !== undefined) listPatch.type = nextType;
+  if (desc) listPatch.desc = desc;
+  upsertFactionRelationRecord(from, to, listPatch);
+  if (reverse) upsertFactionRelationRecord(to, from, listPatch);
+  return rel;
+}
+
+function syncFactionRelationsFromList(list) {
+  if (typeof GM === 'undefined' || !GM) return {};
+  if (Array.isArray(list)) GM.factionRelations = list;
+  normalizeFactionRelationsMap();
+  (GM.factionRelations || []).forEach(function(r) {
+    if (!r || !r.from || !r.to || r.from === r.to) return;
+    mergeFactionRelationRecord(ensureFactionRelation(r.from, r.to), r, true);
+    mergeFactionRelationRecord(ensureFactionRelation(r.to, r.from), r, true);
+  });
+  return GM.factionRelationsMap;
+}
+
+function removeFactionRelationsForFaction(factionName) {
+  if (!factionName || typeof GM === 'undefined' || !GM) return;
+  normalizeFactionRelationsMap();
+  delete GM.factionRelationsMap[factionName];
+  Object.keys(GM.factionRelationsMap).forEach(function(from) {
+    if (GM.factionRelationsMap[from]) delete GM.factionRelationsMap[from][factionName];
+  });
+  if (Array.isArray(GM.factionRelations)) {
+    GM.factionRelations = GM.factionRelations.filter(function(r) {
+      return r && r.from !== factionName && r.to !== factionName;
+    });
+  }
 }
 
 /**
@@ -425,4 +567,16 @@ if (typeof window !== 'undefined') {
   window.ensureFactionRelation = ensureFactionRelation;
   window.applyFactionInteraction = applyFactionInteraction;
   window.summarizeFactionRelation = summarizeFactionRelation;
+  window.normalizeFactionRelationsMap = normalizeFactionRelationsMap;
+  window.syncFactionRelationsFromList = syncFactionRelationsFromList;
+  window.findFactionRelationRecord = findFactionRelationRecord;
+  window.setFactionRelation = setFactionRelation;
+  window.removeFactionRelationsForFaction = removeFactionRelationsForFaction;
+  window.removeFactionRelationsFor = removeFactionRelationsForFaction;
+  window.TM = window.TM || {};
+  window.TM.Factions = window.TM.Factions || {};
+  window.TM.Factions.ensureRelation = ensureFactionRelation;
+  window.TM.Factions.setRelation = setFactionRelation;
+  window.TM.Factions.syncRelationsFromList = syncFactionRelationsFromList;
+  window.TM.Factions.removeRelationsForFaction = removeFactionRelationsForFaction;
 }

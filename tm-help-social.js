@@ -1000,7 +1000,7 @@ var OpinionSystem = {
 // 存档带版本号，加载时自动运行迁移函数链升级旧存档
 // ============================================================
 /** @type {number} 当前存档版本号 */
-var SAVE_VERSION = 5; // v5: 融合补强（NPC事件队列/区划深化/官职深化公库绑定/集成桥梁）
+var SAVE_VERSION = 6; // v6: phase 5 slice 1/2 (战斗 affectedArmies/payArrears/tactics) + phase 6 NPC 识别状态 (recognitionState/lastInteractionMemory)
 
 var SaveMigrations = {
   migrations: [
@@ -1125,6 +1125,49 @@ var SaveMigrations = {
           });
         }
         _dbg('[SaveMigration] v4 → v5: 融合补强字段齐备');
+        return data;
+      }
+    },
+    // v5 → v6: phase 5 slice 1/2 战斗 + phase 6 NPC 识别状态
+    {
+      from: 5, to: 6,
+      migrate: function(data) {
+        var gs = data.gameState || data;
+        var gm = gs && (gs.GM || gs);
+        if (!gm) return data;
+        // phase 6: NPC.recognitionState / lastInteractionMemory
+        if (Array.isArray(gm.chars)) {
+          if (typeof CharFullSchema !== 'undefined' && typeof CharFullSchema.ensureAll === 'function') {
+            var n = CharFullSchema.ensureAll(gm.chars);
+            _dbg('[SaveMigration] v5 → v6: phase 6 NPC 字段·CharFullSchema 补 ' + n + ' 位');
+          } else {
+            gm.chars.forEach(function(ch) {
+              if (!ch) return;
+              if (ch.recognitionState === undefined) {
+                ch.recognitionState = {
+                  subject: ch.name || '', familiarity: 0, level: 'unknown',
+                  lastTurn: 0, lastEvent: '', lastEmotion: '', lastType: '',
+                  lastSource: '', lastWho: '', summary: '', history: []
+                };
+              }
+              if (ch.lastInteractionMemory === undefined) ch.lastInteractionMemory = null;
+            });
+            _dbg('[SaveMigration] v5 → v6: CharFullSchema 未就绪·使用保底 phase 6 init');
+          }
+        }
+        // phase 5 slice 2: battleResult.affectedArmies
+        ['activeBattles', 'battleHistory'].forEach(function(k) {
+          if (Array.isArray(gm[k])) {
+            gm[k].forEach(function(b) {
+              if (b && !Array.isArray(b.affectedArmies)) b.affectedArmies = [];
+            });
+          }
+        });
+        // phase 5 slice 1: payArrears / tactics
+        if (!gm.payArrears) gm.payArrears = {};
+        if (!gm.tactics) gm.tactics = {};
+        // phase 3: influenceGroupState 兜底
+        if (!gm.influenceGroupState) gm.influenceGroupState = {};
         return data;
       }
     }

@@ -19,6 +19,7 @@
 
   // ── 1. 每回合天数 + 完工回合估算 ──────────────────────────
   function getDaysPerTurn() {
+    if (typeof global._getDaysPerTurn === 'function') return global._getDaysPerTurn();
     var G = global.GM, P = global.P;
     var sc = (P && P.scenario) || {};
     var d = (P && P.time && P.time.daysPerTurn) ||

@@ -228,6 +228,51 @@ function _offPickerConfirm(charName, deptName, posName, oldHolder, mode) {
   // 4. 同时记入 edictSuggestions 供参考
   // 5. 往位置对象写 _pendingEdict 快照·供回合内撤销使用
   var newChar = (GM.chars || []).find(function(c){ return c.name === charName; });
+
+  function _findTargetPosition(nodes) {
+    var hit = null;
+    (function _walk(list, chain) {
+      if (hit) return;
+      (list || []).forEach(function(n) {
+        if (hit || !n) return;
+        var curChain = chain ? (chain + '/' + (n.name || '')) : (n.name || '');
+        if (n.name === deptName) {
+          (n.positions || []).forEach(function(p) {
+            if (!hit && p && p.name === posName) hit = { pos: p, node: n, deptPath: curChain };
+          });
+        }
+        if (!hit && n.subs) _walk(n.subs, curChain);
+      });
+    })(nodes || [], '');
+    if (!hit && typeof _offFindPositionByName === 'function') {
+      try { hit = _offFindPositionByName(posName, deptName, GM.officeTree || []); } catch(_){}
+    }
+    return hit;
+  }
+
+  function _namedHoldersOf(pos) {
+    if (!pos) return [];
+    if (typeof _offAllHolders === 'function') {
+      try { return _offAllHolders(pos) || []; } catch(_){}
+    }
+    if (Array.isArray(pos.actualHolders)) {
+      return pos.actualHolders.filter(function(h){ return h && h.name && h.generated !== false; }).map(function(h){ return h.name; });
+    }
+    var arr = [];
+    if (pos.holder) arr.push(pos.holder);
+    if (Array.isArray(pos.additionalHolders)) arr = arr.concat(pos.additionalHolders.filter(Boolean));
+    return arr;
+  }
+
+  var _targetHit = _findTargetPosition(GM.officeTree || []);
+  if (!_targetHit || !_targetHit.pos) {
+    if (typeof toast === 'function') toast('任命失败·官制树中未找到 ' + deptName + posName);
+    return;
+  }
+  var _targetPos = _targetHit.pos;
+  try { if (typeof _offMigratePosition === 'function') _offMigratePosition(_targetPos); } catch(_){}
+  var _targetHoldersBefore = _namedHoldersOf(_targetPos);
+  if (!oldHolder) oldHolder = _targetPos.holder || _targetHoldersBefore[0] || '';
   var oldChar = oldHolder ? (GM.chars || []).find(function(c){ return c.name === oldHolder; }) : null;
 
   // 兼任模式·先记录 newChar 原有主职·供 _pendingEdict 快照
@@ -262,39 +307,30 @@ function _offPickerConfirm(charName, deptName, posName, oldHolder, mode) {
   var _posRef = null; // 保存被修改的 position 引用·供末尾挂 _pendingEdict
   var _snapPrevPubHead = undefined;
 
-  // Step 1: officeTree 直接查找并改 holder·用 _offAppointPerson 助手确保 actualHolders 同步
-  // 避免 _offMigratePosition 下次调用时把 holder 从 actualHolders 重建回原值
-  function _applyHolder(nodes) {
-    if (_seatDone) return;
-    (nodes || []).forEach(function(n) {
-      if (_seatDone || !n) return;
-      if (n.name === deptName) {
-        (n.positions || []).forEach(function(p) {
-          if (_seatDone || !p) return;
-          if (p.name === posName) {
-            _snapPrevPubHead = (p.publicTreasury && p.publicTreasury.currentHead) || undefined;
-            // 先把旧任从 actualHolders 剥除（若有）
-            if (oldHolder && typeof _offDismissPerson === 'function') {
-              try { _offDismissPerson(p, oldHolder); } catch(_){}
-            }
-            // 再把新任推入 actualHolders 并同步 holder 字段
-            if (typeof _offAppointPerson === 'function') {
-              try { _offAppointPerson(p, charName); } catch(_){}
-            } else {
-              p.holder = charName;
-            }
-            if (p.publicTreasury) p.publicTreasury.currentHead = charName;
-            if (!p._history) p._history = [];
-            p._history.push({ holder: oldHolder || '(空)', endTurn: GM.turn, reason: '玩家诏令改任' });
-            _posRef = p;
-            _seatDone = true;
-          }
-        });
+  // Step 1: officeTree 直接改真实职位引用·用统一入座助手确保 holder/actualHolders 同步
+  // 避免旧档出现 holder 为空但 actualHolders 仍有旧任时，新任被塞成“隐藏副席”
+  (function _applyHolder(p) {
+    if (!p) return;
+    _snapPrevPubHead = (p.publicTreasury && p.publicTreasury.currentHead) || undefined;
+    if (typeof _offSeatPersonInPosition === 'function') {
+      try { _offSeatPersonInPosition(p, charName, { oldHolder: oldHolder || '', replace: true }); } catch(_){}
+    } else {
+      if (oldHolder && typeof _offDismissPerson === 'function') {
+        try { _offDismissPerson(p, oldHolder); } catch(_){}
       }
-      if (!_seatDone && n.subs) _applyHolder(n.subs);
-    });
-  }
-  _applyHolder(GM.officeTree || []);
+      if (typeof _offAppointPerson === 'function') {
+        try { _offAppointPerson(p, charName); } catch(_){}
+      } else {
+        p.holder = charName;
+      }
+    }
+    p.holder = charName;
+    if (p.publicTreasury) p.publicTreasury.currentHead = charName;
+    if (!p._history) p._history = [];
+    p._history.push({ holder: oldHolder || '(空)', endTurn: GM.turn, reason: '玩家诏令改任' });
+    _posRef = p;
+    _seatDone = true;
+  })(_targetPos);
 
   // Step 2: 更新 char 字段
   if (newChar) {
@@ -694,7 +730,13 @@ function _npcAutoAppointVacancies() {
         var best = cands[0];
         if (!best || best._npcScore <= 0) return;
         // 就任
-        p.holder = best.name;
+        if (typeof _offSeatPersonInPosition === 'function') {
+          _offSeatPersonInPosition(p, best.name, { replace: false });
+        } else if (typeof _offAppointPerson === 'function') {
+          _offAppointPerson(p, best.name);
+        } else {
+          p.holder = best.name;
+        }
         p.holderSinceTurn = GM.turn || 0;
         if (!Array.isArray(p._history)) p._history = [];
         p._history.push({ holder: '(空)', endTurn: GM.turn||0, reason: 'NPC内定补任' });
@@ -1082,7 +1124,21 @@ function _offDismissToEdict(holderName, deptName, posName) {
   if (typeof _renderEdictSuggestions === 'function') _renderEdictSuggestions();
 }
 
-function getOffNode(path,tree){var node=null;var list=tree||GM.officeTree;for(var i=0;i<path.length;i++){if(path[i]==="s"){i++;if(!node||!node.subs)return null;list=node.subs;node=list[path[i]];}else if(path[i]==="p"){i++;if(!node||!node.positions)return null;return node.positions[path[i]];}else{node=list[path[i]];}}return node;}
+function getOffNode(path,tree){
+  var node=null;var list=tree||GM.officeTree;
+  for(var i=0;i<(path||[]).length;i++){
+    var key=path[i];
+    if(key==="s"||key==="subs"){
+      i++;if(!node||!node.subs)return null;list=node.subs;node=list[path[i]];
+    }else if(key==="p"||key==="positions"){
+      i++;if(!node||!node.positions)return null;return node.positions[path[i]];
+    }else{
+      node=list[key];
+    }
+    if(!node)return null;
+  }
+  return node;
+}
 function updOffNode(path,field,value){var node=null;var list=GM.officeTree;var parentDept=null;for(var i=0;i<path.length;i++){if(path[i]==="s"){i++;if(!node||!node.subs)return;parentDept=node;list=node.subs;node=list[path[i]];}else if(path[i]==="p"){i++;if(!node||!node.positions)return;parentDept=node;node=node.positions[path[i]];}else{node=list[path[i]];}}if(!node)return;
   // 如果修改了部门名或职位名，迁移NPC的任职记录
   if(field==='name'&&node[field]&&node[field]!==value&&GM.chars){
@@ -1475,3 +1531,132 @@ function confirmEndTurn(){
   bg.querySelector('#cet-ok').onclick=function(){document.body.removeChild(bg);endTurn();};
 }
 
+
+// ============================================================
+// Phase 3 (2026-05-03)·从 tm-chaoyi-misc.js redistribute
+// 原 misc.js L22-145·renderOfficeDeptV2 (SVG 不可用时回退·树状版)
+// ============================================================
+function renderOfficeDeptV2(dept,path){
+  var ps=JSON.stringify(path);
+  var posH=(dept.positions||[]).map(function(pos,pi){
+    var pp=path.concat(["p",pi]);var ppS=JSON.stringify(pp);var ppId="od-"+pp.join("-");
+    // ── 三层统计：编制 / 缺员 / 已具名 ──
+    var _est = pos.establishedCount != null ? pos.establishedCount : (parseInt(pos.headCount,10) || 1);
+    var _vac = pos.vacancyCount != null ? pos.vacancyCount : 0;
+    var _occ = Math.max(0, _est - _vac);
+    var _ah = Array.isArray(pos.actualHolders) ? pos.actualHolders : (pos.holder ? [{name:pos.holder,generated:true}] : []);
+    var _namedArr = _ah.filter(function(h){return h && h.name && h.generated!==false;});
+    var _placeholderCount = _ah.filter(function(h){return h && h.generated===false;}).length;
+    // 三栏标签
+    var _triBar = '<div style="display:inline-flex;gap:4px;font-size:0.6rem;margin-left:4px;">'
+      + '<span style="background:rgba(107,93,79,0.2);color:var(--ink-300);padding:0 4px;border-radius:2px;" title="编制">\u7F16'+_est+'</span>'
+      + (_vac>0 ? '<span style="background:rgba(192,64,48,0.15);color:var(--vermillion-400);padding:0 4px;border-radius:2px;" title="缺员(史料记载)">\u7F3A'+_vac+'</span>' : '')
+      + '<span style="background:rgba(87,142,126,0.15);color:var(--celadon-400);padding:0 4px;border-radius:2px;" title="实际在职">\u5728'+_occ+'</span>'
+      + '<span style="background:rgba(184,154,83,0.15);color:var(--gold-400);padding:0 4px;border-radius:2px;" title="已具名(有角色)">\u540D'+_namedArr.length+'</span>'
+      + (_placeholderCount>0 ? '<span style="background:rgba(184,154,83,0.08);color:var(--ink-300);padding:0 4px;border-radius:2px;" title="在职但无角色内容——运行时 AI 按需生成">\u203B'+_placeholderCount+'</span>' : '')
+      + '</div>';
+    // ── 俸禄理论/实际 ──
+    var _perSalary = pos.perPersonSalary || pos.salary || '';
+    var _salaryBar = '';
+    if (_perSalary) {
+      var _n = parseFloat(String(_perSalary).replace(/[^\d.]/g,'')) || 0;
+      var _unit = String(_perSalary).replace(/[\d.]/g,'').trim();
+      if (_n > 0) {
+        _salaryBar = '<span style="font-size:0.6rem;color:var(--ink-300);margin-left:6px;" title="理论总俸=单俸×编制；实际支出=单俸×(编制-缺员)">俸'+_perSalary+'/人 · 理论'+(_n*_est)+_unit+' · 实支'+(_n*_occ)+_unit+'</span>';
+      } else {
+        _salaryBar = '<span style="font-size:0.6rem;color:var(--ink-300);margin-left:6px;">俸'+_perSalary+'/人</span>';
+      }
+    }
+    // ── 在任者信息（按 actualHolders 显示所有具名任职者） ──
+    var holderInfo = '', holderDetail = '';
+    if (_namedArr.length > 0) {
+      var _nameLine = _namedArr.slice(0,3).map(function(h) {
+        var _hch = findCharByName(h.name);
+        if (_hch) {
+          var _loy = _hch.loyalty || 50;
+          var _loyC = _loy > 70 ? 'var(--celadon-400)' : _loy < 30 ? 'var(--vermillion-400)' : 'var(--color-foreground-secondary)';
+          var _portraitImg = _hch.portrait?'<img src="'+escHtml(_hch.portrait)+'" style="width:14px;height:14px;object-fit:cover;border-radius:50%;vertical-align:middle;margin-right:2px;">':'';
+          return _portraitImg + '<span style="color:var(--celadon-400);">' + escHtml(h.name) + '</span>'
+            + '<span style="font-size:0.6rem;color:' + _loyC + ';margin-left:2px;">\u5FE0' + _loy + '</span>'
+            + (h.spawnedTurn ? '<span style="font-size:0.55rem;color:var(--amber-400);margin-left:2px;" title="由 AI 推演实体化">\u2605</span>' : '');
+        }
+        return '<span style="color:var(--gold-400);">' + escHtml(h.name) + '</span>';
+      }).join('、');
+      holderInfo = _nameLine + (_namedArr.length > 3 ? '<span style="font-size:0.6rem;color:var(--ink-300);">…等'+_namedArr.length+'人</span>' : '');
+      // 主任职者详情（第一个）
+      var _hch0 = findCharByName(_namedArr[0].name);
+      if (_hch0) {
+        // 考评（由吏部NPC给出，存在pos._evaluations中）
+        var _lastEval = (pos._evaluations && pos._evaluations.length > 0) ? pos._evaluations[pos._evaluations.length-1] : null;
+        if (_lastEval) {
+          var _evalColors = {'\u5353\u8D8A':'var(--gold-400)','\u79F0\u804C':'var(--celadon-400)','\u5E73\u5EB8':'var(--ink-300)','\u5931\u804C':'var(--vermillion-400)'};
+          holderInfo += '<span style="font-size:0.6rem;color:' + (_evalColors[_lastEval.grade]||'var(--ink-300)') + ';margin-left:3px;">' + escHtml(_lastEval.grade||'') + '</span>';
+        }
+        holderDetail = '<div style="font-size:0.7rem;color:var(--color-foreground-muted);margin-top:var(--space-1);padding:var(--space-1) 0;">';
+        holderDetail += '\u80FD\u529B\uFF1A\u667A' + (_hch0.intelligence||50) + ' \u653F' + (_hch0.administration||50) + ' \u519B' + (_hch0.military||50);
+        if (_hch0.location && !_isSameLocation(_hch0.location, GM._capital||'\u4EAC\u57CE')) holderDetail += ' <span style="color:var(--amber-400);">[\u8FDC\u65B9:' + escHtml(_hch0.location) + ']</span>';
+        holderDetail += '</div>';
+        if (_lastEval) {
+          holderDetail += '<div style="font-size:0.65rem;color:var(--color-foreground-muted);padding:2px 0;border-top:1px solid var(--color-border-subtle);">';
+          holderDetail += '\u8003\u8BC4\uFF08' + escHtml(_lastEval.evaluator||'\u5417\u90E8') + '\uFF09\uFF1A' + escHtml(_lastEval.comment||'');
+          holderDetail += '</div>';
+        }
+      }
+    } else if (_placeholderCount >= _occ && _occ > 0) {
+      holderInfo = '<span style="color:var(--ink-300);font-style:italic;">\u5728\u804C'+_occ+'\u4EBA(\u672A\u5177\u540D\u2014\u2014\u63A8\u6F14\u6D89\u53CA\u65F6\u81EA\u52A8\u5B9E\u4F53\u5316)</span>';
+    } else if (_occ === 0) {
+      holderInfo = '<span style="color:var(--vermillion-400);">\u5168\u90E8\u7F3A\u5458</span>';
+    } else {
+      holderInfo = '<span style="color:var(--vermillion-400);">\u7A7A\u7F3A</span>';
+    }
+    var rankTag = pos.rank ? '<span style="font-size:0.6rem;color:var(--ink-300);margin-left:3px;">(' + escHtml(pos.rank) + ')</span>' : '';
+    var dutyLine = (pos.desc || pos.duties) ? '<div style="font-size:0.68rem;color:var(--color-foreground-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:350px;">' + escHtml((pos.desc || pos.duties || '').slice(0, 60)) + '</div>' : '';
+    // 操作按钮——不再直接任命，改为荐贤/免职→写入诏令
+    var actionBtns = '';
+    if (!pos.holder) {
+      actionBtns = '<button class="bt bp bsm" onclick="_offRecommend('+ppS+',\'' + escHtml(dept.name).replace(/'/g,"\\'") + '\',\'' + escHtml(pos.name).replace(/'/g,"\\'") + '\')" style="font-size:0.65rem;">\u8350\u8D24</button>';
+    } else {
+      actionBtns = '<button class="bt bsm" onclick="_offDismissToEdict(\'' + escHtml(pos.holder).replace(/'/g,"\\'") + '\',\'' + escHtml(dept.name).replace(/'/g,"\\'") + '\',\'' + escHtml(pos.name).replace(/'/g,"\\'") + '\')" style="font-size:0.65rem;color:var(--vermillion-400);">\u514D\u804C</button>';
+    }
+    // 历任记录
+    var histLine = '';
+    if (pos._history && pos._history.length > 0) {
+      histLine = '<div style="font-size:0.6rem;color:var(--ink-300);margin-top:2px;">\u5386\u4EFB\uFF1A' + pos._history.map(function(h){ return escHtml(h.holder||'?'); }).join(' → ') + '</div>';
+    }
+    return '<div class="office-node"><div class="office-header" onclick="var d=_$(\''+ppId+'\');if(d)d.style.display=d.style.display===\'block\'?\'none\':\'block\';">'
+      +'<div style="flex:1;"><span>'+escHtml(pos.name)+'</span>'+rankTag+_triBar+_salaryBar+'<div style="margin-top:2px;">'+holderInfo+'</div></div>'
+      +'<div style="display:flex;gap:2px;align-items:center;">'+actionBtns+'<span class="office-expand">\u25BC</span></div></div>'
+      +dutyLine+histLine
+      +'<div class="office-detail" id="'+ppId+'">'
+      +holderDetail
+      +'</div></div>';
+  }).join("");
+  // 部门头——职能标签+编制/缺员/在职/已名聚合统计
+  var fnTags = (dept.functions||[]).map(function(f){ return '<span style="font-size:0.6rem;background:rgba(184,154,83,0.15);color:var(--gold-400);padding:1px 4px;border-radius:3px;">' + escHtml(f) + '</span>'; }).join(' ');
+  var deptDesc = dept.desc || dept.description || '';
+  var _deptEst = 0, _deptVac = 0, _deptOcc = 0, _deptNamed = 0, _deptPH = 0;
+  (dept.positions||[]).forEach(function(p) {
+    var est = p.establishedCount != null ? p.establishedCount : (parseInt(p.headCount,10) || 1);
+    var vac = p.vacancyCount != null ? p.vacancyCount : 0;
+    var ah = Array.isArray(p.actualHolders) ? p.actualHolders : (p.holder ? [{name:p.holder,generated:true}] : []);
+    _deptEst += est;
+    _deptVac += vac;
+    _deptOcc += Math.max(0, est - vac);
+    _deptNamed += ah.filter(function(h){return h && h.name && h.generated!==false;}).length;
+    _deptPH += ah.filter(function(h){return h && h.generated===false;}).length;
+  });
+  var vacantTag = '<span style="display:inline-flex;gap:3px;font-size:0.6rem;margin-left:4px;">'
+    + '<span style="background:rgba(107,93,79,0.2);color:var(--ink-300);padding:0 4px;border-radius:2px;" title="部门编制总额">\u7F16'+_deptEst+'</span>'
+    + (_deptVac>0?'<span style="background:rgba(192,64,48,0.15);color:var(--vermillion-400);padding:0 4px;border-radius:2px;" title="缺员总数">\u7F3A'+_deptVac+'</span>':'')
+    + '<span style="background:rgba(87,142,126,0.15);color:var(--celadon-400);padding:0 4px;border-radius:2px;" title="实际在职总数">\u5728'+_deptOcc+'</span>'
+    + '<span style="background:rgba(184,154,83,0.15);color:var(--gold-400);padding:0 4px;border-radius:2px;" title="已具名角色总数">\u540D'+_deptNamed+'</span>'
+    + (_deptPH>0?'<span style="background:rgba(184,154,83,0.08);color:var(--ink-300);padding:0 4px;border-radius:2px;" title="在职但无角色——运行时按需生成">\u203B'+_deptPH+'</span>':'')
+    + '</span>';
+  var totalCount = (dept.positions||[]).length;
+  var subH=(dept.subs||[]).map(function(s,si){return renderOfficeDeptV2(s,path.concat(["s",si]));}).join("");
+  return '<div class="office-node"><div class="office-header"><div style="flex:1;"><span style="font-weight:700;">'+escHtml(dept.name)+'</span>'+vacantTag
+    +(fnTags?' <span style="margin-left:4px;">'+fnTags+'</span>':'')
+    +'</div><div><button class="office-expand" onclick="addOffPos('+ps+')">+\u5B98</button><button class="office-expand" onclick="addOffSub('+ps+')">+\u5C40</button></div></div>'
+    +(deptDesc?'<div style="font-size:0.68rem;color:var(--color-foreground-muted);padding:0 0.5rem;margin-bottom:2px;">'+escHtml(deptDesc).slice(0,100)+'</div>':'')
+    +'<div class="office-children">'+posH+subH+'</div></div>';
+}

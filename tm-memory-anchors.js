@@ -242,7 +242,13 @@ function archiveOldMemories() {
   // 按年份分组
   var byYear = {};
   GM.memoryAnchors.forEach(function(anchor) {
-    var year = anchor.year || Math.floor(anchor.turn / 4);
+    var year = anchor.year;
+    if (!year && typeof calcDateFromTurn === 'function') year = calcDateFromTurn(anchor.turn || 1).adYear;
+    if (!year) {
+      var dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
+      var baseYear = (typeof P !== 'undefined' && P.time && typeof P.time.year === 'number') ? P.time.year : 0;
+      year = baseYear + Math.floor(((anchor.turn || 1) - 1) * dpv / 365);
+    }
     if (!byYear[year]) byYear[year] = [];
     byYear[year].push(anchor);
   });
@@ -289,6 +295,9 @@ function archiveOldMemories() {
 // ════════════════════════════════════════════════════════════════════════
 function _ensureMemoryFreshness(G) {
   if (!G) return;
+  function _memText(entry) {
+    return (typeof memoryEntryText === 'function') ? memoryEntryText(entry) : String((entry && (entry.content || entry.text || entry.summary)) || '');
+  }
   if (!G._memoryLayers) G._memoryLayers = { L1: [], L2: [], L3: [] };
   var ML = G._memoryLayers;
   var curTurn = G.turn || 0;
@@ -315,7 +324,7 @@ function _ensureMemoryFreshness(G) {
       });
       if (bucketMems.length > 0) {
         var l2Summary = bucketMems.map(function(m){
-          return 'T' + (m.turn||0) + ':' + ((m.text || m.content || '') + '').substring(0, 60);
+          return 'T' + (m.turn||0) + ':' + _memText(m).substring(0, 60);
         }).join('｜').substring(0, 400);
         ML.L2.push({
           turnBucket: curTurn,
@@ -368,7 +377,7 @@ function _ensureMemoryFreshness(G) {
       var recent = G._aiMemory.slice(-keepRecent);
       var localSummary = toCompress.map(function(m){
         if (!m) return '';
-        return 'T' + (m.turn||0) + ':' + ((m.text || m.content || '') + '').substring(0, 40);
+        return 'T' + (m.turn||0) + ':' + _memText(m).substring(0, 40);
       }).filter(Boolean).join('｜').substring(0, 1200);
       var fallbackEntry = {
         turn: curTurn,
@@ -377,7 +386,13 @@ function _ensureMemoryFreshness(G) {
         _localFallback: true
       };
       G._aiMemory = [fallbackEntry].concat(recent);
+      try {
+        if (typeof recordMemoryDiagnostic === 'function') recordMemoryDiagnostic('local_fallback_compress', { bucket: 'aiMemory', old: toCompress.length, kept: recent.length, snapshot: (typeof buildMemoryDiagnosticSnapshot === 'function' ? buildMemoryDiagnosticSnapshot(G) : null) });
+      } catch(_) {}
       _dbg('[MemoryFresh] 本地兜底压缩', toCompress.length, '条→1条');
     }
   }
+  try {
+    if (typeof recordMemoryDiagnostic === 'function') recordMemoryDiagnostic('freshness', { stage: 'ensure', snapshot: (typeof buildMemoryDiagnosticSnapshot === 'function' ? buildMemoryDiagnosticSnapshot(G) : null) });
+  } catch(_) {}
 }

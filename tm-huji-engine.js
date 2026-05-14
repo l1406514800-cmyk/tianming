@@ -390,8 +390,11 @@
     d._yearlyAccumBirths += births;
     d._yearlyAccumDeaths += deaths;
     if (!d._lastLogTurn) d._lastLogTurn = ctx.turn || 0;
-    if (((ctx.turn || 0) - d._lastLogTurn) >= 12) {
-      d.yearlyLog.push({ year: G.year || Math.floor((ctx.turn||0)/12), birth: d._yearlyAccumBirths, death: d._yearlyAccumDeaths, net: d._yearlyAccumBirths - d._yearlyAccumDeaths });
+    var yearlyLogTurns = (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(12) : 12;
+    if (((ctx.turn || 0) - d._lastLogTurn) >= yearlyLogTurns) {
+      var logYear = (typeof global.calcDateFromTurn === 'function') ? global.calcDateFromTurn(ctx.turn || 1).adYear
+        : ((G.year || ((global.P && global.P.time && global.P.time.year) || 0)) + Math.floor(Math.max(0, (ctx.turn || 1) - 1) * ((typeof global._getDaysPerTurn === 'function') ? global._getDaysPerTurn() : 30) / 365));
+      d.yearlyLog.push({ year: logYear, birth: d._yearlyAccumBirths, death: d._yearlyAccumDeaths, net: d._yearlyAccumBirths - d._yearlyAccumDeaths });
       if (d.yearlyLog.length > 50) d.yearlyLog.splice(0, d.yearlyLog.length - 50);
       d._lastLogTurn = ctx.turn || 0;
       d._yearlyAccumBirths = 0;
@@ -467,12 +470,16 @@
     if (!P) return { ok: false };
     var preset = LARGE_CORVEE_PRESETS.find(function(p) { return p.id === presetId; });
     if (!preset) return { ok: false, reason: '未知大徭役' };
+    var startTurn = global.GM.turn || 0;
+    var durationTurns = (typeof global.turnsForMonths === 'function')
+      ? global.turnsForMonths(preset.duration * 12)
+      : preset.duration * 12;
     var active = {
       id: 'large_' + (global.GM.turn || 0) + '_' + Math.floor(Math.random() * 10000),
       presetId: presetId,
       name: preset.name,
-      startTurn: global.GM.turn || 0,
-      endTurn: (global.GM.turn || 0) + preset.duration * 12,
+      startTurn: startTurn,
+      endTurn: startTurn + durationTurns,
       laborDemand: preset.laborDemand,
       duration: preset.duration,
       deathRate: preset.deathRate,

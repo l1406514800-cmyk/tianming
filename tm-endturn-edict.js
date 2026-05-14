@@ -206,8 +206,18 @@ function applyEdictActions(actions) {
     if (!done) {
       var hit = _findPositionInOfficeTree(a.position);
       if (hit) {
-        var prevHolder = hit.pos.holder || '';
-        hit.pos.holder = a.character;
+        var prevHolder = hit.pos.holder || ((typeof _offAllHolders === 'function' && _offAllHolders(hit.pos)[0]) || '');
+        if (typeof _offVacateByCharName === 'function') {
+          try { _offVacateByCharName(a.character, 'edict-appointment'); } catch(_vacE) {}
+        }
+        if (typeof _offSeatPersonInPosition === 'function') {
+          _offSeatPersonInPosition(hit.pos, a.character, { oldHolder: prevHolder, replace: true });
+        } else if (typeof _offAppointPerson === 'function') {
+          if (prevHolder && prevHolder !== a.character && typeof _offDismissPerson === 'function') _offDismissPerson(hit.pos, prevHolder);
+          _offAppointPerson(hit.pos, a.character);
+        } else {
+          hit.pos.holder = a.character;
+        }
         // 更新 char 元数据
         char.officialTitle = a.position;
         char.position = a.position;
@@ -284,7 +294,14 @@ function applyEdictActions(actions) {
         (nodes||[]).forEach(function(n) {
           if (!n) return;
           (n.positions||[]).forEach(function(p) {
-            if (p && p.holder === a.character) { p.holder = ''; didAny = true; }
+            if (!p) return;
+            var holderHit = p.holder === a.character;
+            var ahHit = Array.isArray(p.actualHolders) && p.actualHolders.some(function(h){ return h && h.name === a.character; });
+            if (holderHit || ahHit) {
+              if (typeof _offDismissPerson === 'function') _offDismissPerson(p, a.character);
+              else p.holder = '';
+              didAny = true;
+            }
           });
           if (n.subs) walkD(n.subs);
         });

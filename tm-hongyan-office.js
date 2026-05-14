@@ -1,359 +1,46 @@
 // @ts-check
 /// <reference path="types.d.ts" />
 // ============================================================
-// tm-hongyan-office.js — 鸿雁传书 + 官制 (R127 从 tm-player-actions.js L3304-end 拆出)
-// 姊妹: tm-player-settings.js + tm-player-core.js
-// 包含: 信件系统+品级体系+官制双层模型+官阶/职事/勋贵工具
+// Module: tm-hongyan-office.js — 鸿雁传书 + edict 草拟 UI + 主游戏 UI 渲染 (R127·R161·R6 拆出官制)
+// Domain: 鸿雁信件 (letter·主域) + edict 草拟 UI + renderGameState (主游戏 UI 渲染) ── R6 已剥离官制
+// Status: active · Last Updated: 2026-05-03 (Phase 3 R6·官制部分已拆到 tm-office-system.js)
+// Owner: TM 团队
+// Imports: tm-data-model·tm-utils·tm-player-core·TM.PromptComposer·SettlementPipeline·tm-office-system (cross-file·_off*·RANK_HIERARCHY·canPerformAction 等)
+// Exports: ~30 top-level functions (主体: `_lt*` letter·sendLetter·`_hy*` hongyan·_settleLettersAndTravel·_generateLetterReply·renderLetterPanel·letterDoctor·letterDiag·LETTER_TYPES/TOKENS/CIPHERS·calcLetterDays·getLocationPromptInjection·renderGameState·_showEdictAdoptMenu·_renderEdictSuggestions·_renderPolishedEdict·_applyPolishedEdict)
+// Used by: tm-game-loop·tm-renwu-ui·tm-letter-* smoke·index/editor.html
+// Side effects: 全局 functions/vars·DOM (letter panel·主游戏 UI·edict 菜单)·GM.letters·SettlementPipeline.register('letters')
+// Test: smoke-letter-full (15)·smoke-letter-intercept-react (29)
+// Notes: R127 从 tm-player-actions.js L3304-end 拆出·R6 已 carve out 官制 (706 行) → tm-office-system.js
+//        **剩余仍 3 domain 混·待后续 slice 进一步拆**:
+//          - letter (~1800·主域·_lt*·_hy*·sendLetter·_settleLettersAndTravel)
+//          - renderGameState (~614·**应入 tm-game-ui-shell·待下 slice 拆**)
+//          - edict UI (~289·_showEdictAdoptMenu·_renderPolishedEdict·**应入 tm-edict-ui·待下 slice 拆**)
+// 姊妹: tm-player-settings.js·tm-player-core.js·tm-office-system.js (R6 新建)
 //
-// R159 章节导航 (2587 行)：
-//   §1 [L10]   鸿雁传书系统 (信件传递+回复+结算+NPC 来书+信使可见化)
-//   §2 [L500]  品级体系工具 (rank · 散官/职事/勋贵分层)
-//   §3 [L900]  官制双层模型 (officeTree·部门/职位)
-//   §4 [L1300] 官阶/职事/勋贵 工具函数 + 兼任规则
-//   §5 [L1700] 任免流程钩子 (onAppointment/onDismissal 联动)
-//   §6 [L2100] 鸿雁信件 UI 渲染 + 玩家撰写
-//   §7 [L2400] 收尾·NPC 主动写信 trigger + 回信 AI
+// audit: web/docs/tm-hongyan-office-audit.md (待 R6 后 update)
 // ============================================================
 
 // ============================================================
 // 鸿雁传书系统 — 信件传递+回复+结算+NPC来书+信使可见化
 // ============================================================
 
-/** 信件类型定义 */
-// ============================================================
-// 品级体系（结构化官阶——通用中国古代18级制）
-// ============================================================
-// ============================================================
-// 官制双层模型——数据迁移与工具
-// ============================================================
-
-/** 迁移并双向同步 position 数据：老模型(headCount/actualCount/holder+additionalHolders) ↔ 新模型(establishedCount/vacancyCount/actualHolders) */
-function _offMigratePosition(pos) {
-  if (!pos || typeof pos !== 'object') return;
-
-  // ── Step 1: 规范老字段 ──
-  if (pos.headCount === undefined || pos.headCount === null || pos.headCount === '') pos.headCount = 1;
-  if (typeof pos.headCount === 'string') { var _hc = parseInt(pos.headCount, 10); pos.headCount = isNaN(_hc) || _hc < 1 ? 1 : _hc; }
-  if (!Array.isArray(pos.additionalHolders)) pos.additionalHolders = [];
-  var _matCount = (pos.holder ? 1 : 0) + pos.additionalHolders.length;
-  if (pos.actualCount === undefined) pos.actualCount = _matCount;
-
-  // ── Step 2: 新字段——若已存在则以新字段为权威 ──
-  if (pos.establishedCount == null) {
-    pos.establishedCount = pos.headCount;
-  } else {
-    // 新字段已设 → 反向同步到老字段
-    pos.headCount = pos.establishedCount;
-  }
-  if (pos.vacancyCount == null) {
-    // 从老字段派生：缺员 = 编制 - 实有
-    pos.vacancyCount = Math.max(0, pos.headCount - pos.actualCount);
-  } else {
-    // 新字段已设 → 反向同步 actualCount
-    var _derivedActual = Math.max(0, pos.establishedCount - pos.vacancyCount);
-    if (pos.actualCount < _derivedActual) pos.actualCount = _derivedActual;
-    else if (pos.actualCount > _derivedActual && _matCount <= _derivedActual) pos.actualCount = _derivedActual;
-  }
-
-  // ── Step 3: actualHolders——若未存在则从老字段(holder + additionalHolders)构建 ──
-  if (!Array.isArray(pos.actualHolders)) {
-    var ah = [];
-    if (pos.holder) ah.push({ name: pos.holder, generated: true });
-    pos.additionalHolders.forEach(function(nm) {
-      if (nm && !ah.some(function(h){return h.name===nm;})) ah.push({ name: nm, generated: true });
-    });
-    // 补占位到 actualCount 长度
-    while (ah.length < pos.actualCount) {
-      ah.push({ name: '', generated: false, placeholderId: 'ph_' + Math.random().toString(36).slice(2,8) });
-    }
-    pos.actualHolders = ah;
-  } else {
-    // 新字段已存在——反向同步到老字段（holder + additionalHolders）
-    var namedArr = pos.actualHolders.filter(function(h){return h && h.name && h.generated!==false;}).map(function(h){return h.name;});
-    pos.holder = namedArr[0] || '';
-    pos.additionalHolders = namedArr.slice(1);
-    // 反向同步 actualCount
-    if (pos.actualHolders.length > pos.actualCount) pos.actualCount = pos.actualHolders.length;
-  }
-
-  // 单人俸禄兼容
-  if (!pos.perPersonSalary && pos.salary) pos.perPersonSalary = pos.salary;
-  if (!pos.salary && pos.perPersonSalary) pos.salary = pos.perPersonSalary;
-
-  pos._migrated = true;
-}
-
-/** 迁移整棵官制树 */
-function _offMigrateTree(tree) {
-  if (!tree) return;
-  (function _walk(nodes) {
-    nodes.forEach(function(n) {
-      (n.positions||[]).forEach(function(p) { _offMigratePosition(p); });
-      if (n.subs) _walk(n.subs);
-    });
-  })(tree);
-}
-
-/** 获取职位的具象人数——优先新模型 actualHolders，降级老模型 */
-function _offMaterializedCount(pos) {
-  if (Array.isArray(pos.actualHolders)) {
-    return pos.actualHolders.filter(function(h){return h && h.name && h.generated!==false;}).length;
-  }
-  return (pos.holder ? 1 : 0) + (pos.additionalHolders ? pos.additionalHolders.length : 0);
-}
-
-/** 获取职位的所有具象角色名列表——优先新模型 */
-function _offAllHolders(pos) {
-  if (Array.isArray(pos.actualHolders)) {
-    return pos.actualHolders.filter(function(h){return h && h.name && h.generated!==false;}).map(function(h){return h.name;});
-  }
-  var arr = [];
-  if (pos.holder) arr.push(pos.holder);
-  if (pos.additionalHolders) arr = arr.concat(pos.additionalHolders);
-  return arr;
-}
-
-/** 任命：把 person 装入 position 的 actualHolders（优先填占位；无占位则扩展） */
-function _offAppointPerson(pos, person) {
-  if (!pos || !person) return;
-  _offMigratePosition(pos);
-  if (!Array.isArray(pos.actualHolders)) pos.actualHolders = [];
-  // ── 幽灵 holder 净化 ── 老剧本/老存档 holder 字段写了名字但 GM.chars 无此人·
-  // 这种 ghost 占据 primary 位·新任会被挤为次席·导致 UI 渲染仍显「空缺」。
-  // 任命前一律将 ghost 名转为占位·让新任能登 primary。
+function _hyPromptComposerAddon(ch) {
+  var composer = (typeof TM !== 'undefined' && TM.PromptComposer) ? TM.PromptComposer : null;
+  if (!composer || !ch) return '';
+  var out = '';
   try {
-    if (typeof GM !== 'undefined' && Array.isArray(GM.chars)) {
-      var charSet = {};
-      GM.chars.forEach(function(c) { if (c && c.name) charSet[c.name] = true; });
-      pos.actualHolders.forEach(function(h) {
-        if (h && h.name && h.generated !== false && !charSet[h.name]) {
-          // 名字存在但 chars 无此人 → ghost·转为空占位
-          h._ghostPurged = h.name;
-          h.name = '';
-          h.generated = false;
-          if (!h.placeholderId) h.placeholderId = 'ph_' + Math.random().toString(36).slice(2,8);
-        }
-      });
-    }
-  } catch(_){}
-  // 若已有同名条目，跳过
-  if (pos.actualHolders.some(function(h){return h && h.name === person && h.generated!==false;})) return;
-  // 找第一个 generated:false 占位
-  var slot = pos.actualHolders.find(function(h){return h && h.generated===false;});
-  if (slot) {
-    slot.name = person;
-    slot.generated = true;
-    slot.appointedTurn = (typeof GM!=='undefined' && GM.turn) || 0;
-  } else {
-    // 无占位——扩展一个（编制可能因此增加）
-    pos.actualHolders.push({ name: person, generated: true, appointedTurn: (typeof GM!=='undefined' && GM.turn) || 0 });
-    if (pos.actualHolders.length > pos.establishedCount) pos.establishedCount = pos.actualHolders.length;
-    if (pos.actualHolders.length > pos.headCount) pos.headCount = pos.actualHolders.length;
-    pos.actualCount = pos.actualHolders.length;
-  }
-  // 同步老字段
-  var named = pos.actualHolders.filter(function(h){return h && h.name && h.generated!==false;}).map(function(h){return h.name;});
-  pos.holder = named[0] || '';
-  pos.additionalHolders = named.slice(1);
-  pos.actualCount = named.length + pos.actualHolders.filter(function(h){return h && h.generated===false;}).length;
-  // vacancyCount 同步：编制 - 已任 (而非旧值)
-  if (typeof pos.establishedCount === 'number') {
-    pos.vacancyCount = Math.max(0, pos.establishedCount - named.length);
-  }
+    if (typeof composer.buildAiPersonaText === 'function') out += composer.buildAiPersonaText(ch) || '';
+    if (typeof composer.buildRecognitionState === 'function') out += composer.buildRecognitionState(ch) || '';
+  } catch (_) {}
+  return out;
 }
 
-/** 罢免：从 actualHolders 中移除 person，留下 generated:false 占位（不变更编制） */
-function _offDismissPerson(pos, person) {
-  if (!pos || !person) return;
-  _offMigratePosition(pos);
-  if (!Array.isArray(pos.actualHolders)) pos.actualHolders = [];
-  var idx = pos.actualHolders.findIndex(function(h){return h && h.name === person;});
-  if (idx >= 0) {
-    // 替换为占位（保持位置计数）
-    pos.actualHolders[idx] = { name: '', generated: false, placeholderId: 'ph_' + Math.random().toString(36).slice(2,8), vacatedBy: person, vacatedTurn: (typeof GM!=='undefined' && GM.turn) || 0 };
-  }
-  var named = pos.actualHolders.filter(function(h){return h && h.name && h.generated!==false;}).map(function(h){return h.name;});
-  pos.holder = named[0] || '';
-  pos.additionalHolders = named.slice(1);
+function _hyTurnsForMonths(months) {
+  if (typeof turnsForMonths === 'function') return turnsForMonths(months);
+  var dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
+  return Math.max(1, Math.ceil((months * 30) / Math.max(1, dpv)));
 }
 
-/** 扫遍官制树·清除指定姓名的所有 holder 登记（死亡/贬谪/退隐级联）
- * 返回 { vacated: [{dept, pos, rank}...] } 供事件日志使用
- * reason: 'death' | 'demote' | 'retire' | 'exile' | 'execute'
- */
-function _offVacateByCharName(charName, reason, tree) {
-  if (!charName) return { vacated: [] };
-  tree = tree || (typeof GM !== 'undefined' && GM.officeTree) || [];
-  var vacated = [];
-  (function _walk(nodes, deptChain) {
-    (nodes || []).forEach(function(n) {
-      if (!n) return;
-      var curChain = deptChain ? (deptChain + '·' + n.name) : n.name;
-      (n.positions || []).forEach(function(p) {
-        if (!p) return;
-        // 新模型 actualHolders
-        if (Array.isArray(p.actualHolders)) {
-          var hitNew = p.actualHolders.some(function(h){ return h && h.name === charName && h.generated !== false; });
-          if (hitNew) {
-            _offDismissPerson(p, charName);
-            vacated.push({ dept: n.name, pos: p.name, rank: p.rank || '', chain: curChain, reason: reason || '' });
-          }
-        }
-        // 老模型 holder 直接匹配（即使已做 dismiss 也做兜底）
-        if (p.holder === charName) {
-          if (!Array.isArray(p.holderHistory)) p.holderHistory = [];
-          p.holderHistory.push({ name: charName, until: (typeof GM !== 'undefined' && GM.turn) || 0, reason: reason || '身故级联' });
-          p.holder = '';
-          p.holderSinceTurn = 0;
-          // 公库头衔同步
-          if (p.publicTreasury && p.publicTreasury.currentHead === charName) {
-            p.publicTreasury.previousHead = charName;
-            p.publicTreasury.currentHead = null;
-          }
-          vacated.push({ dept: n.name, pos: p.name, rank: p.rank || '', chain: curChain, reason: reason || '' });
-        }
-        // additionalHolders 兼容
-        if (Array.isArray(p.additionalHolders)) {
-          var ai = p.additionalHolders.indexOf(charName);
-          if (ai >= 0) p.additionalHolders.splice(ai, 1);
-        }
-      });
-      if (n.subs) _walk(n.subs, curChain);
-    });
-  })(tree, '');
-  return { vacated: vacated };
-}
-
-/** 扫全局·清除所有 alive===false 或找不到的 holder（endturn 兜底 sweep）
- * 用于捕获未发 character:death 事件但实际已死的角色遗留
- */
-function _offSweepGhostHolders() {
-  if (typeof GM === 'undefined' || !GM.officeTree) return { swept: [] };
-  var swept = [];
-  var _findCh = (typeof findCharByName === 'function') ? findCharByName : function(n){
-    return (GM.chars||[]).find(function(c){ return c && c.name === n; });
-  };
-  (function _walk(nodes) {
-    (nodes || []).forEach(function(n) {
-      if (!n) return;
-      (n.positions || []).forEach(function(p) {
-        if (!p) return;
-        var names = [];
-        if (p.holder) names.push(p.holder);
-        if (Array.isArray(p.actualHolders)) {
-          p.actualHolders.forEach(function(h){ if (h && h.name && h.generated !== false) names.push(h.name); });
-        }
-        var seen = {};
-        names.forEach(function(nm){
-          if (seen[nm]) return; seen[nm] = 1;
-          var ch = _findCh(nm);
-          if (!ch || ch.alive === false || ch.dead) {
-            _offVacateByCharName(nm, 'ghost-sweep');
-            swept.push({ name: nm, dept: n.name, pos: p.name });
-          }
-        });
-      });
-      if (n.subs) _walk(n.subs);
-    });
-  })(GM.officeTree);
-  return { swept: swept };
-}
-
-/** 获取部门的聚合统计 */
-function _offDeptStats(dept) {
-  var stats = { headCount: 0, actualCount: 0, materialized: 0, vacant: 0, unmaterialized: 0, holders: [] };
-  (function _walk(nodes) {
-    nodes.forEach(function(n) {
-      (n.positions||[]).forEach(function(p) {
-        _offMigratePosition(p);
-        stats.headCount += (p.headCount||1);
-        stats.actualCount += (p.actualCount||0);
-        var m = _offMaterializedCount(p);
-        stats.materialized += m;
-        _offAllHolders(p).forEach(function(h) { stats.holders.push(h); });
-      });
-      if (n.subs) _walk(n.subs);
-    });
-  })([dept]);
-  stats.vacant = stats.headCount - stats.actualCount;
-  stats.unmaterialized = stats.actualCount - stats.materialized;
-  return stats;
-}
-
-/** 获取整棵树的聚合统计 */
-function _offTreeStats(tree) {
-  var stats = { headCount: 0, actualCount: 0, materialized: 0, depts: 0 };
-  (function _walk(nodes) {
-    nodes.forEach(function(n) {
-      stats.depts++;
-      (n.positions||[]).forEach(function(p) {
-        _offMigratePosition(p);
-        stats.headCount += (p.headCount||1);
-        stats.actualCount += (p.actualCount||0);
-        stats.materialized += _offMaterializedCount(p);
-      });
-      if (n.subs) _walk(n.subs);
-    });
-  })(tree||[]);
-  return stats;
-}
-
-var RANK_HIERARCHY = [
-  {id:'z1',label:'正一品',level:1,salary:100,color:'var(--gold-400)'},
-  {id:'c1',label:'从一品',level:2,salary:90,color:'var(--gold-400)'},
-  {id:'z2',label:'正二品',level:3,salary:80,color:'var(--gold-400)'},
-  {id:'c2',label:'从二品',level:4,salary:72,color:'var(--gold-400)'},
-  {id:'z3',label:'正三品',level:5,salary:65,color:'var(--amber-400)'},
-  {id:'c3',label:'从三品',level:6,salary:58,color:'var(--amber-400)'},
-  {id:'z4',label:'正四品',level:7,salary:50,color:'var(--amber-400)'},
-  {id:'c4',label:'从四品',level:8,salary:44,color:'var(--amber-400)'},
-  {id:'z5',label:'正五品',level:9,salary:38,color:'var(--celadon-400)'},
-  {id:'c5',label:'从五品',level:10,salary:33,color:'var(--celadon-400)'},
-  {id:'z6',label:'正六品',level:11,salary:28,color:'var(--celadon-400)'},
-  {id:'c6',label:'从六品',level:12,salary:24,color:'var(--celadon-400)'},
-  {id:'z7',label:'正七品',level:13,salary:20,color:'var(--color-foreground-secondary)'},
-  {id:'c7',label:'从七品',level:14,salary:17,color:'var(--color-foreground-secondary)'},
-  {id:'z8',label:'正八品',level:15,salary:14,color:'var(--ink-300)'},
-  {id:'c8',label:'从八品',level:16,salary:12,color:'var(--ink-300)'},
-  {id:'z9',label:'正九品',level:17,salary:10,color:'var(--ink-300)'},
-  {id:'c9',label:'从九品',level:18,salary:8,color:'var(--ink-300)'}
-];
-
-/** 根据品级文本获取level（数字越小品级越高） */
-function getRankLevel(rankStr) {
-  if (!rankStr) return 99;
-  for (var i = 0; i < RANK_HIERARCHY.length; i++) {
-    if (rankStr.indexOf(RANK_HIERARCHY[i].label) >= 0) return RANK_HIERARCHY[i].level;
-  }
-  return 99;
-}
-
-/** 获取品级信息 */
-function getRankInfo(rankStr) {
-  if (!rankStr) return null;
-  for (var i = 0; i < RANK_HIERARCHY.length; i++) {
-    if (rankStr.indexOf(RANK_HIERARCHY[i].label) >= 0) return RANK_HIERARCHY[i];
-  }
-  return null;
-}
-
-/** 计算官员满意度（大材小用/小材大用检测） */
-function calcOfficialSatisfaction(charName, posRank, deptName) {
-  var ch = findCharByName(charName);
-  if (!ch) return { score: 50, label: '未知' };
-  // 能力综合分
-  var abilityScore = ((ch.intelligence||50) + (ch.administration||50) + (ch.military||50)) / 3;
-  var rankLevel = getRankLevel(posRank);
-  // 品级越高(level越小)→需要越高能力
-  var expectedAbility = Math.max(30, 90 - rankLevel * 3.5);
-  var diff = abilityScore - expectedAbility;
-  // 野心影响：野心高的人在低品级更不满
-  var ambitionPenalty = rankLevel > 10 ? (ch.ambition||50) * 0.3 : 0;
-  var satisfaction = 50 + diff * 0.8 - ambitionPenalty;
-  satisfaction = Math.max(0, Math.min(100, Math.round(satisfaction)));
-  var label = satisfaction > 75 ? '志得意满' : satisfaction > 55 ? '安于其位' : satisfaction > 35 ? '郁郁不得志' : '怀才不遇';
-  return { score: satisfaction, label: label };
-}
 
 var LETTER_TYPES = {
   // 玩家发信类型
@@ -575,10 +262,10 @@ function renderLetterPanel() {
   var target = GM._pendingLetterTo || '';
   if (!target) {
     var _npcCorr = GM._npcCorrespondence || [];
-    var _recentCorr = _npcCorr.filter(function(c) { return (GM.turn - c.turn) <= 5; });
+    var _recentCorr = _npcCorr.filter(function(c) { return (GM.turn - c.turn) <= _hyTurnsForMonths(5); });
     var overviewHtml = '<div class="hy-hist-body"><div class="hy-hist-empty">\u9009\u62E9\u4E00\u4F4D\u8FDC\u65B9\u81E3\u5B50\u00B7\u4EE5\u89C1\u4E66\u4FE1\u5F80\u6765</div>';
     if (_recentCorr.length > 0) {
-      overviewHtml = '<div class="hy-hist-head"><div class="hy-hist-title-wrap"><div class="hy-hist-portrait" style="background:linear-gradient(135deg,var(--vermillion-400),var(--ink-100));border-color:var(--vermillion-400);">\u5BC6</div><div><div class="hy-hist-name">\u622A\u83B7\u7684 NPC \u5BC6\u4FE1</div><div class="hy-hist-sub">\u8FD1 5 \u56DE\u5408\u00B7\u5171 ' + _recentCorr.length + ' \u5C01</div></div></div></div>';
+      overviewHtml = '<div class="hy-hist-head"><div class="hy-hist-title-wrap"><div class="hy-hist-portrait" style="background:linear-gradient(135deg,var(--vermillion-400),var(--ink-100));border-color:var(--vermillion-400);">\u5BC6</div><div><div class="hy-hist-name">\u622A\u83B7\u7684 NPC \u5BC6\u4FE1</div><div class="hy-hist-sub">\u8FD1 5 \u4E2A\u6708\u00B7\u5171 ' + _recentCorr.length + ' \u5C01</div></div></div></div>';
       overviewHtml += '<div class="hy-hist-body">';
       _recentCorr.forEach(function(c) {
         overviewHtml += '<div class="hy-msg hy-msg-intercept"><span class="hy-msg-tag"></span>';
@@ -601,7 +288,7 @@ function renderLetterPanel() {
   var letters = allLetters;
   if (_filter === 'unread') letters = allLetters.filter(function(l) { return !l._playerRead; });
   else if (_filter === 'transit') letters = allLetters.filter(function(l) { return l.status === 'traveling' || l.status === 'replying'; });
-  else if (_filter === 'lost') letters = allLetters.filter(function(l) { return l.status === 'intercepted' || (l.status === 'traveling' && GM.turn > l.deliveryTurn + 1); });
+  else if (_filter === 'lost') letters = allLetters.filter(function(l) { return l.status === 'intercepted' || (l.status === 'traveling' && GM.turn > l.deliveryTurn + _hyTurnsForMonths(1)); });
 
   // 新头部
   var _initial = escHtml(String(target||'?').charAt(0));
@@ -664,7 +351,7 @@ function _ltRenderLetterCard(l, target) {
   //    否则玩家一眼看出被截·破坏伪造剧情·真相靠存疑/遣使核实流程后续暴露
   var _intercepted = (l.status === 'intercepted');
   var _inTransit = (l.status === 'traveling' || l.status === 'replying' || l.status === 'intercepted_forging');
-  var _lost = (l.status === 'intercepted' || (l.status === 'traveling' && GM.turn > l.deliveryTurn + 1));
+  var _lost = (l.status === 'intercepted' || (l.status === 'traveling' && GM.turn > l.deliveryTurn + _hyTurnsForMonths(1)));
 
   // 外层 msg 类
   var msgCls = 'hy-msg ';
@@ -809,7 +496,7 @@ function _ltCountTransit(name) {
 }
 function _ltCountLost(name) {
   return (GM.letters||[]).filter(function(l) { return l.to === name && l.status === 'intercepted'; }).length
-    + (GM.letters||[]).filter(function(l) { return l.to === name && l.status === 'traveling' && GM.turn > l.deliveryTurn + 1; }).length;
+    + (GM.letters||[]).filter(function(l) { return l.to === name && l.status === 'traveling' && GM.turn > l.deliveryTurn + _hyTurnsForMonths(1); }).length;
 }
 function _ltCountNpcNew(name) {
   return (GM.letters||[]).filter(function(l) { return l.from === name && !l._playerRead && l.status === 'returned'; }).length;
@@ -1729,7 +1416,7 @@ function _generateLetterReply(letter) {
     try {
       var tracker = (GM._edictTracker || []).filter(function(e) {
         if (!e || !e.content) return false;
-        return e.content.indexOf(ch.name) >= 0 && (GM.turn - (e.turn||0)) <= 3;
+        return e.content.indexOf(ch.name) >= 0 && (GM.turn - (e.turn||0)) <= _hyTurnsForMonths(3);
       }).slice(-3);
       if (tracker.length > 0) {
         recentEdictCtx = '\n玩家近期涉君诏令(回信可顺带回应)：';
@@ -1757,6 +1444,7 @@ function _generateLetterReply(letter) {
     if (ch.stance) prompt += '\n政治立场：' + ch.stance;
     if (ch.party) prompt += '\n党派：' + ch.party + (ch.partyRank?'·'+ch.partyRank:'');
     if (memCtx) prompt += '\n近期心绪：' + memCtx;
+    prompt += _hyPromptComposerAddon(ch);
     if (arcCtx) prompt += arcCtx;
     if (recentEdictCtx) prompt += recentEdictCtx;
     if (priorHistory) prompt += priorHistory;
@@ -1842,7 +1530,7 @@ function getLocationPromptInjection() {
 
   // 信使失踪（截获线索——玩家看到的是"信使逾期"）
   var lostLetters = allLetters.filter(function(l) {
-    return l.status === 'intercepted' || (l.status === 'traveling' && GM.turn > l.deliveryTurn + 1);
+    return l.status === 'intercepted' || (l.status === 'traveling' && GM.turn > l.deliveryTurn + _hyTurnsForMonths(1));
   });
   if (lostLetters.length > 0) {
     lines.push('信使失踪（可能被截获）：');
@@ -1867,7 +1555,7 @@ function getLocationPromptInjection() {
 
   // NPC期望回信但未回
   var _npcWaiting = allLetters.filter(function(l) {
-    return l._npcInitiated && l._replyExpected && l.status === 'returned' && !l._playerReplied && (GM.turn - l.deliveryTurn) > 2;
+    return l._npcInitiated && l._replyExpected && l.status === 'returned' && !l._playerReplied && (GM.turn - l.deliveryTurn) > _hyTurnsForMonths(2);
   });
   if (_npcWaiting.length > 0) {
     lines.push('NPC待回信（期望回复但玩家未回）：');
@@ -1926,86 +1614,6 @@ function getLocationPromptInjection() {
   return lines.join('\n');
 }
 
-/** 按需具象化——为未具象的在任官员生成角色 */
-async function _offMaterialize(deptName, posName) {
-  if (!P.ai || !P.ai.key) { toast('需要AI密钥'); return; }
-  // 找到职位
-  var _pos = null, _dept = null;
-  (function _f(ns) { ns.forEach(function(n) { if (n.name === deptName) { (n.positions||[]).forEach(function(p) { if (p.name === posName) { _pos = p; _dept = n; } }); } if (n.subs) _f(n.subs); }); })(GM.officeTree||[]);
-  if (!_pos) { toast('找不到职位'); return; }
-  if (typeof _offMigratePosition === 'function') _offMigratePosition(_pos);
-  var _m = _offMaterializedCount(_pos);
-  if (_m >= (_pos.actualCount||0)) { toast('此职位所有在任者已具象'); return; }
-  var _dynasty = '';
-  var _sc4 = (typeof findScenarioById === 'function' && GM.sid) ? findScenarioById(GM.sid) : null;
-  if (_sc4) _dynasty = (_sc4.era||'') + (_sc4.dynasty||'');
-  var _existNames = (GM.chars||[]).map(function(c) { return c.name; });
-  try {
-    toast('正在生成角色...');
-    var prompt = '背景：' + (_dynasty||'中国古代') + '。为' + deptName + '的' + posName + '（' + (_pos.rank||'') + '）生成1名任职者。\n'
-      + '优先用真实历史人物，找不到则虚构。\n'
-      + '已有角色：' + _existNames.slice(0,15).join('、') + '\n'
-      + '返回JSON：{"name":"人名","personality":"性格","intelligence":60,"administration":60,"military":40,"loyalty":60,"ambition":50}';
-    var c = await callAI(prompt, 500);
-    var parsed = extractJSON(c);
-    if (parsed && parsed.name) {
-      if (!GM.chars) GM.chars = [];
-      if (!GM.chars.find(function(ch){ return ch.name === parsed.name; })) {
-        GM.chars.push({
-          name: parsed.name, title: posName, officialTitle: posName,
-          personality: parsed.personality||'', intelligence: parsed.intelligence||55,
-          administration: parsed.administration||55, military: parsed.military||40,
-          loyalty: parsed.loyalty||55, ambition: parsed.ambition||45,
-          location: GM._capital||'京城', alive: true,
-          valor: parsed.valor||40, diplomacy: parsed.diplomacy||50, stress: 0
-        });
-      }
-      // 加入holders
-      if (!_pos.additionalHolders) _pos.additionalHolders = [];
-      if (!_pos.holder) { _pos.holder = parsed.name; }
-      else { _pos.additionalHolders.push(parsed.name); }
-      toast('已生成：' + parsed.name);
-      if (typeof renderOfficeTree === 'function') renderOfficeTree();
-    }
-  } catch(e) { toast('生成失败'); }
-}
-
-/** 丁忧/考课/任期结算 */
-function _settleOfficeMourning() {
-  // 1. 丁忧中的官员——在丁忧期间从官制树中标记空缺（但不删除holder，保留恢复）
-  (GM.chars||[]).forEach(function(c) {
-    if (!c._mourning || c.alive === false) return;
-    if (GM.turn >= c._mourning.until) {
-      // 丁忧期满——可复职
-      c._mourning = null;
-      if (typeof addEB === 'function') addEB('人事', c.name + '丁忧期满，可重新起用');
-    } else if (c._mourning.since === GM.turn) {
-      // 刚进入丁忧——从官制树中暂离（AI已在office_changes中dismiss）
-      // 如果AI没有dismiss，这里补上
-      (function _checkMourn(nodes) {
-        nodes.forEach(function(n) {
-          (n.positions||[]).forEach(function(p) {
-            if (p.holder === c.name && !c._mourningDismissed) {
-              c._mourningOldPost = { dept: n.name, pos: p.name, rank: p.rank };
-              // 不直接清除holder——让AI在office_changes中处理
-              // 但标记以便AI prompt知道
-              c._mourningDismissed = true;
-            }
-          });
-          if (n.subs) _checkMourn(n.subs);
-        });
-      })(GM.officeTree||[]);
-    }
-  });
-
-  // 2. 考课周期提醒（在AI prompt中已注入，此处记录触发状态）
-  if (GM.turn > 0 && GM.turn % 5 === 0) {
-    if (!GM._lastEvalTurn || GM._lastEvalTurn < GM.turn - 3) {
-      GM._lastEvalTurn = GM.turn;
-      if (typeof addEB === 'function') addEB('官制', '考课之期——吏部应对百官考评');
-    }
-  }
-}
 
 function renderGameState(){
   // ★ 财政三字段同步守卫·防 money/balance/ledgers.stock 跑偏导致顶栏与面板数值不一致
@@ -2241,7 +1849,7 @@ function renderGameState(){
   // 结束回合按钮
   edictHTML += '<div class="ed-action-bar">';
   edictHTML += '<button class="bt bp" id="btn-end" onclick="confirmEndTurn()" style="padding:var(--space-3) var(--space-8);font-size:var(--text-md);letter-spacing:0.15em;border:2px solid var(--gold-400);box-shadow:0 2px 12px rgba(184,154,83,0.2);">'+_ei('end-turn',16)+' 诏付有司</button>';
-  edictHTML += '<button class="bt" title="地形图·山川城池分布（决策辅助）·与【军事·地图总览】数据源不同" onclick="TM.MapSystem.open(\'terrain\')" style="padding:var(--space-3) var(--space-6);font-size:var(--text-md);">'+_ei('map',16)+' 查看地图</button>';
+  edictHTML += '<button class="bt" title="地形图·山川城池分布（决策辅助）·与【军事·地图总览】数据源不同" onclick="TM.Map.open(\'terrain\')" style="padding:var(--space-3) var(--space-6);font-size:var(--text-md);">'+_ei('map',16)+' 查看地图</button>';
   edictHTML += '</div>';
   edictHTML += '</div>'; // 关闭右侧诏书编辑区
   edictHTML += '</div>'; // 关闭左右并排 flex 容器
@@ -2469,7 +2077,7 @@ function renderGameState(){
     +'<div class="rw-tools">'
     +'<button class="bt bp" onclick="(window.TM&&TM.ceming&&TM.ceming.openDialog)?TM.ceming.openDialog():(typeof toast===\'function\'&&toast(\'策名未就绪\'))" style="padding:5px 12px;font-size:12px;margin-right:6px;" title="策名·将历史人物纳入人物志">策　名</button>'
     +'<span class="rw-tools-lbl">\u62AB \u89C8</span>'
-    +'<div class="rw-search-wrap"><input id="rw-search" class="rw-search" placeholder="\u641C\u7D22\u59D3\u540D\u00B7\u5B57\u53F7\u00B7\u5B98\u804C\u2026" oninput="_rwSearch=this.value;renderRenwu();"></div>'
+    +'<div class="rw-search-wrap"><input id="rw-search" class="rw-search" placeholder="\u641C\u7D22\u59D3\u540D\u00B7\u5B57\u53F7\u00B7\u5B98\u804C\u2026" oninput="_rwSearch=this.value;(typeof _rwScheduleRender===\'function\'?_rwScheduleRender():renderRenwu());"></div>'
     +'<select id="rw-faction" class="rw-filter" onchange="_rwFaction=this.value;renderRenwu();"><option value="all">\u5168\u90E8\u6D3E\u7CFB</option></select>'
     +'<select id="rw-role" class="rw-filter" onchange="_rwRole=this.value;renderRenwu();"><option value="all">\u5168\u90E8\u8EAB\u4EFD</option><option value="civil">\u6587\u81E3</option><option value="military">\u6B66\u5C06</option><option value="harem">\u540E\u5BAB</option><option value="none">\u5E03\u8863</option></select>'
     +'<select id="rw-sort" class="rw-filter" onchange="_rwSort=this.value;renderRenwu();"><option value="loyalty">\u6392\uFF1A\u5FE0\u8BDA</option><option value="intelligence">\u6392\uFF1A\u667A\u529B</option><option value="administration">\u6392\uFF1A\u653F\u52A1</option><option value="military">\u6392\uFF1A\u519B\u4E8B</option><option value="ambition">\u6392\uFF1A\u91CE\u5FC3</option></select>'
@@ -2483,14 +2091,14 @@ function renderGameState(){
   // P3: 省份民情面板（地方舆情）
   if (P.adminHierarchy) {
     var _dfBtn=document.createElement("button");_dfBtn.className="g-tab-btn";_dfBtn.innerHTML=_ti('faction',13)+' \u5730\u65B9';
-    _dfBtn.onclick=function(){switchGTab(_dfBtn,"gt-difang");_renderDifangPanel();};tabBar.appendChild(_dfBtn);
+    _dfBtn.onclick=function(){switchGTab(_dfBtn,"gt-difang");};tabBar.appendChild(_dfBtn);
     var _dfP=document.createElement("div");_dfP.className="g-tab-panel";_dfP.id="gt-difang";_dfP.style.cssText="flex:1;overflow-y:auto;padding:0;";
     _dfP.innerHTML='<div class="df-panel-wrap"><div class="df-inner">'
       +'<div class="df-title"><div class="seal">\u5730<br>\u65B9</div><div class="main">\u5730 \u65B9 \u8206 \u60C5</div><div class="sub">\u4E00 \u7701 \u4E00 \u6C11 \u60C5\u3000\u3000\u6309 \u5BDF \u629A \u6C11 \u00B7 \u5B89 \u6C11 \u4E3A \u672C</div></div>'
       +'<div id="df-statbar" class="df-statbar"></div>'
       +'<div class="df-tools">'
       +'<span class="df-tools-lbl">\u6309 \u5BDF</span>'
-      +'<div class="df-search-wrap"><input id="df-search" class="df-search" placeholder="\u641C\u7D22\u5730\u540D\u00B7\u5B98\u540D\u00B7\u4E8B\u7531\u2026\u2026" oninput="_dfSearch=this.value;_renderDifangPanel();"></div>'
+      +'<div class="df-search-wrap"><input id="df-search" class="df-search" placeholder="\u641C\u7D22\u5730\u540D\u00B7\u5B98\u540D\u00B7\u4E8B\u7531\u2026\u2026" oninput="_dfSearch=this.value;(typeof _dfScheduleRender===\'function\'?_dfScheduleRender():_renderDifangPanel());"></div>'
       +'<select id="df-sort" class="df-filter" onchange="_dfSort=this.value;_renderDifangPanel();"><option value="name">\u6392\uFF1A\u540D\u79F0</option><option value="unrest">\u6392\uFF1A\u6C11\u53D8 \u2191</option><option value="corruption">\u6392\uFF1A\u8150\u8D25 \u2191</option><option value="population">\u6392\uFF1A\u4EBA\u53E3 \u2193</option><option value="tax">\u6392\uFF1A\u7A0E\u6536 \u2193</option></select>'
       +'<label class="df-chk"><input type="checkbox" id="df-crisis" onchange="_dfCrisis=this.checked;_renderDifangPanel();">\u26A0 \u4EC5 \u5371 \u673A</label>'
       +'<button class="df-export" onclick="if(typeof openProvinceEconomy===\'function\')openProvinceEconomy();">\u8BE6 \u7EC6 \u533A \u5212</button>'
@@ -2910,305 +2518,14 @@ function _applyPolishedEdict(mode) {
   if (typeof renderQiju === 'function') renderQiju();
 }
 
-// 按品级推算官职 publicTreasuryInit 默认值（当 scenario 未提供时）
-// 设计原则：中央高位官库厚·州县中等·杂职寡薄·虚衔/无品级近零
-// 史实基准：户部/内阁年支度银百万级·六部尚书署衙银十万级·州县几千两·七品以下千两以下
-function _inferPublicTreasuryByRank(p, deptName) {
-  var rankStr = (typeof p.rank === 'string' ? p.rank : '') + '|' + (p.name || '');
-  var numMap = { '一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9 };
-  var m = rankStr.match(/(正|从)([一二三四五六七八九])品/);
-  var rank = m ? numMap[m[2]] : 0;
-  // 部门类型加成：户部/工部/兵部 库银厚·礼部/翰林清要薄·御史言官中等
-  var deptBoost = 1;
-  var dn = (deptName || '') + (p.name || '');
-  if (/户部|度支|太仓|工部|营造|河道|节慎库|宝泉|宝源/.test(dn)) deptBoost = 2.0;
-  else if (/兵部|京营|武库|马政/.test(dn)) deptBoost = 1.5;
-  else if (/礼部|翰林|国子|詹事/.test(dn)) deptBoost = 0.4;
-  else if (/御史|都察|按察|科道/.test(dn)) deptBoost = 0.6;
-  else if (/吏部|刑部|大理寺/.test(dn)) deptBoost = 1.0;
-  // 内阁特殊：辅臣有票拟权·公库不大但贵
-  if (/首辅|次辅|大学士|阁臣/.test(p.name || '')) deptBoost = 0.3;
-  // 按品级查表（年用度 → 摊到当前库存约 1/4 ≈ 当季可用）
-  var moneyTier = {
-    1: 200000,  2: 100000, 3: 50000,  4: 20000,
-    5: 8000,    6: 3000,   7: 1500,   8: 600,    9: 300
-  };
-  var grainTier = { 1: 50000, 2: 25000, 3: 12000, 4: 5000, 5: 2000, 6: 800, 7: 400, 8: 150, 9: 60 };
-  var clothTier = { 1: 8000,  2: 4000,  3: 2000,  4: 800,  5: 300,  6: 120, 7: 60,  8: 30,  9: 15 };
-  if (!rank || rank < 1) {
-    // 无品级·杂职/吏员/未入流·寡薄
-    return { money: 100, grain: 30, cloth: 10 };
-  }
-  return {
-    money: Math.round((moneyTier[rank] || 300) * deptBoost),
-    grain: Math.round((grainTier[rank] || 60) * deptBoost),
-    cloth: Math.round((clothTier[rank] || 15) * deptBoost),
-    quotaMoney: Math.round((moneyTier[rank] || 300) * deptBoost * 4),  // 年配额 ≈ 当前 × 4
-    quotaGrain: Math.round((grainTier[rank] || 60) * deptBoost * 4),
-    quotaCloth: Math.round((clothTier[rank] || 15) * deptBoost * 4)
-  };
-}
 
-// 官职公库初始化：walk officeTree，从 publicTreasuryInit 建立 live publicTreasury
-// 若无 publicTreasuryInit 则按品级+部门自动推算·保证所有官职都有公库显示
-function _initOfficePublicTreasury(nodes, deptName) {
-  (nodes || []).forEach(function(n) {
-    if (!n) return;
-    var dn = deptName ? (deptName + '·' + (n.name || '')) : (n.name || '');
-    (n.positions || []).forEach(function(p) {
-      if (!p) return;
-      // 若已有 live publicTreasury 则跳过（保存加载时不覆盖）
-      if (p.publicTreasury && p.publicTreasury.money && p.publicTreasury.money.stock != null) return;
-      var init = p.publicTreasuryInit;
-      // ★ 若 scenario 没显式写 publicTreasuryInit·按品级+部门自动推算·避免 stock=0 显示
-      if (!init || (init.money == null && init.grain == null && init.cloth == null)) {
-        init = _inferPublicTreasuryByRank(p, dn);
-        p._publicTreasuryInferred = true;  // 标记自动推算·UI 可显示『推算』tag
-      }
-      p.publicTreasury = {
-        money: { stock: init.money || 0, quota: init.quotaMoney || 0, used: 0, available: init.money || 0, deficit: 0 },
-        grain: { stock: init.grain || 0, quota: init.quotaGrain || 0, used: 0, available: init.grain || 0, deficit: 0 },
-        cloth: { stock: init.cloth || 0, quota: init.quotaCloth || 0, used: 0, available: init.cloth || 0, deficit: 0 },
-        currentHead: p.holder || null,
-        previousHead: null,
-        handoverLog: []
-      };
-    });
-    if (n.subs) _initOfficePublicTreasury(n.subs, dn);
-  });
-}
 
-// 按品级推算角色私产初始值（当剧本未给定 wealthInit 且 wealth 为字符串描述时）
-// 兼容从 rank(数字) 和 officialTitle(如"从四品"/"正二品") 两种输入
-function _parseRankNumber(ch) {
-  // 1. 直接用 rank 数字
-  if (typeof ch.rank === 'number' && ch.rank >= 1 && ch.rank <= 9) return ch.rank;
-  // 2. 从 officialTitle/rank 字符串解析"正X品/从X品"
-  var rankStr = (typeof ch.rank === 'string' ? ch.rank : '') + '|' + (ch.officialTitle || '') + '|' + (ch.title || '');
-  var numMap = { '一':1, '二':2, '三':3, '四':4, '五':5, '六':6, '七':7, '八':8, '九':9 };
-  var m = rankStr.match(/(正|从)([一二三四五六七八九])品/);
-  if (m) {
-    var r = numMap[m[2]];
-    // 从品加 0.5 档，但结果仍取整数档位（1-9）
-    return r;
-  }
-  // 3. 无品级 → 0（平民/未入仕）
-  return 0;
-}
-function _inferPrivateWealthByRank(ch) {
-  var r = _parseRankNumber(ch);
-  // 品级越高私产越丰（明清历史参照·单位 两/亩）
-  var tiers = {
-    1:  { money: 50000, land: 10000, treasure: 30000, slaves: 200, commerce: 20000 },  // 正一品
-    2:  { money: 30000, land:  8000, treasure: 20000, slaves: 150, commerce: 15000 },  // 正二品
-    3:  { money: 15000, land:  5000, treasure: 10000, slaves: 100, commerce:  8000 },  // 正三品
-    4:  { money:  8000, land:  3000, treasure:  5000, slaves:  60, commerce:  4000 },  // 正四品
-    5:  { money:  4000, land:  1500, treasure:  2500, slaves:  30, commerce:  2000 },  // 正五品
-    6:  { money:  2000, land:   800, treasure:  1200, slaves:  15, commerce:  1000 },  // 正六品
-    7:  { money:  1000, land:   400, treasure:   600, slaves:   8, commerce:   500 },  // 正七品
-    8:  { money:   500, land:   200, treasure:   300, slaves:   4, commerce:   200 },  // 正八品
-    9:  { money:   200, land:   100, treasure:   150, slaves:   2, commerce:   100 }   // 正九品
-  };
-  // 无品级 → 平民/未入仕基准（很低）
-  if (!r || r < 1) return { money: 100, land: 50, treasure: 50, slaves: 0, commerce: 50 };
-  return tiers[Math.min(9, r)] || tiers[9];
-}
-
-// 从 wealth 字符串中解析数字线索（如"田 4 万顷"→ land = 40000*100, "家丁 3000"→ slaves = 3000）
-function _parseWealthString(s) {
-  if (!s || typeof s !== 'string') return {};
-  var out = {};
-  // 田 N 万顷
-  var m1 = s.match(/田\s*(\d+(?:\.\d+)?)\s*万?顷/);
-  if (m1) {
-    var qing = parseFloat(m1[1]);
-    if (s.indexOf('万顷') >= 0) qing *= 10000;
-    out.land = Math.round(qing * 100);  // 1 顷 = 100 亩
-  } else {
-    var m2 = s.match(/田\s*(\d+(?:\.\d+)?)\s*万?亩/);
-    if (m2) {
-      var mu = parseFloat(m2[1]);
-      if (s.indexOf('万亩') >= 0) mu *= 10000;
-      out.land = Math.round(mu);
-    }
-  }
-  // 家丁 N
-  var m3 = s.match(/家丁\s*(\d+(?:\.\d+)?)\s*(千|万)?/);
-  if (m3) {
-    var n = parseFloat(m3[1]);
-    var mu2 = m3[2] === '万' ? 10000 : m3[2] === '千' ? 1000 : 1;
-    out.slaves = Math.round(n * mu2);
-  }
-  // 富甲天下 / 抄没 X 万两
-  var m4 = s.match(/(?:抄没估?|家?产)\s*(\d+)\s*万?两/);
-  if (m4) {
-    var v = parseInt(m4[1]);
-    if (s.indexOf('万两') >= 0 || s.indexOf('万') >= 0) v *= 10000;
-    out.money = v;
-  }
-  // 富甲天下 / 豪富 关键词
-  if (/富甲天下|豪富|巨富/.test(s)) {
-    out._rich = true;  // rank-based * 5
-  } else if (/家境殷实|小有资产/.test(s)) {
-    out._rich = false;
-  } else if (/清贫|贫困|寒素/.test(s)) {
-    out._poor = true;  // rank-based * 0.3
-  }
-  return out;
-}
-
-// 初始化所有角色的 privateWealth
-function _initCharacterPrivateWealth(chars) {
-  var _isLeader = function(c){
-    if (!c) return false;
-    // 皇帝
-    if (c.role === '皇帝' || c.officialTitle === '皇帝') return true;
-    if (c.isPlayer && c.royalRelation === 'emperor_family' && c.isRoyal) return true;
-    if (c.title && /明思宗|崇祯帝|庄烈帝|皇帝/.test(c.title)) return true;
-    // 势力领袖
-    var facs = (GM && GM.facs) || [];
-    for (var i = 0; i < facs.length; i++) {
-      var f = facs[i]; if (!f) continue;
-      if (f.leader === c.name) return true;
-      if (f.leadership && f.leadership.ruler === c.name) return true;
-    }
-    return false;
-  };
-  (chars || []).forEach(function(ch) {
-    if (!ch || ch.alive === false) return;
-    if (!ch.resources) ch.resources = {};
-    // 领袖：跳过五大类赋值，其私产=内帑/领袖私库 镜像（由 updatePublicTreasuryMirror 同步）
-    if (_isLeader(ch)) {
-      if (typeof CharEconEngine !== 'undefined') {
-        try { CharEconEngine.ensureCharResources(ch); } catch(_){}
-        try { CharEconEngine.updatePublicTreasuryMirror(ch); } catch(_){}
-      }
-      return;
-    }
-    // 若 resources.privateWealth 已有有效数据（存档加载）·补齐 4 缺字段(land/treasure/slaves/commerce)再跳过
-    // scenario 多数 chars 只写 {money,grain,cloth} 3 字段·缺 4 字段会导致 UI 田亩/珍宝/僮仆/商铺 全显示 0
-    if (ch.resources.privateWealth && (ch.resources.privateWealth.money > 0 || ch.resources.privateWealth.land > 0)) {
-      var pw = ch.resources.privateWealth;
-      // 跳过领袖私库(已是内帑镜像)
-      if (!pw.isNeitang) {
-        // 任一字段缺失则按品级补齐(money 已有则保留)
-        if (pw.land == null || pw.treasure == null || pw.slaves == null || pw.commerce == null) {
-          var inferred = _inferPrivateWealthByRank(ch);
-          if (pw.land == null) pw.land = inferred.land;
-          if (pw.treasure == null) pw.treasure = inferred.treasure;
-          if (pw.slaves == null) pw.slaves = inferred.slaves;
-          if (pw.commerce == null) pw.commerce = inferred.commerce;
-        }
-      }
-      return;
-    }
-    // 剧本可直接提供 wealthInit 覆盖全部
-    if (ch.wealthInit && typeof ch.wealthInit === 'object') {
-      ch.resources.privateWealth = {
-        money: ch.wealthInit.money || 0,
-        land: ch.wealthInit.land || 0,
-        treasure: ch.wealthInit.treasure || 0,
-        slaves: ch.wealthInit.slaves || 0,
-        commerce: ch.wealthInit.commerce || 0
-      };
-      if (ch.wealthInit.hidden != null) ch.hiddenWealth = ch.wealthInit.hidden;
-      return;
-    }
-    // 按品级推算基准
-    var base = _inferPrivateWealthByRank(ch);
-    // 从 wealth 字符串解析线索叠加
-    var parsed = _parseWealthString(ch.wealth || '');
-    if (parsed._rich) {
-      ['money','land','treasure','slaves','commerce'].forEach(function(k){ base[k] = Math.round(base[k] * 5); });
-    }
-    if (parsed._poor) {
-      ['money','land','treasure','slaves','commerce'].forEach(function(k){ base[k] = Math.round(base[k] * 0.3); });
-    }
-    // 具体数字线索覆盖
-    ['money','land','treasure','slaves','commerce'].forEach(function(k){
-      if (parsed[k] != null && parsed[k] > 0) base[k] = parsed[k];
-    });
-    ch.resources.privateWealth = base;
-  });
-}
-
-// ═══════════════════════════════════════════════════════════════════
-// B.6 · 官制最小权限判定 · canPerformAction
-// 让 scenario position.powers 配置(appointment/impeach/taxCollect/militaryCommand/supervise/yinBu)
-// 真正参与运行时权限判定·不再仅作 prompt 描述
-// ═══════════════════════════════════════════════════════════════════
-function _findPositionByCharName(charName) {
-  if (!charName || !GM.officeTree) return null;
-  var found = null;
-  function _walk(nodes) {
-    if (!Array.isArray(nodes) || found) return;
-    nodes.forEach(function(n) {
-      if (!n || found) return;
-      (n.positions || []).forEach(function(p) {
-        if (found) return;
-        if (p && p.holder === charName) {
-          found = { pos: p, dept: n.name };
-        }
-      });
-      if (!found && n.subs) _walk(n.subs);
-    });
-  }
-  _walk(GM.officeTree);
-  return found;
-}
-
-/**
- * 检查 charName 是否有 action 权限·返回 {can:bool, reason:string}
- * action ∈ 'appointment'(辟署/任免) | 'impeach'(弹劾) | 'taxCollect'(征税/加派) |
- *         'militaryCommand'(调兵) | 'supervise'(监察) | 'yinBu'(荫补)
- * 皇帝/势力领袖/未在职者特例处理
- */
-function canPerformAction(charName, action) {
-  // 皇帝绝对权
-  var ch = (GM.chars || []).find(function(c) { return c.name === charName; });
-  if (!ch) return { can: false, reason: '人不存' };
-  if (ch.role === '皇帝' || ch.officialTitle === '皇帝' ||
-      (ch.title && /明思宗|崇祯帝|庄烈帝|皇帝/.test(ch.title))) {
-    return { can: true, reason: '帝王至尊' };
-  }
-  // 势力领袖在自境内有权
-  var facs = (GM && GM.facs) || [];
-  for (var i = 0; i < facs.length; i++) {
-    var f = facs[i]; if (!f) continue;
-    if (f.leader === charName || (f.leadership && f.leadership.ruler === charName)) {
-      return { can: true, reason: '势力领袖' };
-    }
-  }
-  // 普通官员·查 officeTree 找其在职位置
-  var hit = _findPositionByCharName(charName);
-  if (!hit) return { can: false, reason: charName + ' 未在职' };
-  var p = hit.pos;
-  var powers = p.powers || {};
-  if (powers[action] === true) {
-    return { can: true, reason: hit.dept + '·' + p.name + ' 有 ' + action + ' 之权' };
-  }
-  // 内阁辅臣特例：首辅次辅有 appointment/impeach/supervise
-  if (/首辅|次辅|大学士|阁臣/.test(p.name) && /appointment|impeach|supervise/.test(action)) {
-    return { can: true, reason: '阁臣辅政' };
-  }
-  // 都察院特例：御史有 impeach/supervise
-  if (/御史|都察|按察/.test(p.name) && /impeach|supervise/.test(action)) {
-    return { can: true, reason: hit.dept + '·风宪之臣' };
-  }
-  return { can: false, reason: hit.dept + '·' + p.name + ' 无 ' + action + ' 之权' };
-}
-
-if (typeof window !== 'undefined') {
-  window.canPerformAction = canPerformAction;
-  window._findPositionByCharName = _findPositionByCharName;
-}
 
 // 注册结算步骤（top-level·使存档加载路径也生效——
 // 历史问题：原先放在 startGame 内·loadFromSlot/fullLoadGame 不会走 startGame·
 // 导致存档玩家全部信件永远卡 traveling·UI 显示"信使逾期/失踪"。）
 if (typeof SettlementPipeline !== 'undefined') {
   SettlementPipeline.register('letters', '鸿雁传书', function() { _settleLettersAndTravel(); }, 42, 'perturn');
-  SettlementPipeline.register('office_mourning', '丁忧/考课结算', function() { _settleOfficeMourning(); }, 45, 'perturn');
 }
 
 /** 控制台·信件医生：一键修复存量卡死信件
@@ -3326,10 +2643,10 @@ function letterDiag() {
     if (!l) return;
     byStatus[l.status||'?'] = (byStatus[l.status||'?']||0) + 1;
     if (l._npcInitiated) npcInit++; else if (l.from === '玩家') playerSent++;
-    if (l.status === 'traveling' && typeof l.deliveryTurn === 'number' && nowTurn > l.deliveryTurn + 1) {
+    if (l.status === 'traveling' && typeof l.deliveryTurn === 'number' && nowTurn > l.deliveryTurn + _hyTurnsForMonths(1)) {
       stuckTraveling.push({id:l.id, to:l.to, from:l.from, sentTurn:l.sentTurn, deliveryTurn:l.deliveryTurn, overdue: nowTurn - l.deliveryTurn});
     }
-    if (l.status === 'intercepted' && typeof l.deliveryTurn === 'number' && nowTurn > l.deliveryTurn + 3) {
+    if (l.status === 'intercepted' && typeof l.deliveryTurn === 'number' && nowTurn > l.deliveryTurn + _hyTurnsForMonths(3)) {
       stuckIntercepted.push({id:l.id, to:l.to, from:l.from, by:l.interceptedBy, deliveryTurn:l.deliveryTurn});
     }
   });

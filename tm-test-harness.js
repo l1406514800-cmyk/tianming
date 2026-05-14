@@ -57,6 +57,23 @@
     if (currentSuite) currentSuite.afterEach = fn;
   }
 
+  function quietExpectedConsole(fn) {
+    var c = window.console || console;
+    var oldError = c.error;
+    var oldWarn = c.warn;
+    var oldLog = c.log;
+    try {
+      c.error = function(){};
+      c.warn = function(){};
+      c.log = function(){};
+      return fn();
+    } finally {
+      c.error = oldError;
+      c.warn = oldWarn;
+      c.log = oldLog;
+    }
+  }
+
   // ─── expect assertions ───
   function expect(actual) {
     function fail(msg) {
@@ -187,7 +204,8 @@
     run: run,
     runOnly: runOnly,
     listSuites: listSuites,
-    getLastResults: function() { return lastResults; }
+    getLastResults: function() { return lastResults; },
+    quietExpectedConsole: quietExpectedConsole
   };
 
   // ─── Auto-run on ?test=1 ───
@@ -206,6 +224,7 @@
 (function(){
   if (typeof TM === 'undefined' || !TM.test) return;
   var describe = TM.test.describe, it = TM.test.it, expect = TM.test.expect;
+  var quietExpectedConsole = TM.test.quietExpectedConsole;
 
   describe('TM_AI_SCHEMA', function(){
     it('schema 已加载', function(){
@@ -247,24 +266,24 @@
       expect(typeof TM.validateAIOutput).toBe('function');
     });
     it('空对象返回 ok', function(){
-      var r = TM.validateAIOutput({}, 'test-empty');
+      var r = quietExpectedConsole(function(){ return TM.validateAIOutput({}, 'test-empty'); });
       expect(r.ok).toBeTruthy();
     });
     it('npc_actions 不再触发废弃警告', function(){
-      var r = TM.validateAIOutput({ npc_actions: [{ name: 'x', action: '上疏' }] }, 'test-npc-actions');
+      var r = quietExpectedConsole(function(){ return TM.validateAIOutput({ npc_actions: [{ name: 'x', action: '上疏' }] }, 'test-npc-actions'); });
       expect(r.warnings.length).toBe(0);
     });
     it('捕获 character_deaths 缺 name', function(){
-      var r = TM.validateAIOutput({ character_deaths: [{ reason: '病亡' }] }, 'test-missing-name');
+      var r = quietExpectedConsole(function(){ return TM.validateAIOutput({ character_deaths: [{ reason: '病亡' }] }, 'test-missing-name'); });
       expect(r.warnings.length).toBeGreaterThan(0);
     });
     it('类型错误：array 字段给对象', function(){
-      var r = TM.validateAIOutput({ character_deaths: { name: 'x' } }, 'test-type');
+      var r = quietExpectedConsole(function(){ return TM.validateAIOutput({ character_deaths: { name: 'x' } }, 'test-type'); });
       expect(r.errors.length).toBeGreaterThan(0);
       expect(r.ok).toBeFalsy();
     });
     it('未知字段产生警告', function(){
-      var r = TM.validateAIOutput({ unknown_fantasy_field: [] }, 'test-unknown');
+      var r = quietExpectedConsole(function(){ return TM.validateAIOutput({ unknown_fantasy_field: [] }, 'test-unknown'); });
       expect(r.warnings.length).toBeGreaterThan(0);
     });
   });
@@ -569,16 +588,16 @@
 
   describe('validator dialogue mode', function(){
     it('对话缺 reply 触发 error', function(){
-      var r = TM.validateAIOutput({ loyaltyDelta: 5 }, 'test-dialogue-no-reply', 'dialogue');
+      var r = quietExpectedConsole(function(){ return TM.validateAIOutput({ loyaltyDelta: 5 }, 'test-dialogue-no-reply', 'dialogue'); });
       expect(r.ok).toBeFalsy();
       expect(r.errors.length).toBeGreaterThan(0);
     });
     it('对话有 reply 通过', function(){
-      var r = TM.validateAIOutput({ reply: '臣以为...', loyaltyDelta: 0 }, 'test-dialogue-ok', 'dialogue');
+      var r = quietExpectedConsole(function(){ return TM.validateAIOutput({ reply: '臣以为...', loyaltyDelta: 0 }, 'test-dialogue-ok', 'dialogue'); });
       expect(r.ok).toBeTruthy();
     });
     it('mode 字段回传在结果里', function(){
-      var r = TM.validateAIOutput({ reply: 'x' }, 'test-mode', 'dialogue');
+      var r = quietExpectedConsole(function(){ return TM.validateAIOutput({ reply: 'x' }, 'test-mode', 'dialogue'); });
       expect(r.mode).toBe('dialogue');
     });
   });
@@ -789,7 +808,7 @@
   // ══════════════════════════════════════════════════════════
   // 模态框系统（R17 迁移后回归）
   // ══════════════════════════════════════════════════════════
-  describe('Modal System (tm-modal-system.js)', function(){
+  describe('Modal System (tm-ui-foundation.js)', function(){
     it('openGenericModal/closeGenericModal 已挂载', function(){
       expect(typeof openGenericModal).toBe('function');
       expect(typeof closeGenericModal).toBe('function');
@@ -905,7 +924,7 @@
       catch(e) { expect(true).toBeTruthy(); }
     });
     it('TM._migrationPlaceholders 包含 R22 占位', function(){
-      // R22 把 Settings UI 迁移到 tm-settings-ui.js 作为占位文件
+      // R22 Settings UI placeholder now lives in tm-ui-foundation.js.
       var list = (window.TM && TM._migrationPlaceholders) || [];
       var hasR22 = list.some(function(p){ return p.createdBy === 'R22'; });
       expect(hasR22).toBeTruthy();
@@ -1220,7 +1239,7 @@
     it('已加载', function(){
       expect(TM.namespaces).toBeDefined();
       expect(TM.Economy).toBeDefined();
-      expect(TM.MapSystem).toBeDefined();
+      expect(TM.Map).toBeDefined();
       expect(TM.Lizhi).toBeDefined();
       expect(TM.Guoku).toBeDefined();
       expect(TM.Neitang).toBeDefined();
@@ -1529,17 +1548,17 @@
   // 目标：后续大拆分 (R110/R111/R112) 前的护航，把单点 smoke 串成一条链
   // ────────────────────────────────────────────────────
   describe('E2E·启动存档读档回合链(R109)', function(){
-    it('TM.Storage 门面可用', function(){
-      expect(typeof TM.Storage).toBe('object');
-      expect(typeof TM.Storage.openManager).toBe('function');
-      expect(typeof TM.Storage.saveSlot).toBe('function');
-      expect(typeof TM.Storage.loadSlot).toBe('function');
-      expect(typeof TM.Storage.listSlots).toBe('function');
-      expect(typeof TM.Storage.db).toBe('object');
-      expect(typeof TM.Storage.db.isAvailable).toBe('function');
+    it('TM.Save 门面可用', function(){
+      expect(typeof TM.Save).toBe('object');
+      expect(typeof TM.Save.openManager).toBe('function');
+      expect(typeof TM.Save.saveSlot).toBe('function');
+      expect(typeof TM.Save.loadSlot).toBe('function');
+      expect(typeof TM.Save.listSlots).toBe('function');
+      expect(typeof TM.Save.db).toBe('object');
+      expect(typeof TM.Save.db.isAvailable).toBe('function');
     });
-    it('TM.MapSystem.open 统一入口存在', function(){
-      expect(typeof TM.MapSystem.open).toBe('function');
+    it('TM.Map.open 统一入口存在', function(){
+      expect(typeof TM.Map.open).toBe('function');
     });
     it('ErrorMonitor shim 与 TM.errors 贯通', function(){
       expect(typeof ErrorMonitor).toBe('object');
@@ -1559,7 +1578,7 @@
       expect(typeof renderGameState === 'function' || typeof window.renderGameState === 'function').toBe(true);
     });
     it('存档槽位枚举不崩（空/满都可）', function(){
-      var slots = TM.Storage.listSlots();
+      var slots = TM.Save.listSlots();
       expect(Array.isArray(slots)).toBe(true);
       slots.forEach(function(s){
         expect(typeof s.slotId).toBe('number');
@@ -1570,13 +1589,123 @@
       expect(typeof TM_SaveDB.save).toBe('function');
       expect(typeof TM_SaveDB.load).toBe('function');
     });
-    it('核心命名空间就位（R118 预置）', function(){
-      ['Economy','MapSystem','Lizhi','Guoku','Neitang','Storage','errors','state','guard','perf'].forEach(function(ns){
+    it('核心命名空间就位（R118 预置·R208 后 MapSystem→Map·Storage→Save）', function(){
+      ['Economy','Map','Lizhi','Guoku','Neitang','Save','errors','state','guard','perf'].forEach(function(ns){
         expect(typeof TM[ns]).toBe('object');
       });
       // TM.diff 是 function（curry 接口）
       // R143 删了 TM.register (零业务调用·设计未启用)
+      // R208 P6-α 删了 TM.MapSystem / TM.Storage 别名
       expect(typeof TM.diff).toBe('function');
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════
+  // [slice 1-3b·2026-05-07] endTurn 管道化结构性测试
+  // 不跑 endTurn 全流程(需真 GM/AI fixture)·只验证 namespace/step/API 装载正确
+  // 见 web/docs/endturn-data-flow.md
+  // ════════════════════════════════════════════════════════════
+  describe('TM.Endturn.Pipeline (slice 1)', function(){
+    it('Pipeline namespace 加载', function(){
+      expect(window.TM).toBeDefined();
+      expect(TM.Endturn).toBeDefined();
+      expect(TM.Endturn.Pipeline).toBeDefined();
+      expect(typeof TM.Endturn.Pipeline.run).toBe('function');
+      expect(typeof TM.Endturn.Pipeline.dryRun).toBe('function');
+      expect(typeof TM.Endturn.Pipeline.lastRun).toBe('function');
+      expect(typeof TM.Endturn.Pipeline.buildCtx).toBe('function');
+    });
+    it('PipelineSteps 注册 6 个 step', function(){
+      expect(TM.Endturn.PipelineSteps).toBeDefined();
+      expect(Array.isArray(TM.Endturn.PipelineSteps.list)).toBeTruthy();
+      expect(TM.Endturn.PipelineSteps.list.length).toBe(6);
+    });
+    it('6 step name 与 audit §4 切分一致', function(){
+      var names = TM.Endturn.PipelineSteps.list.map(function(s){return s.name;});
+      expect(names).toContain('prep');
+      expect(names).toContain('plan-prefetch');
+      expect(names).toContain('ai');
+      expect(names).toContain('post-ai-edict');
+      expect(names).toContain('systems');
+      expect(names).toContain('render-and-finalize');
+    });
+    it('每 step 有 fn + onError', function(){
+      TM.Endturn.PipelineSteps.list.forEach(function(s){
+        expect(typeof s.fn).toBe('function');
+        expect(['abort','continue','retry']).toContain(s.onError || 'abort');
+      });
+    });
+    it('dryRun 返回 6 step 结构', function(){
+      var dry = TM.Endturn.Pipeline.dryRun();
+      expect(Array.isArray(dry)).toBeTruthy();
+      expect(dry.length).toBe(6);
+      dry.forEach(function(s){
+        expect(s).toHaveProperty('name');
+        expect(s).toHaveProperty('onError');
+      });
+    });
+    it('buildCtx 返回 ctx 完整骨架', function(){
+      var ctx = TM.Endturn.Pipeline.buildCtx();
+      ['input','snapshots','prompt','subcalls','results','apply','followup','record','crossTurn','deferredSteps','meta'].forEach(function(k){
+        expect(ctx).toHaveProperty(k);
+      });
+      expect(Array.isArray(ctx.deferredSteps)).toBeTruthy();
+    });
+  });
+
+  describe('Pipeline step 业务集成 (slice 2-3a)', function(){
+    it('prep step 声明 _completedPrepPhases 字段', function(){
+      var prep = TM.Endturn.PipelineSteps.list.find(function(s){return s.name==='prep';});
+      expect(prep).toBeDefined();
+      expect(prep.writes.join(' ')).toContain('_completedPrepPhases');
+    });
+    it('plan-prefetch step 声明 ctx.subcalls.preXxxP 字段', function(){
+      var pp = TM.Endturn.PipelineSteps.list.find(function(s){return s.name==='plan-prefetch';});
+      expect(pp).toBeDefined();
+      expect(pp.writes.join(' ')).toContain('preThreeSystemsP');
+      expect(pp.writes.join(' ')).toContain('preLongTermP');
+    });
+    it('ai step 声明 ctx.results.aiResult 字段', function(){
+      var ai = TM.Endturn.PipelineSteps.list.find(function(s){return s.name==='ai';});
+      expect(ai).toBeDefined();
+      expect(ai.writes.join(' ')).toContain('ctx.results.aiResult');
+      expect(ai.onError).toBe('abort');
+    });
+    it('post-AI 三 step 仍是 noop placeholder', function(){
+      ['post-ai-edict','systems','render-and-finalize'].forEach(function(n){
+        var s = TM.Endturn.PipelineSteps.list.find(function(x){return x.name===n;});
+        expect(s).toBeDefined();
+        // 占位 fn 体应只 return ctx·将来 slice 4-6 替换
+      });
+    });
+  });
+
+  describe('EndTurnHooks Fragment API (slice 3b.1+3b.3)', function(){
+    it('registerFragment + collectFragments 已 export', function(){
+      expect(window.EndTurnHooks).toBeDefined();
+      expect(typeof EndTurnHooks.registerFragment).toBe('function');
+      expect(typeof EndTurnHooks.collectFragments).toBe('function');
+    });
+    it('getStats 含 fragments 字段', function(){
+      var stats = EndTurnHooks.getStats();
+      expect(stats).toHaveProperty('fragments');
+      expect(typeof stats.fragments).toBe('number');
+    });
+    it('hook 6.6 已迁 fragment (summary-rule·至少 1 fragment)', function(){
+      var stats = EndTurnHooks.getStats();
+      expect(stats.fragments).toBeGreaterThan(0);
+    });
+    it('collectFragments 返回数组', function(){
+      var frags = EndTurnHooks.collectFragments({});
+      expect(Array.isArray(frags)).toBeTruthy();
+      // summary-rule fragment·只在 P.conf.summaryRule 非空时返回 text·此处 P 可能未配置·允许空
+    });
+    it('注册临时 fragment·collect 能拿到', function(){
+      var sentinel = '___TEST_FRAGMENT_' + Date.now() + '___';
+      EndTurnHooks.registerFragment('__test-suite-sentinel', function(){ return sentinel; });
+      var frags = EndTurnHooks.collectFragments({});
+      var found = frags.some(function(f){ return f.text === sentinel; });
+      expect(found).toBeTruthy();
     });
   });
 

@@ -187,7 +187,7 @@
         if (global.addEB) global.addEB('藩镇', _regName + ' 自立\uFF08\u72EC\u7ACB\u85E9\u9547\uFF09');
         // 皇权皇威损
         if (global._adjAuthority) {
-          global._adjAuthority('huangquan', -8);
+          global._adjAuthority('huangquan', -8, '\u85e9\u9547\u81ea\u7acb', { source:'ledger-paper-feudal' });
           global._adjAuthority('huangwei', -10);
         }
         if (typeof global.EventBus !== 'undefined') {
@@ -325,7 +325,7 @@
     if (G.huangquan && G.huangquan.index < cost.hwMin) return { ok: false, reason: '皇权不足以推行' };
     if (G.guoku && G.guoku.money < cost.money) return { ok: false, reason: '帑廪不足' };
     if (G.guoku) G.guoku.money -= cost.money;
-    if (global._adjAuthority) global._adjAuthority('huangquan', -cost.huangquan);
+    if (global._adjAuthority) global._adjAuthority('huangquan', -cost.huangquan, '\u63a8\u884c\u6280\u672f\u7275\u52a8\u5730\u65b9\u6743\u529b', { source:'ledger-paper-tech' });
     // 应用技术
     if (G.environment && G.environment.byRegion) {
       Object.values(G.environment.byRegion).forEach(function(r) {

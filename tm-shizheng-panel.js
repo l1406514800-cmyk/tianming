@@ -61,6 +61,17 @@ function closeShizhengTasks() {
   if (det) det.remove();
 }
 
+function _mzPromptComposerAddon(ch) {
+  var composer = (typeof TM !== 'undefined' && TM.PromptComposer) ? TM.PromptComposer : null;
+  if (!composer || !ch) return '';
+  var out = '';
+  try {
+    if (typeof composer.buildAiPersonaText === 'function') out += composer.buildAiPersonaText(ch) || '';
+    if (typeof composer.buildRecognitionState === 'function') out += composer.buildRecognitionState(ch) || '';
+  } catch (_) {}
+  return out;
+}
+
 function _renderShizhengCard(issue, _esc) {
   _esc = _esc || ((typeof escHtml === 'function') ? escHtml : function(s){return String(s==null?'':s);});
   var isPending = issue.status !== 'resolved';
@@ -633,6 +644,7 @@ function _mzSpeakMinister(ch, blockId, roundNum) {
   if (ch.party) sysP += '\n党派：' + ch.party + (ch.partyRank?'·'+ch.partyRank:'');
   if (ch.loyalty != null) sysP += '\n对君忠诚：' + ch.loyalty;
   if (memCtx) sysP += '\n近期心绪：' + memCtx;
+  sysP += _mzPromptComposerAddon(ch);
   if (typeof _buildTemporalConstraint === 'function') { try { sysP += _buildTemporalConstraint(ch); } catch(_){} }
 
   // 议题完整上下文
@@ -706,7 +718,14 @@ function _mzSpeakMinister(ch, blockId, roundNum) {
         // 忠诚微调
         var loyD = parseInt(parsed.loyaltyDelta, 10); if (!isNaN(loyD) && loyD !== 0) {
           var clamp = function(v,l,h){return Math.max(l, Math.min(h, v));};
-          ch.loyalty = clamp((ch.loyalty || 50) + clamp(loyD, -3, 3), 0, 100);
+          var _szLoyDelta = clamp(loyD, -3, 3);
+          if (typeof adjustCharacterLoyalty === 'function') {
+            var _szReason = (parsed.memoryImpact && parsed.memoryImpact.event) || ('\u5FA1\u524D\u72EC\u53EC\uFF1A' + ((d.issue && d.issue.title) || ''));
+            adjustCharacterLoyalty(ch, _szLoyDelta, _szReason, { source:'shizheng-dialogue', ai:true, defaultReason:'AI\u63A8\u6F14' });
+          } else {
+            var _szOldL = (typeof ch.loyalty === 'number' && isFinite(ch.loyalty)) ? ch.loyalty : 50;
+            ch.loyalty = clamp(_szOldL + _szLoyDelta, 0, 100);
+          }
           if (typeof OpinionSystem !== 'undefined' && OpinionSystem.addEventOpinion) {
             try { OpinionSystem.addEventOpinion(ch.name, '玩家', loyD * 3, '独召·' + (loyD>0?'受信任':'被冷落')); } catch(_){}
           }

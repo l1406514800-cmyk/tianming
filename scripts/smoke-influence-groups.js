@@ -13,12 +13,26 @@ const context = {
   Date,
   JSON,
   Math,
+  setTimeout: function(fn) { if (typeof fn === 'function') return fn(); return 0; },
+  clearTimeout: function() {},
+  addEventListener: function() {},
+  removeEventListener: function() {},
   GM: { turn: 1 },
   P: {},
-  scriptData: {}
+  scriptData: {},
+  document: {
+    readyState: 'complete',
+    addEventListener: function() {},
+    createElement: function() { return {}; },
+    querySelector: function() { return null; },
+    querySelectorAll: function() { return []; },
+    body: {},
+    head: {}
+  }
 };
 context.window = context;
 context.globalThis = context;
+context.document.defaultView = context;
 vm.createContext(context);
 
 function load(file) {

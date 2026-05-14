@@ -86,6 +86,77 @@ function loadOfficialScenario() {
   fail('official scenario not found in desktop JSON or built-in JS: ' + SID);
 }
 
+function assertFactionConsistency(sc) {
+  const factionNames = new Set((sc.factions || []).map((f) => f && f.name).filter(Boolean));
+  assert(factionNames.has('科尔沁蒙古'), 'official scenario missing 科尔沁蒙古 faction card');
+
+  const missingCharFaction = (sc.characters || [])
+    .filter((c) => c && c.faction && !factionNames.has(c.faction))
+    .map((c) => c.name + ':' + c.faction);
+  assert(missingCharFaction.length === 0, 'characters reference missing factions: ' + missingCharFaction.join(', '));
+
+  const badRelations = (sc.factionRelations || [])
+    .filter((r) => r && (!factionNames.has(r.from) || !factionNames.has(r.to)))
+    .map((r) => r.from + '->' + r.to);
+  assert(badRelations.length === 0, 'factionRelations reference missing factions: ' + badRelations.join(', '));
+
+  const adminByFaction = new Set(Object.values(sc.adminHierarchy || {})
+    .map((ah) => ah && ah.factionName)
+    .filter(Boolean));
+  const missingAdmin = Array.from(factionNames).filter((name) => !adminByFaction.has(name));
+  assert(missingAdmin.length === 0, 'factions missing province-level adminHierarchy: ' + missingAdmin.join(', '));
+}
+
+function assertHoujinCharacterExpansion(sc) {
+  const houjinNames = new Set((sc.characters || [])
+    .filter((c) => c && c.faction === '后金')
+    .map((c) => c.name)
+    .filter(Boolean));
+
+  [
+    '莽古尔泰',
+    '济尔哈朗',
+    '阿济格',
+    '多铎',
+    '佟养性',
+    '李永芳'
+  ].forEach((name) => {
+    assert(houjinNames.has(name), 'official scenario missing Later Jin expanded character: ' + name);
+  });
+
+  assert(houjinNames.size >= 11, 'expected at least 11 Later Jin characters after expansion, got ' + houjinNames.size);
+}
+
+function assertNpcAdminQuality(sc) {
+  const ah = sc.adminHierarchy || {};
+  Object.keys(ah).forEach((key) => {
+    if (key === 'player') return;
+    const tree = ah[key] || {};
+    const div = (tree.divisions || [])[0] || {};
+    assert(div.specialCulture, 'npc admin missing specialCulture: ' + key);
+    assert(div.strategicValue, 'npc admin missing strategicValue: ' + key);
+    assert(Array.isArray(div.recentDisasters) && div.recentDisasters.length > 0, 'npc admin missing recentDisasters: ' + key);
+  });
+
+  const bozhou = ah.bozhouYang && ah.bozhouYang.divisions && ah.bozhouYang.divisions[0];
+  assert(bozhou && Array.isArray(bozhou.tradeRoutes) && bozhou.tradeRoutes.length > 0, 'bozhou remnant missing tradeRoutes');
+  assert(bozhou && Array.isArray(bozhou.threats) && bozhou.threats.length > 0, 'bozhou remnant missing threats');
+  assert(/残|旧|余/.test(bozhou.description || ''), 'bozhou description should be framed as remnant, not formal tusi state');
+
+  const macau = ah.portugueseMacau && ah.portugueseMacau.divisions && ah.portugueseMacau.divisions[0];
+  const macauEth = macau && macau.byEthnicity || {};
+  assert((macauEth['汉'] || 0) >= 0.65, 'Macau Chinese share should dominate early-17c settlement');
+  assert(((macauEth['葡萄牙'] || 0) + (macauEth['土生葡人'] || 0)) <= 0.20, 'Macau Portuguese/Macanese share too high');
+
+  const dutch = ah.dutchFormosa && ah.dutchFormosa.divisions && ah.dutchFormosa.divisions[0];
+  const dutchEth = dutch && dutch.byEthnicity || {};
+  assert((dutchEth['荷兰'] || 0) <= 0.03, 'Dutch Formosa VOC European share too high');
+
+  const spanish = ah.spanishManila && ah.spanishManila.divisions && ah.spanishManila.divisions[0];
+  const spanishEth = spanish && spanish.byEthnicity || {};
+  assert((spanishEth['西班牙/拉美士兵'] || 0) <= 0.02, 'Spanish Manila Spaniard/Latin soldier share too high');
+}
+
 function makeContext(sc) {
   const logs = [];
   const ctx = {
@@ -166,16 +237,18 @@ function runFile(ctx, rel) {
 function main() {
   const loaded = loadOfficialScenario();
   const sc = loaded.scenario;
+  assertFactionConsistency(sc);
+  assertHoujinCharacterExpansion(sc);
+  assertNpcAdminQuality(sc);
   const ctx = makeContext(sc);
 
   [
     'tm-guoku-engine.js',
     'tm-neitang-engine.js',
-    'tm-economy-gap-fill.js',
+    'tm-economy-engine.js',
     'tm-region-enrich.js',
     'tm-integration-bridge.js',
-    'tm-fiscal-cascade.js',
-    'tm-fiscal-fixed-expense.js'
+    'tm-fiscal-engine.js'
   ].forEach((rel) => runFile(ctx, rel));
 
   assert(ctx.IntegrationBridge, 'IntegrationBridge missing');

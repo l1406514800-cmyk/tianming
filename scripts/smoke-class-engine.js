@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { readSource: readEndturnSource } = require('./smoke-endturn-baseline-helpers');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -222,14 +223,15 @@ assert(classScriptPos >= 0, 'index.html missing tm-class-engine.js');
 assert(inferScriptPos >= 0, 'index.html missing tm-endturn-ai-infer.js');
 assert(classScriptPos < inferScriptPos, 'tm-class-engine.js must load before endturn AI infer');
 
-const inferText = fs.readFileSync(path.join(ROOT, 'tm-endturn-ai-infer.js'), 'utf8');
-assert(inferText.indexOf('TM.ClassEngine.applyClassChange') >= 0, 'endturn infer missing class change hook');
-assert(inferText.indexOf('TM.ClassEngine.finalizeTurn') >= 0, 'endturn infer missing class finalize hook');
-assert(inferText.indexOf('TM.ClassEngine.buildAlertPrompt') >= 0, 'endturn infer missing class alert prompt hook');
-assert(inferText.indexOf('TM.ClassEngine.applyAlertResponses') >= 0, 'endturn infer missing class alert response hook');
-assert(inferText.indexOf('TM.ClassEngine.applyClassPartyCoupling') >= 0, 'endturn infer missing class party coupling hook');
-assert(inferText.indexOf('class_alert_responses') >= 0, 'endturn infer missing class alert response schema prompt');
-assert(inferText.indexOf('supportingParties:[{class:"倾向支持的党派",affinity:0.5-1}]') >= 0, 'endturn infer missing structured supportingParties prompt');
+// R209+ Phase 7 split: prompt / ai / apply / followup / record are read as one endturn family.
+const endturnText = readEndturnSource();
+assert(endturnText.indexOf('TM.ClassEngine.applyClassChange') >= 0, 'endturn infer missing class change hook');
+assert(endturnText.indexOf('TM.ClassEngine.finalizeTurn') >= 0, 'endturn infer missing class finalize hook');
+assert(endturnText.indexOf('TM.ClassEngine.buildAlertPrompt') >= 0, 'endturn infer missing class alert prompt hook');
+assert(endturnText.indexOf('TM.ClassEngine.applyAlertResponses') >= 0, 'endturn infer missing class alert response hook');
+assert(endturnText.indexOf('TM.ClassEngine.applyClassPartyCoupling') >= 0, 'endturn infer missing class party coupling hook');
+assert(endturnText.indexOf('class_alert_responses') >= 0, 'endturn infer missing class alert response schema prompt');
+assert(endturnText.indexOf('supportingParties:[{class:"倾向支持的党派",affinity:0.5-1}]') >= 0, 'endturn infer missing structured supportingParties prompt');
 
 const loopText = fs.readFileSync(path.join(ROOT, 'tm-game-loop.js'), 'utf8');
 assert(loopText.indexOf('TM.ClassEngine.bootstrap') >= 0, 'game loop missing class bridge bootstrap');

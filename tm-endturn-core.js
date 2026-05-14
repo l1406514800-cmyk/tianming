@@ -4,6 +4,12 @@
 // tm-endturn-core.js — 回合结算入口 (R110 从 tm-endturn.js L12712-end 拆出)
 // 职责: endTurn(入口)·_endTurnInternal·_endTurnCore (主管道·调 prep + ai-infer + 写回)
 // 姊妹: tm-endturn-prep.js + tm-endturn-ai-infer.js
+//
+// Domain: 回合结算 / pipeline (主管道入口)
+// Refactor notes:
+//   Phase 3·rename → tm-endturn-pipeline.js (final §4.2)
+//   Phase 5·namespace TM.Endturn.Pipeline
+// 见 web/docs/architecture-map.md §1 行 5
 // ============================================================
 
 async function _endTurnInternal() {
@@ -14,10 +20,23 @@ async function _endTurnInternal() {
 async function endTurn(){
   // 入口：显示"是否例行朝会"弹窗
   if (GM.busy) return;
+  try {
+    if (typeof window !== 'undefined' && window.TM && TM.FactionNpcInTurnDriver && TM.FactionNpcInTurnDriver.cancelInTurnTimers) {
+      TM.FactionNpcInTurnDriver.cancelInTurnTimers();
+    }
+  } catch(_npcInTurnCancelE) {
+    try { console.warn('[endTurn] NPC in-turn timer cancel failed', _npcInTurnCancelE); } catch(_){}
+  }
   _showPostTurnCourtPromptAndStartEndTurn();
 }
 
 async function _endTurnCore(){
+  // [slice 7c·2026-05-08] pipeline 是 endturn 唯一执行路径
+  // P.flags.useNewPipeline 已废止·观察者 try/catch fallback 已删·step.onError 接管错误
+  // pipeline.run 必须在 'await EndTurnHooks.execute(before)' 之后(slice 5 落地)
+  //   原因：systems step 等需要看到 before-hooks 的 GM mutation (钩子 1 mutate officeTree·钩子 2 push jishiRecords)
+  // 见 web/docs/endturn-data-flow.md
+  var _obsCtx = null;
   try{
   // 兼容新旧UI：老诏令面板按钮是btn-end，新UI右侧按钮是btn-end-turn
   var btn=_$("btn-end")||_$("btn-end-turn");
@@ -30,13 +49,8 @@ async function _endTurnCore(){
     showLoading("\u65F6\u79FB\u4E8B\u53BB",10);
   }
 
-  // 上回合 post-turn 任务必须先收束，再进入本回合 before hooks。
-  // 否则后台生成的历史偏离、NPC认知、世界快照等上下文可能晚于 prompt 注入。
-  try {
-    if (typeof _awaitPostTurnJobs === 'function') await _awaitPostTurnJobs();
-  } catch(_ptStartE) {
-    (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ptStartE, 'endTurn] await previous post-turn') : console.warn('[endTurn] await previous post-turn', _ptStartE);
-  }
+  // 上回合 post-turn 任务改到 AI prompt 构造前兜底等待。
+  // 入口不硬等，让 prep / 存档快照 / plan-prefetch 与上回合后台债务重叠。
 
   // ★ 过回合前自动存档·防 AI 长推演崩溃丢失本回合操作(诏令/奏疏批复/对话/调动)
   // 写入独立 IDB key 'pre_endturn'·与正常 autosave/slot_0 分离·不污染案卷目录
@@ -75,184 +89,19 @@ async function _endTurnCore(){
 
   await EndTurnHooks.execute('before');
 
-  // Phase 0-A·情节弧兜底·若 >=4 回合未更新则触发后台推进(不等待·不阻塞)
-  try {
-    if (typeof ensureCharArcsBeforeEndturn === 'function') {
-      ensureCharArcsBeforeEndturn();
-    }
-  } catch(_arcBE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_arcBE, 'endTurn] 情节弧兜底失败') : console.warn('[endTurn] 情节弧兜底失败', _arcBE); }
-
-  // Phase 0-0·清理本回合待下诏书快照（任免已正式颁布·不再可撤销）
-  try {
-    (function _clearPE(nodes){
-      (nodes||[]).forEach(function(n){
-        (n.positions||[]).forEach(function(p){ if (p && p._pendingEdict) { try { delete p._pendingEdict; } catch(_){} } });
-        if (n.subs) _clearPE(n.subs);
-      });
-    })(GM.officeTree||[]);
-  } catch(_peE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_peE, 'endTurn] clear _pendingEdict') : console.warn('[endTurn] clear _pendingEdict', _peE); }
-
-  // Phase 0-0b·兜底 sweep：清死亡/消失角色遗留 holder（防 character:death 事件漏发）
-  try {
-    if (typeof _offSweepGhostHolders === 'function') {
-      var _swR = _offSweepGhostHolders();
-      if (_swR && _swR.swept && _swR.swept.length > 0) {
-        console.log('[endTurn] ghost holder sweep:', _swR.swept.length, '条');
-        if (!GM._edictTracker) GM._edictTracker = [];
-        _swR.swept.forEach(function(g){
-          GM._edictTracker.push({
-            id: 'vacancy_sweep_' + Date.now() + '_' + g.name + '_' + g.pos,
-            content: g.dept + '\u00B7' + g.pos + '\u00B7' + g.name + ' \u5DF2\u975E\u5728\u4E16\u00B7\u804C\u4F4D\u81EA\u52A8\u7F3A\u5458\u3002',
-            category: '官缺', turn: GM.turn || 0, status: 'pending',
-            _vacancyFromSweep: g
-          });
-        });
-      }
-    }
-  } catch(_swE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_swE, 'endTurn] ghost sweep') : console.warn('[endTurn] ghost sweep', _swE); }
-
-  // Phase 0-0c·NPC 势力自动补任·扫外部派系控制的空缺官职·AI 代替 NPC 提名
-  try {
-    if (typeof _npcAutoAppointVacancies === 'function') {
-      var _napR = _npcAutoAppointVacancies();
-      if (_napR && _napR.appointed && _napR.appointed.length > 0) {
-        if (!GM._chronicle) GM._chronicle = [];
-        _napR.appointed.forEach(function(a){
-          GM._chronicle.push({
-            turn: GM.turn || 0, date: GM._gameDate || '',
-            type: 'NPC\u4EFB\u547D',
-            text: a.faction + ' \u5185\u90E8\u4EFB\u547D\uFF1A' + a.dept + '\u00B7' + a.pos + ' \u4EE5 ' + a.charName + ' \u5145\u3002',
-            tags: ['官职','NPC','任命']
-          });
-        });
-      }
-    }
-  } catch(_napE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_napE, 'endTurn] npc auto-appoint') : console.warn('[endTurn] npc auto-appoint', _napE); }
-
-  // Phase 0-0: 提交本回合所有奏疏决定的副作用（NPC 记忆 + 朱批回传）
-  try { if (typeof _commitMemorialDecisions === 'function') _commitMemorialDecisions(); } catch(_cmE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_cmE, 'endTurn] _commitMemorialDecisions') : console.warn('[endTurn] _commitMemorialDecisions', _cmE); }
-
-  // Phase 0-1: 初始化 + 收集输入
-  var npcContext = _endTurn_init();
-  var input = _endTurn_collectInput();
-  var edicts=input.edicts, xinglu=input.xinglu, memRes=input.memRes, oldVars=input.oldVars;
-
-  // 暂存昏君活动供 AI 推演使用
-  GM._turnTyrantActivities = input.tyrantActivities || [];
-
-  // Phase 1.7·三系统状态更新(势力/党争/军事)·让 AI 看到最新数值状态
-  try {
-    if (typeof updateThreeSystemsOnEndTurn === 'function') {
-      updateThreeSystemsOnEndTurn();
-    }
-  } catch(_tseE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_tseE, 'endTurn] 三系统更新失败') : console.warn('[endTurn] 三系统更新失败', _tseE); }
-
-  // Phase 1.75·NPC AI 决策器(每 3 回合·批量势力/党派/将领预规划)
-  var _preThreeSystemsP = null;
-  var _preLongTermP = null;
-  try {
-    if (typeof scThreeSystemsAI === 'function') {
-      _preThreeSystemsP = Promise.resolve(scThreeSystemsAI()).catch(function(e){
-        (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] pre three systems AI') : console.warn('[endTurn] pre three systems AI failed', e);
-      });
-    }
-  } catch(_nDE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_nDE, 'endTurn] NPC 决策器失败') : console.warn('[endTurn] NPC 决策器失败', _nDE); }
-
-  // Phase 1.8·长期行动摘要 AI 调用（过回合前读取全部长期诏书+编年·防长期项被推演遗忘）
-  try {
-    if (typeof aiDigestLongTermActions === 'function' && P.ai && P.ai.key) {
-      _preLongTermP = Promise.resolve(aiDigestLongTermActions()).catch(function(e){
-        (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'endTurn] long-term digest') : console.warn('[endTurn] long-term digest failed', e);
-      });
-    }
-  } catch(_ltdE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ltdE, 'endTurn] 长期摘要失败') : console.warn('[endTurn] 长期摘要失败', _ltdE); }
-
-  // Phase 2: AI 推演
-  try { if (_preThreeSystemsP) await _preThreeSystemsP; } catch(_nDE2) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_nDE2, 'endTurn] pre three systems AI') : console.warn('[endTurn] pre three systems AI failed', _nDE2); }
-  try { if (_preLongTermP) await _preLongTermP; } catch(_ltdE2) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ltdE2, 'endTurn] long-term digest') : console.warn('[endTurn] long-term digest failed', _ltdE2); }
-
-  var aiResult = await _endTurn_aiInfer(edicts, xinglu, memRes, oldVars);
-  var shizhengji=aiResult.shizhengji, zhengwen=aiResult.zhengwen, playerStatus=aiResult.playerStatus, playerInner=aiResult.playerInner||'', turnSummary=aiResult.turnSummary||'';
-  // 新增：实录、时政记标题/总结、人事变动、后人戏说
-  var shiluText=aiResult.shiluText||'', szjTitle=aiResult.szjTitle||'', szjSummary=aiResult.szjSummary||'';
-  var personnelChanges=aiResult.personnelChanges||[], hourenXishuo=aiResult.hourenXishuo||aiResult.zhengwen||'';
-  var timeRatio=aiResult.timeRatio;
-
-  // Phase 2.5: AI推演后执行玩家诏令（AI已看到意图并在推演中反应）
-  if (input.edictActions && (input.edictActions.appointments.length || input.edictActions.dismissals.length || input.edictActions.deaths.length)) {
-    applyEdictActions(input.edictActions);
+  // [slice 7b·2026-05-08] pipeline 是 endturn 唯一执行路径·legacy 6 phase 块全删
+  // 失败 throw 至外层 catch (line ~510)·toast 错误·清 busy
+  // observer try/catch fallback 已删·原 catch 是 legacy 兜底·legacy 已不存在
+  if (!(window.TM && TM.Endturn && TM.Endturn.Pipeline)) {
+    throw new Error('[endTurn] TM.Endturn.Pipeline missing — boot order broken?');
   }
+  _obsCtx = TM.Endturn.Pipeline.buildCtx();
+  await TM.Endturn.Pipeline.run(_obsCtx);
 
-  // Phase 2.6: 应用昏君活动效果
-  var tyrantResult = null;
-  if (typeof TyrantActivitySystem !== 'undefined' && GM._turnTyrantActivities && GM._turnTyrantActivities.length > 0) {
-    tyrantResult = TyrantActivitySystem.applyEffects(GM._turnTyrantActivities);
-  }
-
-  // Phase 3: 系统更新
-  var queueResult = await _endTurn_updateSystems(timeRatio, zhengwen);
-
-  // Phase 3.5·御批回听·对玩家诏令执行情况问责(post-inference·2000 tokens)
-  // ★ 后台化（2026-04-30）：玩家通常先看史记结果·御批回听面板按需查看·此调用挪到后台
-  // 结果写入 GM._edictEfficacyReport·下回合开始前 _awaitPostTurnJobs 会等齐·若提前打开面板则显示"生成中…"
-  try {
-    if (typeof aiEdictEfficacyAudit === 'function' && P.ai && P.ai.key) {
-      if (typeof _enqueuePostTurnJob === 'function') {
-        _enqueuePostTurnJob('edict_efficacy', function(){
-          return aiEdictEfficacyAudit(aiResult, edicts).catch(function(e){ console.warn('[endTurn] 御批回听后台失败', e); });
-        });
-      } else {
-        // 降级·无 post-turn 系统时仍同步跑(防 hook 未加载)
-        await aiEdictEfficacyAudit(aiResult, edicts);
-      }
-    }
-  } catch(_efE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_efE, 'endTurn] 御批回听失败') : console.warn('[endTurn] 御批回听失败', _efE); }
-
-  // 生成变化报告
-  var changeReportHtml = generateChangeReport();
-  var changes=[];Object.entries(GM.vars).forEach(function(e){var d=e[1].value-oldVars[e[0]];if(d!==0)changes.push({name:e[0],old:oldVars[e[0]],val:e[1].value,delta:d});});
-
-  // Phase 4: 渲染 + 存档 —— 若后朝仍在进行则延后到朝会结束
-  var _renderArgs = [shizhengji, zhengwen, playerStatus, playerInner, edicts, xinglu, oldVars, changeReportHtml, queueResult, aiResult.suggestions, tyrantResult, turnSummary, shiluText, szjTitle, szjSummary, personnelChanges, hourenXishuo];
-  if (GM._pendingShijiModal && GM._pendingShijiModal.courtDone === false) {
-    // 后朝进行中——暂存 payload，AI 完成但不弹史记；刷新底栏进度绿 banner
-    GM._pendingShijiModal.aiReady = true;
-    GM._pendingShijiModal.payload = _renderArgs;
-    if (typeof _updatePostTurnCourtBanner === 'function') _updatePostTurnCourtBanner('aiReady');
-    hideLoading();
-  } else {
-    _endTurn_render.apply(null, _renderArgs);
-    if (GM._pendingShijiModal) { GM._pendingShijiModal.aiReady = false; GM._pendingShijiModal.payload = null; }
-  }
-
-  // Phase 4.5: 勤政 streak 结算
-  try { if (typeof _settleCourtMeter === 'function') _settleCourtMeter(); } catch(_ccE) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ccE, 'endTurn] courtMeter') : console.warn('[endTurn] courtMeter', _ccE); }
-
-  // Phase 4.6: 角色路程推进·到达自动就任（AI 至高权力·Step 4）
-  try { if (typeof advanceCharTravelByDays === 'function') advanceCharTravelByDays((P.time && P.time.daysPerTurn) || 30); } catch(_trvE){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_trvE, 'endTurn] char travel tick') : console.warn('[endTurn] char travel tick', _trvE); }
-
-  // Phase 5: 后续钩子——后朝进行中则全部延后（避免 keju 等弹窗覆盖朝会）
-  if (GM._pendingShijiModal && GM._pendingShijiModal.courtDone === false) {
-    GM._pendingShijiModal.deferredPhase5 = async function() {
-      try { await EndTurnHooks.execute('after'); } catch(_ph5e){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_ph5e, 'postTurn] phase5 hooks') : console.warn('[postTurn] phase5 hooks', _ph5e); }
-      // v5·科举时间化推进（每回合累天数）
-      if (P.keju && (P.keju.currentExam || P.keju.currentEnke) && typeof advanceKejuByDays === 'function') {
-        try { advanceKejuByDays((P.time && P.time.daysPerTurn) || 30); } catch(_kjA){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_kjA, 'postTurn] keju advance') : console.warn('[postTurn] keju advance', _kjA); }
-      }
-      if (P.keju && P.keju.enabled && !P.keju.currentExam) {
-        try { await checkKejuTrigger(); } catch(_kj){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_kj, 'postTurn] keju') : console.warn('[postTurn] keju', _kj); }
-      }
-    };
-  } else {
-    await EndTurnHooks.execute('after');
-    // v5·科举时间化推进
-    if (P.keju && (P.keju.currentExam || P.keju.currentEnke) && typeof advanceKejuByDays === 'function') {
-      try { advanceKejuByDays((P.time && P.time.daysPerTurn) || 30); } catch(_kjA){ (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(_kjA, 'endTurn] keju advance') : console.warn('[endTurn] keju advance', _kjA); }
-    }
-    if (P.keju && P.keju.enabled && !P.keju.currentExam) {
-      await checkKejuTrigger();
-    }
-  }
+  // [slice 7b·2026-05-08] 6 phase legacy 块全删·下游只剩 pipeline 不接的 5.3+ tail
+  // pipeline 已完成: 0-A/0-0/0-0b/0-0c/0-0commit/0-1/1.7 (prep) + 1.75/1.8 (plan-prefetch) + 2 (ai)
+  //                 + 2.5/2.6 (post-ai-edict) + 3/3.5 (systems) + 4/4.5/4.6/5 (render-and-finalize)
+  // 失败 → executor 按 step.onError = abort 抛出 → 外 catch 接
 
   // Phase 5.3: 跨回合记忆摘要（1.3）——每5回合压缩近期事件为200字摘要
   (function _aiMemoryCompress() {
@@ -497,6 +346,7 @@ EndTurnHooks.register('before', function() {
 
 // 钩子 3: AI上下文注入 - 剧本文风（原 _origEndTurn3）
 EndTurnHooks.register('before', function() {
+  return; // [slice 3b.4·2026-05-07] migrated to fragment 'scenario-style' (registered at hooks region tail)
   if(P.ai.key){
     GM._origPrompt=P.ai.prompt;
     var fullPrompt=P.ai.prompt||DEFAULT_PROMPT;
@@ -540,6 +390,7 @@ EndTurnHooks.register('after', function() {
 
 // 钩子 5: AI上下文注入 - 起居注（原 _origEndTurn5）
 EndTurnHooks.register('before', function() {
+  return; // [slice 3b.4·2026-05-07] migrated to fragment 'qiju-history'
   if(P.ai.key&&GM.conv.length>0){
     var qijuLb=P.conf.qijuLookback||5;
     var recentQ=GM.qijuHistory.slice(-qijuLb);
@@ -571,6 +422,7 @@ EndTurnHooks.register('after', function() {
 
 // 钩子 6.5: AI 上下文注入 - 史记 N 回合(shijiLookback 唤醒)
 EndTurnHooks.register('before', function() {
+  return; // [slice 3b.4·2026-05-07] migrated to fragment 'shiji-history'
   if (P.ai && P.ai.key && GM.shijiHistory && GM.shijiHistory.length > 0) {
     var shijiLb = (P.conf && P.conf.shijiLookback) || 5;
     var recentS = GM.shijiHistory.slice(-shijiLb);
@@ -596,22 +448,18 @@ EndTurnHooks.register('after', function() {
 }, '恢复prompt-史记');
 
 // 钩子 6.6: AI 上下文注入 - 玩家总结规则(summaryRule 唤醒)
-EndTurnHooks.register('before', function() {
+// [slice 3b.3·2026-05-07 PoC] 迁 fragment·删 _origPromptSumRule before/after 配对
+// 原 before mutate P.ai.prompt + after restore·新 fragment 仅返回 text·prompt-builder 显式 join
+EndTurnHooks.registerFragment('summary-rule', function(ctx) {
   if (P.ai && P.ai.key && P.conf && P.conf.summaryRule && String(P.conf.summaryRule).trim()) {
-    if (!GM._origPromptSumRule) GM._origPromptSumRule = P.ai.prompt;
-    P.ai.prompt = (P.ai.prompt || "") + "\n\n=== 玩家总结风格与特殊指令（优先级高） ===\n" + P.conf.summaryRule.trim() + "\n——按此风格/指令总结本回合shizhengji/zhengwen·不得违背。";
+    return "\n\n=== 玩家总结风格与特殊指令（优先级高） ===\n" + P.conf.summaryRule.trim() + "\n——按此风格/指令总结本回合shizhengji/zhengwen·不得违背。";
   }
-}, 'AI上下文-玩家总结规则');
-
-EndTurnHooks.register('after', function() {
-  if (GM._origPromptSumRule !== undefined) {
-    P.ai.prompt = GM._origPromptSumRule;
-    delete GM._origPromptSumRule;
-  }
-}, '恢复prompt-总结规则');
+  return null;
+});
 
 // 钩子 6.7: AI 上下文注入 - 近期鸿雁传书摘要(letter 内容影响推演)
 EndTurnHooks.register('before', function() {
+  return; // [slice 3b.4·2026-05-07] migrated to fragment 'letters-recent'
   if (P.ai && P.ai.key && Array.isArray(GM.letters) && GM.letters.length > 0) {
     var curT = GM.turn || 1;
     // 近 3 回合往来信件·含玩家去信+NPC 来信
@@ -647,6 +495,7 @@ EndTurnHooks.register('after', function() {
 
 // 钩子 7: AI上下文注入 - 规则（原 _origEndTurn6）
 EndTurnHooks.register('before', function() {
+  return; // [slice 3b.4·2026-05-07] migrated to fragment 'ai-rules'
   if(P.ai.key&&P.ai.rules){
     if(!GM._origPrompt3)GM._origPrompt3=P.ai.prompt;
     P.ai.prompt=(P.ai.prompt||"")+"\n\n=== 规则 ===\n"+P.ai.rules;
@@ -762,6 +611,7 @@ EndTurnHooks.register('after', function() {
 
 // 钩子 9b: AI上下文注入 - 史实偏离待演绎（每回合 before·消费上回合 hist_check 产出）
 EndTurnHooks.register('before', function() {
+  return; // [slice 3b.4·2026-05-07] migrated to fragment 'historical-deviations' (TTL 衰减保留为后置 after hook)
   if (!P.ai || !P.ai.key) return;
   if (!Array.isArray(GM._historicalDeviations) || GM._historicalDeviations.length === 0) return;
 
@@ -801,6 +651,7 @@ EndTurnHooks.register('after', function() {
 
 // 钩子 11: 游戏模式注入（原 _origEndTurn11）
 EndTurnHooks.register('before', function() {
+  return; // [slice 3b.4·2026-05-07] migrated to fragment 'game-mode' (PREFIX position)
   var mode = (typeof P !== 'undefined' && P.conf && P.conf.gameMode) || 'yanyi';
   var origPrompt = (typeof P !== 'undefined' && P.ai && P.ai.prompt != null) ? P.ai.prompt : null;
 
@@ -828,6 +679,138 @@ EndTurnHooks.register('after', function() {
     delete GM._origPrompt11;
   }
 }, '恢复prompt-游戏模式');
+
+// ════════════════════════════════════════════════════════════
+// [slice 3b.4·2026-05-07] 6 个 prompt-mutating hook 批量迁 fragment paradigm
+// 上方对应 6 个 before-hook 已加 `return;` 早退·after-hook 中的 if-restore 自动 no-op
+// 见 web/docs/endturn-data-flow.md §5 obstacle #6
+// ════════════════════════════════════════════════════════════
+
+// fragment·剧本文风 (原 hook 3 _origPrompt)
+EndTurnHooks.registerFragment('scenario-style', function(ctx) {
+  if (!P.ai.key) return null;
+  var sc = (typeof findScenarioById === 'function') ? findScenarioById(GM.sid) : null;
+  var text = '';
+  if (sc && sc.scnStyle) text += "\n本剧本文风: " + sc.scnStyle;
+  if (sc && sc.scnStyleRule) text += "\n文风规则: " + sc.scnStyleRule;
+  var _styleMap = {
+    '文学化': '文辞优美，善用比喻和意象，情感充沛',
+    '史书体': '仿《资治通鉴》纪事本末体，言简意赅，重事实轻渲染',
+    '戏剧化': '矛盾冲突尖锐，人物对话生动，善用悬念和反转',
+    '章回体': '仿《三国演义》章回体小说，每段开头可用对仗回目，文白夹杂',
+    '纪传体': '仿《史记》纪传体，以人物为中心，"太史公曰"式评论',
+    '白话文': '现代白话文风格，通俗易懂，节奏明快'
+  };
+  if (P.conf && P.conf.style && _styleMap[P.conf.style]) text += "\n叙事文风: " + _styleMap[P.conf.style];
+  if (P.conf && P.conf.customStyle) text += "\n自定义文风: " + P.conf.customStyle;
+  if (sc && sc.refText) text += "\n参考: " + sc.refText;
+  if (P.conf && P.conf.refText) text += "\n全局参考: " + P.conf.refText;
+  if (P.world && P.world.entries && P.world.entries.length > 0) {
+    text += "\n\n=== 世界设定 ===";
+    P.world.entries.forEach(function(e){
+      if (e.category && e.title && e.content) text += "\n[" + e.category + "] " + e.title + ": " + e.content;
+    });
+  }
+  return text || null;
+});
+
+// fragment·起居注 (原 hook 5 _origPrompt2)
+EndTurnHooks.registerFragment('qiju-history', function(ctx) {
+  if (!(P.ai.key && GM.conv && GM.conv.length > 0)) return null;
+  var qijuLb = (P.conf && P.conf.qijuLookback) || 5;
+  var recentQ = (GM.qijuHistory || []).slice(-qijuLb);
+  if (recentQ.length === 0) return null;
+  var qijuText = "\n\n=== 近" + qijuLb + "回合起居注 ===\n";
+  recentQ.forEach(function(q){
+    qijuText += "T" + q.turn + " " + q.time + ":\n";
+    if (q.edicts) {
+      if (q.edicts.political) qijuText += "  政: " + q.edicts.political + "\n";
+      if (q.edicts.military) qijuText += "  军: " + q.edicts.military + "\n";
+      if (q.edicts.diplomatic) qijuText += "  外: " + q.edicts.diplomatic + "\n";
+      if (q.edicts.economic) qijuText += "  经: " + q.edicts.economic + "\n";
+    }
+    if (q.xinglu) qijuText += "  行: " + q.xinglu + "\n";
+  });
+  return qijuText;
+});
+
+// fragment·史记 N 回合 (原 hook 6.5 _origPromptShiji)
+EndTurnHooks.registerFragment('shiji-history', function(ctx) {
+  if (!(P.ai && P.ai.key && GM.shijiHistory && GM.shijiHistory.length > 0)) return null;
+  var shijiLb = (P.conf && P.conf.shijiLookback) || 5;
+  var recentS = GM.shijiHistory.slice(-shijiLb);
+  if (recentS.length === 0) return null;
+  var shijiText = "\n\n=== 近" + shijiLb + "回合史记·时政记/正文摘要 ===\n";
+  recentS.forEach(function(s){
+    shijiText += "T" + (s.turn || '?') + "·" + (s.time || '') + "\n";
+    if (s.szjTitle) shijiText += "  题：" + s.szjTitle + "\n";
+    if (s.shizhengji) shijiText += "  政：" + String(s.shizhengji).replace(/\s+/g, ' ').slice(0, 280) + "\n";
+    if (s.turnSummary) shijiText += "  要：" + String(s.turnSummary).slice(0, 120) + "\n";
+  });
+  return shijiText;
+});
+
+// fragment·近期鸿雁传书 (原 hook 6.7 _origPromptLtr)
+EndTurnHooks.registerFragment('letters-recent', function(ctx) {
+  if (!(P.ai && P.ai.key && Array.isArray(GM.letters) && GM.letters.length > 0)) return null;
+  var curT = GM.turn || 1;
+  var recentLs = GM.letters.filter(function(l){
+    return l && (curT - (l.sentTurn || l.deliveryTurn || 0)) <= 3;
+  }).slice(-10);
+  if (recentLs.length === 0) return null;
+  var lettersText = "\n\n=== 近期鸿雁传书摘要（推演需延续其情·不可忘）===\n";
+  recentLs.forEach(function(l){
+    var dir = l._npcInitiated ? (l.from + '→皇帝') : ('皇帝→' + l.to);
+    var typeL = (l.letterType || 'personal');
+    var urg = l.urgency === 'extreme' ? '(八百里加急)' : l.urgency === 'urgent' ? '(加急)' : '';
+    var sentAt = 'T' + (l.sentTurn || '?');
+    lettersText += '[' + sentAt + '·' + dir + '·' + typeL + urg + '] ';
+    if (l.subjectLine) lettersText += '《' + l.subjectLine.slice(0, 26) + '》';
+    lettersText += ' 内容摘：' + String(l.content || '').replace(/\s+/g, ' ').slice(0, 140);
+    if (l.reply && !l._npcInitiated) lettersText += '·[回：' + String(l.reply).slice(0, 80) + ']';
+    if (l.suggestion) lettersText += '·建：' + String(l.suggestion).slice(0, 60);
+    lettersText += '\n';
+  });
+  return lettersText;
+});
+
+// fragment·AI rules (原 hook 7 _origPrompt3)
+EndTurnHooks.registerFragment('ai-rules', function(ctx) {
+  if (!(P.ai.key && P.ai.rules)) return null;
+  return "\n\n=== 规则 ===\n" + P.ai.rules;
+});
+
+// fragment·史实偏离演绎 (原 hook 9b _origPromptHist·TTL 衰减仍在 after hook)
+EndTurnHooks.registerFragment('historical-deviations', function(ctx) {
+  if (!P.ai || !P.ai.key) return null;
+  if (!Array.isArray(GM._historicalDeviations) || GM._historicalDeviations.length === 0) return null;
+  var pending = GM._historicalDeviations.filter(function(d){ return d && d.ttl > 0; });
+  if (pending.length === 0) return null;
+  var devText = '\n\n=== 史实偏离·待演绎自然后果（玩家诏令字面照旧执行·你只需让"现实必然反应"在本回合或后续自然显现）===\n';
+  devText += '【铁律】不得改写玩家原诏；只在叙事/NPC行动/势力反应/民意/外族动向中演出后果\n';
+  pending.forEach(function(d){
+    devText += '· T' + d.sourceTurn + '玩家：' + d.playerAction + '\n';
+    if (d.historicalContext) devText += '  时代背景：' + d.historicalContext + '\n';
+    devText += '  应演后果：' + d.realisticConsequence + '（剩 ' + d.ttl + ' 回合内显现）\n';
+  });
+  return devText;
+});
+
+// fragment·游戏模式·PREFIX (原 hook 11 _origPrompt11)
+// 注意 position='prefix'·prompt-builder 把它注入 sysP 之前·保留原 hook 的 modePrefix + origPrompt 语义
+EndTurnHooks.registerFragment('game-mode', function(ctx) {
+  var mode = (typeof P !== 'undefined' && P.conf && P.conf.gameMode) || 'yanyi';
+  var modePrefix = '';
+  if (mode === 'yanyi') {
+    modePrefix = '【演义模式】请以演义小说风格推演，允许虚构情节和战征细节，强调戏剧冲突。';
+  } else if (mode === 'light_hist') {
+    modePrefix = '【轻度史实模式】请大体符合历史走向，允许适度演绎，主要人物和事件应有史实依据。';
+  } else if (mode === 'strict_hist') {
+    var refText = (P.conf && P.conf.refText) ? P.conf.refText : '';
+    modePrefix = '【严格史实模式】请严格按正史推演，不得虚构人物或事件，请准确引用史书记载。' + (refText ? '参考资料：' + refText + '。' : '');
+  }
+  return modePrefix || null;
+}, { position: 'prefix' });
 
 // 钩子 13: 处理AI返回的高级系统变更（原 _origEndTurn 的 after 部分）
 EndTurnHooks.register('after', function() {
@@ -862,7 +845,7 @@ EndTurnHooks.register('after', function() {
             }
 
             // 角色更新
-            if(parsed.char_updates){Object.entries(parsed.char_updates).forEach(function(e){var ch=findCharByName(e[0]);if(ch&&typeof e[1]==="object"){if(e[1].loyalty!=null)ch.loyalty=e[1].loyalty;if(e[1].desc)ch.desc=e[1].desc;}var ac=(GM.allCharacters||[]).find(function(c){return c.name===e[0];});if(ac&&typeof e[1]==="object"&&e[1].loyalty!=null){ac.loyalty=e[1].loyalty;ac.relationValue=e[1].loyalty;}});}
+            if(parsed.char_updates){Object.entries(parsed.char_updates).forEach(function(e){var ch=findCharByName(e[0]);var upd=e[1];if(ch&&typeof upd==="object"){if(upd.loyalty_delta!=null){if(typeof adjustCharacterLoyalty==="function")adjustCharacterLoyalty(ch,clamp(parseInt(upd.loyalty_delta)||0,-20,20),upd.reason||"",{source:"legacy-core-char-updates",ai:true,defaultReason:"AI\u63A8\u6F14",maxAbs:20});else if(upd.reason){var oldLd=(typeof ch.loyalty==="number"&&isFinite(ch.loyalty))?ch.loyalty:50;ch.loyalty=clamp(oldLd+clamp(parseInt(upd.loyalty_delta)||0,-20,20),0,100);}}else if(upd.loyalty!=null){if(typeof setCharacterLoyalty==="function")setCharacterLoyalty(ch,upd.loyalty,upd.reason||"",{source:"legacy-core-char-updates",ai:true,defaultReason:"AI\u63A8\u6F14",maxJump:20});else if(upd.reason){var oldSet=parseInt(upd.loyalty);ch.loyalty=clamp(isNaN(oldSet)?50:oldSet,0,100);var ac0=(GM.allCharacters||[]).find(function(c){return c.name===e[0];});if(ac0){ac0.loyalty=ch.loyalty;ac0.relationValue=ch.loyalty;}}}if(upd.desc)ch.desc=upd.desc;}});}
           }
       }catch(e){ console.warn("[catch] 静默异常:", e.message || e); }
     }

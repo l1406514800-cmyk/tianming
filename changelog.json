@@ -2,6 +2,72 @@
   "_comment": "天命·更新日志——新条目 unshift 到数组最前（由近及远）。格式：{date, module, title, items[]}；items 元素可为字符串或 {what, why}。",
   "entries": [
     {
+      "date": "2026-05-14",
+      "module": "官方剧本·天启七年·非明势力人物补全",
+      "title": "天启七年官方剧本已补强非明势力人物，并同步到网页端运行时",
+      "items": [
+        {
+          "what": "网页端接入天启官方剧本运行时快照，官方剧本加载后会替换为最新 201 人、22 势力版本。",
+          "why": "此前外部官方 JSON 已补全，但网页端仍只加载旧的 104 人、12 势力基础 JS；现在玩家进入网页端即可读到新人物和新势力。"
+        },
+        {
+          "what": "全部非明人物补齐 persona、外貌、口吻、台词、技能、记忆、能力审计、AI用途、出身时间、统属、谱系、推演提示和史料来源。",
+          "why": "NPC 不再只是名字和数值，AI 推演能按人物身份、势力层级和 1627 年处境使用他们。"
+        },
+        {
+          "what": "修正宋万化/宋嗣殷时间线：宋万化仅作为已殁历史记忆，1627 年奢安之乱活跃水东支脉由宋嗣殷承接。",
+          "why": "避免 AI 把已殁人物当成当前回合行动者，同时保留旧案、继承权和部众记忆的剧情价值。"
+        },
+        {
+          "what": "年幼人物增加硬限制，郑成功、李定国、孙可望、额哲、昭显世子等不会被推演成独立统兵或独立外交。",
+          "why": "保留历史戏剧性和成长伏笔，同时避免回合 AI 提前兑现后世名声。"
+        }
+      ]
+    },
+    {
+      "date": "2026-05-04",
+      "module": "Phase 5+6·命名规约 + namespace 清理·24 canonical 全建·R200-R208·alias 退役",
+      "title": "把散落 1000+ globals 收口到 24 canonical TM.X 命名空间·Phase 5 完成 sub-ns 上挂·Phase 6 退役 TM.MapSystem/TM.Storage + 迁移 index/editor HTML inline + namespace lint·verify-all 49/49·zero regression",
+      "items": [
+        {
+          "what": "【架构】tm-namespaces.js 304 行 → ~870 行·新增 R200-R208 九段·24 canonical namespaces (Chaoyi/Wendui/Endturn(.AI)/Military/Fiscal/Economy/Guoku/Neitang/Huji/Office/Authority/Corruption/Keju/Edict/NPC/Char/Map/UI/Save/Editor/Memory/Player/Diagnostics)·R87 5 whitelist facade + 3 engine proxy + Storage 全保 alias·两个 helper (_buildWindowRefGroup / _defineWindowAlias·Codex P5-β 加) 让 sub-ns 自带 has/list/listAvailable/listMissing 诊断接口。",
+          "why": "原 R87 stage 1 (getter 门面) 只覆盖 5 facade·~91 fn·剩 990 散落 window·新代码混调 TM.X 与 window.fn·维护混乱。Phase 5 完成 R87 设计的 stage 2·alias 留·新代码强制走 TM.X.X·Phase 6 退役 alias 后强 contract。"
+        },
+        {
+          "what": "【pair-mode 分工】Claude 4 slice (α reconcile / γ Edict / δ Fiscal-Economy-Guoku-Neitang / ε Authority-Office-Keju-Corruption-Lizhi)·Codex 4 slice (β NPC/Char / ζ Map-UI / η Endturn / θ Editor)·总 17h target·并行 ~9h actual。每 slice 必 prep audit-first (大 slice doc-only audit 锁结构)·verify-all gate 每 round·一 slice 一 letter。",
+          "why": "Phase 1-4 同模式·Phase 5 文件大跨度 (Map 14k 行·Endturn 22k 行·Editor 21k 行·Fiscal 11k 行)·prep audit 让 sub-ns 形状·命名冲突·HTML inline 处理在实施前就锁定。"
+        },
+        {
+          "what": "【关键决策 8 条】Q1·24 vs 18 namespace → 扩 24 (补 Authority/Corruption/Diagnostics/Economy)。Q2·R87 facade keep vs rebuild → keep + reconcile (TM.Storage→TM.Save·TM.MapSystem→TM.Map alias 留 Phase 5 全程)。Q3·alias 期 → Phase 5 全程·Phase 6 P6-α 退役。Q4·HTML inline onclick 412 处 → 方案 B (Phase 5 不动·Phase 6 半自动)。Q5·slice 分工 → 4/4 平衡。R10 dead code rescue·EDICT_TYPES 两版本隔离·close-by-value 沿用 P4。",
+          "why": "Codex 5 答清楚锁结构。这 8 条决议在 phase5-prep.md §8 明确·并在 head note R200-R208 各 R 段引用·任何后续维护者打开 tm-namespaces.js 第一眼就知道为什么。"
+        },
+        {
+          "what": "【R10 dead code rescue·P5-δ 发现】tm-fiscal-engine.js L1746-1751 写 global.TM.Economy.sum/getDiv/topContributors/triggerSurvey 4 fn — 但 load 顺序中 tm-fiscal-engine 在 tm-namespaces 之前·R87 _buildFacade('Economy') 后 load 完全 overwrite·这 4 fn 实际从未生效·grep 0 live caller。P5-δ 删 dead code (-6 行)·R203 中用 Object.defineProperty getter alias 至 CascadeTax.sumEconomyBase 等·changelog 历史契约 (R10 R94) 真生效。",
+          "why": "R10 fiscal compat fix 时埋的 bug。原意'公共 API 给 UI/诏令系统调用'(changelog R94)·实因 load order 失败。P5-δ 修复路径走 sub-ns 透传·Phase 6 退役期可单独 grep 验证。"
+        },
+        {
+          "what": "【EDICT_TYPES 两版本隔离·P5-γ 发现】tm-edict-parser.js:27 内部 17 个详 type 定义 (含 trigger/effect/duration 字段) 与 tm-edict-lifecycle.js:10 的 11 个 broad category 枚举·**含义不同·目前 window.EDICT_TYPES = lifecycle 版** (load order)。P5-γ R202 sub-ns 强隔离·TM.Edict.parser.EDICT_TYPES (17 详定义) 与 TM.Edict.lifecycle.EDICT_TYPES (11 大类) 不同对象·smoke-p5-gamma-edict.js 显式 assert·永远不可合。",
+          "why": "命名相同·语义不同·此前散落 window 时调用方常误用。sub-ns 隔离让两版本各有名空间·smoke 锁住·避免未来某个'看似简单的 cleanup'误合。"
+        },
+        {
+          "what": "【Phase 6 P6-α/β/γ/ζ 收口】R208·删 TM.MapSystem 别名 (改名 in-place 为 TM.Map)·删 TM.Storage 别名 (改名 in-place 为 TM.Save)·改 production call site 2 处 (tm-game-loop:1339 menu data·tm-hongyan-office:1846 onclick) + smoke / test-harness / headless-smoke 8+ 处。Codex P6-β/γ 已把 index.html 的 topbar/drawer/turn-result/save/tab/endturn inline handler 与 editor.html 的稳定 Editor handler 迁到 TM.UI/TM.Save/TM.Endturn/TM.Editor。P6-ζ 新增 namespace lint 锁住退役别名和已迁移 inline handler。",
+          "why": "alias-then-rename ladder stage 3·原意 Phase 5 期保旧名·Phase 6 退役。R208 是 ladder 收尾·删 alias 后调用方必走 canonical·新代码与旧代码统一·grep 不再分裂。"
+        },
+        {
+          "what": "【zero regression 全程】verify-all 39/39 (P4 close) → 47/47 (P5 close + P6-α) → 49/49 (P6-β/γ/ζ close) ·headless smoke 212/0/0 维持·cc3-smoke 56/0 维持·R8 layered 177 baseline 全保·LAYERED 0 残留 (R12 真清后维持)。每 slice 必 verify-all 全绿才 letter ACK·非全绿 abort。",
+          "why": "Phase 5+6 是大规模架构改动。按 verify-all fail-fast (scripts/verify-all.js process.exit(1))·任何 slice 引入回归立即 stop·不允许累积。"
+        },
+        {
+          "what": "【docs】写 phase5-prep.md (~280 行)·6 prep audit (gamma/delta·Codex beta·zeta/eta/theta Claude 帮 Codex 写)·phase5-final-audit.md (~290 行)·refactor-playbook.md v1 (~470 行·新建·Phase 6 P6-δ drop-in)·phase6-prep.md (~210 行·alias 退役 + HTML inline 412 处 audit + 3 doc finalize plan)·phase6-inline-namespace-implementation.md (Codex P6-β/γ/ζ 实施记录)·phase5-architecture-map-addendum.md / phase5-module-boundaries-addendum.md (P6-δ drop-in)。",
+          "why": "Phase 5 决议密度高·文档 frame 让 Phase 6 启动时不需重新 audit·refactor-playbook 提炼 Phase 1-5 经验·防下一轮重构从零开始 (LAYERED 真合·redistribute·alias-rename ladder 等模式可直接 reuse)。"
+        },
+        {
+          "what": "【Phase 6 close】Claude 已完成 α (alias 退役) / δ (doc finalize) / ε (R205-R207 注释 mojibake 修复)，Codex 已完成 β (index.html inline) / γ (editor.html inline) / ζ (namespace lint)。map editors 与 preview HTML 仍按设计保留 window handler；未归属的 openWentian/openShiji/openShizhengTasks 等入口留给后续 owner facade 决策。",
+          "why": "Phase 6 的目标不是一次性删除所有 window 全局，而是把已达成共识的 canonical namespace 投产、退役明确 rename alias，并锁住主游戏/编辑器两页最关键的 inline callsite。到此 alias-then-rename ladder 完结，可进入下一工程。"
+        }
+      ]
+    },
+    {
       "date": "2026-05-03",
       "module": "phase6 战后联动与人物 refs",
       "title": "战斗结果开始同时写回军队、主将记忆、党派状态与 typed refs",

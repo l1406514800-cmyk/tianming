@@ -330,8 +330,13 @@ function resolveKejuCouncilResult(councilSupport) {
 /** 辅助·调整皇权 */
 function _adjustHuangquan(delta, reason) {
   try {
+    if (typeof AuthorityEngines !== 'undefined' && AuthorityEngines.adjustHuangquan) {
+      AuthorityEngines.adjustHuangquan(delta > 0 ? 'personalRule' : 'memorialObjection', delta, reason || '\u79d1\u4e3e\u5236\u5ea6\u7275\u52a8\u7687\u6743', { source:'keju' });
+      return;
+    }
     if (GM.huangquan && typeof GM.huangquan === 'object') {
-      GM.huangquan.value = Math.max(0, Math.min(100, (GM.huangquan.value || 50) + delta));
+      var key = typeof GM.huangquan.index === 'number' ? 'index' : 'value';
+      GM.huangquan[key] = Math.max(0, Math.min(100, (GM.huangquan[key] || 50) + delta));
       if (typeof addEB === 'function') addEB('\u7687\u6743', (delta > 0 ? '+' : '') + delta + '\u00B7' + (reason || ''));
     }
   } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
@@ -1053,5 +1058,4 @@ async function startKejuReform(){
     toast('❌ 改革失败');
   }
 }
-
 

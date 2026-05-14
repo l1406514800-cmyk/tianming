@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // scripts/smoke-chaoyi-v3.js — 常朝 v3 纯逻辑 smoke
-// 在 vm 沙盒里加载 tm-chaoyi-v3.js·测纯函数（不依赖 DOM/真 AI）
+// 在 vm 沙盒里加载 tm-chaoyi-changchao.js (Phase 3 rename·原 tm-chaoyi-v3.js)·测纯函数（不依赖 DOM/真 AI）
 // 覆盖：意图识别 / 点名识别 / 关键词解析 / 朝威分流 / 诏令档位 / 朝代配置 / 议程增强 / 干支日期
 
 'use strict';
@@ -9,7 +9,7 @@ const vm = require('vm');
 const path = require('path');
 
 const ROOT = path.resolve(__dirname, '..');
-const v3src = fs.readFileSync(path.join(ROOT, 'tm-chaoyi-v3.js'), 'utf8');
+const v3src = fs.readFileSync(path.join(ROOT, 'tm-chaoyi-changchao.js'), 'utf8');
 
 // ─── 沙盒构造（mock GM/P/DOM/callAI 等）───
 function makeSandbox(opts) {
@@ -109,7 +109,7 @@ function makeSandbox(opts) {
 
 function runV3(sandbox) {
   vm.createContext(sandbox);
-  vm.runInContext(v3src, sandbox, { filename: 'tm-chaoyi-v3.js' });
+  vm.runInContext(v3src, sandbox, { filename: 'tm-chaoyi-changchao.js' });
   // CC-P3 后 const CHARS / AGENDA 是空·smoke 模拟 _cc3_open 中的覆盖逻辑·让 GM.chars 填充
   try { vm.runInContext('_cc3_overrideMockWithGM()', sandbox); } catch (_) {}
   return sandbox;

@@ -21,7 +21,7 @@
 //  │  sClearSecondaryAPI / sToggleSecondaryEnabled /
 //  │  _sVerbUpdatePreview / _sMaxoutToggle / _sUpdateMaxoutInfo /
 //  │  _sShowCtxInfo / _sTestImgConn / _sDetectImgCap / _sSaveImgAPI
-//  │  → R22 已新建 tm-settings-ui.js 作**迁移靶文件**(含详细步骤)
+//  │  → R22 占位现已并入 tm-ui-foundation.js 作**迁移靶文件**(含详细步骤)
 //  └─────────────────────────────────────────────────────────┘
 //
 //  ┌─ 🔶 §2 剧本管理 tab（L514-532，~20 行） ───────────┐
@@ -51,7 +51,7 @@
 //  ┌─ ✓ §6 Modal System（L1861-1892，~30 行） ──────────┐
 //  │  gv + openGenericModal + closeGenericModal +
 //  │  showModal + closeModal
-//  │  → 已迁至 tm-modal-system.js (R17 ✓)
+//  │  → 已迁至 tm-ui-foundation.js (R17 ✓ / P4-beta 合并)
 //  └─────────────────────────────────────────────────────────┘
 //
 //  ┌─ ✓ §7 World View（L1894-2090，~200 行） ───────────┐
@@ -92,17 +92,155 @@ if (typeof _togglePConf === 'undefined') {
   window._togglePConf = function(confKey, on) {
     if (typeof P === 'undefined' || !P) return;
     if (!P.conf) P.conf = {};
-    P.conf[confKey] = !!on;
+    if (confKey === 'npcAiPrecision') {
+      if (window.TM && TM.FactionNpcSettings && typeof TM.FactionNpcSettings.setEnabled === 'function') {
+        TM.FactionNpcSettings.setEnabled(!!on);
+      } else {
+        P.conf.npcAiPrecision = !!on;
+        if (on) P.conf.npcAiPrecisionMode = 'eager';
+        else if (window.TM && TM.FactionNpcInTurnDriver && typeof TM.FactionNpcInTurnDriver.cancelInTurnTimers === 'function') {
+          TM.FactionNpcInTurnDriver.cancelInTurnTimers();
+        }
+      }
+    } else {
+      P.conf[confKey] = !!on;
+    }
     if (typeof saveP === 'function') saveP();
     var labels = {
       recallGateEnabled: { on: '已启用召回节流·常规回合跳过 SC_RECALL 节省 API', off: '已关闭召回节流·每回合都全跑 5 源召回' },
       consolidationEnabled: { on: '已启用后台记忆固化', off: '已关闭后台记忆固化·sc_consolidate 不再调用' },
-      semanticRecallAutoload: { on: '已启用语义检索自动加载', off: '已关闭语义检索自动加载·SC_RECALL 第 5 源失效' }
+      semanticRecallAutoload: { on: '已启用语义检索自动加载', off: '已关闭语义检索自动加载·SC_RECALL 第 5 源失效' },
+      npcAiPrecision: { on: '已启用 NPC 推演 LLM 精细化·每回合最多 8 次润色', off: '已关闭 NPC LLM 精细化·走本地模板 + 人格 hints' }
     };
     var l = labels[confKey] || { on: '已启用 ' + confKey, off: '已关闭 ' + confKey };
     if (typeof toast === 'function') toast('✅ ' + (on ? l.on : l.off));
   };
 }
+
+function _settingsEsc(v) {
+  if (v == null) return '';
+  return String(v).replace(/[&<>"]/g, function(c) {
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+  });
+}
+
+function _renderSettingsAudioSection() {
+  var A = window.AudioSystem;
+  if (!A) {
+    return '<div class="settings-section tm-settings-audio"><h4>声乐</h4><div style="font-size:0.78rem;color:var(--txt-d);">音频系统尚未加载。</div></div>';
+  }
+  try { if (typeof A.loadPlaylist === 'function') A.loadPlaylist(); } catch(_){}
+  var bgmPct = Math.round((A.bgmVolume == null ? 0.3 : A.bgmVolume) * 100);
+  var sfxPct = Math.round((A.sfxVolume == null ? 0.5 : A.sfxVolume) * 100);
+  var current = (typeof A.getCurrentTrack === 'function') ? A.getCurrentTrack() : null;
+  var tracks = Array.isArray(A.playlist) ? A.playlist : [];
+  var h = '<div class="settings-section tm-settings-audio"><h4>声乐</h4>';
+  h += '<div class="tm-settings-sub">迁移自旧“音声”侧栏。控制背景音乐、音效和 BGM 曲库。</div>';
+  h += '<div class="tm-settings-two">';
+  h += '<label class="tm-settings-toggle"><input type="checkbox" id="s-audio-bgm-enabled" ' + (A.bgmEnabled !== false ? 'checked ' : '') + 'onchange="_settingsAudioToggleBgm(this.checked)"><span>背景音乐</span><em>' + (current ? _settingsEsc(current.title) : '未配置曲目') + '</em></label>';
+  h += '<label class="tm-settings-toggle"><input type="checkbox" id="s-audio-sfx-enabled" ' + (A.enabled !== false ? 'checked ' : '') + 'onchange="_settingsAudioToggleSfx(this.checked)"><span>界面音效</span><em>按钮、通知、结算提示</em></label>';
+  h += '</div>';
+  h += '<div class="tm-settings-range"><span>乐音</span><input type="range" id="s-audio-bgm-volume" min="0" max="100" value="' + bgmPct + '" oninput="_settingsAudioSetBgmVolume(this.value)"><b id="s-audio-bgm-val">' + bgmPct + '</b></div>';
+  h += '<div class="tm-settings-range"><span>声效</span><input type="range" id="s-audio-sfx-volume" min="0" max="100" value="' + sfxPct + '" oninput="_settingsAudioSetSfxVolume(this.value)"><b id="s-audio-sfx-val">' + sfxPct + '</b></div>';
+  h += '<div class="tm-settings-loop">';
+  h += '<button class="gs-audio-loop-btn ' + (A.loopMode === 'sequence' ? 'active' : '') + '" onclick="_settingsAudioLoopMode(\'sequence\')">顺序</button>';
+  h += '<button class="gs-audio-loop-btn ' + ((A.loopMode || 'single') === 'single' ? 'active' : '') + '" onclick="_settingsAudioLoopMode(\'single\')">单曲</button>';
+  h += '<button class="gs-audio-loop-btn ' + (A.loopMode === 'random' ? 'active' : '') + '" onclick="_settingsAudioLoopMode(\'random\')">随机</button>';
+  h += '</div>';
+  h += '<div class="tm-settings-track-list">';
+  if (tracks.length) {
+    tracks.forEach(function(t) {
+      var active = current && current.id === t.id;
+      h += '<button class="tm-settings-track ' + (active ? 'active' : '') + '" data-track-id="' + _settingsEsc(t.id) + '" onclick="_settingsAudioPlayTrack(\'' + String(t.id).replace(/'/g, "\\'") + '\')"><span>' + _settingsEsc(t.title) + '</span><em>' + _settingsEsc(t.meta || 'BGM') + '</em></button>';
+    });
+  } else {
+    h += '<div class="tm-settings-empty">请把音乐文件放入 assets/audio/bgm，并在 tm-bgm-config.js 中登记。</div>';
+  }
+  h += '</div></div>';
+  return h;
+}
+
+function _renderSettingsThemeFontSection() {
+  var savedTheme = 'plain', savedSize = 'md', savedBody = 'STKaiti', savedTitle = 'STKaiti';
+  try { savedTheme = localStorage.getItem('tm.theme') || 'plain'; } catch(_){}
+  try { savedSize = localStorage.getItem('tm.fontSize') || 'md'; } catch(_){}
+  try { savedBody = localStorage.getItem('tm.fontBody') || 'STKaiti'; } catch(_){}
+  try { savedTitle = localStorage.getItem('tm.fontTitle') || 'STKaiti'; } catch(_){}
+  function act(k, cur) { return k === cur ? ' active' : ''; }
+  function opt(v, label, cur) { return '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + label + '</option>'; }
+  var h = '<div class="settings-section tm-settings-theme"><h4>主题字号</h4>';
+  h += '<div class="tm-settings-sub">迁移自旧“主题”侧栏。旧入口后续删除后，这里负责统一配置。</div>';
+  h += '<div class="gs-theme-grid tm-settings-theme-grid">';
+  h += '<div class="gs-theme-card' + act('plain', savedTheme) + '" onclick="_settingsThemeApply(\'plain\', this)"><div class="gs-theme-swatch"><span class="c" style="background:#b89a53;"></span><span class="c" style="background:#c9a85f;"></span><span class="c" style="background:#6a9a7f;"></span><span class="c" style="background:#b84738;"></span></div><div class="gs-theme-name">素 纸</div><div class="desc">宣纸金线·朱砂</div></div>';
+  h += '<div class="gs-theme-card' + act('ink', savedTheme) + '" onclick="_settingsThemeApply(\'ink\', this)"><div class="gs-theme-swatch"><span class="c" style="background:#3d342a;"></span><span class="c" style="background:#6b5d47;"></span><span class="c" style="background:#a69470;"></span><span class="c" style="background:#d9c9a9;"></span></div><div class="gs-theme-name">水 墨</div><div class="desc">墨分五色·冷调</div></div>';
+  h += '<div class="gs-theme-card' + act('vermillion', savedTheme) + '" onclick="_settingsThemeApply(\'vermillion\', this)"><div class="gs-theme-swatch"><span class="c" style="background:#8f3428;"></span><span class="c" style="background:#b84738;"></span><span class="c" style="background:#d15c47;"></span><span class="c" style="background:#c9a85f;"></span></div><div class="gs-theme-name">朱 砂</div><div class="desc">浓朱重赤·烈</div></div>';
+  h += '<div class="gs-theme-card' + act('celadon', savedTheme) + '" onclick="_settingsThemeApply(\'celadon\', this)"><div class="gs-theme-swatch"><span class="c" style="background:#4a7a5f;"></span><span class="c" style="background:#6a9a7f;"></span><span class="c" style="background:#b89a53;"></span><span class="c" style="background:#d9c9a9;"></span></div><div class="gs-theme-name">青 绿</div><div class="desc">青绿山水·雅</div></div>';
+  h += '</div>';
+  h += '<div class="gs-font-row"><span class="lbl">字号</span><div class="gs-font-sizes">';
+  h += '<button class="gs-sz-btn sm' + act('sm', savedSize) + '" onclick="_settingsSizeApply(\'sm\', this)">小</button>';
+  h += '<button class="gs-sz-btn md' + act('md', savedSize) + '" onclick="_settingsSizeApply(\'md\', this)">中</button>';
+  h += '<button class="gs-sz-btn lg' + act('lg', savedSize) + '" onclick="_settingsSizeApply(\'lg\', this)">大</button>';
+  h += '<button class="gs-sz-btn xl' + act('xl', savedSize) + '" onclick="_settingsSizeApply(\'xl\', this)">特大</button>';
+  h += '</div></div>';
+  h += '<div class="gs-font-row"><span class="lbl">正文</span><select class="gs-font-select" onchange="_tmApplyBodyFont(this.value)">';
+  h += opt('STKaiti','楷体 STKaiti',savedBody) + opt('SimSun','宋体 SimSun',savedBody) + opt('FangSong','仿宋 FangSong',savedBody) + opt('FZQiTi','方正启体',savedBody) + opt('Noto Serif SC','思源宋体',savedBody) + opt('LXGW WenKai','霞鹜文楷',savedBody);
+  h += '</select></div>';
+  h += '<div class="gs-font-row"><span class="lbl">标题</span><select class="gs-font-select" onchange="_tmApplyTitleFont(this.value)">';
+  h += opt('STKaiti','楷体 STKaiti',savedTitle) + opt('STXingkai','行楷',savedTitle) + opt('STLiti','隶书',savedTitle) + opt('STXinghkaiti','华文行楷',savedTitle);
+  h += '</select></div></div>';
+  return h;
+}
+
+function _settingsMediaThemeInit() {
+  try {
+    var A = window.AudioSystem;
+    if (A && (!A.playlist || !A.playlist.length) && typeof A.init === 'function') A.init();
+  } catch(_){}
+}
+
+window._settingsAudioToggleBgm = function(on) {
+  if (!window.AudioSystem) return;
+  AudioSystem.bgmEnabled = !!on;
+  if (on && typeof AudioSystem.ensureBgmPlaying === 'function') AudioSystem.ensureBgmPlaying();
+  if (!on && typeof AudioSystem.stopBgm === 'function') AudioSystem.stopBgm();
+  if (typeof AudioSystem.saveSettings === 'function') AudioSystem.saveSettings();
+};
+window._settingsAudioToggleSfx = function(on) {
+  if (!window.AudioSystem) return;
+  AudioSystem.enabled = !!on;
+  if (on && typeof AudioSystem.playSfx === 'function') AudioSystem.playSfx('click');
+  if (typeof AudioSystem.saveSettings === 'function') AudioSystem.saveSettings();
+};
+window._settingsAudioSetBgmVolume = function(v) {
+  if (!window.AudioSystem) return;
+  AudioSystem.setBgmVolume((Number(v) || 0) / 100);
+  var el = _$('s-audio-bgm-val'); if (el) el.textContent = String(Math.round(Number(v) || 0));
+};
+window._settingsAudioSetSfxVolume = function(v) {
+  if (!window.AudioSystem) return;
+  AudioSystem.setSfxVolume((Number(v) || 0) / 100);
+  var el = _$('s-audio-sfx-val'); if (el) el.textContent = String(Math.round(Number(v) || 0));
+};
+window._settingsAudioPlayTrack = function(id) {
+  if (!window.AudioSystem || typeof AudioSystem.playTrack !== 'function') return;
+  AudioSystem.playTrack(id);
+  try { closeSettings(); openSettings(); } catch(_){}
+};
+window._settingsAudioLoopMode = function(mode) {
+  if (!window.AudioSystem || typeof AudioSystem.setLoopMode !== 'function') return;
+  AudioSystem.setLoopMode(mode);
+  try { closeSettings(); openSettings(); } catch(_){}
+};
+window._settingsThemeApply = function(name, el) {
+  if (typeof _tmApplyTheme === 'function') _tmApplyTheme(name, el);
+  if (window.ThemeSystem && typeof ThemeSystem.setTheme === 'function') {
+    var map = { plain: 'dark', ink: 'sepia', vermillion: 'vermillion', celadon: 'green' };
+    ThemeSystem.setTheme(map[name] || 'dark');
+  }
+};
+window._settingsSizeApply = function(size, el) {
+  if (typeof _tmApplySize === 'function') _tmApplySize(size, el);
+};
 openSettings=function(){
   var bg=_$("settings-bg");
   bg.innerHTML="<div class=\"settings-box\"><div style=\"padding:0.8rem 1.2rem;border-bottom:1px solid var(--bdr);display:flex;justify-content:space-between;\"><div style=\"font-size:1.1rem;font-weight:700;color:var(--gold);\">"+((typeof tmIcon==='function')?tmIcon('settings',18):'')+"\u8BBE\u7F6E</div><button class=\"bt bs bsm\" onclick=\"closeSettings()\">\u2715</button></div><div class=\"settings-body\" id=\"sb2\"></div></div>";
@@ -174,15 +312,29 @@ openSettings=function(){
             '<div style="font-size:0.7rem;color:var(--txt-d);line-height:1.55;margin-top:0.15rem;">每回合后台追加一次记忆整合调用（优先走次要 API）·不阻塞玩家·增加约 20% API 成本。关闭后 AI 记忆连贯性会减低。</div>' +
           '</div>' +
         '</label>' +
-        '<label style="display:flex;align-items:flex-start;gap:0.5rem;padding:0.4rem 0;cursor:pointer;">' +
+        '<label style="display:flex;align-items:flex-start;gap:0.5rem;padding:0.4rem 0;border-bottom:1px dotted var(--bdr);cursor:pointer;">' +
           '<input type="checkbox" id="s-sem" ' + (_semOn?'checked ':'') + 'onchange="_togglePConf(\'semanticRecallAutoload\',this.checked)" style="margin-top:0.15rem;flex-shrink:0;">' +
           '<div style="flex:1;">' +
             '<div style="font-size:0.82rem;color:var(--gold);font-weight:600;">本地语义检索自动加载（默认启用）</div>' +
             '<div style="font-size:0.7rem;color:var(--txt-d);line-height:1.55;margin-top:0.15rem;">游戏开始 5 秒后后台加载 bge-small-zh 模型（23 MB）·提供 SC_RECALL 第 5 源语义同义召回。Electron 预打包后秒开·网页端从 hf-mirror 缓存。关闭可省 23 MB 下载。</div>' +
           '</div>' +
         '</label>' +
+        // Phase F3·2026-05-10·NPC 决策精细化开关
+        (function(){
+          var _npcAi = !(P.conf && P.conf.npcAiPrecision === false);
+          return '<label style="display:flex;align-items:flex-start;gap:0.5rem;padding:0.4rem 0;border-top:1px dotted var(--bdr);cursor:pointer;">' +
+            '<input type="checkbox" id="s-npc-ai" ' + (_npcAi?'checked ':'') + 'onchange="_togglePConf(\'npcAiPrecision\',this.checked)" style="margin-top:0.15rem;flex-shrink:0;">' +
+            '<div style="flex:1;">' +
+              '<div style="font-size:0.82rem;color:var(--gold);font-weight:600;">NPC 势力推演精细化（LLM 增强·按需启用）</div>' +
+              '<div style="font-size:0.7rem;color:var(--txt-d);line-height:1.55;margin-top:0.15rem;">关闭（默认）：NPC 奏疏/诏令/朝议/人事用模板 + 人格 hints 本地生成·零成本。开启：每回合 LLM 调用 N 次润色 NPC 内政文本（按 fac 实力优先）·成本可控但增加 ~5-10% API 用量。需有主 API key。</div>' +
+            '</div>' +
+          '</label>';
+        })()+
       '</div>';
     })()+
+
+    _renderSettingsAudioSection()+
+    _renderSettingsThemeFontSection()+
 
     // 回合读取
     "<div class=\"settings-section\"><h4>\u56DE\u5408\u8BFB\u53D6</h4>"+
@@ -319,6 +471,7 @@ openSettings=function(){
     });
     // 显示当前上下文检测信息
     _sShowCtxInfo();
+    try { _settingsMediaThemeInit(); } catch(_){}
   },100);
   bg.classList.add("show");
 };
@@ -1344,13 +1497,13 @@ function doActualStart(sid){
   }
   // 优先使用剧本元数据的startYear（如果time配置中没有设置）
   if(sc.startYear && !P.time.year) P.time.year = sc.startYear;
-  // 从gameSettings映射turnDuration/turnUnit到P.time.perTurn
-  if (_gs.turnUnit && !P.time.perTurn) {
-    var _unitMap = {'\u65E5':'1d','\u5468':'1w','\u6708':'1m','\u5B63':'1s','\u5E74':'1y'};
-    P.time.perTurn = _unitMap[_gs.turnUnit] || '1m';
-    if (_gs.turnDuration && _gs.turnDuration > 1) {
-      P.time.customDays = _gs.turnDuration * ({'\u65E5':1,'\u5468':7,'\u6708':30,'\u5B63':90,'\u5E74':360}[_gs.turnUnit] || 30);
-    }
+  // 标准化回合时长：gameSettings.daysPerTurn 是编辑器权威字段，perTurn/customDays 只作旧系统兼容。
+  if (typeof normalizeTimeConfigFromGameSettings === 'function') {
+    P.time = normalizeTimeConfigFromGameSettings(P.time, _gs);
+  } else if (!P.time.daysPerTurn) {
+    var _dMapFallback={'\u65E5':1,'\u5468':7,'\u6708':30,'\u5B63':90,'\u5E74':365};
+    P.time.daysPerTurn = (_gs.daysPerTurn && Number(_gs.daysPerTurn)) ||
+      (_gs.turnUnit ? ((Number(_gs.turnDuration)||1) * (_dMapFallback[_gs.turnUnit]||30)) : 30);
   }
   // 从gameSettings映射干支和年号设置
   if (_gs.enableGanzhi !== undefined) P.time.enableGanzhi = _gs.enableGanzhi;
@@ -1405,6 +1558,18 @@ function doActualStart(sid){
   if(sc.openingText) P.openingText = sc.openingText;
   if(sc.globalRules) P.globalRules = sc.globalRules;
   if(sc.mapData) P.mapData = deepClone(sc.mapData);
+  // 剧本地图进入可变运行态：GM.mapData 为唯一 live state，P.map/P.mapData 同步引用它。
+  // 这样 AI 的 map_changes、存档和地图系统读到的是同一份地块所有者/占领状态。
+  if ((P.map && P.map.regions && P.map.regions.length > 0) || (P.mapData && P.mapData.regions && P.mapData.regions.length > 0)) {
+    var _runtimeMapSource = (P.map && P.map.regions && P.map.regions.length > 0) ? P.map : P.mapData;
+    if (typeof bindRuntimeMapState === 'function') {
+      bindRuntimeMapState(_runtimeMapSource);
+    } else {
+      GM.mapData = deepClone(_runtimeMapSource);
+      P.map = GM.mapData;
+      P.mapData = GM.mapData;
+    }
+  }
   if(sc.buildingSystem) P.buildingSystem = deepClone(sc.buildingSystem);
   if(sc.battleConfig) P.battleConfig = deepClone(sc.battleConfig);
   if(sc.mechanicsConfig) { if(!P.mechanicsConfig) P.mechanicsConfig={}; Object.assign(P.mechanicsConfig, deepClone(sc.mechanicsConfig)); }
@@ -1495,6 +1660,8 @@ function doActualStart(sid){
   (P.relations||[]).filter(function(r){return r.sid===sid;}).forEach(function(r){GM.rels[r.name]=deepClone(r);});
   // 加载势力间关系矩阵
   GM.factionRelations = deepClone(sc.factionRelations || P.factionRelations || []);
+  if (!GM.factionRelationsMap) GM.factionRelationsMap = {};
+  if (typeof syncFactionRelationsFromList === 'function') syncFactionRelationsFromList(GM.factionRelations);
   GM.chars=(P.characters||[]).filter(function(c){return c.sid===sid;}).map(function(c){return deepClone(c);});
   GM.facs=(P.factions||[]).filter(function(f){return f.sid===sid;}).map(function(f){
     var faction = deepClone(f);

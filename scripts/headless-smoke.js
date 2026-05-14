@@ -23,6 +23,7 @@ const ROOT = path.resolve(__dirname, '..');
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
 const flagVal = (name) => { const i = args.indexOf(name); return i >= 0 ? args[i+1] : null; };
+const bootOnly = flag('--boot-only');
 
 // ─────────────────────────────────────────────
 // 极简 DOM / window stub
@@ -239,13 +240,20 @@ function main() {
   const sandbox = vm.createContext(win);
 
   const scripts = parseIndexHtmlScripts();
-  console.log(`[smoke] 将加载 ${scripts.length} 个脚本`);
+  const bootCutoffName = 'tm-test-harness.js';
+  const bootCutoffIndex = bootOnly ? scripts.findIndex(s => path.basename(s) === bootCutoffName) : -1;
+  if (bootOnly && bootCutoffIndex < 0) {
+    console.error('[boot-smoke] cannot find ' + bootCutoffName + ' in index.html script order');
+    process.exit(2);
+  }
+  const loadScripts = bootOnly ? scripts.slice(0, bootCutoffIndex + 1) : scripts;
+  console.log(`[smoke] 将加载 ${loadScripts.length} 个脚本` + (bootOnly ? ' [boot-only]' : ''));
 
   let loaded = 0;
   let errors = [];
   const start = Date.now();
 
-  for (const src of scripts) {
+  for (const src of loadScripts) {
     const abs = path.join(ROOT, src);
     if (!fs.existsSync(abs)) {
       errors.push({ src, stage: 'missing', msg: 'file not found' });
@@ -266,7 +274,7 @@ function main() {
   }
 
   const dt = Date.now() - start;
-  console.log(`[smoke] ${loaded}/${scripts.length} 脚本加载成功 · ${dt}ms`);
+  console.log(`[smoke] ${loaded}/${loadScripts.length} 脚本加载成功 · ${dt}ms`);
   if (errors.length) {
     console.error(`[smoke] ${errors.length} 个脚本加载失败：`);
     errors.slice(0, 20).forEach(e => {
@@ -293,6 +301,54 @@ function main() {
   if (!TM || !TM.test) {
     console.error('[smoke] ✗ TM.test 未找到（tm-test-harness.js 未正确加载？）');
     process.exit(2);
+  }
+
+  if (bootOnly) {
+    const bootIssues = [];
+    const need = function(cond, msg) {
+      if (!cond) bootIssues.push(msg);
+    };
+    need(typeof TM.onboard === 'function', 'TM.onboard missing');
+    need(typeof TM.validateScenario === 'function', 'TM.validateScenario missing');
+    need(typeof TM.version === 'object' && typeof TM.version.list === 'function', 'TM.version.list missing');
+    need(typeof TM.errors === 'object', 'TM.errors missing');
+    need(typeof TM.perf === 'object', 'TM.perf missing');
+    need(typeof TM.Save === 'object', 'TM.Save missing');
+    need(typeof TM.Map === 'object', 'TM.Map missing');
+    need(typeof sandbox.startGame === 'function', 'startGame missing');
+    need(typeof sandbox.fullLoadGame === 'function', 'fullLoadGame missing');
+    need(typeof sandbox.renderGameState === 'function', 'renderGameState missing');
+    need(typeof sandbox.endTurn === 'function', 'endTurn missing');
+
+    try {
+      var onboardNote = TM.onboard();
+      if (flag('--diag')) console.log('[boot-smoke] onboard note:', JSON.stringify(onboardNote));
+    } catch (e) {
+      bootIssues.push('TM.onboard threw: ' + (e && e.message ? e.message : String(e)));
+    }
+
+    try {
+      var vlist = TM.version.list();
+      need(Array.isArray(vlist), 'TM.version.list did not return array');
+    } catch (e) {
+      bootIssues.push('TM.version.list threw: ' + (e && e.message ? e.message : String(e)));
+    }
+
+    try {
+      var suites = TM.test.listSuites ? TM.test.listSuites() : [];
+      need(Array.isArray(suites), 'TM.test.listSuites did not return array');
+    } catch (e) {
+      bootIssues.push('TM.test.listSuites threw: ' + (e && e.message ? e.message : String(e)));
+    }
+
+    if (bootIssues.length) {
+      console.error('[boot-smoke] boot gate failed:');
+      bootIssues.forEach(function(msg) { console.error('  ✗ ' + msg); });
+      process.exit(1);
+    }
+
+    console.log('[boot-smoke] pass: boot chain loaded and core entrypoints are present');
+    process.exit(0);
   }
 
   if (flag('--list')) {

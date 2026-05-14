@@ -24,6 +24,10 @@
 (function(global) {
   'use strict';
 
+  function _turnsForMonthsLocal(months) {
+    return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  14 源余下 hook 自动检测（填充 AuthorityComplete 中空余 hook）
   // ═══════════════════════════════════════════════════════════════════
@@ -37,7 +41,7 @@
     // 承诺：皇帝宣布但未执行
     (G._imperialPromises || []).forEach(function(p) {
       if (p.fulfilled) return;
-      if ((ctx.turn - p.promiseTurn) > 3 && !p._brokenFired) {
+      if ((ctx.turn - p.promiseTurn) > _turnsForMonthsLocal(3) && !p._brokenFired) {
         p._brokenFired = true;
         if (typeof global.AuthorityComplete !== 'undefined') {
           global.AuthorityComplete.triggerHuangweiEvent('brokenPromise', {});
@@ -112,13 +116,17 @@
     if (leaked) {
       // 权臣反扑
       pm.controlLevel = Math.min(1, (pm.controlLevel || 0.3) + 0.1);
-      if (typeof G.huangquan === 'object') G.huangquan.index = Math.max(0, G.huangquan.index - 3);
+      if (typeof global.AuthorityEngines !== 'undefined' && global.AuthorityEngines.adjustHuangquan) {
+        global.AuthorityEngines.adjustHuangquan('memorialObjection', -3, '\u5bc6\u8bcf\u6cc4\u9732');
+      } else if (typeof G.huangquan === 'object') G.huangquan.index = Math.max(0, G.huangquan.index - 3);
       if (global.addEB) global.addEB('密诏', '密诏泄露，权臣反扑');
     } else {
       // 成功：目标官员可执行密令
       target._secretOrder = edictType;
       pm.controlLevel = Math.max(0, (pm.controlLevel || 0.3) - 0.08);
-      if (typeof G.huangquan === 'object') G.huangquan.index = Math.min(100, G.huangquan.index + 3);
+      if (typeof global.AuthorityEngines !== 'undefined' && global.AuthorityEngines.adjustHuangquan) {
+        global.AuthorityEngines.adjustHuangquan('personalRule', 3, '\u5bc6\u8bcf\u89c1\u6548');
+      } else if (typeof G.huangquan === 'object') G.huangquan.index = Math.min(100, G.huangquan.index + 3);
       if (global.addEB) global.addEB('密诏', targetOfficial + ' 暗受密诏');
     }
     return { ok: !leaked, secretEdict: se };
@@ -142,12 +150,16 @@
       // 废相：后世 memorial 翻倍
       legacy.effects.memorialBurdenMult = 2.0;
       legacy.effects.emperorWorkloadMult = 1.5;
-      if (typeof G.huangquan === 'object') G.huangquan.index = Math.min(100, G.huangquan.index + 10);
+      if (typeof global.AuthorityEngines !== 'undefined' && global.AuthorityEngines.adjustHuangquan) {
+        global.AuthorityEngines.adjustHuangquan('structureReform', 10, '\u5e9f\u9664\u5bb0\u76f8');
+      } else if (typeof G.huangquan === 'object') G.huangquan.index = Math.min(100, G.huangquan.index + 10);
     } else if (reformId === 'establishJunji') {
       // 立军机处：皇权加强 + 决策加速
       legacy.effects.decisionSpeedMult = 1.5;
       legacy.effects.centralizationBonus = 10;
-      if (typeof G.huangquan === 'object') G.huangquan.index = Math.min(100, G.huangquan.index + 12);
+      if (typeof global.AuthorityEngines !== 'undefined' && global.AuthorityEngines.adjustHuangquan) {
+        global.AuthorityEngines.adjustHuangquan('structureReform', 12, '\u8bbe\u7acb\u519b\u673a\u5904');
+      } else if (typeof G.huangquan === 'object') G.huangquan.index = Math.min(100, G.huangquan.index + 12);
     } else if (reformId === 'gaituGuiliu') {
       // 改土归流：羁縻减少
       legacy.effects.jimiLoyaltyDecay = 0.01;

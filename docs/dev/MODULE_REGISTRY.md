@@ -16,7 +16,7 @@
 | `tm-index-world.js` | buildIndices / findCharByName 等 | 保留，事实 DAL 内核 |
 | `tm-data-access.js` | `window.DA` 门面（2026-04-24 新增） | 新代码强制走这里 |
 | `tm-utils.js` | callAI / deepClone / 通用工具 | 保留 |
-| `tm-icons.js` | SVG 图标 | 保留 |
+| `tm-ui-foundation.js` | SVG 图标 + 通用弹窗 + 设置占位 + 速查卡 | P4-beta 合并 |
 | `tm-traits-data.js` | 特质数据 | 保留 |
 
 ### 1.2 回合结算（Phase 4 分片，2026-04-24 有新验证层）
@@ -103,10 +103,10 @@
 |------|---------|-----------|
 | `tm-phase-a-patches.js` | 阶段 A 补丁 | 低 |
 | `tm-phase-b-fills.js` | 阶段 B 填充 | 低 |
-| `tm-phase-c-patches.js` | 阶段 C 补丁 | 低 |
+| ~~`tm-phase-c-patches.js`~~ | 阶段 C 补丁 | R12b done：已合并到 `tm-edict-parser.js` |
 | `tm-phase-d-patches.js` | 阶段 D 补丁 | 低 |
 | `tm-phase-e-patches.js` | 阶段 E 补丁 | 低 |
-| `tm-phase-f1-fixes.js` | F1 修复 | 审视 + 合并到对应子系统 |
+| ~~`tm-phase-f1-fixes.js`~~ | F1 修复 | R12d done：已合并到 `tm-authority-engines.js` + `tm-prophecy.js` |
 | `tm-phase-f2-linkage.js` | F2 联动 | 审视 + 合并到 `economy-linkage` |
 | `tm-phase-f3-depth.js` | F3 深化 | 审视 + 合并到对应 engine |
 | `tm-phase-f4-authority-deep.js` | F4 权威深化 | 合并到 `authority-engines` |
@@ -116,7 +116,7 @@
 | `tm-phase-g2-huji-complete.js` | G2 户籍补完 | 合并到 `huji-engine` |
 | `tm-phase-g3-edict-finalize.js` | G3 诏令 finalize | 合并到 `edict-complete` |
 | `tm-phase-g4-economy-finalize.js` | G4 经济 finalize | 合并到对应 engine |
-| `tm-phase-h-final.js` | H 终极补丁 | 审视所有 monkey patch，归位 |
+| `tm-phase-h-final.js` | H 终极补丁 | ✓ R10 (2026-05-04)·rename → `tm-tax-atomic.js` → §A-§Q redistribute → file deleted |
 
 **Phase 文件的典型反模式**：
 - `window.someFn = wrapFn(originalFn)` — 在加载时覆盖游戏函数

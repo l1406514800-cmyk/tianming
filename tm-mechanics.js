@@ -242,7 +242,12 @@ var OffendGroupsSystem = (function() {
         // 匹配：NPC属于该群体（党派名/阶层名匹配group.name）
         var isRelated = (c.party && c.party === group.name) || (c.className && c.className === group.name) || (c.faction && c.faction === group.name);
         if (isRelated) {
-          c.loyalty = Math.max(0, (c.loyalty || 50) - 3 * _ms);
+          if (typeof adjustCharacterLoyalty === 'function') {
+            adjustCharacterLoyalty(c, -3 * _ms, group.name + '\u4E0D\u6EE1\u79EF\u7D2F', { source:'rebound-group:' + group.name, oncePerTurn:true });
+          } else {
+            var oldL = (typeof c.loyalty === 'number' && isFinite(c.loyalty)) ? c.loyalty : 50;
+            c.loyalty = Math.max(0, oldL - 3 * _ms);
+          }
         }
       });
     }
@@ -1484,7 +1489,12 @@ var StressTraitSystem = {
       if (c.stress > 90 && !c._breakdownTurn) {
         c._breakdownTurn = GM.turn;
         // 崩溃效果：忠诚骤降
-        c.loyalty = Math.max(0, (c.loyalty || 50) - 15);
+        if (typeof adjustCharacterLoyalty === 'function') {
+          adjustCharacterLoyalty(c, -15, '\u538B\u529B\u8FC7\u5927\u7CBE\u795E\u5D29\u6E83', { source:'stress-breakdown' });
+        } else {
+          var oldBreakL = (typeof c.loyalty === 'number' && isFinite(c.loyalty)) ? c.loyalty : 50;
+          c.loyalty = Math.max(0, oldBreakL - 15);
+        }
         if (typeof addEB === 'function') addEB('崩溃', c.name + '精神崩溃！忠诚度骤降');
         if (GM.qijuHistory) {
           GM.qijuHistory.unshift({
@@ -2135,6 +2145,21 @@ var NpcMemorySystem = {
     return results.slice(0, limit);
   },
 
+  /** 兼容旧调用：按角色名取最近个人记忆，供朝议/旧模块读取 */
+  recall: function(charName, limit) {
+    limit = limit || 5;
+    if (!charName) return [];
+    var archive = (typeof GM !== 'undefined' && Array.isArray(GM._memoryArchiveFull)) ? GM._memoryArchiveFull : [];
+    var hits = archive.filter(function(m) { return m && m.char === charName; });
+    if (hits.length > 0) {
+      hits.sort(function(a, b) { return (b.turn || 0) - (a.turn || 0); });
+      return hits.slice(0, limit);
+    }
+    var ch = (typeof GM !== 'undefined' && GM.chars) ? GM.chars.find(function(c) { return c && c.name === charName; }) : null;
+    if (ch && Array.isArray(ch._memory)) return ch._memory.slice(-limit).reverse();
+    return [];
+  },
+
   /** 获取 NPC 的所有活跃 arc（phase ≠ resolved） */
   getActiveArcs: function(charName) {
     if (!GM.chars) return [];
@@ -2287,7 +2312,12 @@ var CharacterGrowthSystem = {
     NpcMemorySystem.remember(charName, '蒙圣上栽培——' + desc, '敬', 8, (P.playerInfo && P.playerInfo.characterName) || '陛下');
     var ch = GM.chars ? GM.chars.find(function(c) { return c.name === charName; }) : null;
     if (ch) {
-      ch.loyalty = Math.min(100, (ch.loyalty || 50) + 3);
+      if (typeof adjustCharacterLoyalty === 'function') {
+        adjustCharacterLoyalty(ch, 3, '\u5E1D\u5E08\u683D\u57F9\uFF1A' + desc, { source:'character-growth-training' });
+      } else {
+        var oldTrainL = (typeof ch.loyalty === 'number' && isFinite(ch.loyalty)) ? ch.loyalty : 50;
+        ch.loyalty = Math.min(100, oldTrainL + 3);
+      }
       if (typeof AffinityMap !== 'undefined') AffinityMap.add(charName, (P.playerInfo && P.playerInfo.characterName) || '玩家', 6, '受帝王栽培');
     }
     toast(charName + '感恩涕零，誓以死报');
@@ -2377,4 +2407,78 @@ function checkPersonalityEvolution() {
       }
     }
   });
+}
+function abolishInstitutionExtended(instId, reason) {
+  var _tmMechanicsGlobal = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));
+  var G = _tmMechanicsGlobal.GM;
+  if (!G.dynamicInstitutions) return;
+  var inst = G.dynamicInstitutions.find(function(i) { return i.id === instId; });
+  if (!inst) return { ok: false, reason: '未知机构' };
+  inst.stage = 'abolished';
+  inst.abolishedTurn = G.turn || 0;
+  inst.abolishReason = reason || '裁撤';
+  if (G.guoku && inst.annualBudget) {
+    G.guoku.money = (G.guoku.money || 0) + Math.floor(inst.annualBudget * 0.5);
+  }
+  if (inst.headOfficial) {
+    var head = (G.chars || []).find(function(c) { return c.name === inst.headOfficial; });
+    if (head) {
+      if (typeof _tmMechanicsGlobal.adjustCharacterLoyalty === 'function') {
+        _tmMechanicsGlobal.adjustCharacterLoyalty(head, -10, inst.name + '\u88AB\u88C1\u64A4' + (reason ? '\uFF1A' + reason : ''), { source:'institution-abolished' });
+      } else {
+        var oldHeadL = (typeof head.loyalty === 'number' && isFinite(head.loyalty)) ? head.loyalty : 50;
+        head.loyalty = Math.max(0, oldHeadL - 10);
+      }
+      head.fame = Math.max(-100, (head.fame || 0) - 5);
+    }
+  }
+  if (_tmMechanicsGlobal.addEB) _tmMechanicsGlobal.addEB('裁撤', inst.name + ' 废弛：' + reason);
+  if (typeof _tmMechanicsGlobal.EventBus !== 'undefined') {
+    _tmMechanicsGlobal.EventBus.emit('institution.abolished', { inst: inst });
+  }
+  return { ok: true, inst: inst };
+}
+
+function evaluateReformFeasibility(reform) {
+  var _tmMechanicsGlobal = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));
+  var G = _tmMechanicsGlobal.GM;
+  var hq = G.huangquan && G.huangquan.index || 55;
+  var hw = G.huangwei && G.huangwei.index || 50;
+  var mx = G.minxin && G.minxin.trueIndex || 60;
+  var requirements = {
+    adjustment:    { hq: 30, hw: 40, mx: 35 },
+    systematic:    { hq: 50, hw: 55, mx: 45 },
+    structural:    { hq: 65, hw: 60, mx: 50 },
+    revolutionary: { hq: 80, hw: 70, mx: 55 }
+  };
+  var scale = reform.scale || 'systematic';
+  var req = requirements[scale];
+  var failReasons = [];
+  if (hq < req.hq) failReasons.push('皇权不足：' + hq + '/' + req.hq);
+  if (hw < req.hw) failReasons.push('皇威不足：' + hw + '/' + req.hw);
+  if (mx < req.mx) failReasons.push('民心不稳：' + mx + '/' + req.mx);
+  var successRate = 0.5;
+  successRate += (hq - req.hq) / 200;
+  successRate += (hw - req.hw) / 200;
+  successRate += (mx - req.mx) / 300;
+  if (G.partyStrife > 60) successRate -= (G.partyStrife - 60) / 200;
+  successRate = Math.max(0.05, Math.min(0.95, successRate));
+  return {
+    feasible: failReasons.length === 0,
+    failReasons: failReasons,
+    successRate: successRate,
+    riskLevel: failReasons.length === 0 ? 'low' : failReasons.length === 1 ? 'medium' : 'high'
+  };
+}
+
+var _tmMechanicsGlobal = typeof globalThis !== 'undefined' ? globalThis : (typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : this));
+_tmMechanicsGlobal.MechanicsCore = _tmMechanicsGlobal.MechanicsCore || {};
+_tmMechanicsGlobal.MechanicsCore.abolishInstitutionExtended = abolishInstitutionExtended;
+_tmMechanicsGlobal.MechanicsCore.evaluateReformFeasibility = evaluateReformFeasibility;
+_tmMechanicsGlobal.MechanicsCore.VERSION = 1;
+if (typeof _tmMechanicsGlobal.abolishInstitutionExtended === 'undefined') {
+  _tmMechanicsGlobal.abolishInstitutionExtended = abolishInstitutionExtended;
+}
+if (typeof _tmMechanicsGlobal.evaluateReformFeasibility === 'undefined') {
+  _tmMechanicsGlobal.evaluateReformFeasibility = evaluateReformFeasibility;
 }

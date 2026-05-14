@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+const { readSource: readEndturnSource } = require('./smoke-endturn-baseline-helpers');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -105,7 +106,9 @@ function checkEq(actual, expected, msg) {
 }
 
 load('tm-engine-constants.js');
+load('tm-faction-membership.js');
 load('tm-military.js');
+load('tm-region-enrich.js');
 load('tm-char-full-schema.js');
 load('tm-rel-graph.js');
 load('tm-migration.js');
@@ -119,12 +122,28 @@ check(EC, 'EngineConstants missing');
 check(MS, 'MilitarySystems missing');
 check(context.TM.MilitarySystems === MS, 'MilitarySystems TM alias missing');
 
-const endturnSource = fs.readFileSync(path.join(ROOT, 'tm-endturn-ai-infer.js'), 'utf8');
+const endturnSource = readEndturnSource();
 check(endturnSource.indexOf('MilitarySystems.getMilitarySystems(GM)') >= 0, 'sc18 should inject militarySystems catalog context');
 check(endturnSource.indexOf('p18.battleResult') >= 0 && endturnSource.indexOf('MilitarySystems.applyBattleResult(p18.battleResult') >= 0, 'sc18 should apply structured battleResult');
 check(endturnSource.indexOf('affectedArmies:[{armyId,side,loss,moraleDelta,loyaltyDelta,state,commanderFate}]') >= 0, 'sc18 should request affectedArmies');
+check(endturnSource.indexOf('_battleResultCasualtyFactions') >= 0, 'sc18 should track battleResult casualty factions before faction action writeback');
+check(endturnSource.indexOf('_skipCasualtyWriteback') >= 0, 'sc18 should skip duplicated faction casualties already covered by battleResult');
+check(endturnSource.indexOf("global.applyAIArmyChange(ac, { source: 'endturn.army_changes'") >= 0,
+  'sc1 army_changes should use shared AI army writeback');
+check(endturnSource.indexOf("global.applyAIArmyChange(ac, { source: 'sc18.supplementary_army_changes'") >= 0,
+  'sc18 supplementary army changes should use shared AI army writeback');
 check(endturnSource.indexOf('lastInteractionMemory') >= 0 && endturnSource.indexOf('recognitionState') >= 0, 'sc07 should expose new cognition fields');
 check(endturnSource.indexOf('lastInteractionMemory/recognitionState') >= 0, 'sc07 dynamic info rule missing');
+
+const militarySource = fs.readFileSync(path.join(ROOT, 'tm-military.js'), 'utf8');
+const renderSource = fs.readFileSync(path.join(ROOT, 'tm-endturn-render.js'), 'utf8');
+const applierSource = fs.readFileSync(path.join(ROOT, 'tm-ai-change-applier.js'), 'utf8');
+check(militarySource.indexOf('a.armyType') >= 0, 'syncMilitarySources should preserve scenario armyType buckets');
+check(renderSource.indexOf("['军','势力','统帅','驻地'") >= 0, 'military risk table should show faction column');
+check(renderSource.indexOf('欠饷≥3月') >= 0, 'military risk warning should use 欠饷 wording');
+check(applierSource.indexOf('function applyAIArmyChange') >= 0, 'AI applier should expose shared army writeback helper');
+check(applierSource.indexOf('military_changes') >= 0 && applierSource.indexOf('army_changes') >= 0,
+  'AI applier should consume both military_changes and army_changes');
 
 const saveLifecycleSource = fs.readFileSync(path.join(ROOT, 'tm-save-lifecycle.js'), 'utf8');
 check(saveLifecycleSource.indexOf('EngineMigration.run(GM);') >= 0, 'save lifecycle should run engine migration');
@@ -308,6 +327,139 @@ check(context.GM.partyState.PartyB.influence < 50, 'loser party influence should
 check(context.GM.partyState.PartyA.historyLog.length === 1 && context.GM.partyState.PartyB.historyLog.length === 1, 'party history logs should record battle');
 check(context.GM.partyState.PartyB.cohesion < 55, 'loser party cohesion should fall');
 check(context.GM.battleHistory.length === 1, 'battle history should record affectedArmies battle');
+
+context.GM = {
+  turn: 23,
+  facs: [{ id:'ming', name:'Ming' }, { id:'houjin', name:'Houjin' }],
+  chars: [{ name:'KnownCommander', faction:'Ming' }],
+  armies: [
+    { id:'legacy_owner', name:'LegacyOwner', owner:'Ming' },
+    { id:'known_cmd', name:'KnownCmdArmy', commander:'KnownCommander' },
+    { id:'houjin_name', name:'Houjin Banner Army' },
+    { id:'unknown', name:'Unknown Camp' }
+  ]
+};
+let migArmyFac = context.TM.FactionMembership.migrateArmyOwnerToFaction();
+checkEq(context.GM.armies[0].faction, 'Ming', 'army owner migration should preserve explicit owner');
+checkEq(context.GM.armies[1].faction, 'Ming', 'army migration should infer faction from commander');
+checkEq(context.GM.armies[2].faction, 'Houjin', 'army migration should infer faction from army name keyword');
+check(!context.GM.armies[3].faction, 'army migration should not invent faction for unknown army');
+check(migArmyFac.inferred >= 2, 'army migration should report inferred faction count');
+
+context.GM = {
+  turn: 40,
+  armies: [{ id:'march1', name:'March Army', soldiers:1000, location:'OldTown', garrison:'OldTown', state:'garrison', supplyRatio:1 }],
+  marchOrders: [],
+  facs: [],
+  chars: []
+};
+context.P = { battleConfig: { enabled:true, marchConfig:{ enabled:true } }, map: { enabled:false } };
+let marchOrder = context.MarchSystem.createMarchOrder(context.GM.armies[0], 'OldTown', 'NewTown', { routeKm:30, terrainDifficulty:1, hasOfficialRoad:true });
+check(marchOrder, 'MarchSystem should create enabled march order');
+for (let i = 0; i < 5; i++) context.MarchSystem.advanceAll();
+checkEq(context.GM.armies[0].location, 'NewTown', 'MarchSystem should update army.location on arrival');
+checkEq(context.GM.armies[0].garrison, 'NewTown', 'MarchSystem should update army.garrison on arrival');
+checkEq(context.GM.armies[0].state, 'garrison', 'MarchSystem should clear marching state on arrival');
+
+context.GM = {
+  turn: 41,
+  armies: [{ id:'siege1', name:'Siege Army', faction:'WinnerFaction', soldiers:50000 }],
+  activeSieges: [],
+  cities: [{ id:'cityA', name:'CityA', owner:'OldFaction' }],
+  provinceStats: { cityA: { owner:'OldFaction' } },
+  facs: [],
+  chars: []
+};
+context.P = { battleConfig: { enabled:true, siegeConfig:{ enabled:true, progressCoeff:10 } } };
+context.setProvinceOwner = function(id, owner) {
+  if (!context.GM.provinceStats[id]) context.GM.provinceStats[id] = {};
+  context.GM.provinceStats[id].owner = owner;
+};
+let siege = context.SiegeSystem.createSiege(context.GM.armies[0], 'CityA', 0, 1000);
+check(siege, 'SiegeSystem should create enabled siege');
+context.SiegeSystem.advanceAll();
+checkEq(context.GM.cities[0].owner, 'WinnerFaction', 'SiegeSystem should transfer city owner when city falls');
+checkEq(context.GM.provinceStats.cityA.owner, 'WinnerFaction', 'SiegeSystem should transfer province owner when city falls');
+
+context.GM = {
+  armies: [
+    { name:'Water', armyType:'navy', soldiers:100, morale:60, supply:70, training:80 },
+    { name:'Inf', type:'infantry', soldiers:200, morale:50, supply:50, training:50 }
+  ],
+  population: { military: { types: {} } }
+};
+context.syncMilitarySources(context.GM);
+check(context.GM.population.military.types.navy && context.GM.population.military.types.navy.strength === 100, 'syncMilitarySources should bucket by armyType');
+check(context.GM.population.military.types.infantry && context.GM.population.military.types.infantry.strength === 200, 'syncMilitarySources should keep type bucket');
+
+context.P = { playerInfo: { factionName:'PlayerFaction' }, battleConfig: { enabled:true } };
+context.GM = {
+  turn: 44,
+  population: { military: { types: {} } },
+  armies: [],
+  facs: [{ name:'PlayerFaction', isPlayer:true }],
+  chars: [{ name:'PlayerRuler', isPlayer:true, faction:'PlayerFaction' }]
+};
+let farm = context.PhaseB.registerMilitaryFarm({ name:'Hexi Farm', region:'Hexi', acres:300000, garrison:12000 });
+check(farm && farm.linkedArmyId, 'military farm should record linked army id');
+checkEq(context.GM.armies.length, 1, 'military farm should create one visible GM.armies unit');
+checkEq(context.GM.armies[0].soldiers, 12000, 'military farm army soldiers should match garrison');
+checkEq(context.GM.armies[0].faction, 'PlayerFaction', 'military farm army should belong to player faction');
+check(context.GM.population.military.types.tuntian && context.GM.population.military.types.tuntian.strength === 12000,
+  'military farm army should sync into military UI/stat source');
+
+context.P = { playerInfo: { factionName:'PlayerFaction' }, battleConfig: { enabled:true } };
+context.GM = {
+  turn: 45,
+  population: { military: { types: {} } },
+  armies: [],
+  facs: [{ name:'PlayerFaction', isPlayer:true }],
+  chars: [{ name:'PlayerRuler', isPlayer:true, faction:'PlayerFaction' }],
+  guoku: { money: 1000000, extraIncome: [], extraExpense: [] },
+  neitang: { money: 500000, extraIncome: [], extraExpense: [] }
+};
+context.applyAITurnChanges({
+  narrative: 'Imperial order recruits a new Shenji camp.',
+  military_changes: [
+    { armyName:'Shenji New Camp', delta:12000, faction:'PlayerFaction', location:'Capital', type:'firearms', reason:'edict recruitment' }
+  ]
+});
+checkEq(context.GM.armies.length, 1, 'ai military_changes should create missing positive-delta army');
+checkEq(context.GM.armies[0].name, 'Shenji New Camp', 'created army should preserve AI armyName');
+checkEq(context.GM.armies[0].soldiers, 12000, 'created army soldiers should use positive delta');
+checkEq(context.GM.armies[0].faction, 'PlayerFaction', 'created army should keep AI faction');
+check(context.GM.population.military.types.firearms && context.GM.population.military.types.firearms.strength === 12000,
+  'created army should sync into military UI/stat source');
+
+context.GM.armies = [];
+context.GM.population.military.types = {};
+context.applyAITurnChanges({
+  narrative: 'Court debate approves a new capital garrison.',
+  army_changes: [
+    { name:'Capital Garrison New Army', soldiers_delta:8000, faction:'PlayerFaction', location:'Capital', armyType:'infantry', reason:'court approval' }
+  ]
+});
+checkEq(context.GM.armies.length, 1, 'ai army_changes should create missing positive-delta army');
+checkEq(context.GM.armies[0].soldiers, 8000, 'army_changes created army soldiers should use soldiers_delta');
+check(context.GM.population.military.types.infantry && context.GM.population.military.types.infantry.strength === 8000,
+  'army_changes created army should sync into military UI/stat source');
+
+context.GM.armies = [];
+context.GM.population.military.types = {};
+context.applyAITurnChanges({
+  narrative: 'Approved memorial raises a guard unit through generic changes.',
+  changes: [
+    {
+      path:'armies',
+      op:'push',
+      value:{ name:'Memorial Guard Unit', soldiers:6000, faction:'PlayerFaction', location:'Capital', armyType:'guards' },
+      reason:'memorial approval'
+    }
+  ]
+});
+checkEq(context.GM.armies.length, 1, 'generic changes push should create one army');
+check(context.GM.population.military.types.guards && context.GM.population.military.types.guards.strength === 6000,
+  'generic changes pushed army should sync into military UI/stat source');
 
 let migChar = {
   name:'MigratingStar',

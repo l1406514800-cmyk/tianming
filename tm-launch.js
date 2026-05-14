@@ -71,7 +71,7 @@
 //
 //  1. openSettings 在 tm-patches.js:8 被完整重写。本文件的 L1146 版本
 //     只在 tm-patches.js 未加载时生效。如果要改设置 UI 请改
-//     tm-patches.js（或 R22 的 tm-settings-ui.js 迁移靶文件）
+//     tm-patches.js（或 P4-beta 的 tm-ui-foundation.js 迁移靶文件）
 //
 //  2. renderTechTab/renderRulTab/renderEvtTab 定义在本文件但被
 //     tm-audio-theme.js 和 tm-editor-details.js 覆盖（加编辑按钮）
@@ -1118,7 +1118,7 @@ async function execFullGen(){
           if (scn.era.indexOf(eraKey) >= 0) { guessYear = _eraRef[eraKey]; break; }
         }
       }
-      scn.time = { year: guessYear || 1, perTurn: '1s', seasons: ['春','夏','秋','冬'], startS: 0, prefix: guessYear < 0 ? '公元前' : '', suffix: '年', startMonth: 1, startDay: 1 };
+      scn.time = { year: guessYear || 1, perTurn: '1s', daysPerTurn: 90, seasons: ['春','夏','秋','冬'], startS: 0, prefix: guessYear < 0 ? '公元前' : '', suffix: '年', startMonth: 1, startDay: 1 };
     }
 
     // Step 12: finalize
@@ -1140,3 +1140,28 @@ async function execFullGen(){
 
 // ============================================================
 //  导入导出
+
+// ============================================================
+// Phase 3 (2026-05-03)·从 tm-chaoyi-misc.js redistribute
+// 原 misc.js L150-169·继续游戏按钮 IIFE + backToLaunch:after hook
+// ============================================================
+(function(){
+  var menu=_$("lt-menu");if(!menu)return;
+  if(_$("lt-continue"))return;
+  var btn=document.createElement("button");btn.className="lt-btn";btn.id="lt-continue";btn.style.display="none";
+  btn.innerHTML="\u25B6 <div><div style=\"font-weight:700;\">\u7EE7\u7EED\u6E38\u620F</div><div id=\"lt-cont-desc\" style=\"font-size:0.75rem;color:var(--txt-d);\"></div></div>";
+  btn.onclick=function(){
+    if(GM.running){_$("launch").style.display="none";_$("bar").style.display="flex";_$("bar-btns").innerHTML="";_$("G").style.display="grid";_$("shiji-btn").classList.add("show");_$("save-btn").classList.add("show");}
+  };
+  menu.insertBefore(btn,menu.firstChild);
+})();
+
+// 返回主菜单时显示继续按钮
+GameHooks.on('backToLaunch:after', function() {
+  var cb=_$("lt-continue");
+  if(cb&&GM.running){
+    cb.style.display="flex";
+    var desc=_$("lt-cont-desc");
+    if(desc){var sc=findScenarioById(GM.sid);desc.textContent=(sc?sc.name:"")+" T"+GM.turn+" "+getTSText(GM.turn);}
+  }
+});

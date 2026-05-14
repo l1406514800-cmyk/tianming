@@ -18,6 +18,10 @@
 (function(global) {
   'use strict';
 
+  function _turnsForMonthsLocal(months) {
+    return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
+  }
+
   // ────── 辅助：多源回退读国势变量（与 letter 系统/chaoyi-v3 一致） ──────
   function _readMetric(zh, en) {
     if (typeof GM === 'undefined' || !GM) return 50;
@@ -264,7 +268,7 @@
       if (c._mood && c._mood !== '平') score += 5;
       if (Array.isArray(c._scars) && c._scars.length > 0) {
         var recentScar = c._scars[c._scars.length - 1];
-        if (recentScar && recentScar.turn && (GM.turn - recentScar.turn) <= 3) score += 8;
+      if (recentScar && recentScar.turn && (GM.turn - recentScar.turn) <= _turnsForMonthsLocal(3)) score += 8;
       }
       if (typeof c.loyalty === 'number' && (c.loyalty < 30 || c.loyalty > 85)) score += 4;
       if (typeof c.stress === 'number' && c.stress > 50) score += 3;
@@ -291,7 +295,7 @@
       // 玩家近期互动（鸿雁、问对、奏疏）—— 简单查 GM.letters / memorials
       if (Array.isArray(GM.letters)) {
         var recentLtr = GM.letters.filter(function(l) {
-          return l && (l.from === c.name || l.to === c.name) && ((GM.turn - (l.sentTurn || 0)) <= 3);
+          return l && (l.from === c.name || l.to === c.name) && ((GM.turn - (l.sentTurn || 0)) <= _turnsForMonthsLocal(3));
         });
         if (recentLtr.length > 0) score += 3;
       }

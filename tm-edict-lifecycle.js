@@ -127,11 +127,15 @@ var REFORM_PHASES = {
  */
 function _getDaysPerTurn() {
   if (typeof P === 'undefined' || !P.time) return 30;
-  if (P.time.daysPerTurn && P.time.daysPerTurn > 0) return P.time.daysPerTurn;
+  var dpt = Number(P.time.daysPerTurn);
+  if (dpt > 0) return dpt;
   // 兼容旧格式 perTurn
-  var perTurn = P.time.perTurn || '1s';
+  var perTurn = P.time.perTurn || '1m';
+  if (perTurn === 'custom' && Number(P.time.customDays) > 0) return Number(P.time.customDays);
   var map = { '1d':1, '1w':7, '1m':30, '1s':90, '1y':365 };
-  return map[perTurn] || 30;
+  if (map[perTurn]) return map[perTurn];
+  var n = parseInt(perTurn, 10);
+  return n > 0 ? n : 30;
 }
 
 /**

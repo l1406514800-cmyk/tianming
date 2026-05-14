@@ -46,7 +46,8 @@
     var wp = document.createElement('div');
     wp.className = 'gs-panel p-weather';
     wp.setAttribute('data-panel-key','weather');
-    var _mon = (((GM.turn||1)-1)%12)+1;
+    var _dateForWeather = (typeof calcDateFromTurn === 'function') ? calcDateFromTurn(GM.turn || 1) : null;
+    var _mon = (_dateForWeather && (_dateForWeather.lunarMonth || _dateForWeather.solarMonth)) || (((GM.turn||1)-1)%12)+1;
     var _seas='秋',_seasTxt='秋分',_seasDesc='鸿雁南飞';
     if(_mon>=3&&_mon<=5){_seas='春';_seasTxt=['孟春','仲春','季春'][_mon-3];_seasDesc=['东风解冻','雷乃发声','萍始生'][_mon-3];}
     else if(_mon>=6&&_mon<=8){_seas='夏';_seasTxt=['孟夏','仲夏','季夏'][_mon-6];_seasDesc=['蝼蝈鸣','蜩始鸣','腐草为萤'][_mon-6];}
@@ -486,6 +487,9 @@
     var au = document.createElement('div');
     au.className = 'gs-panel p-audio';
     au.setAttribute('data-panel-key','audio');
+    if (window.AudioSystem && typeof AudioSystem.renderShellPanelHtml === 'function') {
+      au.innerHTML = AudioSystem.renderShellPanelHtml();
+    } else {
     au.innerHTML = '<div class="gs-panel-hdr"><div class="gs-panel-title">音 声 调 度</div><span class="gs-panel-cnt">开</span></div>'
       + '<div class="gs-audio-row"><span class="gs-audio-name">殿 乐</span><div class="gs-audio-ctrl"><div class="gs-audio-slider" style="--p:70%;"></div><span class="gs-audio-val">70</span></div></div>'
       + '<div class="gs-audio-row"><span class="gs-audio-name">朝 钟</span><div class="gs-audio-ctrl"><div class="gs-audio-slider" style="--p:45%;"></div><span class="gs-audio-val">45</span></div></div>'
@@ -501,6 +505,7 @@
       + '</div>'
       + '<div class="gs-audio-loop"><button class="gs-audio-loop-btn active">顺 序</button><button class="gs-audio-loop-btn">单 曲</button><button class="gs-audio-loop-btn">随 机</button></div>'
       + '</div>';
+    }
     gl.appendChild(au);
     } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'shell-extras] audio panel:') : console.warn('[shell-extras] audio panel:', e); }
   };
@@ -890,7 +895,8 @@
     var jp = document.createElement('div');
     jp.className = 'gs-panel p-jifa';
     jp.setAttribute('data-panel-key','jifa');
-    var _today = ((GM.turn||1) % 12) + 1;
+    var _dateForJifa = (typeof calcDateFromTurn === 'function') ? calcDateFromTurn(GM.turn || 1) : null;
+    var _today = _dateForJifa ? ((((_dateForJifa.lunarDay || _dateForJifa.solarDay || 1) - 1) % 12) + 1) : (((GM.turn||1) % 12) + 1);
     var _jifaHtml = '<div class="gs-panel-hdr"><div class="gs-panel-title">祭 祀 礼 仪</div><span class="gs-panel-cnt">本月</span></div>';
     _jifaHtml += '<div class="gs-jifa-calendar">';
     var _dayLabels = ['朔','初二','祭太庙','初四','吉日','初六','初七','初八','初九','祀天','十一','望'];
@@ -1087,3 +1093,77 @@
   } catch(_){}
 })();
 
+// ═══════════════════════════════════════════════════════════════════
+// 右上时间区·click 弹 popover·B 方案 LOCKED §3.1
+// ═══════════════════════════════════════════════════════════════════
+(function(){
+  'use strict';
+  function buildPopContent(){
+    var lines = [];
+    lines.push('<div class="btp-title">天 时</div>');
+    var di = (typeof calcDateFromTurn === 'function') ? calcDateFromTurn(GM.turn || 1) : null;
+    var ts = (typeof getTSText === 'function') ? getTSText(GM.turn || 1) : '';
+    if (ts) lines.push('<div class="btp-row"><span class="btp-k">主历</span><span class="btp-v">' + ts + '</span></div>');
+    if (di){
+      var ay = di.adYear;
+      var ayStr = (ay < 0) ? ('前 ' + Math.abs(ay) + ' 年') : (ay + ' 年');
+      lines.push('<div class="btp-row"><span class="btp-k">公元</span><span class="btp-v">' + ayStr + '</span></div>');
+      if (di.gzYearStr) lines.push('<div class="btp-row"><span class="btp-k">岁次</span><span class="btp-v">' + di.gzYearStr + ' 年</span></div>');
+      if (di.season) lines.push('<div class="btp-row"><span class="btp-k">时令</span><span class="btp-v">' + di.season + '</span></div>');
+      if (di.lunarMonth){
+        var lm = di.lunarMonth;
+        var lmName = (typeof lunarMonthName === 'function') ? lunarMonthName(lm) : (lm + '月');
+        lines.push('<div class="btp-row"><span class="btp-k">月分</span><span class="btp-v">' + lmName + '</span></div>');
+      }
+      if (di.gzDayStr) lines.push('<div class="btp-row"><span class="btp-k">日辰</span><span class="btp-v">' + di.gzDayStr + ' 日</span></div>');
+    }
+    lines.push('<div class="btp-divider"></div>');
+    var wn = document.getElementById('bar-weather-name');
+    var wd = document.getElementById('bar-weather-desc');
+    if (wn && wn.textContent) lines.push('<div class="btp-row"><span class="btp-k">节气</span><span class="btp-v">' + wn.textContent + '</span></div>');
+    if (wd && wd.textContent) lines.push('<div class="btp-row"><span class="btp-k">物候</span><span class="btp-v">' + wd.textContent + '</span></div>');
+    lines.push('<div class="btp-row"><span class="btp-k">回合</span><span class="btp-v">第 ' + (GM.turn || 1) + ' 回合</span></div>');
+    return lines.join('');
+  }
+  function showPop(){
+    var pop = document.getElementById('bar-time-pop');
+    if (!pop) return;
+    pop.innerHTML = buildPopContent();
+    pop.style.display = 'block';
+  }
+  function hidePop(){
+    var pop = document.getElementById('bar-time-pop');
+    if (pop) pop.style.display = 'none';
+  }
+  function togglePop(){
+    var pop = document.getElementById('bar-time-pop');
+    if (!pop) return;
+    if (pop.style.display === 'block') hidePop(); else showPop();
+  }
+  // 延迟绑·#bar-time 由 player-core 渲染前已存在 (在 index.html 静态 DOM 内)
+  function bind(){
+    var bt = document.getElementById('bar-time');
+    if (!bt) return false;
+    if (bt._tmBoundTime) return true;
+    bt._tmBoundTime = true;
+    bt.addEventListener('click', function(e){ e.stopPropagation(); togglePop(); });
+    document.addEventListener('click', function(e){
+      var pop = document.getElementById('bar-time-pop');
+      if (pop && pop.style.display === 'block' && !pop.contains(e.target) && e.target !== bt && !bt.contains(e.target)){
+        hidePop();
+      }
+    });
+    document.addEventListener('keydown', function(e){
+      if (e.key === 'Escape'){
+        var pop = document.getElementById('bar-time-pop');
+        if (pop && pop.style.display === 'block') hidePop();
+      }
+    });
+    return true;
+  }
+  if (document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', bind);
+  } else {
+    bind();
+  }
+})();

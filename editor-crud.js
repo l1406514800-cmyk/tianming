@@ -8,6 +8,29 @@
     autoSave();
   }
 
+  function _cloneJson(v) {
+    return v === undefined ? undefined : JSON.parse(JSON.stringify(v));
+  }
+
+  function _jsonText(v, fallback) {
+    if (v === undefined || v === null) return fallback || '';
+    try { return JSON.stringify(v, null, 2); }
+    catch(_) { return fallback || ''; }
+  }
+
+  function _readJsonField(id, currentValue, emptyValue) {
+    var el = document.getElementById(id);
+    if (!el) return currentValue;
+    var raw = (el.value || '').trim();
+    if (!raw) return emptyValue;
+    try {
+      return JSON.parse(raw);
+    } catch(e) {
+      if (console && console.warn) console.warn('[editor-crud] invalid JSON in #' + id + ':', e);
+      return currentValue;
+    }
+  }
+
   // B1-B3: 角色列表状态
   var _charFilter = 'all'; // all/historical/fictional
   var _charSort = 'default'; // default/loyalty/intelligence/faction
@@ -335,7 +358,8 @@
     document.getElementById('charGender').value = c.gender || '男';
     document.getElementById('charEthnicity').value = c.ethnicity || '';
     document.getElementById('charBirthplace').value = c.birthplace || '';
-    document.getElementById('charBirthTime').value = c.birthTime || '';
+    var birthTimeEl = document.getElementById('charBirthTime');
+    if (birthTimeEl) birthTimeEl.value = c.birthTime || (c.birthYear !== undefined && c.birthYear !== null ? String(c.birthYear) : '');
     document.getElementById('charOccupation').value = c.occupation || '';
     if (document.getElementById('charLocation')) document.getElementById('charLocation').value = c.location || '';
     document.getElementById('charOfficialTitle').value = c.officialTitle || '无';
@@ -460,12 +484,14 @@
     if (_faEl) _faEl.value = c.father || '';
     var _moEl = document.getElementById('charMother');
     if (_moEl) _moEl.value = c.mother || '';
+    var _spText = document.getElementById('charSpouse');
+    if (_spText) _spText.value = typeof c.spouse === 'string' ? c.spouse : '';
     // 后宫位分
     var _isSpCb = document.getElementById('charIsSpouse');
     var _spRkSel = document.getElementById('charSpouseRank');
     var _spRkWrap = document.getElementById('charSpouseRankWrap');
     if (_isSpCb && _spRkSel) {
-      var isSpouse = !!(c.spouse === true || (typeof c.spouse === 'string' && c.spouse));
+      var isSpouse = !!(c.spouse === true || c.spouseRank);
       _isSpCb.checked = isSpouse;
       if (_spRkWrap) _spRkWrap.style.display = isSpouse ? 'inline-flex' : 'none';
       // 填充位分下拉
@@ -476,6 +502,17 @@
       _spRkSel.innerHTML = _ranks.map(function(r) {
         return '<option value="' + r.id + '"' + (c.spouseRank === r.id ? ' selected' : '') + '>' + (r.name || r.id) + '</option>';
       }).join('');
+    }
+    var deepStateEl = document.getElementById('charDeepStateJson');
+    if (deepStateEl) {
+      deepStateEl.value = _jsonText({
+        partyRef: c.partyRef,
+        factionRef: c.factionRef,
+        officeRef: c.officeRef,
+        relations: c.relations,
+        lastInteractionMemory: c.lastInteractionMemory,
+        recognitionState: c.recognitionState
+      }, '{}');
     }
 
     document.getElementById('charModal').classList.add('show');
@@ -692,47 +729,176 @@
     }
   }
 
+  function _syncCharacterOfficeHolder(prevChar, nextChar) {
+    if (!nextChar || !nextChar.name || !scriptData) return { synced: false, cleared: 0 };
+    var newName = String(nextChar.name || '').trim();
+    var oldName = prevChar && prevChar.name ? String(prevChar.name).trim() : '';
+    var rawTitle = String(nextChar.officialTitle || '').trim();
+    var newTitle = (!rawTitle || rawTitle === '无') ? '' : rawTitle;
+    var cleared = 0;
+    var roots = [];
+    if (scriptData.government && Array.isArray(scriptData.government.nodes)) roots.push(scriptData.government.nodes);
+    if (Array.isArray(scriptData.officeTree)) roots.push(scriptData.officeTree);
+    if (roots.length === 0) return { synced: false, cleared: 0 };
+
+    var seen = [];
+    function _seenPos(p) {
+      if (!p) return true;
+      if (seen.indexOf(p) >= 0) return true;
+      seen.push(p);
+      return false;
+    }
+    function _holdersOf(p) {
+      if (Array.isArray(p.actualHolders)) {
+        return p.actualHolders.filter(function(h){ return h && h.name && h.generated !== false; }).map(function(h){ return h.name; });
+      }
+      var arr = [];
+      if (p.holder) arr.push(p.holder);
+      if (Array.isArray(p.additionalHolders)) arr = arr.concat(p.additionalHolders);
+      return arr;
+    }
+    function _syncLegacy(p) {
+      var names = _holdersOf(p);
+      p.holder = names[0] || '';
+      p.additionalHolders = names.slice(1);
+      var est = p.establishedCount != null ? parseInt(p.establishedCount, 10) : (parseInt(p.headCount, 10) || Math.max(1, names.length));
+      if (!isNaN(est)) p.vacancyCount = Math.max(0, est - names.length);
+      p.actualCount = Array.isArray(p.actualHolders) ? p.actualHolders.length : names.length;
+    }
+    function _clearName(p, name) {
+      if (!name || !p) return false;
+      var hit = false;
+      if (p.holder === name) { p.holder = ''; hit = true; }
+      if (Array.isArray(p.actualHolders)) {
+        p.actualHolders.forEach(function(h) {
+          if (h && h.name === name) {
+            h.name = '';
+            h.generated = false;
+            if (!h.placeholderId) h.placeholderId = 'ph_' + Math.random().toString(36).slice(2,8);
+            hit = true;
+          }
+        });
+      }
+      if (Array.isArray(p.additionalHolders)) {
+        var before = p.additionalHolders.length;
+        p.additionalHolders = p.additionalHolders.filter(function(n){ return n !== name; });
+        if (p.additionalHolders.length !== before) hit = true;
+      }
+      if (hit) _syncLegacy(p);
+      return hit;
+    }
+    function _matchTitle(p, deptName, deptPath, loose) {
+      var posName = p && p.name ? String(p.name).trim() : '';
+      if (!newTitle || !posName) return false;
+      if (newTitle === posName || newTitle === deptName + posName || newTitle === deptPath + '·' + posName) return true;
+      if (!loose) return false;
+      return newTitle.indexOf(posName) >= 0 && (!!deptName && newTitle.indexOf(deptName) >= 0);
+    }
+    function _findTarget(loose) {
+      var target = null;
+      function walk(nodes, path) {
+        (nodes || []).forEach(function(n) {
+          if (target || !n) return;
+          var deptPath = path ? (path + '·' + (n.name || '')) : (n.name || '');
+          (n.positions || []).forEach(function(p) {
+            if (!target && _matchTitle(p, n.name || '', deptPath, loose)) target = p;
+          });
+          if (!target && n.subs) walk(n.subs, deptPath);
+        });
+      }
+      roots.forEach(function(r) { if (!target) walk(r, ''); });
+      return target;
+    }
+    function _clearAll(nodes) {
+      (nodes || []).forEach(function(n) {
+        if (!n) return;
+        (n.positions || []).forEach(function(p) {
+          if (_seenPos(p)) return;
+          if (_clearName(p, oldName)) cleared++;
+          if (newName !== oldName && _clearName(p, newName)) cleared++;
+        });
+        if (n.subs) _clearAll(n.subs);
+      });
+    }
+    roots.forEach(function(r) { _clearAll(r); });
+    if (!newTitle) return { synced: false, cleared: cleared };
+
+    var target = _findTarget(false) || _findTarget(true);
+    if (!target) return { synced: false, cleared: cleared };
+    if (target.holder && target.holder !== newName && Array.isArray(scriptData.characters)) {
+      var displaced = scriptData.characters.find(function(c){ return c && c.name === target.holder; });
+      if (displaced && (displaced.officialTitle === newTitle || displaced.officialTitle === target.name)) displaced.officialTitle = '无';
+    }
+    if (!Array.isArray(target.actualHolders)) {
+      target.actualHolders = target.holder ? [{ name: target.holder, generated: true }] : [];
+    }
+    var slot = target.actualHolders.find(function(h){ return h && (!h.name || h.generated === false); });
+    if (!slot) {
+      slot = target.actualHolders[0] || null;
+      if (!slot) {
+        slot = { name: '', generated: false };
+        target.actualHolders.push(slot);
+      }
+    }
+    slot.name = newName;
+    slot.generated = true;
+    _syncLegacy(target);
+    return { synced: true, cleared: cleared };
+  }
+
   function saveCharacter() {
-    var c = {
-      name: document.getElementById('charName').value,
-      type: document.getElementById('charType').value,
-      title: document.getElementById('charTitle').value,
-      faction: document.getElementById('charFaction').value,
-      role: document.getElementById('charRole').value,
-      bio: document.getElementById('charBio').value,
-      age: document.getElementById('charAge').value,
-      gender: document.getElementById('charGender').value,
-      ethnicity: document.getElementById('charEthnicity').value,
-      birthplace: document.getElementById('charBirthplace').value,
-      birthTime: document.getElementById('charBirthTime').value,
-      occupation: document.getElementById('charOccupation').value,
-      location: document.getElementById('charLocation') ? document.getElementById('charLocation').value : '',
-      party: document.getElementById('charParty').value,
-      partyRank: document.getElementById('charPartyRank').value,
-      partyInfluence: document.getElementById('charPartyInfluence').value !== '' ? +document.getElementById('charPartyInfluence').value : undefined,
-      class: document.getElementById('charClass') ? document.getElementById('charClass').value : '',
-      officialTitle: document.getElementById('charOfficialTitle').value,
-      vassalType: document.getElementById('charVassalType').value,
-      stance: document.getElementById('charStance').value,
-      personality: document.getElementById('charPersonality').value,
-      persona: document.getElementById('charPersona').value,
-      learning: document.getElementById('charLearning').value,
-      playerRelation: document.getElementById('charPlayerRelation').value,
-      faith: document.getElementById('charFaith').value,
-      culture: document.getElementById('charCulture').value,
-      portrait: document.getElementById('charPortraitData').value,
-      appearance: (document.getElementById('charAppearance') || {}).value || '',
-      loyalty: +document.getElementById('charLoyalty').value,
-      ambition: +document.getElementById('charAmbition').value,
-      benevolence: +document.getElementById('charBenevolence').value,
-      intelligence: +document.getElementById('charIntelligence').value,
-      valor: +document.getElementById('charValor').value,
-      military: +(document.getElementById('charMilitary') || {value:50}).value,
-      administration: +(document.getElementById('charAdministration') || {value:50}).value,
-      management: +(document.getElementById('charManagement') || {value:50}).value,
-      charisma: +(document.getElementById('charCharisma') || {value:50}).value,
-      diplomacy: +(document.getElementById('charDiplomacy') || {value:50}).value
-    };
+    var prevCharForOffice = editingCharIndex >= 0 ? (_cloneJson(scriptData.characters[editingCharIndex] || {}) || {}) : null;
+    var c = editingCharIndex >= 0 ? (_cloneJson(scriptData.characters[editingCharIndex] || {}) || {}) : {};
+    c.name = document.getElementById('charName').value;
+    c.type = document.getElementById('charType').value;
+    c.title = document.getElementById('charTitle').value;
+    c.faction = document.getElementById('charFaction').value;
+    c.role = document.getElementById('charRole').value;
+    c.bio = document.getElementById('charBio').value;
+    c.age = document.getElementById('charAge').value;
+    c.gender = document.getElementById('charGender').value;
+    c.ethnicity = document.getElementById('charEthnicity').value;
+    c.birthplace = document.getElementById('charBirthplace').value;
+    c.occupation = document.getElementById('charOccupation').value;
+    c.location = document.getElementById('charLocation') ? document.getElementById('charLocation').value : '';
+    c.party = document.getElementById('charParty').value;
+    c.partyRank = document.getElementById('charPartyRank').value;
+    c.partyInfluence = document.getElementById('charPartyInfluence').value !== '' ? +document.getElementById('charPartyInfluence').value : undefined;
+    c.class = document.getElementById('charClass') ? document.getElementById('charClass').value : '';
+    c.officialTitle = document.getElementById('charOfficialTitle').value;
+    c.vassalType = document.getElementById('charVassalType').value;
+    c.stance = document.getElementById('charStance').value;
+    c.personality = document.getElementById('charPersonality').value;
+    c.persona = document.getElementById('charPersona').value;
+    c.learning = document.getElementById('charLearning').value;
+    c.playerRelation = document.getElementById('charPlayerRelation').value;
+    c.faith = document.getElementById('charFaith').value;
+    c.culture = document.getElementById('charCulture').value;
+    c.portrait = document.getElementById('charPortraitData').value;
+    c.appearance = (document.getElementById('charAppearance') || {}).value || '';
+    c.loyalty = +document.getElementById('charLoyalty').value;
+    c.ambition = +document.getElementById('charAmbition').value;
+    c.benevolence = +document.getElementById('charBenevolence').value;
+    c.intelligence = +document.getElementById('charIntelligence').value;
+    c.valor = +document.getElementById('charValor').value;
+    c.military = +(document.getElementById('charMilitary') || {value:50}).value;
+    c.administration = +(document.getElementById('charAdministration') || {value:50}).value;
+    c.management = +(document.getElementById('charManagement') || {value:50}).value;
+    c.charisma = +(document.getElementById('charCharisma') || {value:50}).value;
+    c.diplomacy = +(document.getElementById('charDiplomacy') || {value:50}).value;
+    var birthTimeRaw = (document.getElementById('charBirthTime') || {}).value || '';
+    birthTimeRaw = birthTimeRaw.trim();
+    if (birthTimeRaw) {
+      c.birthTime = birthTimeRaw;
+      var birthMatch = birthTimeRaw.match(/-?\d+/);
+      if (birthMatch) {
+        var birthYear = parseInt(birthMatch[0], 10);
+        if (!isNaN(birthYear)) c.birthYear = birthYear;
+      }
+    } else {
+      delete c.birthTime;
+      delete c.birthYear;
+    }
     // 收集五常覆盖值
     var _wcOverride = {};
     var _wcHasOverride = false;
@@ -743,30 +909,60 @@
       else { _wcOverride[keys[idx]] = null; }
     });
     if (_wcHasOverride) c.wuchangOverride = _wcOverride;
+    else delete c.wuchangOverride;
     // 收集家世
     var _fsDi = (document.getElementById('charFamilyStatus')||{}).value;
     var _fsCn = (document.getElementById('charClanName')||{}).value;
     var _fsPr = (document.getElementById('charFamilyPrestige')||{}).value;
     if (_fsDi) {
       c.familyStatus = { 门第: _fsDi, 郡望: _fsCn || '', 声望: parseInt(_fsPr) || 50 };
+    } else {
+      delete c.familyStatus;
     }
     c.father = (document.getElementById('charFather')||{}).value || '';
     c.mother = (document.getElementById('charMother')||{}).value || '';
     var _isSpCb2 = document.getElementById('charIsSpouse');
-    c.spouse = _isSpCb2 ? _isSpCb2.checked : false;
-    if (c.spouse) {
+    var _spName = (document.getElementById('charSpouse')||{}).value || '';
+    _spName = _spName.trim();
+    var _spChecked = _isSpCb2 ? _isSpCb2.checked : false;
+    if (_spName) {
+      c.spouse = _spName;
+    } else if (_spChecked) {
+      c.spouse = true;
+    } else {
+      delete c.spouse;
+    }
+    if (_spChecked && c.spouse) {
       c.spouseRank = (document.getElementById('charSpouseRank')||{}).value || 'consort';
     } else {
       delete c.spouseRank;
     }
+    var deepStateRaw = (document.getElementById('charDeepStateJson') || {}).value || '';
+    deepStateRaw = deepStateRaw.trim();
+    if (deepStateRaw) {
+      var deepState;
+      try {
+        deepState = JSON.parse(deepStateRaw);
+      } catch(e) {
+        showToast('结构引用 JSON 格式有误');
+        return;
+      }
+      if (deepState && typeof deepState === 'object' && !Array.isArray(deepState)) {
+        ['partyRef','factionRef','officeRef','relations','lastInteractionMemory','recognitionState'].forEach(function(k) {
+          if (Object.prototype.hasOwnProperty.call(deepState, k)) c[k] = deepState[k];
+        });
+      }
+    }
     // 收集选中的特质（新版：从弹窗的traits选择器中读取）
     if (window._selectedTraitsForChar && Array.isArray(window._selectedTraitsForChar)) {
       c.traits = window._selectedTraitsForChar.slice();
+      c.traitIds = window._selectedTraitsForChar.slice();
     } else {
       // 兼容旧 traitIds 字段
       var selectedTraits = [];
       document.querySelectorAll('.trait-cb:checked').forEach(function(cb) { selectedTraits.push(cb.value); });
-      if (selectedTraits.length > 0) c.traits = selectedTraits;
+      c.traits = selectedTraits.slice();
+      c.traitIds = selectedTraits.slice();
     }
     // 4.1: 收集动态目标
     var _goalRows = document.querySelectorAll('#charGoalsList .char-goal-row');
@@ -808,8 +1004,9 @@
     if (_gv('charStressSources')) c.stressSources = _gv('charStressSources').split(/\n+/).map(function(s){return s.trim();}).filter(Boolean);
     if (_gn('charClanPrestige') !== undefined) c.clanPrestige = _gn('charClanPrestige');
     // 家族成员
-    var _famRows = document.querySelectorAll('#charFamilyMembersList .fam-row');
-    if (_famRows.length > 0) {
+    var _famList = document.getElementById('charFamilyMembersList');
+    if (_famList) {
+      var _famRows = _famList.querySelectorAll('.fam-row');
       c.familyMembers = [];
       _famRows.forEach(function(row) {
         var name = (row.querySelector('.fm-name')||{}).value || '';
@@ -827,8 +1024,9 @@
       });
     }
     // 仕途
-    var _crRows = document.querySelectorAll('#charCareerList .career-row');
-    if (_crRows.length > 0) {
+    var _careerList = document.getElementById('charCareerList');
+    if (_careerList) {
+      var _crRows = _careerList.querySelectorAll('.career-row');
       c.career = [];
       _crRows.forEach(function(row) {
         var title = (row.querySelector('.cr-title')||{}).value || '';
@@ -848,6 +1046,7 @@
     } else {
       scriptData.characters.push(c);
     }
+    _syncCharacterOfficeHolder(prevCharForOffice, c);
     closeCharModal();
     renderCharacters();
     autoSave();
@@ -881,9 +1080,43 @@
         });
       }
       // 官制树position.holder
-      if (scriptData.government && scriptData.government.nodes) {
-        (function _clrOff(nodes){nodes.forEach(function(n){if(n.positions)n.positions.forEach(function(p){if(p.holder===dName)p.holder='';});if(n.subs)_clrOff(n.subs);});})(scriptData.government.nodes);
-      }
+      (function _clrOffRoots() {
+        var roots = [];
+        if (scriptData.government && scriptData.government.nodes) roots.push(scriptData.government.nodes);
+        if (Array.isArray(scriptData.officeTree)) roots.push(scriptData.officeTree);
+        var seen = [];
+        function _syncLegacy(p) {
+          var names = Array.isArray(p.actualHolders)
+            ? p.actualHolders.filter(function(h){ return h && h.name && h.generated !== false; }).map(function(h){ return h.name; })
+            : (p.holder ? [p.holder] : []);
+          p.holder = names[0] || '';
+          p.additionalHolders = names.slice(1);
+          var est = p.establishedCount != null ? parseInt(p.establishedCount, 10) : (parseInt(p.headCount, 10) || Math.max(1, names.length));
+          if (!isNaN(est)) p.vacancyCount = Math.max(0, est - names.length);
+        }
+        function _clrOff(nodes){
+          nodes.forEach(function(n){
+            if (!n) return;
+            if(n.positions)n.positions.forEach(function(p){
+              if(!p || seen.indexOf(p)>=0) return;
+              seen.push(p);
+              var hit = false;
+              if(p.holder===dName){p.holder='';hit=true;}
+              if(Array.isArray(p.actualHolders)){
+                p.actualHolders.forEach(function(h){ if(h && h.name===dName){ h.name=''; h.generated=false; if(!h.placeholderId) h.placeholderId='ph_'+Math.random().toString(36).slice(2,8); hit=true; } });
+              }
+              if(Array.isArray(p.additionalHolders)){
+                var before=p.additionalHolders.length;
+                p.additionalHolders=p.additionalHolders.filter(function(nm){return nm!==dName;});
+                if(p.additionalHolders.length!==before) hit=true;
+              }
+              if(hit)_syncLegacy(p);
+            });
+            if(n.subs)_clrOff(n.subs);
+          });
+        }
+        roots.forEach(_clrOff);
+      })();
       // 党派leader
       if (scriptData.parties) scriptData.parties.forEach(function(p){if(p.leader===dName)p.leader='';});
     }
@@ -1212,6 +1445,7 @@
     if (!list) return;
     list.innerHTML = '';
     scriptData.factions.forEach(function(f, i) {
+      if (f && !f.description && f.desc) f.description = f.desc;
       var typeLabel = f.type || '未分类';
       var attClr = f.attitude === '友好' || f.attitude === '联盟' || f.attitude === '和亲' ? '#4a8a4a'
         : f.attitude === '敌对' || f.attitude === '敌视' ? '#8a3a3a'
@@ -1244,7 +1478,7 @@
       }
       if (Array.isArray(f.historicalEvents) && f.historicalEvents.length > 0) _fTags.push('大事' + f.historicalEvents.length);
       if (_fTags.length) h += '<div style="font-size:9px;color:var(--txt-d);margin:2px 0;">' + _fTags.map(function(t){return '<span style="background:rgba(74,154,184,0.12);padding:0 4px;border-radius:2px;margin-right:3px;">'+escHtml(t)+'</span>';}).join('') + '</div>';
-      h += '<div class="card-desc">' + escHtml((f.description || '暂无描述').substring(0, 80)) + '</div>';
+      h += '<div class="card-desc">' + escHtml((f.description || f.desc || '暂无描述').substring(0, 80)) + '</div>';
       h += '<div style="position:absolute;top:8px;right:8px;"><button class="btn" style="padding:2px 8px;font-size:11px;" onclick="event.stopPropagation();deleteFaction(' + i + ')">删除</button></div>';
       h += '</div>';
       list.innerHTML += h;
@@ -1263,6 +1497,7 @@
          leaderInfo:{name:'',personality:'',age:'',gender:'',belief:'',learning:'',ethnicity:'',bio:''},
          heirInfo:{name:'',personality:'',age:'',gender:'',belief:'',learning:'',ethnicity:'',bio:''}};
     if (isEdit && !f) return;
+    if (f && !f.description && f.desc) f.description = f.desc;
 
     function subForm(prefix, obj, label) {
       var o = obj || {};
@@ -1320,7 +1555,7 @@
     body += '<div style="display:flex;gap:12px;">';
     body += '<div class="form-group" style="flex:1;"><label>主流信仰</label><input type="text" id="gm_mainstream" value="'+escHtml(f.mainstream||'')+'" placeholder="如：儒家、佛教"></div>';
     body += '<div class="form-group" style="flex:1;"><label>主流文化</label><input type="text" id="gm_culture" value="'+escHtml(f.culture||'')+'" placeholder="如：汉文化、游牧文化"></div></div>';
-    body += '<div class="form-group"><label>简介</label><textarea id="gm_desc" rows="3">'+escHtml(f.description||'')+'</textarea></div>';
+body += '<div class="form-group"><label>简介</label><textarea id="gm_desc" rows="3">'+escHtml(f.description||f.desc||'')+'</textarea></div>';
     // C5: 领袖同步提示
     body += '<div style="font-size:11px;color:var(--txt-d);margin:-4px 0 8px;border-left:2px solid var(--gold-d);padding-left:8px;">保存后，首脑和储君信息将自动同步到角色列表。</div>';
     // E1: 显示属于此势力的角色
@@ -1419,7 +1654,8 @@
     openGenericModal(isEdit ? '编辑势力' : '添加势力', body, function() {
       var ldrInfo  = readSubForm('ldr');
       var heirInfo = readSubForm('heir');
-      var data = {
+      var data = _cloneJson(f) || {};
+      var _dataPatch = {
         id:          isEdit && f.id ? f.id : 'faction_' + Date.now(),
         name:        gv('gm_name'),
         type:        gv('gm_type'),
@@ -1466,7 +1702,15 @@
         },
         internalParties: gv('gm_internalParties') ? gv('gm_internalParties').split(/[,，]/).map(function(s){return s.trim();}).filter(Boolean) : []
       };
-      try { var _hev = JSON.parse(gv('gm_historicalEvents')); if (Array.isArray(_hev)) data.historicalEvents = _hev; } catch(e) { data.historicalEvents = []; }
+      var _prevLeaderInfo = _cloneJson(data.leaderInfo) || {};
+      var _prevHeirInfo = _cloneJson(data.heirInfo) || {};
+      Object.assign(data, _dataPatch);
+      Object.keys(ldrInfo).forEach(function(key) { _prevLeaderInfo[key] = ldrInfo[key]; });
+      Object.keys(heirInfo).forEach(function(key) { _prevHeirInfo[key] = heirInfo[key]; });
+      data.leaderInfo = _prevLeaderInfo;
+      data.heirInfo = _prevHeirInfo;
+      data.desc = data.description;
+      try { var _hev = JSON.parse(gv('gm_historicalEvents')); if (Array.isArray(_hev)) data.historicalEvents = _hev; else data.historicalEvents = []; } catch(e) { showToast('historicalEvents JSON 格式有误'); return; }
       // 保留已有的得罪阈值
       if (isEdit && f.offendThresholds) data.offendThresholds = f.offendThresholds;
       if (!data.name) { showToast('请输入名称'); return; }

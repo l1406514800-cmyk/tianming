@@ -53,7 +53,12 @@ function _settleCourtMeter() {
     }
     (GM.chars || []).forEach(function(c) {
       if (c && c.alive !== false && (c.wuchang && (c.wuchang['义'] || 0) > 60)) {
-        c.loyalty = Math.max(0, (c.loyalty || 50) - 2);
+        if (typeof adjustCharacterLoyalty === 'function') {
+          adjustCharacterLoyalty(c, -2, '\u8FDE\u4E09\u6708\u4E0D\u89C6\u671D', { source:'court-meter-missed:' + (m.missedStreak || 0), oncePerTurn:true });
+        } else {
+          var oldMissL = (typeof c.loyalty === 'number' && isFinite(c.loyalty)) ? c.loyalty : 50;
+          c.loyalty = Math.max(0, oldMissL - 2);
+        }
         if (typeof NpcMemorySystem !== 'undefined') NpcMemorySystem.remember(c.name, '陛下连三月不视朝·忧国臣子皆患之', '忧', 6);
       }
     });
@@ -66,7 +71,12 @@ function _settleCourtMeter() {
     }
     (GM.chars || []).forEach(function(c) {
       if (c && c.alive !== false && (c.integrity || 50) > 60) {
-        c.loyalty = Math.min(100, (c.loyalty || 50) + 1);
+        if (typeof adjustCharacterLoyalty === 'function') {
+          adjustCharacterLoyalty(c, 1, '\u8FDE\u4E09\u6708\u52E4\u653F\u53CC\u671D', { source:'court-meter-diligent:' + (m.diligentStreak || 0), oncePerTurn:true });
+        } else {
+          var oldDiligentL = (typeof c.loyalty === 'number' && isFinite(c.loyalty)) ? c.loyalty : 50;
+          c.loyalty = Math.min(100, oldDiligentL + 1);
+        }
         if (typeof NpcMemorySystem !== 'undefined') NpcMemorySystem.remember(c.name, '陛下勤勉·连三月双朝议事·臣等感佩', '敬', 5);
       }
     });

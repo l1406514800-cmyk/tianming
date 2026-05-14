@@ -225,13 +225,23 @@ function _reactToEdicts(actions) {
       if (rival.name === a.character || rival.isPlayer || rival.alive === false) return;
       // 同势力且野心高的角色嫉妒
       if (rival.faction && rival.faction === appointed.faction && (rival.ambition || 50) > 65) {
-        rival.loyalty = Math.max(0, (rival.loyalty || 50) - 3);
+        if (typeof adjustCharacterLoyalty === 'function') {
+          adjustCharacterLoyalty(rival, -3, '\u540C\u52BF\u529B\u5B98\u5458\u5AC9\u5992' + a.character + '\u5347\u8FC1', { source:'appointment-rival-jealousy' });
+        } else {
+          var oldRivalL = (typeof rival.loyalty === 'number' && isFinite(rival.loyalty)) ? rival.loyalty : 50;
+          rival.loyalty = Math.max(0, oldRivalL - 3);
+        }
         if (typeof AffinityMap !== 'undefined') AffinityMap.add(rival.name, a.character, -5, '嫉妒其升迁');
         if (typeof StressSystem !== 'undefined') StressSystem.checkStress(rival, '屈居人下');
       }
       // 对立势力的角色可能不满
       if (rival.faction && rival.faction !== appointed.faction && (rival.loyalty || 50) < 40) {
-        rival.loyalty = Math.max(0, (rival.loyalty || 50) - 2);
+        if (typeof adjustCharacterLoyalty === 'function') {
+          adjustCharacterLoyalty(rival, -2, '\u5BF9\u7ACB\u52BF\u529B\u4EBA\u4E8B\u4EFB\u547D\u4E0D\u6EE1', { source:'appointment-opposition-discontent' });
+        } else {
+          var oldOppL = (typeof rival.loyalty === 'number' && isFinite(rival.loyalty)) ? rival.loyalty : 50;
+          rival.loyalty = Math.max(0, oldOppL - 2);
+        }
       }
     });
   });
@@ -243,7 +253,12 @@ function _reactToEdicts(actions) {
     GM.chars.forEach(function(c) {
       if (c.name === a.character || c.isPlayer || c.alive === false) return;
       if (c.faction && dead.faction && c.faction === dead.faction) {
-        c.loyalty = Math.max(0, (c.loyalty || 50) - 5);
+        if (typeof adjustCharacterLoyalty === 'function') {
+          adjustCharacterLoyalty(c, -5, '\u540C\u50DA\u88AB\u8BDB\uFF1A' + a.character, { source:'colleague-executed' });
+        } else {
+          var oldDeadL = (typeof c.loyalty === 'number' && isFinite(c.loyalty)) ? c.loyalty : 50;
+          c.loyalty = Math.max(0, oldDeadL - 5);
+        }
         if (typeof StressSystem !== 'undefined') StressSystem.checkStress(c, '同僚被诛');
       }
     });
@@ -286,7 +301,7 @@ function _endTurn_collectInput() {
   GM._edictTracker = GM._edictTracker.filter(function(e) {
     if (e.turn === GM.turn) return true;  // 本回合全部保留
     if (e.status === 'executing' || e.status === 'pending' || e.status === 'partial' || e.status === 'obstructed' || e.status === 'pending_delivery') return true;
-    return GM.turn - e.turn < 24;  // 已完成/失败·保留两年
+    return GM.turn - e.turn < ((typeof turnsForMonths === 'function') ? turnsForMonths(24) : 24);  // 已完成/失败·保留两年
   });
 
   // 1.15: 跨势力识别——检测诏令目标中的非玩家势力（人/势力名）

@@ -1,17 +1,20 @@
 // @ts-check
 /// <reference path="types.d.ts" />
-// ═══════════════════════════════════════════════════════════════
-// 帑廪（国库）系统 · 核心引擎
-// 设计方案：设计方案-财政系统.md（决策 A-G + 补充 H-P）
-//
-// 本文件实现：
-//   - 八类收入计算（田赋/丁税/漕粮/专卖/市舶/榷税/捐纳/其他）
-//   - 八类支出计算（俸禄/军饷/赈济/工程/祭祀/赏赐/内廷/其他）
-//   - 与腐败的实征率联动（三数对照）
-//   - 年度决算 + 历史归档
-//   - 破产事件 + 紧急措施（加派/借贷）
-//   - 时间刻度适配（daysPerTurn）
-// ═══════════════════════════════════════════════════════════════
+// ============================================================
+// Module: tm-guoku-engine.js — 帑廪（国库）系统 · 核心引擎 (Phase 3 R9·5→2 LAYERED 链合并)
+// Domain: 帑廪 / 国库 / 财政收入 / 改革税种 / 借贷 / 通胀 / 民心反馈
+// Status: active · Last Updated: 2026-05-04 (Phase 3 R9·flat inline merge·吸 p2/p4/p5/p6)
+// Owner: TM 团队
+// Imports: GM·_getDaysPerTurn·NeitangEngine·EventBus·addEB·SettlementPipeline·_adjAuthority
+// Exports: global.GuokuEngine (init/tick/yearly/computeTaxFlow/Sources/Expenses/junxiang/initFromDynasty/yearlySettle 等)
+// Used by: tm-game-loop·tm-endturn-systems·tm-guoku-panel·smoke-guoku-* (8 smoke·121 assertions)
+// Side effects: GM.guoku mutation·EventBus.emit·SettlementPipeline.register·_adjAuthority 调用 (民心/皇权/皇威 反馈)
+// Test: smoke-guoku-* 8 项·121 assertions·R8 baseline 锁
+// Notes: 设计方案-财政系统.md (决策 A-G + 补充 H-P)
+//        本文件实现·8 类收入 (田赋/丁税/漕粮/专卖/市舶/榷税/捐纳/其他) + 8 类支出 (俸禄/军饷/赈济/工程/祭祀/赏赐/内廷/其他) + 腐败实征率联动 + 年度决算 + 破产/借贷 + daysPerTurn 缩放
+//        Phase 3 R9 (2026-05-04·Claude)·flat inline merge·吸 tm-guoku-p2 (民心顺从度/皇权可支配/皇威虚账·332 行) + tm-guoku-p4 (改革/税种/单位/物价/AI诏令/铸币·440 行) + tm-guoku-p5 (LAYERED 5 层链第 4·OVERRIDE engine.tick·344 行) + tm-guoku-p6 (LAYERED 终端·329 行)·5→2 net -3 文件
+//        Phase 3 R8 (2026-05-04)·8 smoke baseline 锁 (compute-tax-flow·tick-full-pass·sources-scenario-disabled·yearly-settle·init-from-dynasty·enact-reform·loan-and-bankruptcy·tax-flow-tyrant)·R9 merge 全程 zero regression
+// ============================================================
 
 (function(global) {
   'use strict';
@@ -520,19 +523,92 @@
                    (GM.prices && GM.prices.grain) || 1.0;
     purchasingPower = Math.max(0.5, 1 / Math.max(0.7, grainIdx));
 
+    // ── p2 inline (R9a 2026-05-04)·民心顺从度 + 皇权可支配性 ──
+    var compliance = 1.0;
+    if (GM.minxin) {
+      var m = safe(GM.minxin.trueIndex, 50);
+      compliance = Math.max(0.3, m / 100 * 0.7 + 0.3);
+    }
+    var huangquanMult = 1.0;
+    if (GM.huangquan) {
+      var h = safe(GM.huangquan.index, 50);
+      if (h < 35) huangquanMult = 0.5;       // 权臣段·地方截留 50%
+      else if (h < 60) huangquanMult = 0.85;
+      else if (h > 80) huangquanMult = 1.05;  // 专制段·压榨略增
+    }
+
     return {
       nominal: annualNominal,
-      actualReceived: annualNominal * (1 - leakageRate) * purchasingPower,
+      actualReceived: annualNominal * (1 - leakageRate) * purchasingPower * compliance * huangquanMult,
       peasantPaid: annualNominal * (1 + overCollectRate),
       leakageRate: leakageRate,
       overCollectRate: overCollectRate,
-      purchasingPower: purchasingPower
+      purchasingPower: purchasingPower,
+      compliance: compliance,
+      huangquanMult: huangquanMult
     };
   }
 
   // ═════════════════════════════════════════════════════════════
   // 月度结算
   // ═════════════════════════════════════════════════════════════
+
+  function _isRecurringFiscalEntryActive(entry) {
+    if (!entry || !entry.recurring) return false;
+    var turn = GM.turn || 0;
+    if (entry.stopAfterTurn !== undefined && entry.stopAfterTurn !== null &&
+        turn > Number(entry.stopAfterTurn)) return false;
+    if (entry.lastSettledTurn === turn) return false;
+    if (entry.addedTurn === turn && entry.applied !== undefined) return false;
+    return true;
+  }
+
+  function _ensureLedger(container, resource) {
+    if (!container.ledgers) container.ledgers = {};
+    if (!container.ledgers[resource]) {
+      container.ledgers[resource] = { stock: 0, lastTurnIn: 0, lastTurnOut: 0, sources: {}, sinks: {}, history: [] };
+    }
+    var ledger = container.ledgers[resource];
+    if (!ledger.sources) ledger.sources = {};
+    if (!ledger.sinks) ledger.sinks = {};
+    if (!ledger.history) ledger.history = [];
+    return ledger;
+  }
+
+  function _applyRecurringFiscalEntries(container, mr) {
+    var result = { moneyIn: 0, moneyOut: 0 };
+    var turn = GM.turn || 0;
+    function applyList(list, kind) {
+      (list || []).forEach(function(entry) {
+        if (!_isRecurringFiscalEntryActive(entry)) return;
+        var resource = (entry.resource === 'grain' || entry.resource === 'cloth') ? entry.resource : 'money';
+        var amount = Math.max(0, Number(entry.amount) || 0) / 12 * mr;
+        if (amount <= 0) return;
+        var ledger = _ensureLedger(container, resource);
+        var label = entry.name || entry.category || (kind === 'income' ? 'recurring income' : 'recurring expense');
+        if (kind === 'income') {
+          ledger.stock = (Number(ledger.stock) || 0) + amount;
+          ledger.thisTurnIn = (Number(ledger.thisTurnIn) || 0) + amount;
+          ledger.sources[label] = (Number(ledger.sources[label]) || 0) + amount;
+          if (resource === 'money') result.moneyIn += amount;
+        } else {
+          ledger.stock = (Number(ledger.stock) || 0) - amount;
+          ledger.thisTurnOut = (Number(ledger.thisTurnOut) || 0) + amount;
+          ledger.sinks[label] = (Number(ledger.sinks[label]) || 0) + amount;
+          if (resource === 'money') result.moneyOut += amount;
+        }
+        if (resource === 'money') {
+          container.balance = ledger.stock;
+          container.money = ledger.stock;
+        }
+        entry.lastSettledTurn = turn;
+        entry.lastSettlementAmount = amount;
+      });
+    }
+    applyList(container.extraIncome, 'income');
+    applyList(container.extraExpense, 'expense');
+    return result;
+  }
 
   function monthlySettle(mr) {
     mr = mr || getMonthRatio();
@@ -663,6 +739,22 @@
       };
     }
 
+    var recurringFiscal = _applyRecurringFiscalEntries(g, mr);
+    if (recurringFiscal.moneyIn || recurringFiscal.moneyOut) {
+      periodIn += recurringFiscal.moneyIn;
+      periodOut += recurringFiscal.moneyOut;
+      g.lastDelta = (g.ledgers.money.thisTurnIn || 0) - (g.ledgers.money.thisTurnOut || 0);
+      g.turnIncome = Math.round(g.ledgers.money.thisTurnIn || periodIn);
+      g.turnExpense = Math.round(g.ledgers.money.thisTurnOut || periodOut);
+      g.ledgers.money.lastTurnIn = periodIn;
+      g.ledgers.money.lastTurnOut = periodOut;
+      var _finalThreshold = g.annualIncome * 0.01;
+      g.trend = g.lastDelta > _finalThreshold ? 'up' :
+                g.lastDelta < -_finalThreshold ? 'down' : 'stable';
+    }
+    g.money = g.balance;
+    if (g.ledgers && g.ledgers.money) g.ledgers.money.stock = g.balance;
+
     // 历史快照
     g.history.monthly.push({
       turn: GM.turn, balance: g.balance,
@@ -724,7 +816,13 @@
       addEB('朝代', '帑廪亏空，岁入不敷所出，财政危机!', { credibility: 'high' });
     }
     // 七连锁反应（见 设计方案-财政系统.md §21.10）
-    if (GM.huangquan) GM.huangquan.index = Math.max(0, GM.huangquan.index - 10);
+    if (GM.huangquan) {
+      if (global.AuthorityEngines && global.AuthorityEngines.adjustHuangquan) {
+        global.AuthorityEngines.adjustHuangquan('idleGovern', -10, '\u56fd\u5e93\u7834\u4ea7\u52a8\u6447\u7687\u6743');
+      } else {
+        GM.huangquan.index = Math.max(0, GM.huangquan.index - 10);
+      }
+    }
     if (GM.huangwei)  GM.huangwei.index = Math.max(0, GM.huangwei.index - 15);
     if (GM.corruption && GM.corruption.sources) {
       GM.corruption.sources.lowSalary = (GM.corruption.sources.lowSalary || 0) + 15;
@@ -811,7 +909,13 @@
       var cut = Math.floor(GM.totalOfficials * percent);
       GM.totalOfficials -= cut;
       // 皇权代价（官员离心）
-      if (GM.huangquan) GM.huangquan.index = Math.max(0, GM.huangquan.index - percent * 20);
+      if (GM.huangquan) {
+        if (global.AuthorityEngines && global.AuthorityEngines.adjustHuangquan) {
+          global.AuthorityEngines.adjustHuangquan('memorialObjection', -percent * 20, '\u88c1\u64a4\u5197\u5458\u5f15\u53d1\u5b98\u5458\u79bb\u5fc3');
+        } else {
+          GM.huangquan.index = Math.max(0, GM.huangquan.index - percent * 20);
+        }
+      }
       // 民心微升（节俭）
       if (GM.minxin) GM.minxin.trueIndex = Math.min(100, GM.minxin.trueIndex + 2);
       if (typeof addEB === 'function') addEB('朝代', '裁冗员 ' + cut + ' 名，省俸禄', { credibility: 'high' });
@@ -973,6 +1077,763 @@
   }
 
   // ═════════════════════════════════════════════════════════════
+  // p2 inline (R9a 2026-05-04)·暴君虚账·民心反馈·地域分账·粮布流水
+  // 原 tm-guoku-p2.js 已 inline·见 §21.2-§21.5
+  // ═════════════════════════════════════════════════════════════
+
+  function applyTyrantFiscalDistortion(mr) {
+    if (!GM.huangwei || !GM.guoku) return;
+    if (GM.huangwei.index < 90) return;
+    var monthlyIncome = GM.guoku.monthlyIncome || 0;
+    var bubble = monthlyIncome * 0.15 * mr;
+    GM.guoku.balance += bubble;
+    if (GM.huangwei.tyrantSyndrome && GM.huangwei.tyrantSyndrome.hiddenDamage) {
+      GM.huangwei.tyrantSyndrome.hiddenDamage.fiscalBubble =
+        (GM.huangwei.tyrantSyndrome.hiddenDamage.fiscalBubble || 0) + bubble;
+    }
+    if (!GM.fiscal) GM.fiscal = {};
+    GM.fiscal.floatingCollectionRate = (GM.fiscal.floatingCollectionRate || 0) + 0.08 * mr;
+  }
+
+  function applyTaxMinxinFeedback(mr) {
+    if (!GM.minxin || !GM.guoku) return;
+    var g = GM.guoku;
+    var overCollect = (GM.fiscal && GM.fiscal.floatingCollectionRate) || 0;
+    var monthlyPeasantPaid = g.monthlyIncome * (1 + overCollect) * mr;
+    var regTotal = safe((GM.hukou || {}).registeredTotal, 10000000);
+    var ability = regTotal * 0.01 * mr;
+    if (ability <= 0) return;
+    var ratio = monthlyPeasantPaid / ability;
+    var impact = 0;
+    if (ratio > 1.0) {
+      impact = -Math.pow(ratio - 1, 1.5) * 5 * mr;
+    } else if (ratio < 0.7) {
+      impact = 2 * (0.7 - ratio) * mr;
+    }
+    if (Math.abs(impact) > 0.1) {
+      GM.minxin.trueIndex = clamp(GM.minxin.trueIndex + impact, 0, 100);
+    }
+    if (GM.fiscal && GM.fiscal.floatingCollectionRate > 0) {
+      GM.fiscal.floatingCollectionRate = Math.max(0, GM.fiscal.floatingCollectionRate - 0.02 * mr);
+    }
+  }
+
+  function getRegions() {
+    if (GM.mapData && GM.mapData.cities) {
+      return Object.keys(GM.mapData.cities).map(function(cid) {
+        var c = GM.mapData.cities[cid];
+        return { id: cid, name: c.name || cid, population: c.population || 0 };
+      });
+    }
+    return [{ id: 'national', name: '全境', population: safe((GM.hukou||{}).registeredTotal, 1e7) }];
+  }
+
+  function updateRegionalAccounts(mr, totalMonthlyIncome, totalMonthlyExpense) {
+    if (!GM.guoku.byRegion) GM.guoku.byRegion = {};
+    if (GM.adminHierarchy && GM._lastCascadeTurn === GM.turn) {
+      var seen = {};
+      Object.keys(GM.adminHierarchy).forEach(function(fkey) {
+        var tree = GM.adminHierarchy[fkey];
+        ((tree && tree.divisions) || []).forEach(function(div) {
+          if (!div || !div.fiscal || !div.fiscal.ledgers || !div.fiscal.ledgers.money) return;
+          var led = div.fiscal.ledgers.money;
+          var key = div.id || div.name;
+          if (!key) return;
+          seen[key] = true;
+          if (!GM.guoku.byRegion[key]) {
+            GM.guoku.byRegion[key] = { name: div.name || key, stock: 0, lastIn: 0, lastOut: 0, cumIn: 0, cumOut: 0 };
+          }
+          var acc = GM.guoku.byRegion[key];
+          acc.name = div.name || key;
+          acc.stock = led.stock || 0;
+          acc.lastIn = led.thisTurnIn || 0;
+          acc.lastOut = led.thisTurnOut || 0;
+          acc.cumIn = (acc.cumIn || 0) + (led.thisTurnIn || 0);
+          acc.cumOut = (acc.cumOut || 0) + (led.thisTurnOut || 0);
+        });
+      });
+      Object.keys(GM.guoku.byRegion).forEach(function(k) {
+        if (!seen[k] && k !== 'national') delete GM.guoku.byRegion[k];
+      });
+      return;
+    }
+    var regions = getRegions();
+    var totalPop = 0;
+    regions.forEach(function(r) { totalPop += r.population || 1; });
+    if (totalPop === 0) totalPop = 1;
+    regions.forEach(function(r) {
+      var share = (r.population || 1) / totalPop;
+      if (!GM.guoku.byRegion[r.id]) {
+        GM.guoku.byRegion[r.id] = {
+          name: r.name,
+          stock: share * (GM.guoku.balance || 0),
+          lastIn: 0, lastOut: 0, cumIn: 0, cumOut: 0
+        };
+      }
+      var acc = GM.guoku.byRegion[r.id];
+      var regIn = totalMonthlyIncome * share * mr;
+      var regOut = totalMonthlyExpense * share * mr;
+      acc.lastIn = regIn;
+      acc.lastOut = regOut;
+      acc.stock += (regIn - regOut);
+      acc.cumIn += regIn;
+      acc.cumOut += regOut;
+    });
+    var activeIds = {};
+    regions.forEach(function(r) { activeIds[r.id] = true; });
+    Object.keys(GM.guoku.byRegion).forEach(function(id) {
+      if (!activeIds[id] && id !== 'national') delete GM.guoku.byRegion[id];
+    });
+  }
+
+  function updateGrainClothFlow(mr) {
+    var g = GM.guoku;
+    if (!g.ledgers) return;
+    if (GM._lastCascadeTurn === GM.turn) {
+      var grainL = g.ledgers.grain, clothL = g.ledgers.cloth;
+      if (grainL) {
+        grainL.history = grainL.history || [];
+        grainL.history.push({ turn: GM.turn, in: grainL.lastTurnIn || grainL.thisTurnIn || 0, out: grainL.lastTurnOut || grainL.thisTurnOut || 0, stock: grainL.stock });
+        if (grainL.history.length > 40) grainL.history = grainL.history.slice(-40);
+      }
+      if (clothL) {
+        clothL.history = clothL.history || [];
+        clothL.history.push({ turn: GM.turn, in: clothL.lastTurnIn || clothL.thisTurnIn || 0, out: clothL.lastTurnOut || clothL.thisTurnOut || 0, stock: clothL.stock });
+        if (clothL.history.length > 40) clothL.history = clothL.history.slice(-40);
+      }
+      return;
+    }
+    var grain = g.ledgers.grain;
+    var tianfu = (g.sources || {}).tianfu || 0;
+    var grainFromTax = tianfu * 0.3 / 10;
+    var caoliang = (g.sources || {}).caoliang || 0;
+    var grainFromCao = caoliang / 10;
+    var grainIn = (grainFromTax + grainFromCao) * mr / 12;
+    var junxiang = (g.expenses || {}).junxiang || 0;
+    var zhenzi = (g.expenses || {}).zhenzi || 0;
+    var fenglu = (g.expenses || {}).fenglu || 0;
+    var grainForJun = junxiang * 0.6 / 10;
+    var grainForZhen = zhenzi * 0.7 / 10;
+    var grainForBosu = fenglu * 0.2 / 10;
+    var grainOut = (grainForJun + grainForZhen + grainForBosu) * mr / 12;
+    grain.lastTurnIn = Math.round(grainIn);
+    grain.lastTurnOut = Math.round(grainOut);
+    grain.stock = Math.max(0, (grain.stock || 0) + grainIn - grainOut);
+    grain.sources = { 田赋: Math.round(grainFromTax / 12 * mr), 漕粮: Math.round(grainFromCao / 12 * mr) };
+    grain.sinks = { 军粮: Math.round(grainForJun / 12 * mr), 赈济: Math.round(grainForZhen / 12 * mr), 俸粮: Math.round(grainForBosu / 12 * mr) };
+    var cloth = g.ledgers.cloth;
+    var dingshui = (g.sources || {}).dingshui || 0;
+    var clothFromTax = (tianfu * 0.15 + dingshui * 0.2) / 5;
+    var clothIn = clothFromTax * mr / 12;
+    var shangci = (g.expenses || {}).shangci || 0;
+    var clothForReward = shangci * 0.3 / 5;
+    var clothForSalary = fenglu * 0.05 / 5;
+    var clothOut = (clothForReward + clothForSalary) * mr / 12;
+    cloth.lastTurnIn = Math.round(clothIn);
+    cloth.lastTurnOut = Math.round(clothOut);
+    cloth.stock = Math.max(0, (cloth.stock || 0) + clothIn - clothOut);
+    cloth.sources = { 田赋布: Math.round(tianfu * 0.15 / 5 / 12 * mr), 丁税布: Math.round(dingshui * 0.2 / 5 / 12 * mr) };
+    cloth.sinks = { 赏赐: Math.round(clothForReward / 12 * mr), 俸布: Math.round(clothForSalary / 12 * mr) };
+    grain.history = grain.history || [];
+    grain.history.push({ turn: GM.turn, in: grain.lastTurnIn, out: grain.lastTurnOut, stock: grain.stock });
+    if (grain.history.length > 40) grain.history = grain.history.slice(-40);
+    cloth.history = cloth.history || [];
+    cloth.history.push({ turn: GM.turn, in: cloth.lastTurnIn, out: cloth.lastTurnOut, stock: cloth.stock });
+    if (cloth.history.length > 40) cloth.history = cloth.history.slice(-40);
+  }
+
+  // ═════════════════════════════════════════════════════════════
+  // p4 inline (R9b 2026-05-04)·4 改革·税种勾选·物价·铸币·AI 诏令
+  // 原 tm-guoku-p4.js 已 inline
+  // ═════════════════════════════════════════════════════════════
+
+  var FISCAL_REFORMS = {
+    twoTax: { id:'twoTax', name:'两税法', historical:'唐德宗建中元年（780）杨炎', desc:'合并租庸调为夏秋两征，以资产为本，赋税制度化。', prerequisites:{huangquan:45,huangwei:50,minxin:40}, durationMonths:12,
+      effects:{ sourceMultipliers:{tianfu:1.3,dingshui:0}, corruptionDelta:{fiscal:-5,provincial:-3}, minxinDelta:3, huangweiDelta:5, note:'赋税制度化，暗中豪强抵制' } },
+    fieldEquity: { id:'fieldEquity', name:'方田均税法', historical:'宋神宗熙宁五年（1072）王安石', desc:'丈量田亩、均摊赋税、清隐田。', prerequisites:{huangquan:55,huangwei:60,minxin:35}, durationMonths:18,
+      effects:{ sourceMultipliers:{tianfu:1.15}, corruptionDelta:{provincial:-8}, hiddenHouseholdDelta:-0.2, minxinDelta:-3, huangweiDelta:3, note:'清查田亩，豪强隐瞒之弊减，但豪强心离' } },
+    oneWhip: { id:'oneWhip', name:'一条鞭法', historical:'明万历九年（1581）张居正', desc:'合并田赋丁役杂派，一切征银。', prerequisites:{huangquan:60,huangwei:60,minxin:45}, durationMonths:24,
+      effects:{ sourceMultipliers:{tianfu:1.2,dingshui:0}, corruptionDelta:{fiscal:-5,provincial:-3}, minxinDelta:5, huangweiDelta:8, requiresSilver:true, note:'赋役合并征银，简化财政，促进货币经济' } },
+    tanDingRuMu: { id:'tanDingRuMu', name:'摊丁入亩', historical:'清康熙末至雍正初', desc:'废除千年丁税，全摊田亩。', prerequisites:{huangquan:65,huangwei:70}, durationMonths:36,
+      effects:{ sourceMultipliers:{tianfu:1.35,dingshui:0}, corruptionDelta:{fiscal:-3}, populationGrowthBonus:0.1, minxinDelta:8, huangweiDelta:10, note:'人地分离，废千年丁税，利户口登记' } }
+  };
+
+  function canEnactReform(reformId) {
+    var r = FISCAL_REFORMS[reformId];
+    if (!r) return { can: false, reason: '未知改革' };
+    var ongoing = (GM.guoku && GM.guoku.ongoingReforms) || [];
+    if (ongoing.some(function(o) { return o.id === reformId; })) return { can: false, reason: '已在施行或已完成' };
+    var completed = (GM.guoku && GM.guoku.completedReforms) || [];
+    if (completed.indexOf(reformId) !== -1) return { can: false, reason: '已完成' };
+    var pre = r.prerequisites || {};
+    var fails = [];
+    if (pre.huangquan !== undefined && GM.huangquan && GM.huangquan.index < pre.huangquan)
+      fails.push('皇权 ' + Math.round(GM.huangquan.index) + '/' + pre.huangquan);
+    if (pre.huangwei !== undefined && GM.huangwei && GM.huangwei.index < pre.huangwei)
+      fails.push('皇威 ' + Math.round(GM.huangwei.index) + '/' + pre.huangwei);
+    if (pre.minxin !== undefined && GM.minxin && GM.minxin.trueIndex < pre.minxin)
+      fails.push('民心 ' + Math.round(GM.minxin.trueIndex) + '/' + pre.minxin);
+    if (fails.length > 0) return { can: false, reason: '前提不足：' + fails.join('、') };
+    return { can: true };
+  }
+
+  function enactReform(reformId) {
+    var check = canEnactReform(reformId);
+    if (!check.can) return { success: false, reason: check.reason };
+    var r = FISCAL_REFORMS[reformId];
+    ensureGuokuModel();
+    if (!GM.guoku.ongoingReforms) GM.guoku.ongoingReforms = [];
+    if (!GM.guoku.completedReforms) GM.guoku.completedReforms = [];
+    GM.guoku.ongoingReforms.push({
+      id: reformId, startTurn: GM.turn,
+      endTurn: GM.turn + ((typeof turnsForMonths === 'function') ? turnsForMonths(r.durationMonths) : r.durationMonths)
+    });
+    if (typeof addEB === 'function') addEB('朝代', '颁行' + r.name + '——' + r.desc, { credibility: 'high' });
+    return { success: true, reform: r };
+  }
+
+  function tickReforms(context) {
+    var mr = (context && context._monthRatio) || (typeof getMonthRatio === 'function' ? getMonthRatio() : 1);
+    var ongoing = (GM.guoku && GM.guoku.ongoingReforms) || [];
+    if (ongoing.length === 0) return;
+    var remaining = [];
+    ongoing.forEach(function(o) {
+      if (GM.turn >= o.endTurn) {
+        var r = FISCAL_REFORMS[o.id];
+        if (!r) return;
+        var eff = r.effects || {};
+        if (!GM.guoku.sourceMultipliers) GM.guoku.sourceMultipliers = {};
+        if (eff.sourceMultipliers) for (var k in eff.sourceMultipliers) GM.guoku.sourceMultipliers[k] = eff.sourceMultipliers[k];
+        if (eff.corruptionDelta && GM.corruption && GM.corruption.subDepts) {
+          for (var d in eff.corruptionDelta) {
+            if (GM.corruption.subDepts[d]) GM.corruption.subDepts[d].true = Math.max(0, GM.corruption.subDepts[d].true + eff.corruptionDelta[d]);
+          }
+        }
+        if (eff.hiddenHouseholdDelta && GM.hukou) {
+          GM.hukou.estimatedHidden = Math.max(0, (GM.hukou.estimatedHidden || 0) * (1 + eff.hiddenHouseholdDelta));
+          var found = -(GM.hukou.estimatedHidden || 0) * eff.hiddenHouseholdDelta;
+          GM.hukou.registeredTotal += Math.floor(found);
+        }
+        if (eff.populationGrowthBonus && GM.hukou) GM.hukou.growthBonus = (GM.hukou.growthBonus || 0) + eff.populationGrowthBonus;
+        if (eff.minxinDelta && GM.minxin) GM.minxin.trueIndex = clamp(GM.minxin.trueIndex + eff.minxinDelta, 0, 100);
+        if (eff.huangweiDelta && GM.huangwei) GM.huangwei.index = clamp(GM.huangwei.index + eff.huangweiDelta, 0, 100);
+        GM.guoku.completedReforms.push(o.id);
+        if (typeof addEB === 'function') addEB('朝代', r.name + ' 施行既毕，' + eff.note, { credibility: 'high' });
+      } else {
+        if (GM.guoku) GM.guoku.balance -= (GM.guoku.monthlyIncome || 0) * 0.08 * mr;
+        remaining.push(o);
+      }
+    });
+    GM.guoku.ongoingReforms = remaining;
+  }
+
+  function updatePriceIndex(mr) {
+    if (!GM.prices) GM.prices = { grain:1.0, cloth:1.0, general:1.0 };
+    var g = GM.guoku;
+    var grainStock = (g.ledgers.grain && g.ledgers.grain.stock) || 0;
+    var annualNeed = ((GM.hukou || {}).registeredTotal || 1e7) * 0.6;
+    var stockRatio = grainStock / Math.max(1, annualNeed);
+    var stockFactor = stockRatio < 0.3 ? 1.8 : stockRatio < 0.6 ? 1.3 : stockRatio < 1.0 ? 1.0 : 0.9;
+    var inflationFactor = 1.0;
+    if (GM.currency && GM.currency.inflationPressure) inflationFactor = 1 + GM.currency.inflationPressure * 0.2;
+    if (GM.activeDisasters && GM.activeDisasters.length > 0) stockFactor *= (1 + GM.activeDisasters.length * 0.15);
+    var targetGrain = stockFactor * inflationFactor;
+    GM.prices.grain = GM.prices.grain * 0.8 + targetGrain * 0.2;
+    GM.prices.cloth = GM.prices.cloth * 0.9 + inflationFactor * 0.1;
+    GM.prices.general = (GM.prices.grain + GM.prices.cloth) / 2;
+    if (GM.prices.grain > 1.5 && GM.guoku.expenses) GM.guoku._militaryCostMultiplier = GM.prices.grain;
+    else GM.guoku._militaryCostMultiplier = 1;
+    if (GM.prices.grain > 2.0 && GM.minxin) {
+      var impact = -(GM.prices.grain - 2.0) * 3 * mr;
+      GM.minxin.trueIndex = Math.max(0, GM.minxin.trueIndex + impact);
+      if (Math.random() < 0.1 * mr && typeof addEB === 'function') addEB('事件', '粮价涨至 ' + GM.prices.grain.toFixed(2) + ' 倍，民生艰难', { credibility: 'high' });
+    }
+  }
+
+  async function aiParseFiscalDecree(decreeText, actionType) {
+    var isAvail = (typeof callAI === 'function') && (typeof P !== 'undefined') && P.ai && P.ai.key;
+    if (!isAvail) return null;
+    var hint = {
+      extraTax: '判断加派税率（0.0-1.0，如 0.3 表示三成）',
+      openGranary: '判断赈济规模（county/regional/national）',
+      takeLoan: '判断借贷金额（以两为单位）与月限',
+      cutOfficials: '判断裁员比例（0.0-1.0）',
+      reduceTax: '判断减赋比例（0.0-1.0）',
+      issuePaperCurrency: '判断发钞金额（以两为单位）'
+    }[actionType] || '判断合理参数';
+    var prompt = '你是财政辅政大臣。玩家颁下诏令："' + decreeText + '"。请' + hint + '。以 JSON 回复：{"amount":数值, "reason":"短解释"}。只输出 JSON。';
+    try {
+      var resp = await callAI(prompt, 200);
+      var m = (resp || '').match(/\{[\s\S]*\}/);
+      if (!m) return null;
+      return JSON.parse(m[0]);
+    } catch(e) { console.warn('[guoku] aiParseFiscalDecree:', e.message); return null; }
+  }
+
+  var MintingActions = {
+    lightCoining: function(reduction) {
+      reduction = reduction || 0.2;
+      var g = GM.guoku;
+      var boost = (g.monthlyIncome || 0) * 3 * reduction;
+      g.balance += boost;
+      if (!GM.currency) GM.currency = {};
+      GM.currency.inflationPressure = (GM.currency.inflationPressure || 0) + reduction * 0.5;
+      if (GM.huangwei) GM.huangwei.index = Math.max(0, GM.huangwei.index - reduction * 15);
+      if (GM.minxin) GM.minxin.trueIndex = Math.max(0, GM.minxin.trueIndex - reduction * 8);
+      if (typeof addEB === 'function') addEB('朝代', '减重改铸：新钱成色降 ' + Math.round(reduction*100) + '%，市面疑虑', { credibility: 'high' });
+      return { success: true, revenue: boost };
+    },
+    banPrivateMint: function() {
+      if (!GM.currency) GM.currency = {};
+      GM.currency.privateCastBanned = true;
+      if (GM.corruption && GM.corruption.subDepts.fiscal) GM.corruption.subDepts.fiscal.true = Math.min(100, GM.corruption.subDepts.fiscal.true + 3);
+      if (typeof addEB === 'function') addEB('朝代', '严禁私铸——私钱匠徒法严诛', { credibility: 'high' });
+      return { success: true };
+    },
+    newCoining: function(name) {
+      name = name || '通宝';
+      if (!GM.currency) GM.currency = {};
+      GM.currency.inflationPressure = Math.max(0, (GM.currency.inflationPressure || 0) - 0.3);
+      GM.currency.latestCoin = name;
+      var cost = 100000;
+      if (GM.guoku) GM.guoku.balance -= cost;
+      if (GM.huangwei) GM.huangwei.index = Math.min(100, GM.huangwei.index + 5);
+      if (typeof addEB === 'function') addEB('朝代', '新铸"' + name + '"钱，成色精良，民信渐复', { credibility: 'high' });
+      return { success: true, cost: cost };
+    }
+  };
+
+  // ═════════════════════════════════════════════════════════════
+  // p4 inline·Sources wrap (taxesEnabled + sourceMultipliers)·initFromDynasty unit override·Expenses.junxiang 物价乘
+  // ═════════════════════════════════════════════════════════════
+
+  (function _p4WrapSources() {
+    var _origSources = Sources;
+    var _wrappedSources = {};
+    Object.keys(_origSources).forEach(function(key) {
+      _wrappedSources[key] = function() {
+        var cfg = ((typeof P !== 'undefined' && P.fiscalConfig) || (GM.fiscalConfig) || {}).taxesEnabled;
+        if (cfg && cfg[key] === false) return 0;
+        var val = _origSources[key]() || 0;
+        var mults = (GM.guoku && GM.guoku.sourceMultipliers) || {};
+        if (mults[key] !== undefined) val *= mults[key];
+        return val;
+      };
+    });
+    Sources = _wrappedSources;
+  })();
+
+  (function _p4WrapInit() {
+    var _origInit = initFromDynasty;
+    initFromDynasty = function(dynasty, phase, scenarioOverride) {
+      var r = _origInit(dynasty, phase, scenarioOverride);
+      var fc = (scenarioOverride && scenarioOverride.fiscalConfig) || null;
+      if (fc && fc.unit) {
+        if (fc.unit.money) GM.guoku.unit.money = fc.unit.money;
+        if (fc.unit.grain) GM.guoku.unit.grain = fc.unit.grain;
+        if (fc.unit.cloth) GM.guoku.unit.cloth = fc.unit.cloth;
+      }
+      return r;
+    };
+  })();
+
+  (function _p4WrapJunxiang() {
+    var _origJunxiang = Expenses.junxiang;
+    Expenses.junxiang = function() {
+      var base = _origJunxiang() || 0;
+      var mult = (GM.guoku && GM.guoku._militaryCostMultiplier) || 1;
+      return base * mult;
+    };
+  })();
+
+  (function _p4WrapYearlySettle() {
+    var _origYearlySettle = yearlySettle;
+    yearlySettle = function() {
+      var archive = _origYearlySettle();
+      if (archive && GM.guoku.byRegion) {
+        archive.byRegion = {};
+        Object.keys(GM.guoku.byRegion).forEach(function(rid) {
+          var r = GM.guoku.byRegion[rid];
+          archive.byRegion[rid] = { name: r.name, stock: r.stock, cumIn: r.cumIn, cumOut: r.cumOut, net: (r.cumIn || 0) - (r.cumOut || 0) };
+          r.cumIn = 0;
+          r.cumOut = 0;
+        });
+      }
+      return archive;
+    };
+  })();
+
+  // ═════════════════════════════════════════════════════════════
+  // p5 inline (R9c 2026-05-04)·漕运损耗·漕弊事件·3 借贷源·AI 财政参议
+  // 原 tm-guoku-p5.js 已 inline
+  // ═════════════════════════════════════════════════════════════
+
+  function isAIAvailable() {
+    return (typeof callAI === 'function') && (typeof P !== 'undefined') && P.ai && P.ai.key;
+  }
+
+  function calcCaoyunLossRate() {
+    if (!GM.corruption) return 0.05;
+    var fc = safe((GM.corruption.subDepts.fiscal || {}).true, 0);
+    var pc = safe((GM.corruption.subDepts.provincial || {}).true, 0);
+    var lossRate = 0.05 + (fc + pc) / 200 * 0.3;
+    var factions = (GM.corruption.entrenchedFactions || []);
+    var hasCaoyunCabal = factions.some(function(f) {
+      return f.name === '漕运党' || (f.name || '').indexOf('漕') !== -1;
+    });
+    if (hasCaoyunCabal) lossRate += 0.05;
+    return clamp(lossRate, 0.02, 0.6);
+  }
+
+  // p5 inline·Sources.caoliang wrap (扣损耗·追踪)
+  (function _p5WrapCaoliang() {
+    var _origCaoliang = Sources.caoliang;
+    Sources.caoliang = function() {
+      var nominal = _origCaoliang() || 0;
+      var lossRate = calcCaoyunLossRate();
+      var actual = nominal * (1 - lossRate);
+      if (!GM.guoku._caoyunStats) GM.guoku._caoyunStats = {};
+      GM.guoku._caoyunStats.nominal = nominal;
+      GM.guoku._caoyunStats.lossRate = lossRate;
+      GM.guoku._caoyunStats.actual = actual;
+      GM.guoku._caoyunStats.lossAmount = nominal - actual;
+      return actual;
+    };
+  })();
+
+  function maybeTriggerCaoyunIncident(mr) {
+    var lossRate = calcCaoyunLossRate();
+    if (lossRate < 0.25) return;
+    var prob = (lossRate - 0.25) * 0.1 * mr;
+    if (Math.random() > prob) return;
+    var events = [
+      '漕船沉没于淮上，损粮数万石',
+      '漕丁哗变，截留粮米充私',
+      '漕船晚至京师，京营断炊',
+      '沿河官吏讹索，漕船停滞',
+      '漕帮把持河道，新船不得行'
+    ];
+    var txt = events[Math.floor(Math.random() * events.length)];
+    if (typeof addEB === 'function') addEB('事件', '漕弊：' + txt, { credibility: 'high' });
+    if (GM.minxin) GM.minxin.trueIndex = Math.max(0, GM.minxin.trueIndex - 2);
+    if (GM.guoku && GM.guoku.ledgers && GM.guoku.ledgers.grain) {
+      GM.guoku.ledgers.grain.stock = Math.max(0, GM.guoku.ledgers.grain.stock * 0.95);
+    }
+    if (GM.guoku && GM.guoku.history) {
+      GM.guoku.history.events.push({ turn: GM.turn, type: 'caoyun_incident', text: txt });
+    }
+  }
+
+  var LOAN_SOURCES = {
+    saltMerchant: { id:'saltMerchant', name:'两淮盐商', interest:0.015, maxAmount:300000, historical:'清代盐商多向朝廷借贷，以盐引为质',
+      requires: function() { var cfg = (typeof P !== 'undefined' && P.fiscalConfig) || {}; var tx = cfg.taxesEnabled; return !tx || tx.yanlizhuan !== false; },
+      sideEffects: { huangquan: -1, fiscalCorruption: +2 } },
+    moneyMerchant: { id:'moneyMerchant', name:'山陕钱商（票号）', interest:0.02, maxAmount:500000, historical:'明清山西票号、陕西钱庄', sideEffects:{} },
+    foreignLoan: { id:'foreignLoan', name:'外邦借银', interest:0.03, maxAmount:1000000, historical:'清末向列强举债，开局末世', sideEffects:{ huangwei:-5, foreign:-10, minxin:-3 } }
+  };
+
+  function takeLoanBySource(sourceId, amount, termMonths) {
+    var src = LOAN_SOURCES[sourceId];
+    if (!src) return { success: false, reason: '未知借贷来源' };
+    if (src.requires && !src.requires()) return { success: false, reason: '条件不备' };
+    amount = Math.min(amount || src.maxAmount * 0.3, src.maxAmount);
+    termMonths = termMonths || 12;
+    ensureGuokuModel();
+    GM.guoku.balance += amount;
+    if (!GM.guoku.emergency.loans) GM.guoku.emergency.loans = [];
+    GM.guoku.emergency.loans.push({ source:sourceId, sourceName:src.name, principal:amount, interestRate:src.interest, monthsLeft:termMonths, totalTerm:termMonths });
+    GM.guoku.emergency.loan.active = true;
+    GM.guoku.emergency.loan.amount = (GM.guoku.emergency.loan.amount || 0) + amount;
+    GM.guoku.emergency.loan.monthsLeft = Math.max(GM.guoku.emergency.loan.monthsLeft || 0, termMonths);
+    var se = src.sideEffects || {};
+    if (se.huangquan && GM.huangquan) {
+      if (global.AuthorityEngines && global.AuthorityEngines.adjustHuangquan) {
+        global.AuthorityEngines.adjustHuangquan(se.huangquan > 0 ? 'personalRule' : 'idleGovern', se.huangquan, '\u501f\u8d37\u6765\u6e90\u526f\u4f5c\u7528');
+      } else {
+        GM.huangquan.index = clamp(GM.huangquan.index + se.huangquan, 0, 100);
+      }
+    }
+    if (se.huangwei && GM.huangwei) GM.huangwei.index = clamp(GM.huangwei.index + se.huangwei, 0, 100);
+    if (se.minxin && GM.minxin) GM.minxin.trueIndex = clamp(GM.minxin.trueIndex + se.minxin, 0, 100);
+    if (se.foreign && GM.huangwei && GM.huangwei.subDims && GM.huangwei.subDims.foreign) {
+      GM.huangwei.subDims.foreign.value = clamp(GM.huangwei.subDims.foreign.value + se.foreign, 0, 100);
+    }
+    if (se.fiscalCorruption && GM.corruption && GM.corruption.subDepts.fiscal) {
+      GM.corruption.subDepts.fiscal.true = clamp(GM.corruption.subDepts.fiscal.true + se.fiscalCorruption, 0, 100);
+    }
+    if (typeof addEB === 'function') addEB('朝代', '借银 ' + Math.round(amount/10000) + ' 万两于' + src.name + '，利率 ' + (src.interest * 100).toFixed(1) + '%/月，限 ' + termMonths + ' 月', { credibility: 'high' });
+    return { success: true, loan: src };
+  }
+
+  function processLoansMonthly(mr) {
+    if (!GM.guoku || !GM.guoku.emergency || !GM.guoku.emergency.loans) return;
+    var loans = GM.guoku.emergency.loans;
+    var remaining = [];
+    loans.forEach(function(L) {
+      var payment = L.principal * (1 / L.totalTerm + L.interestRate) * mr;
+      GM.guoku.balance -= payment;
+      L.monthsLeft -= mr;
+      if (L.monthsLeft > 0) remaining.push(L);
+      else if (typeof addEB === 'function') addEB('朝代', L.sourceName + '借银已还清', { credibility: 'high' });
+    });
+    GM.guoku.emergency.loans = remaining;
+    if (remaining.length === 0) {
+      GM.guoku.emergency.loan.active = false;
+      GM.guoku.emergency.loan.amount = 0;
+      GM.guoku.emergency.loan.monthsLeft = 0;
+    }
+  }
+
+  // p5 inline·Actions.takeLoan wrap (default → moneyMerchant)
+  (function _p5WrapActions() {
+    Actions.takeLoan = function(amount, term) { return takeLoanBySource('moneyMerchant', amount, term); };
+    Actions.takeLoanBySource = takeLoanBySource;
+  })();
+
+  async function aiFiscalAdvisor() {
+    if (!isAIAvailable()) return { available: false, analysis: _ruleBasedFiscalAdvisor() };
+    var g = GM.guoku || {}, n = GM.neitang || {};
+    var reform = (g.ongoingReforms || []).map(function(o) { return (FISCAL_REFORMS[o.id] || {}).name; }).join('、') || '无';
+    var completed = (g.completedReforms || []).map(function(id) { return (FISCAL_REFORMS[id] || {}).name; }).join('、') || '无';
+    var cabal = ((GM.corruption || {}).entrenchedFactions || []).map(function(f) { return f.name; }).join('、') || '无';
+    var prompt = '你扮演户部尚书，为陛下参议财政大计。以奏疏体（200 字内，文言雅训），分析三项：1) 帑廪现况断言（岁有余/岁亏/危殆）2) 当务之急：加派/开仓/借贷/减赋/裁员/发钞/改革，择一二。3) 副作用预警。\n\n当前时局：'
+      + '\n- 帑廪 ' + Math.round(g.balance || 0) + ' 两（年入 ' + Math.round(g.annualIncome || 0) + '）'
+      + '\n- 月入 ' + Math.round(g.monthlyIncome || 0) + '，月支 ' + Math.round(g.monthlyExpense || 0)
+      + '\n- 实征率 ' + Math.round((g.actualTaxRate || 1) * 100) + '%'
+      + '\n- 内帑 ' + Math.round(n.balance || 0) + ' 两'
+      + '\n- 皇权 ' + Math.round((GM.huangquan || {}).index || 50) + '，皇威 ' + Math.round((GM.huangwei || {}).index || 50)
+      + '\n- 民心 ' + Math.round((GM.minxin || {}).trueIndex || 50)
+      + '\n- 粮价 ' + (((GM.prices || {}).grain) || 1).toFixed(2) + ' ×'
+      + '\n- 施行中改革：' + reform + '；已完成：' + completed
+      + '\n- 腐败集团：' + cabal
+      + '\n- 破产：' + (g.bankruptcy && g.bankruptcy.active ? '已连续 ' + Math.round(g.bankruptcy.consecutiveMonths || 0) + ' 月' : '否')
+      + '\n\n直接输出奏疏（"臣户部尚书某某谨奏……"），不含解释。';
+    try { var text = await callAI(prompt, 600); return { available: true, analysis: (text || '').trim() }; }
+    catch(e) { console.warn('[guoku] aiFiscalAdvisor:', e.message); return { available: false, analysis: _ruleBasedFiscalAdvisor(), error: e.message }; }
+  }
+
+  function _ruleBasedFiscalAdvisor() {
+    var g = GM.guoku || {};
+    var balance = g.balance || 0, annual = g.annualIncome || 1;
+    var h = (GM.huangquan || {}).index || 50;
+    var m = (GM.minxin || {}).trueIndex || 50;
+    var grainPrice = ((GM.prices || {}).grain) || 1;
+    var lines = [];
+    if (g.bankruptcy && g.bankruptcy.active) lines.push('【断言】帑廪已破，' + Math.round(g.bankruptcy.consecutiveMonths || 0) + ' 月连亏，危殆。');
+    else if (balance < annual * 0.2) lines.push('【断言】帑廪不足年入二成，近于危境。');
+    else if (balance < 0) lines.push('【断言】帑廪初亏，不可不慎。');
+    else if (balance > annual * 3) lines.push('【断言】岁有余帑三年之积。');
+    else lines.push('【断言】岁有小余，中平之局。');
+    var actions = [];
+    if (balance < 0 && h > 50 && m > 40) actions.push('加派赋税以济目前');
+    if (balance < annual * 0.3 && m > 50) actions.push('向盐商/钱商借银十至三十万');
+    if ((g.ongoingReforms || []).length === 0 && balance > annual * 0.5 && h > 55) actions.push('推大改革（如一条鞭法/摊丁入亩）以立长治');
+    if (balance > annual * 2 && m > 60) actions.push('减赋两成以惠百姓');
+    if (grainPrice > 1.5) actions.push('开仓赈济，平抑粮价');
+    if (actions.length > 0) lines.push('【臣请】' + actions.join('；'));
+    else lines.push('【臣请】维持现状，徐图之。');
+    var warnings = [];
+    var fCabal = (GM.corruption && GM.corruption.entrenchedFactions) || [];
+    if (fCabal.some(function(f) { return f.dept === 'fiscal'; })) warnings.push('税司腐败集团盘踞，改革必激反噬');
+    if (h < 45) warnings.push('皇权不足，大改恐推行不力');
+    if (m < 40) warnings.push('民心不稳，加派激民变');
+    if (warnings.length > 0) lines.push('【副作用】' + warnings.join('；'));
+    return lines.join('\n\n');
+  }
+
+  // ═════════════════════════════════════════════════════════════
+  // p6 inline (R9d 2026-05-04)·自定义税种·transferLimits·fixedDeductions·AI 漕运/税种
+  // 原 tm-guoku-p6.js 已 inline·5 层链最终版
+  // ═════════════════════════════════════════════════════════════
+
+  function calcCustomTaxes() {
+    var cfg = ((typeof P !== 'undefined' && P.fiscalConfig) || {}).customTaxes;
+    if (!Array.isArray(cfg) || cfg.length === 0) return {};
+    var results = {};
+    cfg.forEach(function(tax) {
+      if (!tax.id) return;
+      var val = 0;
+      var regTotal = safe((GM.hukou || {}).registeredTotal, 1e7);
+      try {
+        if (tax.formulaType === 'perCapita') val = regTotal * (tax.rate || 0.01);
+        else if (tax.formulaType === 'flat') val = tax.amount || 0;
+        else if (tax.formulaType === 'percent') {
+          var baseVal = tax.base === 'commerce' ? regTotal * 0.1 : tax.base === 'land' ? regTotal * 0.05 : regTotal;
+          val = baseVal * (tax.rate || 0.01);
+        }
+      } catch(e) { val = 0; }
+      results[tax.id] = { amount: val, name: tax.name || tax.id };
+    });
+    return results;
+  }
+
+  // p6 inline·再 wrap Sources.qita (p4 wrap 之上·加 custom taxes)
+  (function _p6WrapQita() {
+    var _origQita = Sources.qita;
+    Sources.qita = function() {
+      var base = _origQita() || 0;
+      var custom = calcCustomTaxes();
+      var total = base;
+      for (var k in custom) total += custom[k].amount;
+      if (!GM.guoku._customTaxStats) GM.guoku._customTaxStats = {};
+      GM.guoku._customTaxStats = custom;
+      return total;
+    };
+  })();
+
+  // transferLimits helpers
+  function _yearKey() {
+    if (typeof getCurrentYear === 'function') return getCurrentYear();
+    var dpv = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
+    var baseYear = (typeof P !== 'undefined' && P.time && typeof P.time.year === 'number') ? P.time.year : 0;
+    return baseYear + Math.floor(Math.max(0, (GM.turn || 1) - 1) * dpv / 365);
+  }
+  function _getYearCum(direction) {
+    if (!GM.neitang._transferYearCum) GM.neitang._transferYearCum = {};
+    var y = _yearKey();
+    if (GM.neitang._transferYearCum.year !== y) {
+      GM.neitang._transferYearCum = { year: y, guokuToNeicang: 0, neicangToGuoku: 0 };
+    }
+    return GM.neitang._transferYearCum[direction] || 0;
+  }
+  function _addYearCum(direction, amount) {
+    if (!GM.neitang._transferYearCum) GM.neitang._transferYearCum = {};
+    var y = _yearKey();
+    if (GM.neitang._transferYearCum.year !== y) {
+      GM.neitang._transferYearCum = { year: y, guokuToNeicang: 0, neicangToGuoku: 0 };
+    }
+    GM.neitang._transferYearCum[direction] = (GM.neitang._transferYearCum[direction] || 0) + amount;
+  }
+
+  // p6 inline·NeitangEngine wraps (条件 if NeitangEngine 已加载)
+  if (typeof NeitangEngine !== 'undefined' && NeitangEngine.Actions) {
+    var _origTransferIn = NeitangEngine.Actions.transferFromGuoku;
+    NeitangEngine.Actions.transferFromGuoku = function(amount) {
+      var rules = (GM.neitang && GM.neitang.neicangRules) || {};
+      var limits = (rules.transferLimits || {}).guokuToNeicang || {};
+      if (limits.maxPerTransfer && amount > limits.maxPerTransfer) {
+        return { success: false, reason: '单次调拨上限 ' + limits.maxPerTransfer + ' 两' };
+      }
+      if (limits.maxPerYear) {
+        var cum = _getYearCum('guokuToNeicang');
+        if (cum + amount > limits.maxPerYear) {
+          return { success: false, reason: '年度调拨上限 ' + limits.maxPerYear + ' · 本年已 ' + cum };
+        }
+      }
+      var r = _origTransferIn.call(this, amount);
+      if (r.success) _addYearCum('guokuToNeicang', amount);
+      return r;
+    };
+    var _origRescue = NeitangEngine.Actions.rescueGuoku;
+    NeitangEngine.Actions.rescueGuoku = function(amount) {
+      var rules = (GM.neitang && GM.neitang.neicangRules) || {};
+      var limits = (rules.transferLimits || {}).neicangToGuoku || {};
+      if (limits.maxPerTransfer && amount > limits.maxPerTransfer) {
+        return { success: false, reason: '单次捐输上限 ' + limits.maxPerTransfer + ' 两' };
+      }
+      if (limits.maxPerYear) {
+        var cum = _getYearCum('neicangToGuoku');
+        if (cum + amount > limits.maxPerYear) {
+          return { success: false, reason: '年度捐输上限 ' + limits.maxPerYear + ' · 本年已 ' + cum };
+        }
+      }
+      var r = _origRescue.call(this, amount);
+      if (r.success) _addYearCum('neicangToGuoku', amount);
+      return r;
+    };
+  }
+
+  function processFixedDeductions(mr) {
+    if (!GM.neitang || !GM.neitang.neicangRules) return;
+    var deds = GM.neitang.neicangRules.fixedDeductions;
+    if (!Array.isArray(deds) || deds.length === 0) return;
+    deds.forEach(function(d) {
+      var amt = 0;
+      if (d.cadence === 'monthly') amt = (d.amount || 0) * mr;
+      else if (d.cadence === 'annual') amt = (d.amount || 0) * mr / 12;
+      if (amt <= 0) return;
+      var fromAcc = d.account === 'neicang' ? 'neitang' : 'guoku';
+      var toAcc = d.destination === 'neicang' ? 'neitang' : d.destination === 'guoku' ? 'guoku' : null;
+      if (fromAcc === 'neitang' && GM.neitang) GM.neitang.balance -= amt;
+      if (fromAcc === 'guoku' && GM.guoku) GM.guoku.balance -= amt;
+      if (toAcc === 'neitang' && GM.neitang) GM.neitang.balance += amt;
+      if (toAcc === 'guoku' && GM.guoku) GM.guoku.balance += amt;
+    });
+  }
+
+  async function aiCaoyunWarning() {
+    var lossRate = calcCaoyunLossRate();
+    var stats = (GM.guoku && GM.guoku._caoyunStats) || {};
+    if (lossRate < 0.15) return { available: false, analysis: '漕运损耗正常，未有预警。' };
+    if (!isAIAvailable()) return { available: false, analysis: _ruleCaoyunWarning(lossRate) };
+    var fc = safe((GM.corruption && GM.corruption.subDepts.fiscal || {}).true, 0);
+    var pc = safe((GM.corruption && GM.corruption.subDepts.provincial || {}).true, 0);
+    var hasCaoyunCabal = ((GM.corruption && GM.corruption.entrenchedFactions) || []).some(function(f) { return (f.name||'').indexOf('漕') !== -1; });
+    var prompt = '你扮演漕运总督，奏疏体（150 字内）为陛下预警漕运危机：\n- 漕运损耗率 ' + Math.round(lossRate*100) + '%\n- 税司腐败 ' + Math.round(fc) + '，地方腐败 ' + Math.round(pc) + '\n- 漕帮党：' + (hasCaoyunCabal ? '已成气候' : '未现') + '\n- 名义岁漕 ' + Math.round(stats.nominal||0) + ' 两，实入 ' + Math.round(stats.actual||0) + ' 两\n\n请分析风险（漕船沉没/漕丁哗变/漕帮把持）并建言。直接输出奏疏。';
+    try { var text = await callAI(prompt, 400); return { available: true, analysis: (text || '').trim() }; }
+    catch(e) { return { available: false, analysis: _ruleCaoyunWarning(lossRate), error: e.message }; }
+  }
+
+  function _ruleCaoyunWarning(lossRate) {
+    var lines = ['【断言】漕运损耗 ' + Math.round(lossRate*100) + '%，'];
+    lines[0] += lossRate > 0.4 ? '危在旦夕。' : lossRate > 0.25 ? '颓势明显。' : '尚可维持。';
+    var reasons = [];
+    var fc = safe((GM.corruption && GM.corruption.subDepts.fiscal || {}).true, 0);
+    var pc = safe((GM.corruption && GM.corruption.subDepts.provincial || {}).true, 0);
+    if (fc > 50) reasons.push('税司贪墨 ' + Math.round(fc));
+    if (pc > 50) reasons.push('地方苛征 ' + Math.round(pc));
+    var hasCabal = ((GM.corruption && GM.corruption.entrenchedFactions) || []).some(function(f) { return (f.name||'').indexOf('漕') !== -1; });
+    if (hasCabal) reasons.push('漕帮党盘踞');
+    if (reasons.length > 0) lines.push('【源】' + reasons.join('；'));
+    var actions = [];
+    if (fc > 50 || pc > 50) actions.push('派钦差稽查漕线');
+    if (hasCabal) actions.push('肃贪运动清漕帮');
+    actions.push('新铸"漕帑"印钞监督损耗');
+    lines.push('【臣请】' + actions.join('；'));
+    return lines.join('\n\n');
+  }
+
+  async function aiTaxAdvisor() {
+    if (!isAIAvailable()) return { available: false, analysis: _ruleTaxAdvisor() };
+    var g = GM.guoku || {};
+    var sources = g.sources || {};
+    var srcLines = [];
+    var srcLabels = { tianfu:'田赋', dingshui:'丁税', caoliang:'漕粮', yanlizhuan:'专卖', shipaiShui:'市舶', quanShui:'榷税', juanNa:'捐纳', qita:'其他' };
+    for (var k in sources) srcLines.push((srcLabels[k]||k) + ' ' + Math.round(sources[k]||0));
+    var prompt = '你扮演户部左侍郎，奏疏体（200 字内）为陛下分析税种结构并建议：\n- 本岁各税：' + srcLines.join('，') + '\n- 民心 ' + Math.round((GM.minxin||{}).trueIndex || 50) + '，粮价 ' + (((GM.prices||{}).grain)||1).toFixed(2) + '倍\n- 改革：' + (((g.completedReforms||[]).length ? '已' : '未') + '行大改') + '\n\n请指出当今税制弊端（如税种单一/重农轻商/丁税过重等），并建议增减/改革。直接输出奏疏。';
+    try { var text = await callAI(prompt, 500); return { available: true, analysis: (text || '').trim() }; }
+    catch(e) { return { available: false, analysis: _ruleTaxAdvisor(), error: e.message }; }
+  }
+
+  function _ruleTaxAdvisor() {
+    var g = GM.guoku || {};
+    var sources = g.sources || {};
+    var lines = [];
+    var total = 0;
+    for (var k in sources) total += (sources[k]||0);
+    if (total > 0) {
+      var tianfuPct = (sources.tianfu||0) / total;
+      var dingPct = (sources.dingshui||0) / total;
+      var yanPct = (sources.yanlizhuan||0) / total;
+      var juanPct = (sources.juanNa||0) / total;
+      var notes = [];
+      if (tianfuPct > 0.6) notes.push('田赋占 ' + Math.round(tianfuPct*100) + '%，过重农于民');
+      if (dingPct > 0.1) notes.push('丁税 ' + Math.round(dingPct*100) + '%，压贫厚富');
+      if (yanPct < 0.08 && !((typeof P!=='undefined') && P.fiscalConfig && P.fiscalConfig.taxesEnabled && P.fiscalConfig.taxesEnabled.yanlizhuan === false)) notes.push('盐铁专卖未尽其利');
+      if (juanPct > 0.15) notes.push('捐纳 ' + Math.round(juanPct*100) + '%，官源弊端');
+      if ((sources.shipaiShui||0) === 0) notes.push('市舶未开，失海外之利');
+      if (notes.length > 0) lines.push('【臣议】' + notes.join('；'));
+    }
+    var actions = [];
+    if ((sources.dingshui||0) / Math.max(1,total) > 0.08 && !(g.completedReforms||[]).includes('tanDingRuMu')) actions.push('推摊丁入亩以废丁税');
+    if ((sources.dingshui||0) > 0 && !(g.completedReforms||[]).includes('oneWhip')) actions.push('行一条鞭合并征银');
+    if ((sources.shipaiShui||0) === 0 && !(g.completedReforms||[]).includes('twoTax')) actions.push('开海市舶以博商利');
+    if (actions.length > 0) lines.push('【建言】' + actions.join('；'));
+    else lines.push('【建言】税制渐成，徐图之。');
+    return lines.join('\n\n');
+  }
+
+  // ═════════════════════════════════════════════════════════════
   // 主 tick
   // ═════════════════════════════════════════════════════════════
 
@@ -982,6 +1843,19 @@
     if (context) context._guokuMonthRatio = mr;
 
     try { monthlySettle(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku] monthlySettle:') : console.error('[guoku] monthlySettle:', e); }
+    // ── p2 inline (R9a)·tick add-ons ──
+    try { applyTyrantFiscalDistortion(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku] tyrant:') : console.error('[guoku] tyrant:', e); }
+    try { applyTaxMinxinFeedback(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku] minxinFeedback:') : console.error('[guoku] minxinFeedback:', e); }
+    try { updateRegionalAccounts(mr, GM.guoku.monthlyIncome || 0, GM.guoku.monthlyExpense || 0); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku] regional:') : console.error('[guoku] regional:', e); }
+    try { updateGrainClothFlow(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku] grainCloth:') : console.error('[guoku] grainCloth:', e); }
+    // ── p4 inline (R9b)·tick add-ons ──
+    try { tickReforms(context); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku] tickReforms:') : console.error('[guoku] tickReforms:', e); }
+    try { updatePriceIndex(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku] prices:') : console.error('[guoku] prices:', e); }
+    // ── p5 inline (R9c)·tick add-ons ──
+    try { maybeTriggerCaoyunIncident(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku] caoyun:') : console.error('[guoku] caoyun:', e); }
+    try { processLoansMonthly(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku] loans:') : console.error('[guoku] loans:', e); }
+    // ── p6 inline (R9d)·tick add-ons ──
+    try { processFixedDeductions(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'guoku] fixedDed:') : console.error('[guoku] fixedDed:', e); }
 
     // 年末决算（每年一次，简化：若当前 turn 跨越年）
     var dpt = (typeof _getDaysPerTurn === 'function') ? _getDaysPerTurn() : 30;
@@ -1010,7 +1884,32 @@
     yearlySettle: yearlySettle,
     checkBankruptcy: checkBankruptcy,
     initFromDynasty: initFromDynasty,
-    DYNASTY_PRESETS: DYNASTY_PRESETS
+    DYNASTY_PRESETS: DYNASTY_PRESETS,
+    // ── p2 inline (R9a 2026-05-04) ──
+    applyTyrantFiscalDistortion: applyTyrantFiscalDistortion,
+    applyTaxMinxinFeedback: applyTaxMinxinFeedback,
+    updateRegionalAccounts: updateRegionalAccounts,
+    updateGrainClothFlow: updateGrainClothFlow,
+    getRegions: getRegions,
+    // ── p4 inline (R9b 2026-05-04) ──
+    FISCAL_REFORMS: FISCAL_REFORMS,
+    canEnactReform: canEnactReform,
+    enactReform: enactReform,
+    tickReforms: tickReforms,
+    updatePriceIndex: updatePriceIndex,
+    aiParseFiscalDecree: aiParseFiscalDecree,
+    MintingActions: MintingActions,
+    // ── p5 inline (R9c 2026-05-04) ──
+    LOAN_SOURCES: LOAN_SOURCES,
+    takeLoanBySource: takeLoanBySource,
+    calcCaoyunLossRate: calcCaoyunLossRate,
+    aiFiscalAdvisor: aiFiscalAdvisor,
+    isAIAvailable: isAIAvailable,
+    // ── p6 inline (R9d 2026-05-04)·5 层链最终版 ──
+    calcCustomTaxes: calcCustomTaxes,
+    aiCaoyunWarning: aiCaoyunWarning,
+    aiTaxAdvisor: aiTaxAdvisor,
+    processFixedDeductions: processFixedDeductions
   };
 
   console.log('[guoku] 引擎已加载：8 收入源 + 8 支出类 + 破产链 + 6 紧急措施 + 朝代预设');

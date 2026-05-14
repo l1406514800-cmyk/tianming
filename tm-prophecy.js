@@ -12,6 +12,10 @@
 (function(global) {
   'use strict';
 
+  function _turnsForMonthsLocal(months) {
+    return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  D2 · 谶纬库（Prophecies） + 天人感应强化
   // ═══════════════════════════════════════════════════════════════════
@@ -123,7 +127,7 @@
       id: 'bold_remonstrance',
       name: '骨鲠大臣死谏',
       test: function(G, ctx) {
-        var recentExec = (G._abductions || []).filter(function(a){return a.status==='execute' && (ctx.turn - a.turn) < 3;});
+    var recentExec = (G._abductions || []).filter(function(a){return a.status==='execute' && (ctx.turn - a.turn) < _turnsForMonthsLocal(3);});
         return recentExec.length > 0;
       },
       effect: function(G, ctx) {
@@ -155,7 +159,7 @@
       id: 'heaven_fury',
       name: '天象连续示警',
       test: function(G, ctx) {
-        var recentBad = (G.heavenSigns || []).filter(function(s){return s.type === 'bad' && (ctx.turn - s.turn) < 6;});
+        var recentBad = (G.heavenSigns || []).filter(function(s){return s.type === 'bad' && (ctx.turn - s.turn) < _turnsForMonthsLocal(6);});
         return recentBad.length >= 3;
       },
       effect: function(G) {
@@ -166,7 +170,7 @@
       id: 'heir_death',
       name: '太子/皇子夭折触心',
       test: function(G) {
-        return (G.chars || []).some(function(c) { return c.alive === false && c.role === 'heir' && (G.turn - (c._deathTurn || 0)) < 2; });
+        return (G.chars || []).some(function(c) { return c.alive === false && c.role === 'heir' && (G.turn - (c._deathTurn || 0)) < _turnsForMonthsLocal(2); });
       },
       effect: function(G) {
         return { hwDelta: -12, eventName: '储君夭折，暴君渐悟', exposeHidden: true };
@@ -235,7 +239,9 @@
         var successRate = 0.5 + (1 - pm.controlLevel) * 0.4;
         if (Math.random() < successRate) {
           pm.controlLevel = Math.max(0, pm.controlLevel - 0.1);
-          if (typeof G.huangquan === 'object') G.huangquan.index = Math.min(100, G.huangquan.index + 5);
+          if (global.AuthorityEngines && global.AuthorityEngines.adjustHuangquan) {
+            global.AuthorityEngines.adjustHuangquan('personalRule', 5, '\u5bc6\u8bcf\u89c1\u6548\u524a\u5f31\u6743\u81e3');
+          } else if (typeof G.huangquan === 'object') G.huangquan.index = Math.min(100, G.huangquan.index + 5);
           if (global.addEB) global.addEB('密诏', '密诏见效，权臣 ' + pm.name + ' 控制力 -0.1');
           return { ok: true, successRate: successRate };
         } else {
@@ -251,20 +257,36 @@
       effect: function(G) {
         var pm = G.huangquan && G.huangquan.powerMinister;
         if (!pm || !pm.faction) return { ok: false };
-        // 随机调走 2 名党羽
-        var movedCount = 0;
-        pm.faction.slice(0, 2).forEach(function(name) {
-          var ally = (G.chars || []).find(function(c){return c.name===name;});
-          if (ally) {
-            ally.officialTitle = (ally.officialTitle || '') + '(外调)';
-            ally._tenureMonths = 0;
-            movedCount++;
+        var oldCtrl = pm.controlLevel || 0.3;
+        var faction = pm.faction || [];
+        if (faction.length === 0) return { ok: true, rotated: 0, moved: 0, note: '党羽已无' };
+        var coreAllies = [];
+        var peripheralAllies = [];
+        faction.forEach(function(name) {
+          var c = (G.chars || []).find(function(x){ return x.name === name; });
+          if (!c) return;
+          var rank = c.rank || 5;
+          if (rank <= 3) coreAllies.push(name);
+          else peripheralAllies.push(name);
+        });
+        var rotatedCore = coreAllies.slice(0, 2);
+        var rotatedPeri = peripheralAllies.slice(0, 3);
+        var totalRotated = rotatedCore.length + rotatedPeri.length;
+        var decay = rotatedCore.length * 0.12 + rotatedPeri.length * 0.04;
+        pm.controlLevel = Math.max(0, oldCtrl - decay);
+        var rotatedSet = {};
+        rotatedCore.concat(rotatedPeri).forEach(function(n){ rotatedSet[n] = true; });
+        pm.faction = faction.filter(function(n){ return !rotatedSet[n]; });
+        rotatedCore.concat(rotatedPeri).forEach(function(name) {
+          var c = (G.chars || []).find(function(x){ return x.name === name; });
+          if (c) {
+            c.officialTitle = (c.officialTitle || '') + '(外调)';
+            c._rotatedOut = true;
+            c._tenureMonths = 0;
           }
         });
-        pm.faction = pm.faction.slice(movedCount);
-        pm.controlLevel = Math.max(0, pm.controlLevel - 0.08 * movedCount);
-        if (global.addEB) global.addEB('官员轮换', '外调权臣党羽 ' + movedCount + ' 人');
-        return { ok: true, moved: movedCount };
+        if (global.addEB) global.addEB('轮换', '外调 ' + pm.name + ' 之党羽 ' + totalRotated + ' 人（控制力 -' + decay.toFixed(2) + '）');
+        return { ok: true, rotated: totalRotated, moved: totalRotated, decay: decay };
       }
     },
     military_reform_against_pm: {
@@ -290,7 +312,7 @@
         if (G.guoku) G.guoku.money -= 100000;
         // 派出 → 若有 investigate 存在也可链式
         G._courtSpyActive = true;
-        G._courtSpyExpire = (G.turn || 0) + 12;
+        G._courtSpyExpire = (G.turn || 0) + _turnsForMonthsLocal(12);
         if (global.addEB) global.addEB('密探', '厂卫侦察权臣，一年内必有所得');
         return { ok: true };
       }
@@ -357,7 +379,7 @@
     if (strat.cost) {
       Object.keys(strat.cost).forEach(function(k) {
         if (k === 'guoku' && G.guoku) G.guoku.money -= strat.cost[k];
-        else if (k === 'huangquan' && global._adjAuthority) global._adjAuthority('huangquan', strat.cost[k]);
+        else if (k === 'huangquan' && global._adjAuthority) global._adjAuthority('huangquan', strat.cost[k], '\u5e94\u5bf9\u98ce\u95fb\u7b56\u7565\u4ee3\u4ef7', { source:'prophecy-counter-strategy' });
         else if (k === 'huangwei' && global._adjAuthority) global._adjAuthority('huangwei', strat.cost[k]);
         else if (k === 'partyStrife') G.partyStrife = Math.min(100, (G.partyStrife || 30) + strat.cost[k]);
       });

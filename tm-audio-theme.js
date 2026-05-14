@@ -65,6 +65,9 @@
 // ══════════════════════════════════════════════════════════════
 var AudioSystem = {
   bgm: null,
+  playlist: [],
+  currentTrackId: '',
+  loopMode: 'sequence',
   sfxVolume: 0.5,
   bgmVolume: 0.3,
   enabled: true,
@@ -92,13 +95,44 @@ var AudioSystem = {
         this.bgmVolume = settings.bgmVolume !== undefined ? settings.bgmVolume : 0.3;
         this.enabled = settings.enabled !== undefined ? settings.enabled : true;
         this.bgmEnabled = settings.bgmEnabled !== undefined ? settings.bgmEnabled : true;
+        var playlistVersion = window.TM_BGM_PLAYLIST_VERSION || '';
+        var playlistChanged = playlistVersion && settings.bgmPlaylistVersion !== playlistVersion;
+        this.currentTrackId = playlistChanged ? '' : (settings.currentTrackId || '');
+        this.loopMode = playlistChanged ? (window.TM_BGM_DEFAULT_LOOP || 'sequence') : (settings.loopMode || window.TM_BGM_DEFAULT_LOOP || 'sequence');
       } catch (e) {
         console.error('加载音频设置失败:', e);
       }
     }
 
+    this.loadPlaylist();
     // 创建音效（使用 Web Audio API 生成简单音效）
     this.generateSounds();
+  },
+
+  loadPlaylist: function() {
+    var tracks = Array.isArray(window.TM_BGM_TRACKS) ? window.TM_BGM_TRACKS : [];
+    this.playlist = tracks.filter(function(track) {
+      return track && track.src;
+    }).map(function(track, idx) {
+      var id = track.id || ('bgm_' + idx);
+      return {
+        id: String(id),
+        title: track.title || id,
+        meta: track.meta || '',
+        src: track.src
+      };
+    });
+    if (!this.currentTrackId && this.playlist.length) {
+      this.currentTrackId = this.playlist[0].id;
+    }
+    return this.playlist;
+  },
+
+  getCurrentTrack: function() {
+    if (!this.playlist || !this.playlist.length) this.loadPlaylist();
+    var id = this.currentTrackId;
+    var found = (this.playlist || []).find(function(track) { return track.id === id; });
+    return found || (this.playlist && this.playlist[0]) || null;
   },
 
   // 生成音效
@@ -161,7 +195,11 @@ var AudioSystem = {
       if (url) {
         this.bgm = new Audio(url);
         this.bgm.volume = this.bgmVolume;
-        this.bgm.loop = true;
+        this.bgm.loop = this.loopMode === 'single' || (this.playlist || []).length <= 1;
+        var self = this;
+        this.bgm.onended = function() {
+          if (self.loopMode !== 'single') self.nextTrack();
+        };
         this.bgm.play().catch(function(e) {
           _dbg('背景音乐播放失败（可能需要用户交互）:', e);
         });
@@ -169,6 +207,42 @@ var AudioSystem = {
     } catch (e) {
       console.error('播放背景音乐失败:', e);
     }
+  },
+
+  playTrack: function(trackId) {
+    if (!this.playlist || !this.playlist.length) this.loadPlaylist();
+    var track = (this.playlist || []).find(function(item) { return item.id === trackId; }) || this.getCurrentTrack();
+    if (!track) return false;
+    this.currentTrackId = track.id;
+    this.saveSettings();
+    this.playBgm(track.src);
+    return true;
+  },
+
+  playDefaultBgm: function() {
+    var track = this.getCurrentTrack();
+    if (!track) return false;
+    return this.playTrack(track.id);
+  },
+
+  ensureBgmPlaying: function() {
+    if (!this.bgmEnabled) return false;
+    if (this.bgm && !this.bgm.paused) return true;
+    return this.playDefaultBgm();
+  },
+
+  nextTrack: function() {
+    if (!this.playlist || this.playlist.length < 1) this.loadPlaylist();
+    if (!this.playlist.length) return false;
+    var currentId = this.currentTrackId;
+    var idx = this.playlist.findIndex(function(track) { return track.id === currentId; });
+    if (this.loopMode === 'random' && this.playlist.length > 1) {
+      var nextIdx = Math.floor(Math.random() * this.playlist.length);
+      if (nextIdx === idx) nextIdx = (nextIdx + 1) % this.playlist.length;
+      return this.playTrack(this.playlist[nextIdx].id);
+    }
+    idx = idx < 0 ? 0 : (idx + 1) % this.playlist.length;
+    return this.playTrack(this.playlist[idx].id);
   },
 
   // 停止背景音乐
@@ -206,9 +280,49 @@ var AudioSystem = {
     this.bgmEnabled = !this.bgmEnabled;
     if (!this.bgmEnabled) {
       this.stopBgm();
+    } else {
+      this.playDefaultBgm();
     }
     this.saveSettings();
     return this.bgmEnabled;
+  },
+
+  setLoopMode: function(mode) {
+    this.loopMode = /^(single|sequence|random)$/.test(mode) ? mode : 'single';
+    if (this.bgm) this.bgm.loop = this.loopMode === 'single' || (this.playlist || []).length <= 1;
+    this.saveSettings();
+  },
+
+  renderShellPanelHtml: function() {
+    if (!this.playlist || !this.playlist.length) this.loadPlaylist();
+    var current = this.getCurrentTrack();
+    var enabledText = this.bgmEnabled ? '开' : '关';
+    var bgmPct = Math.round(this.bgmVolume * 100);
+    var sfxPct = Math.round(this.sfxVolume * 100);
+    var html = '<div class="gs-panel-hdr"><div class="gs-panel-title">音 声 调 度</div><span class="gs-panel-cnt">' + enabledText + '</span></div>';
+    html += '<div class="gs-audio-row"><span class="gs-audio-name">殿 乐</span><div class="gs-audio-ctrl"><input class="gs-audio-range" type="range" min="0" max="100" value="' + bgmPct + '" oninput="AudioSystem.setBgmVolume(this.value/100);var v=this.parentNode.parentNode.querySelector(\'.gs-audio-val\');if(v)v.textContent=this.value;"></div><span class="gs-audio-val">' + bgmPct + '</span></div>';
+    html += '<div class="gs-audio-row"><span class="gs-audio-name">声 效</span><div class="gs-audio-ctrl"><input class="gs-audio-range" type="range" min="0" max="100" value="' + sfxPct + '" oninput="AudioSystem.setSfxVolume(this.value/100);var v=this.parentNode.parentNode.querySelector(\'.gs-audio-val\');if(v)v.textContent=this.value;"></div><span class="gs-audio-val">' + sfxPct + '</span></div>';
+    html += '<div class="gs-audio-now">正 奏：<span class="h">' + (current ? current.title : '未配置曲目') + '</span>' + (current && current.meta ? '·' + current.meta : '') + '</div>';
+    html += '<div class="gs-audio-custom">';
+    html += '<button class="gs-audio-import" onclick="AudioSystem.toggleBgm();if(window.TM&&TM.UI&&TM.UI.shell&&typeof TM.UI.shell.refreshLeft===\'function\')TM.UI.shell.refreshLeft();">音 乐 开 关</button>';
+    html += '<div class="gs-audio-lib">';
+    if (this.playlist.length) {
+      this.playlist.forEach(function(track) {
+        var cls = current && current.id === track.id ? 'playing' : 'paused';
+        var safeId = track.id.replace(/'/g, "\\'");
+        html += '<div class="gs-audio-song ' + cls + '" data-track-id="' + track.id + '" onclick="AudioSystem.playTrack(\'' + safeId + '\');if(window.TM&&TM.UI&&TM.UI.shell&&typeof TM.UI.shell.refreshLeft===\'function\')TM.UI.shell.refreshLeft();"><span class="title">' + track.title + '</span><span class="meta">' + (track.meta || '') + '</span></div>';
+      });
+    } else {
+      html += '<div class="gs-audio-song paused"><span class="title">请在 tm-bgm-config.js 配置曲目</span><span class="meta">BGM</span></div>';
+    }
+    html += '</div>';
+    html += '<div class="gs-audio-loop">'
+      + '<button class="gs-audio-loop-btn ' + (this.loopMode === 'sequence' ? 'active' : '') + '" onclick="AudioSystem.setLoopMode(\'sequence\');if(window.TM&&TM.UI&&TM.UI.shell&&typeof TM.UI.shell.refreshLeft===\'function\')TM.UI.shell.refreshLeft();">顺 序</button>'
+      + '<button class="gs-audio-loop-btn ' + (this.loopMode === 'single' ? 'active' : '') + '" onclick="AudioSystem.setLoopMode(\'single\');if(window.TM&&TM.UI&&TM.UI.shell&&typeof TM.UI.shell.refreshLeft===\'function\')TM.UI.shell.refreshLeft();">单 曲</button>'
+      + '<button class="gs-audio-loop-btn ' + (this.loopMode === 'random' ? 'active' : '') + '" onclick="AudioSystem.setLoopMode(\'random\');if(window.TM&&TM.UI&&TM.UI.shell&&typeof TM.UI.shell.refreshLeft===\'function\')TM.UI.shell.refreshLeft();">随 机</button>'
+      + '</div>';
+    html += '</div>';
+    return html;
   },
 
   // 保存设置
@@ -217,7 +331,10 @@ var AudioSystem = {
       sfxVolume: this.sfxVolume,
       bgmVolume: this.bgmVolume,
       enabled: this.enabled,
-      bgmEnabled: this.bgmEnabled
+      bgmEnabled: this.bgmEnabled,
+      currentTrackId: this.currentTrackId,
+      loopMode: this.loopMode,
+      bgmPlaylistVersion: window.TM_BGM_PLAYLIST_VERSION || ''
     };
     try { localStorage.setItem('tianming_audio_settings', JSON.stringify(settings)); } catch(_){}
   }
@@ -324,6 +441,12 @@ function updateBgmVolume(value) {
 // 在游戏启动时初始化音频系统
 GameHooks.on('startGame:after', function() {
   AudioSystem.init();
+  AudioSystem.ensureBgmPlaying();
+});
+
+GameHooks.on('enterGame:after', function() {
+  if (!AudioSystem.playlist || !AudioSystem.playlist.length) AudioSystem.init();
+  AudioSystem.ensureBgmPlaying();
 });
 
 // 在关键操作时播放音效

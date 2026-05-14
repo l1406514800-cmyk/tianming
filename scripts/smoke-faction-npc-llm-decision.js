@@ -1,0 +1,367 @@
+#!/usr/bin/env node
+// scripts/smoke-faction-npc-llm-decision.js — Phase G·smoke
+// 验证 schema validation + apply 副作用 (不真调 LLM·mock decision)
+
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+const ROOT = path.resolve(__dirname, '..');
+const SCN_DIR = path.resolve(ROOT, '..', 'scenarios');
+
+function fail(msg) { throw new Error(msg); }
+function assert(cond, msg) { if (!cond) fail(msg); }
+
+function buildContext() {
+  var ctx = { console: { log: function(){}, warn: function(){} },
+    Math: Math, Date: Date, JSON: JSON, Object: Object, Array: Array,
+    Number: Number, String: String, Boolean: Boolean, RegExp: RegExp,
+    isFinite: isFinite, parseInt: parseInt, parseFloat: parseFloat, isNaN: isNaN, Set: Set,
+    Promise: Promise };
+  ctx.window = ctx; ctx.global = ctx; ctx.globalThis = ctx;
+  vm.createContext(ctx);
+  ['tm-faction-paradigm.js', 'tm-faction-personality.js', 'tm-faction-index.js',
+   'tm-faction-derived-health.js', 'tm-faction-membership.js',
+   'tm-faction-derived-economy.js', 'tm-faction-derived-cohesion.js', 'tm-faction-derived-strength.js',
+   'tm-faction-npc-settings.js',
+   'tm-faction-npc-memorial.js', 'tm-faction-npc-edict.js', 'tm-faction-npc-chaoyi.js',
+   'tm-faction-npc-office.js', 'tm-faction-npc-guoku.js',
+   'tm-faction-npc-llm-decision.js'].forEach(function(f){
+    vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), ctx, { filename: f });
+  });
+  return ctx;
+}
+
+function loadGM(ctx, sc) {
+  ctx.GM = {
+    turn: 1,
+    facs: (sc.factions || []).map(function(f){ return Object.assign({}, f); }),
+    chars: (sc.characters || []).map(function(c){ return Object.assign({}, c, { alive: c.alive !== false }); }),
+    armies: (sc.military && sc.military.initialTroops || []).map(function(a){ return Object.assign({}, a); }),
+    parties: (sc.parties || []).map(function(p){ return Object.assign({}, p); }),
+    factionRelations: sc.factionRelations || [],
+    adminHierarchy: JSON.parse(JSON.stringify(sc.adminHierarchy || {})),
+    _provinceToFaction: {}, provinceStats: {}
+  };
+  ctx.P = { playerInfo: sc.playerInfo || {}, conf: { npcAiPrecision: true }, ai: { key: 'fake' }, adminHierarchy: sc.adminHierarchy || {} };
+  ctx.getFactionProvinces = function(n) {
+    var f = ctx.GM.facs.find(function(x){ return x.name === n; });
+    if (!f) return [];
+    if (Array.isArray(f.territories)) return f.territories.slice();
+    if (typeof f.territory === 'string') return [f.territory];
+    if (Array.isArray(f.territory)) return f.territory.slice();
+    return [];
+  };
+  ctx.TM.FactionMembership.migrateArmyOwnerToFaction();
+  ctx.TM.FactionMembership.migrateCharsAddFactionId();
+  ctx.TM.FactionMembership.migrateProvinceOwnership();
+  ctx.TM.FactionIndex.rebuild();
+  ctx.TM.FactionDerived.compute();
+  ctx.TM.FactionDerivedEconomy.compute();
+  ctx.TM.FactionDerivedCohesion.compute();
+  ctx.TM.FactionDerivedStrength.compute();
+}
+
+function unitTests() {
+  var ctx = buildContext();
+  var fld = ctx.TM.FactionNpcLlmDecision;
+  assert(typeof fld.decideFor === 'function', 'decideFor missing');
+  assert(typeof fld.decideAll === 'function', 'decideAll missing');
+
+  // Validate·正常
+  var d1 = fld._validateDecision({
+    rationale: '本朝当稳·示恩。',
+    memorials: [{ from: 'A', type: '政务', content: 'xx', rulerDecision: 'approved', loyaltyDelta: 2 }],
+    edict: { type: '赏赐', content: 'yy', trigger: '稳定', treasuryDelta: -50000, loyaltyDeltas: { court: 3 } },
+    chaoyi: { type: 'cooperate', summary: 'zz', partyImbalanceDelta: -0.05, loyaltyDeltaByParty: { '满洲': 2 } },
+    office: [{ kind: 'promote', target: 'B', newPosition: '议政大臣', loyaltyDelta: 5, reason: 'rrr' }]
+  });
+  assert(d1, 'validate good decision');
+  assert(d1.memorials.length === 1, 'memorials kept');
+  assert(d1.edict, 'edict kept');
+  assert(d1.chaoyi, 'chaoyi kept');
+  assert(d1.office.length === 1, 'office kept');
+
+  // Validate·bad enum 被过滤
+  var d2 = fld._validateDecision({
+    memorials: [{ from: 'X', type: 'INVALID', content: 'x', rulerDecision: 'approved' }],
+    edict: { type: 'INVALID', content: 'x' },
+    chaoyi: { type: 'INVALID' },
+    office: [{ kind: 'INVALID', target: 'X' }]
+  });
+  assert(d2.memorials.length === 0, 'invalid memorial filtered');
+  assert(d2.edict === null, 'invalid edict null');
+  assert(d2.chaoyi === null, 'invalid chaoyi null');
+  assert(d2.office.length === 0, 'invalid office filtered');
+
+  console.log('[smoke-faction-npc-llm-decision] unit tests pass·9 assertions');
+}
+
+async function playerIsPlayerGuardTest() {
+  var ctx = buildContext();
+  ctx.P = {
+    playerInfo: { factionName: 'mismatched-player-name' },
+    conf: { npcAiPrecision: true, npcAiPrecisionMaxPerTurn: 8 },
+    ai: { key: 'fake' }
+  };
+  ctx.GM = {
+    turn: 5,
+    facs: [
+      { name: 'PlayerMarked', isPlayer: true, derivedStrength: { value: 999 }, treasury: { money: 1000000 } },
+      { name: 'NpcNeighbor', derivedStrength: { value: 10 }, treasury: { money: 1000000 } }
+    ],
+    chars: [],
+    qijuHistory: []
+  };
+  ctx.callAI = function(){
+    return Promise.resolve(JSON.stringify({ rationale: 'mock npc move', memorials: [], edict: null, chaoyi: null, office: [] }));
+  };
+  var fld = ctx.TM.FactionNpcLlmDecision;
+  var direct = await fld.decideFor('PlayerMarked');
+  assert(direct && direct.skipped && direct.reason === 'player faction', 'decideFor must skip fac.isPlayer even when player faction name mismatches');
+  var batch = await fld.decideAll({ source: 'eager' });
+  assert(batch.results.every(function(r){ return r.fac !== 'PlayerMarked'; }), 'decideAll must exclude fac.isPlayer even when player faction name mismatches');
+  assert(!ctx.GM.facs[0]._lastLlmRationale, 'isPlayer faction should not receive LLM trajectory');
+  console.log('[player-isPlayer-guard] assertions pass');
+}
+
+function e2eApplyMockDecision() {
+  var ctx = buildContext();
+  var sc = JSON.parse(fs.readFileSync(path.join(SCN_DIR, '天启七年·九月（官方）.json'), 'utf8'));
+  loadGM(ctx, sc);
+
+  var hj = ctx.GM.facs.find(function(f){ return f.name === '后金'; });
+  var hjChars = ctx.GM._facIndex['后金'].chars.filter(function(c){ return c.alive !== false; });
+  var amin = hjChars.find(function(c){ return c.name === '阿敏'; });
+  var huangtaiji = hjChars.find(function(c){ return c.name === '皇太极'; });
+
+  var mockDecision = {
+    rationale: '后金势盛·当下安抚之诏·稳八旗。汉军八旗暗中提阿敏入议政·示笼络。',
+    memorials: [
+      { from: '阿敏', type: '政务', content: '臣阿敏谨奏：朝廷诸贝勒一体·宜崇满洲·汉军可用而不可纵。', rulerDecision: 'annotated', ruling: '览·当再议。', loyaltyDelta: 1 }
+    ],
+    edict: {
+      type: '赏赐',
+      content: '诏曰：诸王贝勒功劳卓著·特赐银两·以彰朝廷怀远之意。',
+      trigger: '稳定·示恩',
+      treasuryDelta: -100000,
+      loyaltyDeltas: { court: 4, general: 4, clan: 5 }
+    },
+    chaoyi: {
+      type: 'cooperate',
+      summary: '满洲·汉军八旗议事相和·共定经略明朝之策。',
+      partyImbalanceDelta: -0.05,
+      loyaltyDeltaByParty: { '满洲八旗': 2, '汉军八旗': 2 }
+    },
+    office: [
+      { kind: 'promote', target: '阿敏', newPosition: '议政大臣', loyaltyDelta: 5, reason: '勤勉可嘉' }
+    ]
+  };
+
+  var loyBefore = amin.loyalty;
+  var moneyBefore = hj.treasury.money;
+  var summary = ctx.TM.FactionNpcLlmDecision._applyDecision(hj, mockDecision);
+  console.log('[e2e] apply summary:', JSON.stringify(summary));
+  console.log('[e2e] 阿敏 loyalty: ' + loyBefore + ' → ' + amin.loyalty + ' position=' + amin.position);
+  console.log('[e2e] 后金 treasury.money: ' + moneyBefore + ' → ' + hj.treasury.money);
+  console.log('[e2e] 后金._lastLlmRationale.text: "' + (hj._lastLlmRationale && hj._lastLlmRationale.text) + '"');
+
+  assert(summary.memorials === 1, 'mem applied');
+  assert(summary.edicts === 1, 'edict applied');
+  assert(summary.chaoyi === 1, 'chaoyi applied');
+  assert(summary.office === 1, 'office applied');
+  assert(amin.position === '议政大臣', '阿敏 promoted');
+  assert(hj.treasury.money === moneyBefore - 100000, 'treasury changed');
+  assert(amin.loyalty > loyBefore, 'loyalty up (mem +1 + office +5)');
+  assert(hj._lastLlmRationale, 'rationale stored');
+
+  // 验证 fac.npcMemorials 等 trajectory 有 LLM 标记
+  var lastMem = hj.npcMemorials[hj.npcMemorials.length - 1];
+  assert(lastMem._generatedByLlm === true, 'mem LLM tagged');
+  var lastEd = hj.npcEdicts[hj.npcEdicts.length - 1];
+  assert(lastEd._generatedByLlm === true, 'edict LLM tagged');
+
+  // 验证 player faction 不受影响
+  var ming = ctx.GM.facs.find(function(f){ return f.name === '明朝廷'; });
+  assert(!ming.npcMemorials || ming.npcMemorials.length === 0, 'player not affected');
+  assert(!ming._lastLlmRationale, 'player no rationale');
+
+  console.log('[e2e] tianqi assertions pass·12 assertions');
+}
+
+function promptContextExpansionTest() {
+  var ctx = buildContext();
+  var sc = JSON.parse(fs.readFileSync(path.join(SCN_DIR, '天启七年·九月（官方）.json'), 'utf8'));
+  loadGM(ctx, sc);
+
+  if (ctx.GM.adminHierarchy && ctx.GM.adminHierarchy.laterJin && ctx.GM.adminHierarchy.laterJin.divisions && ctx.GM.adminHierarchy.laterJin.divisions[0]) {
+    ctx.GM.adminHierarchy.laterJin.divisions[0].name = '辽沈建州八旗辖区·运行时改名';
+    ctx.GM.adminHierarchy.laterJin.divisions[0].populationDetail = ctx.GM.adminHierarchy.laterJin.divisions[0].populationDetail || {};
+    ctx.GM.adminHierarchy.laterJin.divisions[0].populationDetail.mouths = 777777;
+  }
+
+  var hj = ctx.GM.facs.find(function(f){ return f.name === '后金'; });
+  var amin = ctx.GM._facIndex['后金'].chars.find(function(c){ return c.name === '阿敏'; });
+  amin._memory = [{ turn: 2, event: '与明朝边将旧怨未解', importance: 8 }];
+  amin._scars = [{ turn: 3, event: '宁远败绩余痛' }];
+  amin._impressions = { '皇太极': { favor: -18 }, '努尔哈赤': { favor: 26 } };
+
+  hj.npcMemorials = [{ turn: 4, type: '军务', status: 'approved', from: '阿敏', content: '请整顿边骑' }];
+  hj.npcEdicts = [{ turn: 4, type: '整军', trigger: '辽东吃紧', content: '整八旗兵马' }];
+  hj.npcChaoyi = [{ turn: 4, type: 'infight', summary: '诸贝勒争议南下' }];
+  hj.npcOfficeActions = [{ turn: 4, action: 'promote', target: '阿敏', reason: '边功' }];
+  hj.npcFiscalLedger = [{ turn: 4, crisis: true, stress: 82, summary: '军饷吃紧' }];
+  hj._lastLlmRationale = { turn: 4, text: '先稳内部，再窥辽东' };
+
+  ctx.GM.shijiHistory = [
+    { turn: 3, shizhengji: '辽东边报频至，后金诸部窥宁远。', zhengwen: '朝廷议防辽。', edicts: ['增修宁远城防'], xinglu: '召见兵部' }
+  ];
+  ctx.GM.qijuHistory = [
+    { turn: 4, content: '【近事】宁远守军请饷，辽东局势紧。' },
+    { turn: 4, xinglu: '夜阅辽东塘报' }
+  ];
+  ctx.GM._lastEndturnAiContext = {
+    turn: 4,
+    edicts: ['密令辽东诸将互为声援'],
+    xinglu: '召辽东塘报入内廷',
+    aiResult: { turnSummary: '本回合主推演提示：辽东战线将成诸势力焦点。' }
+  };
+  ctx.GM._turnAiResults = {
+    subcall16: {
+      faction_actions: [
+        {
+          faction: '\u540e\u91d1',
+          action: '\u6682\u7f13\u5357\u4e0b\uff0c\u6574\u987f\u8fbd\u4e1c\u8fb9\u5be8',
+          target: '\u660e\u671d\u5ef7',
+          motive: '\u7cae\u8349\u672a\u9f50',
+          impact: '\u77ed\u671f\u4f11\u6574'
+        }
+      ],
+      diplomatic_shifts: [
+        {
+          from: '\u540e\u91d1',
+          to: '\u660e\u671d\u5ef7',
+          new_relation: '\u654c\u5bf9\u52a0\u6df1',
+          reason: '\u8fbd\u4e1c\u51b2\u7a81\u6269\u5927'
+        }
+      ],
+      territorial_changes: '\u65e0\u5927\u89c4\u6a21\u6613\u624b',
+      power_balance_shift: '\u540e\u91d1\u6682\u5b88\uff0c\u660e\u5ef7\u538b\u529b\u4ecd\u5728'
+    }
+  };
+  ctx.GM.factionRelations = [
+    { from: '后金', to: '明朝廷', type: '敌对', value: -90, desc: '辽东交兵' }
+  ];
+  ctx.GM.activeWars = [{ name: '辽东战事', sides: ['后金', '明朝廷'], status: '僵持' }];
+  ctx.GM.armies.push({ name: '镶蓝旗测试军', faction: '后金', soldiers: 12000, location: '辽阳' });
+  ctx.GM.currentIssues = [{ title: '辽饷不足', severity: 80 }];
+
+  var prompts = ctx.TM.FactionNpcLlmDecision._buildPrompt(hj);
+  var combined = prompts.system + '\n' + prompts.user;
+  assert(combined.indexOf('RECENT_WORLD') >= 0, 'prompt should include recent world history section');
+  assert(combined.indexOf('辽东边报频至') >= 0, 'prompt should include shiji history');
+  assert(combined.indexOf('PLAYER_RECENT') >= 0, 'prompt should include player recent orders section');
+  assert(combined.indexOf('SCENARIO_FACTION_PROFILE') >= 0, 'prompt should include scenario faction profile section');
+  assert(combined.indexOf('OWN_ADMIN_HIERARCHY') >= 0, 'prompt should include own admin hierarchy section');
+  assert(combined.indexOf('辽沈建州八旗辖区·运行时改名') >= 0, 'prompt should include runtime admin hierarchy, not stale opening land');
+  assert(combined.indexOf('口77.8万') >= 0 || combined.indexOf('口78万') >= 0 || combined.indexOf('777777') >= 0, 'prompt should include runtime admin population');
+  assert(combined.indexOf('posture:') >= 0, 'prompt should include faction aiProfile posture');
+  assert(combined.indexOf('priorities:') >= 0, 'prompt should include faction strategic priorities');
+  assert(combined.indexOf('decisionHints:') >= 0, 'prompt should include faction decision hints');
+  assert(combined.indexOf('增修宁远城防') >= 0, 'prompt should include player edicts from shiji');
+  assert(combined.indexOf('密令辽东诸将互为声援') >= 0, 'prompt should include current-turn edicts snapshot');
+  assert(combined.indexOf('本回合主推演提示') >= 0, 'prompt should include current-turn main AI result snapshot');
+  assert(combined.indexOf('FACTION_TRAJECTORY') >= 0, 'prompt should include faction trajectory section');
+  assert(combined.indexOf('SC16_WORLD_DIRECTIVE') >= 0, 'prompt should include sc16 current-turn directive section');
+  assert(combined.indexOf('\u6682\u7f13\u5357\u4e0b') >= 0, 'prompt should include sc16 faction action');
+  assert(combined.indexOf('sc16') >= 0, 'prompt should explain sc16 continuity rule');
+  assert(combined.indexOf('先稳内部，再窥辽东') >= 0, 'prompt should include last LLM rationale');
+  assert(combined.indexOf('RELATIONS_AND_WARS') >= 0, 'prompt should include relations and wars');
+  assert(combined.indexOf('辽东交兵') >= 0, 'prompt should include faction relation desc');
+  assert(combined.indexOf('CHAR_MEMORY') >= 0, 'prompt should include character memory section');
+  assert(combined.indexOf('宁远败绩余痛') >= 0, 'prompt should include character scars');
+  assert(combined.indexOf('镶蓝旗测试军') >= 0, 'prompt should include faction army context');
+  console.log('[prompt] expansion assertions pass');
+}
+
+function sc16BridgeContextTest() {
+  var ctx = buildContext();
+  var hj = { name: '\u540e\u91d1', strength: 70 };
+  ctx.GM = {
+    turn: 4,
+    facs: [hj, { name: '\u660e\u671d\u5ef7', isPlayer: true, strength: 80 }],
+    qijuHistory: [],
+    adminHierarchy: {
+      laterJin: {
+        factionId: 'laterJin',
+        factionName: '\u540e\u91d1',
+        divisions: [{
+          name: '\u8fbd\u6c88\u5efa\u5dde\u516b\u65d7\u8f96\u533a\u00b7SC16\u8fd0\u884c\u65f6',
+          level: 'province',
+          regionType: 'normal',
+          terrain: '\u5e73\u539f/\u5c71\u5730',
+          populationDetail: { mouths: 666666, households: 120000, fugitives: 10000 },
+          fiscalDetail: { claimedRevenue: 800000, actualRevenue: 620000, remittedToCenter: 0, retainedBudget: 620000 },
+          publicTreasuryInit: { money: 200000, grain: 300000, cloth: 30000 },
+          minxinLocal: 48,
+          corruptionLocal: 35,
+          threats: ['\u660e\u519b\u53cd\u653b']
+        }]
+      },
+      mingFront: {
+        factionId: 'fac-ming',
+        factionName: '\u660e\u671d\u5ef7',
+        divisions: [{
+          name: '\u5b81\u8fdc\u65b0\u5360\u533a',
+          level: 'province',
+          currentOwner: '\u540e\u91d1',
+          populationDetail: { mouths: 88000 },
+          publicTreasuryInit: { money: 10000, grain: 20000, cloth: 2000 }
+        }]
+      }
+    }
+  };
+  hj.npcMemorials = [{ turn: 3, type: '\u519b\u52a1', status: 'approved', from: '\u963f\u654f', content: '\u8bf7\u6574\u987f\u8fb9\u9a91' }];
+  hj.npcEdicts = [{ turn: 3, type: '\u6574\u519b', trigger: '\u8fbd\u4e1c\u7d27\u5f20', content: '\u5148\u7a33\u5185\u90e8\uff0c\u6682\u4e0d\u8f7b\u8fdb' }];
+  hj.npcChaoyi = [{ turn: 3, type: 'compromise', summary: '\u8bf8\u8d1d\u52d2\u8bae\u5b9a\u7f13\u56fe\u8fb9\u9632' }];
+  hj.npcFiscalLedger = [{ turn: 3, crisis: true, stress: 75, summary: '\u519b\u7cae\u5403\u7d27' }];
+  hj._lastLlmRationale = { turn: 3, text: '\u5148\u7a33\u5185\u90e8\uff0c\u518d\u7aa5\u8fb9\u673a' };
+  ctx.GM.qijuHistory = [
+    { turn: 3, _source: 'npc-in-turn-llm', _facName: '\u540e\u91d1', content: '\u3010\u52bf\u529b\u8fd1\u4e8b\u3011\u540e\u91d1\u56de\u5408\u5185\u8c03\u9a91\u7a33\u8fbd\u4e1c' },
+    { turn: 3, _source: 'npc-bridge', _facName: '\u540e\u91d1', content: '\u3010\u52bf\u529b\u52a8\u6001\u3011\u540e\u91d1\u8fc7\u56de\u5408\u540e\u7eed\u6574\u519b' }
+  ];
+
+  var fld = ctx.TM.FactionNpcLlmDecision;
+  assert(typeof fld.buildRecentTrajectoryContextForSc16 === 'function', 'sc16 bridge helper missing');
+  assert(typeof fld.buildFactionAdminSummaryForSc16 === 'function', 'sc16 admin hierarchy helper missing');
+  var adminBridge = fld.buildFactionAdminSummaryForSc16({ maxFactions: 6, maxChars: 4000 });
+  assert(adminBridge.indexOf('FACTION_ADMIN_HIERARCHY') >= 0, 'sc16 admin bridge should include admin hierarchy marker');
+  assert(adminBridge.indexOf('\u8fbd\u6c88\u5efa\u5dde\u516b\u65d7\u8f96\u533a\u00b7SC16\u8fd0\u884c\u65f6') >= 0, 'sc16 admin bridge should include runtime province name');
+  assert(adminBridge.indexOf('\u5b81\u8fdc\u65b0\u5360\u533a') >= 0, 'sc16 admin bridge should include runtime owner-changed province');
+  assert(adminBridge.indexOf('\u53e366.7\u4e07') >= 0 || adminBridge.indexOf('666666') >= 0, 'sc16 admin bridge should include runtime population');
+  var bridge = fld.buildRecentTrajectoryContextForSc16({ maxFactions: 6, maxChars: 4000 });
+  assert(bridge.indexOf('FACTION_PRECISION_HISTORY') >= 0, 'sc16 bridge should include precision history marker');
+  assert(bridge.indexOf('\u5148\u7a33\u5185\u90e8') >= 0, 'sc16 bridge should include previous faction rationale/edict');
+  assert(bridge.indexOf('npc-in-turn-llm') >= 0, 'sc16 bridge should include in-turn precision news');
+  assert(bridge.indexOf('npc-bridge') >= 0, 'sc16 bridge should include post-endturn precision news');
+
+  var followupSrc = fs.readFileSync(path.join(ROOT, 'tm-endturn-followup.js'), 'utf8');
+  assert(followupSrc.indexOf('buildRecentTrajectoryContextForSc16') >= 0, 'sc16 prompt should call precision history helper');
+  assert(followupSrc.indexOf('buildFactionAdminSummaryForSc16') >= 0, 'sc16 prompt should call admin hierarchy helper');
+  console.log('[sc16-bridge] precision history assertions pass');
+}
+
+async function main() {
+  unitTests();
+  await playerIsPlayerGuardTest();
+  promptContextExpansionTest();
+  sc16BridgeContextTest();
+  e2eApplyMockDecision();
+  console.log('[smoke-faction-npc-llm-decision] all pass');
+}
+
+main().catch(function(e) {
+  console.error('[smoke-faction-npc-llm-decision] fail:', (e && e.message) || e);
+  if (e && e.stack) console.error(e.stack.split('\n').slice(1, 6).join('\n'));
+  process.exit(1);
+});

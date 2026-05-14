@@ -1,20 +1,20 @@
 // @ts-check
 /// <reference path="types.d.ts" />
 // ============================================================
-//  tm-chaoyi.js — 朝议系统（R112 从 tm-chaoyi-keju.js L1054-end 拆出）
-// Requires: tm-utils.js (GameHooks, _$, callAI, escHtml),
-//           tm-index-world.js (findCharByName)
-// 姊妹文件：tm-keju.js (科举) · tm-chaoyi-v2.js (R129 三会议 v2 流式版)
+// Module: tm-chaoyi.js — 朝议入口·共享气泡·_cc2 prompts (Phase 3 cleanup)
+// Domain: 朝议·入口与共享
+// Status: active · Last Updated: 2026-05-03 (Phase 3·5→4 文件·吸 v2 _cc2 prompts)
+// Owner: TM 团队
+// Imports: tm-utils.js (GameHooks·_$·callAI·escHtml)·tm-index-world.js (findCharByName)
+// Exports: openChaoyi·closeChaoyi·_cy*·showChaoyiSetup·_cy_pickMode·addCYBubble·_cc2_buildAgendaPrompt·_cc2_fallbackAgenda
+// Used by: tm-chaoyi-changchao.js·tm-chaoyi-tinyi.js·tm-chaoyi-yuqian.js
+// Side effects: DOM modal (chaoyi-modal)·GM._chaoyiCount·CY 状态
+// Test: web/scripts/cc3-smoke.js·boot-smoke·render-smoke
+// Notes: R112 v1·Phase 3 吸 v2 _cc2 prompts (L165+)·v3 changchao 调
+// 姊妹·tm-chaoyi-changchao.js·tm-chaoyi-tinyi.js·tm-chaoyi-yuqian.js
 //
-// R157 章节导航 (清债后约 160 行)：
-//   §1 [L20]  openChaoyi/closeChaoyi 入口 + 频率限制
-//   §2 [L57]  _cyShowInputRow / _cySubmitPlayerLine 玩家输入
-//   §3 [L83]  _getPlayerLocation / _isAtCapital 位置判定
-//   §4 [L100] showChaoyiSetup 三模式选卡
-//   §5 [L126] _cy_pickMode 分发到 v2
-//   §6 [L134] startChaoyiSession 旧名兼容桩
-//   §7 [L143] addCYBubble 共享气泡（v2 主调）
-// 
+// R157 章节导航·§1[L20]openChaoyi·§2[L57]_cy*·§3[L83]location·§4[L100]showChaoyiSetup
+//   §5[L126]_cy_pickMode·§6[L142]startChaoyiSession·§7[L144]addCYBubble·§8[L165]_cc2 prompts
 // ============================================================
 
 function openChaoyi(){
@@ -126,7 +126,7 @@ function _cy_modeCardHtml(mode, title, subtitle, desc, scale, energy) {
 function _cy_pickMode(mode) {
   CY.mode = mode;
   if (mode === 'changchao') {
-    // CC 迁移波 5+：v2 §1 已物理删除·常朝唯一入口为 _cc3_open（tm-chaoyi-v3.js）
+    // CC 迁移波 5+ → Phase 3 (2026-05-03)·v2 §1 物理删除·常朝唯一入口为 _cc3_open（tm-chaoyi-changchao.js）
     if (typeof _cc3_open === 'function') {
       _cc3_open();
     } else if (typeof toast === 'function') {
@@ -158,4 +158,86 @@ function addCYBubble(name,text,isSystem){
   }
   body.appendChild(div);body.scrollTop=body.scrollHeight;
   return div;
+}
+
+// ─── §8·v2 _cc2 prompts (Phase 3 吸·tm-chaoyi-changchao.js 调) ───
+// 来源：原 tm-chaoyi-v2.js L20-99·v2 §1 常朝已物理删除·只 prompts 复用
+// changchao (v3) _cc3_buildAgendaFromGM 调 _cc2_buildAgendaPrompt + _cc2_fallbackAgenda
+
+function _cc2_buildAgendaPrompt() {
+  var p = '你是常朝议程编撰官。请为今日常朝后台生成 5-9 条奏报事务（玩家暂不可见，将按顺序一条一条登场）。\n';
+  p += '当前：' + (typeof getTSText==='function'?getTSText(GM.turn):'T'+GM.turn) + '\n';
+  if (GM.currentIssues) {
+    var _pi = GM.currentIssues.filter(function(i){return i.status==='pending';}).slice(0,5);
+    if (_pi.length) p += '【待处理时政——须出现在议程】\n' + _pi.map(function(i){return '  '+i.title+'：'+(i.description||'').slice(0,50);}).join('\n') + '\n';
+  }
+  var _at = (CY && CY._cc2 && CY._cc2.attendees) || [];
+  if (_at.length) {
+    p += '【在场官员】\n' + _at.slice(0,20).map(function(a){
+      var ch = findCharByName(a.name);
+      return '  ' + a.name + (a.title?'('+a.title+')':'') + (a.faction?' 属'+a.faction:'') + (a.party?' 党'+a.party:'') + (ch&&ch.personality?' 性:'+ch.personality.slice(0,16):'');
+    }).join('\n') + '\n';
+  }
+  if (GM._ccHeldItems && GM._ccHeldItems.length) {
+    p += '【上次留中事务——须再次出现】\n';
+    GM._ccHeldItems.forEach(function(h){p+='  '+(h.dept||'')+'：'+(h.title||'')+'——'+(h.content||'')+'\n';});
+    GM._ccHeldItems = [];
+  }
+  p += '\n每条议程格式：\n{\n';
+  p += '  "presenter":"奏报者姓名(从在场官员挑)",\n';
+  p += '  "dept":"所属部门",\n';
+  p += '  "type":"routine日常/request请旨/warning预警/emergency紧急/personnel人事/confrontation对质弹劾/joint_petition联名/personal_plea个人请旨",\n';
+  p += '  "urgency":"normal/urgent(仅紧急/涉变事用)",\n';
+  p += '  "title":"10字内标题",\n';
+  p += '  "announceLine":"启奏台词·15-30字·如\'臣户部尚书张某有贺表及岁贡呈奏\'——这一句可以简略",\n';
+  p += '  "content":"奏报正文·半文言·此为\\"奏报\\"阶段气泡内容·须达到朝议字数范围' + (typeof _aiDialogueWordHint === 'function' ? _aiDialogueWordHint('cy').replace(/^（|）$/g,'') : '约 150-300 字') + '·不得短于此下限",\n';
+  p += '  "controversial":0-10(争议度——涉党争/既得利益冲突时高),\n';
+  p += '  "importance":0-10(重要度——涉边防/财政危机时高),\n';
+  p += '  "relatedDepts":["兵部","户部"](除奏报部门外，议题涉及的其他部门),\n';
+  p += '  "relatedPeople":["X","Y"](议题直接涉及的人名，如弹劾target/举荐人等)\n';
+  p += '}\n';
+  p += '要求：\n';
+  p += '· 至少 1 条 urgent 紧急事务\n';
+  p += '· 至少 1 条 confrontation（官员对质/弹劾，须有明确 target）\n';
+  p += '· 议程类型多样，不要全是 routine\n';
+  p += '· 高 controversial 的议题会引发 2-3 轮朝堂交锋\n';
+  p += '· 关联本回合的 currentIssues\n';
+  p += '· content 字段必须遵守朝议字数（仅 announceLine 可简略），百官奏报须行文详尽\n';
+  p += '返回 JSON 数组。';
+  return p;
+}
+
+// ─── 议程兜底·AI 调用失败/返回空时·从时政要务派生最小议程·让朝会能跑完 ───
+function _cc2_fallbackAgenda() {
+  var items = [];
+  var pending = (GM.currentIssues || []).filter(function(i){return i.status==='pending';}).slice(0, 3);
+  pending.forEach(function(iss) {
+    items.push({
+      presenter: '某部官员',
+      dept: iss.dept || '六部',
+      type: 'routine',
+      urgency: 'normal',
+      title: (iss.title || '时政要议').slice(0, 10),
+      announceLine: '臣有一事启奏。',
+      content: iss.description || (iss.title || '事宜需陛下圣裁'),
+      controversial: 3,
+      importance: 5,
+      _fallback: true
+    });
+  });
+  if (items.length === 0) {
+    items.push({
+      presenter: '内侍',
+      dept: '内廷',
+      type: 'routine',
+      urgency: 'normal',
+      title: '日常无事',
+      announceLine: '今日并无紧要奏报。',
+      content: '百官今日并无紧要事务奏闻陛下。',
+      controversial: 0,
+      importance: 1,
+      _fallback: true
+    });
+  }
+  return items;
 }

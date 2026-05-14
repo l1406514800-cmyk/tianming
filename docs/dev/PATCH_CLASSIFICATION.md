@@ -37,16 +37,16 @@
 | 文件 | 类别 | 导出 | 覆盖点 | 合并建议 |
 |------|------|------|-------|---------|
 | `tm-corruption-engine.js` | (主模块) | CorruptionEngine | — | 保留 |
-| `tm-corruption-p2.js` | **MIXED** | 25 条案件库 + 6 新方法 | 覆盖 `tick` | 新增部分可 inline；tick 覆盖要与 engine 原 tick 差异对齐 |
-| `tm-corruption-p4.js` | **LAYERED** | 8 新方法 | 再覆盖 `tick` + `generateExposureCase` + `updatePerceived` | 与 p2 一起处理，合并为 engine.tick 的多阶段调用链 |
+| `tm-corruption-p2.js` | **MIXED** | 25 条案件库 + 6 新方法 | 覆盖 `tick` | 已于 R9 inline 到 `tm-corruption-engine.js` |
+| `tm-corruption-p4.js` | **LAYERED** | 8 新方法 | 再覆盖 `tick` + `generateExposureCase` + `updatePerceived` | 已于 R9 inline 到 `tm-corruption-engine.js` |
 
 **覆盖链**：
 ```
 tm-corruption-engine.js:  CorruptionEngine.tick = v1
                                     ↓
-tm-corruption-p2.js:      CorruptionEngine.tick = v2 (覆盖 v1)
+tm-corruption-p2.js:      CorruptionEngine.tick = v2 (覆盖 v1) -> R9 inline
                                     ↓
-tm-corruption-p4.js:      CorruptionEngine.tick = v3 (覆盖 v2，最终版)
+tm-corruption-p4.js:      CorruptionEngine.tick = v3 (覆盖 v2，最终版) -> R9 inline
 ```
 
 **合并策略**（未来执行）：
@@ -144,10 +144,10 @@ p6.tick v5       (+ 自定义税种 calcCustomTaxes)  ← 终版
 |------|------|---------|-----------|---------|
 | `tm-phase-a-patches.js` | **SELF** | PhaseA.init/tick/dispatchAudit | — | 改名 `tm-audit.js` |
 | `tm-phase-b-fills.js` | **SELF** | PhaseB.init/tick/enrichRegion | — | 改名 `tm-region-enrich.js` |
-| `tm-phase-c-patches.js` | **LAYERED** ⚠ | EdictComplete.openClarificationPanel | EdictParser.processImperialAssent/tick | 覆盖需合并到 edict-parser，同时保留 PhaseC 的 enhance |
+| ~~`tm-phase-c-patches.js`~~ | **LAYERED** → R12b done | PhaseC shim + EdictComplete extension | 已合并到 EdictParser.processImperialAssent/tick | 文件已删除 |
 | `tm-phase-d-patches.js` | **SELF** | PhaseD.init/tick/spawnProphecy | — | 改名 `tm-prophecy.js` 或 `tm-power-minister.js` |
 | `tm-phase-e-patches.js` | **APPEND** | EdictParser.getTemplatesByTypeExtended | — | 单方法 inline 到 edict-parser.js |
-| `tm-phase-f1-fixes.js` | **LAYERED** ⚠ | PhaseF1.init/tick | AuthorityEngines.tick / PhaseD.COUNTER_STRATEGIES.rotate_officials | 两处覆盖需仔细合并 |
+| ~~`tm-phase-f1-fixes.js`~~ | **LAYERED** → R12d done | PhaseF1 shim | 已合并到 AuthorityEngines.tick / PhaseD.COUNTER_STRATEGIES.rotate_officials | 文件已删除 |
 | `tm-phase-f2-linkage.js` | **APPEND** | PhaseF2 + EventBus(22类) | — | 改名 `tm-event-bus.js`（事件系统是核心功能） |
 | `tm-phase-f3-depth.js` | **APPEND** | PhaseF3 + 阶层流动3链 | — | 改名 `tm-class-mobility.js` |
 | `tm-phase-f4-authority-deep.js` | **SELF** | PhaseF4（11 方法） | 仅 `_patchDecreeParserWithTolerance` (1 处) | 改名 `tm-authority-deep.js`，1 处 patch inline |
@@ -157,17 +157,17 @@ p6.tick v5       (+ 自定义税种 calcCustomTaxes)  ← 终版
 | `tm-phase-g2-huji-complete.js` | **SELF** | PhaseG2 + 族群/宗教/保甲 | — | 改名 `tm-ethnic-religion.js` |
 | `tm-phase-g3-edict-finalize.js` | **APPEND** | PhaseG3 + 阈值常量/徭役方案 | — | 改名 `tm-edict-thresholds.js` |
 | `tm-phase-g4-economy-finalize.js` | **APPEND** | PhaseG4 + 破产驿站/决算弹窗 | — | 改名 `tm-fiscal-ui.js` |
-| `tm-phase-h-final.js` | **SELF** | PhaseH + 19 原子税/纸币数据 | — | 改名 `tm-tax-atomic.js` |
+| `tm-phase-h-final.js` | **SELF → REDISTRIBUTED** | PhaseH + 19 原子税/纸币数据 | — | ✓ R10 (2026-05-04)·§A-§Q 全 16 area 拆入 FiscalEngine·CurrencyEngine·FeudalCore·PlayerCore·EconomyCore·MechanicsCore·AuthorityEngines·EdictComplete·**file deleted** |
 
 ### 只有 2 个需要真合并
 
-**`tm-phase-c-patches.js` (LAYERED)** — 覆盖 `EdictParser.processImperialAssent/tick`
-- 合并工时估算：10-20h
-- 先决条件：edict 流程 smoke test
+**`tm-phase-c-patches.js` (LAYERED → R12b done)** — 原覆盖 `EdictParser.processImperialAssent/tick`
+- 已完成：PhaseC/EdictComplete 扩展、动态机构、问疑、环保路由已合并到 `tm-edict-parser.js`
+- 守卫：`scripts/smoke-edict-parser-layered.js`
 
-**`tm-phase-f1-fixes.js` (LAYERED)** — 覆盖 `AuthorityEngines.tick` + 改 `PhaseD.COUNTER_STRATEGIES.rotate_officials`
-- 合并工时估算：15-25h
-- 先决条件：authority tick 路径 smoke test
+**`tm-phase-f1-fixes.js` (LAYERED → R12d done)** — 原覆盖 `AuthorityEngines.tick` + 改 `PhaseD.COUNTER_STRATEGIES.rotate_officials`
+- 已完成：`AuthorityEngines.tick` 五段粉饰算法内联到 `tm-authority-engines.js`；`rotate_officials` 衰减算法内联到 `tm-prophecy.js`
+- 守卫：`scripts/smoke-authority-f1-layered.js`
 
 ### 其余 14 个的"归位"实际上是**改名**
 
@@ -203,10 +203,10 @@ p6.tick v5       (+ 自定义税种 calcCustomTaxes)  ← 终版
 
 | # | 领域 | 行号范围 | 大小 | 类别 | 目标文件（新建） | 风险 |
 |---|------|---------|-----|------|---------------|------|
-| 1 | **Settings UI** | 8–530 | ~560 行 | OVERRIDE (完整重写 openSettings) | `tm-settings-ui.js` | 高 |
+| 1 | **Settings UI** | 8–530 | ~560 行 | OVERRIDE (完整重写 openSettings) | `tm-ui-foundation.js` 内 R22 placeholder | 高 |
 | 2 | **Game Init & Validation** | 535–1040 | ~290 行 | MIXED (扩展+覆盖 startGame) | `tm-game-init.js` | 高 |
 | 3 | **Editor Details (角色/物品/规则)** | 1682–1860 | ~190 行 | APPEND (editChr/saveChrEdit/editItm/editClass2/editTech2 等) | `tm-editor-details.js` | 中 |
-| 4 | **Modal System** | 1861–1892 | ~40 行 | APPEND (openGenericModal/closeGenericModal/showModal/closeModal) | `tm-modal-system.js` | **极低** |
+| 4 | **Modal System** | 1861–1892 | ~40 行 | APPEND (openGenericModal/closeGenericModal/showModal/closeModal) | `tm-ui-foundation.js` | **极低** |
 | 5 | **World Situation & Era Trends** | 1894–2090 | ~120 行 | APPEND (openWorldSituation/drawEraTrendsChart 等) | `tm-world-view.js` | 低 |
 | 6 | **Military System** | 2090–2186 | ~50 行 | APPEND (addArmy/editArmy/aiGenMil/renderMilTab) | `tm-military-ui.js` | 低 |
 
@@ -234,11 +234,11 @@ p6.tick v5       (+ 自定义税种 calcCustomTaxes)  ← 终版
 
 | 新文件 | 加载时机（相对于 index.html） |
 |-------|----------------------------|
-| `tm-modal-system.js` | 早（其他文件可能依赖它的 openGenericModal） |
+| `tm-ui-foundation.js` | 早（其他文件可能依赖 icon/modal/settings placeholder/cheatsheet） |
 | `tm-military-ui.js` | 中（在 game-engine 之后） |
 | `tm-world-view.js` | 晚（纯 UI 查看功能） |
 | `tm-editor-details.js` | 与 editor 层一起（tm-editor-*-deep.js 附近） |
-| `tm-settings-ui.js` | 早（启动时可能用到） |
+| `tm-ui-foundation.js` | 早（图标、通用 modal、settings placeholder、cheatsheet 合并入口） |
 | `tm-game-init.js` | 最早（startGame 相关） |
 
 ---

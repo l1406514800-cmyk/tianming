@@ -30,6 +30,29 @@
 (function(global) {
   'use strict';
 
+  function _turnsForMonthsLocal(months) {
+    return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
+  }
+
+  function _isMonthIntervalTurn(turn, months) {
+    var t = Number(turn || 0);
+    if (!isFinite(t) || t <= 0) return false;
+    var interval = Math.max(1, _turnsForMonthsLocal(months));
+    return t % interval === 0;
+  }
+
+  function _isYearBoundaryTurn(turn) {
+    return (typeof global.isYearBoundary === 'function') ? global.isYearBoundary(turn) : _isMonthIntervalTurn(turn, 12);
+  }
+
+  function _yearFromTurn(turn) {
+    if (typeof global.calcDateFromTurn === 'function') return global.calcDateFromTurn(turn || 1).adYear;
+    if (typeof global.getCurrentYear === 'function') return global.getCurrentYear();
+    var dpv = (typeof global._getDaysPerTurn === 'function') ? global._getDaysPerTurn() : 30;
+    var baseYear = (global.P && global.P.time && typeof global.P.time.year === 'number') ? global.P.time.year : 0;
+    return baseYear + Math.floor(((turn || 1) - 1) * dpv / 365);
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  模块 E · 阶层联动 — 10 阶层
   // ═══════════════════════════════════════════════════════════════════
@@ -90,8 +113,8 @@
       else if (path.trigger === 'famine' && G.vars && G.vars.disasterLevel > 0.3) shouldTrigger = true;
       else if (path.trigger === 'chaos_era' && G.unrest > 60) shouldTrigger = true;
       else if (path.trigger === 'juanna_policy' && G.fiscalConfig && G.fiscalConfig.juanNaActive) shouldTrigger = true;
-      else if (path.trigger === 'confiscation_event') shouldTrigger = (G.turn % 24 === 0); // 定期
-      else if (path.trigger === 'keju_exam_win') shouldTrigger = (G.turn % 36 === 0);
+      else if (path.trigger === 'confiscation_event') shouldTrigger = _isMonthIntervalTurn(G.turn, 24); // 定期
+      else if (path.trigger === 'keju_exam_win') shouldTrigger = _isMonthIntervalTurn(G.turn, 36);
       else if (path.trigger === 'military_victory' && G.activeWars && G.activeWars.length > 0) shouldTrigger = true;
       else if (path.trigger === 'amnesty_policy' && G._recentAmnesty) shouldTrigger = true;
       if (!shouldTrigger) return;
@@ -141,7 +164,7 @@
     if (!G.population || !G.population.byClass.merchant) return;
     var m = G.population.byClass.merchant;
     // 帑廪短缺时触发捐纳
-    if (G.guoku && G.guoku.money < 50000 && G.turn % 12 === 0) {
+    if (G.guoku && G.guoku.money < 50000 && _isYearBoundaryTurn(G.turn)) {
       var donated = Math.min(m.wealth || 0, 100000);
       if (donated > 0) {
         G.guoku.money += donated;
@@ -160,7 +183,7 @@
     // 高门持续积累
     gh.wealth = (gh.wealth || 0) + gh.mouths * 0.5 * mr;
     // 皇权高时被打压
-    if ((G.huangquan || 50) > 80 && G.turn % 24 === 0) {
+    if ((G.huangquan || 50) > 80 && _isMonthIntervalTurn(G.turn, 24)) {
       var confiscated = Math.round(gh.wealth * 0.1);
       if (G.guoku) G.guoku.money = (G.guoku.money || 0) + confiscated;
       gh.wealth -= confiscated;
@@ -191,7 +214,7 @@
     if (!G.population) return;
     QIAOZHI_HISTORICAL.forEach(function(e) {
       if (G.population._qiaozhi_triggered && G.population._qiaozhi_triggered[e.id]) return;
-      var year = G.year || Math.floor(ctx.turn/12);
+      var year = G.year || _yearFromTurn(ctx.turn || G.turn || 1);
       if (year >= e.year && year < e.year + 10 && G.unrest > 70) {
         // 触发
         if (!G.population._qiaozhi_triggered) G.population._qiaozhi_triggered = {};
@@ -244,7 +267,7 @@
     if (!G.population || !G.population.jimiHoldings) return;
     G.population.jimiHoldings.forEach(function(h) {
       // 每年朝贡
-      if ((G.month || 1) === 1 && G.turn % 12 === 0) {
+      if (_isYearBoundaryTurn(G.turn)) {
         if (G.guoku) G.guoku.money = (G.guoku.money || 0) + h.tributeAnnual;
         if (global.addEB) global.addEB('朝贡', h.name + ' 贡入 ' + h.tributeAnnual + ' 贯');
       }
@@ -447,7 +470,7 @@
         if (global.addEB) global.addEB('军调', '至 ' + o.toRegion + '（兵 ' + o.strength + '）');
       }
     });
-    G.troopOrders = G.troopOrders.filter(function(o) { return o.status !== 'arrived' || (ctx.turn - o.arriveTurn) < 3; });
+    G.troopOrders = G.troopOrders.filter(function(o) { return o.status !== 'arrived' || (ctx.turn - o.arriveTurn) < _turnsForMonthsLocal(3); });
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -786,7 +809,7 @@
     triggers.forEach(function(t) {
       if (!t.cond) return;
       // 避免重复触发
-      var recent = G._pendingMemorials.some(function(m) { return m.subject === t.subject && (ctx.turn - m.turn) < 12; });
+      var recent = G._pendingMemorials.some(function(m) { return m.subject === t.subject && (ctx.turn - m.turn) < _turnsForMonthsLocal(12); });
       if (recent) return;
       var memo = {
         id: 'auto_memo_' + ctx.turn + '_' + Math.floor(Math.random()*10000),

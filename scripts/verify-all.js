@@ -5,7 +5,7 @@
 //   syntax-check -> encoding-check -> ref-check -> find-orphans -> official-scenario-smoke
 //   -> smoke-engine-phase0 -> smoke-office-dynastification -> smoke-military-systems -> smoke-influence-groups -> smoke-class-engine -> smoke-class-party-bidirectional
 //   -> smoke-letter-full -> smoke-letter-intercept-react -> smoke-tinyi-fix
-//   -> smoke-tinyi-impeachment -> headless-smoke -> smoke-chaoyi-v3
+//   -> smoke-tinyi-impeachment -> smoke-guoku-* -> smoke-corruption-* -> boot-smoke -> render-smoke -> headless-smoke -> smoke-chaoyi-v3
 //
 // Usage:
 //   node scripts/verify-all.js
@@ -19,8 +19,8 @@ const path = require('path');
 
 const SCRIPTS = path.resolve(__dirname);
 
-// Current clean baseline: 212 passing tests, 0 real failures.
-const SMOKE_BASELINE = { minPass: 212, maxFail: 0 };
+// Current clean baseline: 227 passing tests (+15 from slice 1-3b pipeline 结构测试), 0 real failures.
+const SMOKE_BASELINE = { minPass: 227, maxFail: 0 };
 
 const checks = [
   { name: 'syntax-check', file: 'syntax-check.js', estSec: 17, expectExit: 0 },
@@ -28,8 +28,19 @@ const checks = [
   { name: 'ref-check', file: 'ref-check.js', estSec: 1, expectExit: 0 },
   { name: 'find-orphans', file: 'find-orphans.js', estSec: 1, expectExit: 0 },
   { name: 'official-scenario', file: 'official-scenario-smoke.js', estSec: 1, expectExit: 0 },
+  { name: 'faction-relations', file: 'smoke-faction-relations.js', estSec: 1, expectExit: 0 },
+  { name: 'faction-index', file: 'smoke-faction-index.js', estSec: 1, expectExit: 0 },
+  { name: 'faction-index-e2e', file: 'smoke-faction-index-e2e.js', estSec: 1, expectExit: 0 },
+  { name: 'faction-membership', file: 'smoke-faction-membership.js', estSec: 1, expectExit: 0 },
+  { name: 'faction-panel-ui', file: 'smoke-faction-panel-ui.js', estSec: 1, expectExit: 0 },
+  { name: 'faction-binding-lint', file: 'smoke-faction-binding-lint.js', estSec: 1, expectExit: 0 },
+  { name: 'faction-npc-in-turn', file: 'smoke-faction-npc-in-turn-driver.js', estSec: 1, expectExit: 0 },
   { name: 'engine-phase0', file: 'smoke-engine-phase0.js', estSec: 1, expectExit: 0 },
   { name: 'office-dynastification', file: 'smoke-office-dynastification.js', estSec: 1, expectExit: 0 },
+  { name: 'office-appointment-sync', file: 'smoke-office-appointment-sync.js', estSec: 1, expectExit: 0 },
+  { name: 'loyalty-attribution', file: 'smoke-loyalty-attribution.js', estSec: 1, expectExit: 0 },
+  { name: 'huangquan-attribution', file: 'smoke-huangquan-attribution.js', estSec: 1, expectExit: 0 },
+  { name: 'memory-read-contract', file: 'smoke-memory-read-contract.js', estSec: 1, expectExit: 0 },
   { name: 'military-systems', file: 'smoke-military-systems.js', estSec: 1, expectExit: 0 },
   { name: 'influence-groups', file: 'smoke-influence-groups.js', estSec: 1, expectExit: 0 },
   { name: 'class-engine', file: 'smoke-class-engine.js', estSec: 1, expectExit: 0 },
@@ -38,8 +49,72 @@ const checks = [
   { name: 'letter-intercept', file: 'smoke-letter-intercept-react.js', estSec: 1, expectExit: 0 },
   { name: 'tinyi-fix', file: 'smoke-tinyi-fix.js', estSec: 1, expectExit: 0 },
   { name: 'tinyi-impeach', file: 'smoke-tinyi-impeachment.js', estSec: 1, expectExit: 0 },
+  // R8 (2026-05-04) guoku LAYERED 5 层链行为快照·R9 merge 前 baseline (Claude own)
+  { name: 'guoku-compute-tax-flow', file: 'smoke-guoku-compute-tax-flow.js', estSec: 1, expectExit: 0 },
+  { name: 'guoku-compute-tax-flow-tyrant', file: 'smoke-guoku-compute-tax-flow-tyrant.js', estSec: 1, expectExit: 0 },
+  { name: 'guoku-tick-full-pass', file: 'smoke-guoku-tick-full-pass.js', estSec: 1, expectExit: 0 },
+  { name: 'guoku-sources-scenario-disabled', file: 'smoke-guoku-sources-scenario-disabled.js', estSec: 1, expectExit: 0 },
+  { name: 'guoku-yearly-settle', file: 'smoke-guoku-yearly-settle.js', estSec: 1, expectExit: 0 },
+  { name: 'guoku-init-from-dynasty', file: 'smoke-guoku-init-from-dynasty.js', estSec: 1, expectExit: 0 },
+  { name: 'guoku-enact-reform', file: 'smoke-guoku-enact-reform.js', estSec: 1, expectExit: 0 },
+  { name: 'guoku-loan-and-bankruptcy', file: 'smoke-guoku-loan-and-bankruptcy.js', estSec: 1, expectExit: 0 },
+  // R8 (2026-05-04) corruption LAYERED OVERRIDE chain smoke (Codex own)
+  { name: 'corruption-tick', file: 'smoke-corruption-tick-full-pass.js', estSec: 1, expectExit: 0 },
+  { name: 'corruption-detect', file: 'smoke-corruption-detection-event.js', estSec: 1, expectExit: 0 },
+  { name: 'corruption-treasury', file: 'smoke-corruption-impact-on-treasury.js', estSec: 2, expectExit: 0 },
+  { name: 'corruption-purge', file: 'smoke-corruption-purge-and-asset-seize.js', estSec: 1, expectExit: 0 },
+  { name: 'corruption-yearly', file: 'smoke-corruption-yearly-evaluate.js', estSec: 1, expectExit: 0 },
+  { name: 'corruption-clique', file: 'smoke-corruption-clique-formation.js', estSec: 1, expectExit: 0 },
+  { name: 'corruption-ai', file: 'smoke-corruption-ai-detect-prompt.js', estSec: 1, expectExit: 0 },
+  { name: 'corruption-juanna', file: 'smoke-corruption-pardon-and-restore.js', estSec: 1, expectExit: 0 },
+  // R12a (2026-05-04) edict-parser LAYERED OVERRIDE chain smoke (phase-c-patches·Claude own)
+  { name: 'edict-parser-layered', file: 'smoke-edict-parser-layered.js', estSec: 1, expectExit: 0 },
+  // R12c (2026-05-04) authority PhaseF1 LAYERED OVERRIDE chain smoke (Codex own)
+  { name: 'authority-f1-layered', file: 'smoke-authority-f1-layered.js', estSec: 1, expectExit: 0 },
+  // P4-beta (2026-05-04) UI foundation consolidation smoke (Codex own)
+  { name: 'ui-foundation', file: 'smoke-ui-foundation.js', estSec: 1, expectExit: 0 },
+  // P4-beta (2026-05-04) diagnostics foundation consolidation smoke (Codex own)
+  { name: 'diagnostics-foundation', file: 'smoke-diagnostics-foundation.js', estSec: 1, expectExit: 0 },
+  // P5-α (2026-05-04) namespace reconcile·24 canonical container + alias smoke (Claude own)
+  { name: 'p5-alpha-namespaces', file: 'smoke-p5-alpha-namespaces.js', estSec: 1, expectExit: 0 },
+  // P5-β (2026-05-04) NPC/Char namespace facade smoke (Codex own)
+  { name: 'p5-beta-npc-char', file: 'smoke-p5-beta-npc-char.js', estSec: 1, expectExit: 0 },
+  // P5-γ (2026-05-04) Edict namespace facade smoke·EDICT_TYPES 两版本隔离·R12b 后 v2 (Claude own)
+  { name: 'p5-gamma-edict', file: 'smoke-p5-gamma-edict.js', estSec: 1, expectExit: 0 },
+  // P5-δ (2026-05-04) Fiscal/Economy/Guoku/Neitang facade fill·tick 跨 7 engine 强隔离 (Claude own)
+  { name: 'p5-delta-fiscal', file: 'smoke-p5-delta-fiscal.js', estSec: 1, expectExit: 0 },
+  // P5-ε (2026-05-04) Authority/Office/Keju/Corruption facade fill·R12c v1·R87 Lizhi 留 (Claude own)
+  { name: 'p5-epsilon-authority', file: 'smoke-p5-epsilon-authority.js', estSec: 1, expectExit: 0 },
+  // P5-ζ (2026-05-04) Map/UI facade fill·R87 MapSystem keep·UI infrastructure only (Codex own)
+  { name: 'p5-zeta-map-ui', file: 'smoke-p5-zeta-map-ui.js', estSec: 1, expectExit: 0 },
+  // P5-η (2026-05-04) Endturn facade fill·public entrypoints only·AI internals black-boxed (Codex own)
+  { name: 'p5-eta-endturn', file: 'smoke-p5-eta-endturn.js', estSec: 1, expectExit: 0 },
+  // P5-θ (2026-05-04) Editor facade fill·HTML inline retained·Office legacy AI not duplicated (Codex own)
+  { name: 'p5-theta-editor', file: 'smoke-p5-theta-editor.js', estSec: 1, expectExit: 0 },
+  // P6 (2026-05-04) HTML inline namespace migration lock; index/editor safe first pass (Codex own)
+  { name: 'p6-inline-namespaces', file: 'smoke-p6-inline-namespaces.js', estSec: 1, expectExit: 0 },
+  // P6 optional namespace lint (2026-05-04) retired aliases + migrated inline handlers stay retired
+  { name: 'lint-namespace', file: 'lint-namespace.js', estSec: 1, expectExit: 0 },
+  // Phase 7 P7-β baseline·tm-endturn-ai-infer 行为快照·拆分前 lockdown (Claude own)
+  { name: 'endturn-public-contract', file: 'smoke-endturn-public-contract.js', estSec: 1, expectExit: 0 },
+  { name: 'endturn-subcall-registry', file: 'smoke-endturn-subcall-registry.js', estSec: 1, expectExit: 0 },
+  { name: 'endturn-prompt-tokens', file: 'smoke-endturn-prompt-tokens.js', estSec: 1, expectExit: 0 },
+  { name: 'endturn-helpers', file: 'smoke-endturn-helpers.js', estSec: 1, expectExit: 0 },
+  { name: 'endturn-apply-fields', file: 'smoke-endturn-apply-fields.js', estSec: 1, expectExit: 0 },
+  { name: 'endturn-followup', file: 'smoke-endturn-followup.js', estSec: 1, expectExit: 0 },
+  { name: 'endturn-error-path', file: 'smoke-endturn-error-path.js', estSec: 1, expectExit: 0 },
+  { name: 'ai-preflight-diagnostics', file: 'smoke-ai-preflight-diagnostics.js', estSec: 1, expectExit: 0 },
+  { name: 'endturn-section-boundary', file: 'smoke-endturn-section-boundary.js', estSec: 1, expectExit: 0 },
+  { name: 'endturn-callai', file: 'smoke-endturn-callai.js', estSec: 1, expectExit: 0 },
+  { name: 'endturn-narrative', file: 'smoke-endturn-narrative.js', estSec: 1, expectExit: 0 },
+  { name: 'endturn-namespace-deps', file: 'smoke-endturn-namespace-deps.js', estSec: 1, expectExit: 0 },
+  { name: 'boot-smoke', file: 'boot-smoke.js', estSec: 10, expectExit: 0 },
+  { name: 'render-smoke', file: 'render-smoke.js', estSec: 5, expectExit: 0 },
   { name: 'smoke', file: 'headless-smoke.js', estSec: 30, expectExit: null },
-  { name: 'cc3-smoke', file: 'smoke-chaoyi-v3.js', estSec: 1, expectExit: 0 }
+  { name: 'cc3-smoke', file: 'smoke-chaoyi-v3.js', estSec: 1, expectExit: 0 },
+  // 2026-05-07·endTurn 管道化双轨 diff (slice cluster 1-3b 验证)
+  // 不许 pipeline mode 与 legacy mode 在 normalized GM 上有任何差异
+  { name: 'pipeline-diff', file: 'smoke-pipeline-diff.js', estSec: 8, expectExit: 0 }
 ];
 
 let totalSec = 0;
