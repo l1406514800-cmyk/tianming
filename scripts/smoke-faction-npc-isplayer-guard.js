@@ -91,4 +91,47 @@ assert(!player.npcOfficeActions || player.npcOfficeActions.length === 0, 'isPlay
 assert(!player.npcFiscalLedger || player.npcFiscalLedger.length === 0, 'isPlayer faction must not get NPC fiscal ledger');
 assert(player.treasury.money === 900000, 'isPlayer faction treasury must not be changed by NPC fiscal cycle');
 
+ctx.P.playerInfo.factionName = '';
+ctx.GM = {
+  turn: 13,
+  playerFaction: 'PlayerByGM',
+  facs: [
+    { name: 'PlayerByGM', treasury: { money: 910000 }, derivedEconomy: { monthlyIncome: 200000, monthlyExpense: 100000, fiscalStress: 10 } },
+    { name: 'NpcByGMNeighbor', treasury: { money: 300000 }, derivedEconomy: { monthlyIncome: 50000, monthlyExpense: 40000, fiscalStress: 20 } }
+  ],
+  chars: [
+    { name: 'PlayerByGMRuler', faction: 'PlayerByGM', role: 'ruler', loyalty: 80, alive: true },
+    { name: 'PlayerByGMMinister', faction: 'PlayerByGM', role: 'court', loyalty: 70, alive: true },
+    { name: 'NpcByGMRuler', faction: 'NpcByGMNeighbor', role: 'ruler', loyalty: 70, alive: true },
+    { name: 'NpcByGMMinister', faction: 'NpcByGMNeighbor', role: 'court', loyalty: 65, alive: true }
+  ],
+  parties: [
+    { name: 'NpcByGMCourt', faction: 'NpcByGMNeighbor', loyalty: 60 },
+    { name: 'NpcByGMArmy', faction: 'NpcByGMNeighbor', loyalty: 55 }
+  ],
+  _facIndex: {
+    PlayerByGM: { fac: null, chars: [], armies: [], parties: [] },
+    NpcByGMNeighbor: { fac: null, chars: [], armies: [], parties: [] }
+  }
+};
+ctx.GM._facIndex.PlayerByGM.fac = ctx.GM.facs[0];
+ctx.GM._facIndex.PlayerByGM.chars = ctx.GM.chars.filter(function(c) { return c.faction === 'PlayerByGM'; });
+ctx.GM._facIndex.NpcByGMNeighbor.fac = ctx.GM.facs[1];
+ctx.GM._facIndex.NpcByGMNeighbor.chars = ctx.GM.chars.filter(function(c) { return c.faction === 'NpcByGMNeighbor'; });
+ctx.GM._facIndex.NpcByGMNeighbor.parties = ctx.GM.parties;
+
+ctx.TM.FactionNpcMemorial.generate();
+ctx.TM.FactionNpcEdict.generate();
+ctx.TM.FactionNpcChaoyi.generate();
+ctx.TM.FactionNpcOffice.generate();
+ctx.TM.FactionNpcGuoku.generate();
+
+const playerByGM = ctx.GM.facs[0];
+assert(!playerByGM.npcMemorials || playerByGM.npcMemorials.length === 0, 'GM.playerFaction must not get NPC memorials');
+assert(!playerByGM.npcEdicts || playerByGM.npcEdicts.length === 0, 'GM.playerFaction must not get NPC edicts');
+assert(!playerByGM.npcChaoyi || playerByGM.npcChaoyi.length === 0, 'GM.playerFaction must not get NPC chaoyi');
+assert(!playerByGM.npcOfficeActions || playerByGM.npcOfficeActions.length === 0, 'GM.playerFaction must not get NPC office actions');
+assert(!playerByGM.npcFiscalLedger || playerByGM.npcFiscalLedger.length === 0, 'GM.playerFaction must not get NPC fiscal ledger');
+assert(playerByGM.treasury.money === 910000, 'GM.playerFaction treasury must not be changed by NPC fiscal cycle');
+
 console.log('[smoke-faction-npc-isplayer-guard] all assertions pass');

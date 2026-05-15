@@ -1024,8 +1024,8 @@ if(window.tianming&&window.tianming.isDesktop){
       var saveData=deepClone(P);
       if(GM.running){saveData.gameState=deepClone(GM);saveData._saveMeta={turn:GM.turn,scenario:findScenarioById(GM.sid)||{name:''},saveName:GM.saveName,date:new Date().toISOString()};}
       await window.tianming.autoSave(saveData);
-      // 同时写localStorage兜底
-      try{localStorage.setItem("tm_P",JSON.stringify(P));}catch(e2){}
+      // 同步轻量骨架；完整项目由 IndexedDB / desktop autoSave 承担，避免旧 tm_P 覆盖剧本分表。
+      try{localStorage.removeItem("tm_P");localStorage.setItem("tm_P_lite",JSON.stringify({scenarios:(P.scenarios||[]).map(function(s){return{id:s.id,name:s.name,era:s.era,role:s.role};}),ai:P.ai,_hasFullData:true}));}catch(e2){}
     }catch(e){ console.warn("[catch] 静默异常:", e.message || e); }
   },60000);
 
@@ -1064,7 +1064,15 @@ if(!window.tianming||!window.tianming.isDesktop){
 }
 // 页面关闭/刷新时紧急保存P
 window.addEventListener('beforeunload',function(){
-  try{localStorage.setItem("tm_P",JSON.stringify(P));}catch(e){}
+  try{
+    if(window.tianming&&window.tianming.isDesktop) localStorage.removeItem("tm_P");
+    else{
+      localStorage.removeItem("tm_P");
+      if(!(typeof _tmIsIncompleteOfficialProject==="function"&&_tmIsIncompleteOfficialProject(P))){
+        localStorage.setItem("tm_P",JSON.stringify(P));
+      }
+    }
+  }catch(e){}
 });
 
 // 7. 查漏：推演时奏议数量使用设置中的值

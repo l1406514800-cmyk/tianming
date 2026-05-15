@@ -2127,6 +2127,23 @@
   // ※ 版本号——每次扩充须 bump，强制覆盖 localStorage 中的旧数据
   var SCENARIO_VERSION = 'v46-2026.04.19-popConfig-envConfig-topLevel-fix';
 
+  function _countRegisteredRows(key) {
+    var arr = global.P && global.P[key];
+    if (!Array.isArray(arr)) return 0;
+    var n = 0;
+    for (var i = 0; i < arr.length; i++) {
+      if (arr[i] && arr[i].sid === SID) n++;
+    }
+    return n;
+  }
+
+  function _hasCompleteRegisteredPayload() {
+    return _countRegisteredRows('characters') >= 30 &&
+      _countRegisteredRows('factions') >= 5 &&
+      _countRegisteredRows('variables') >= 10 &&
+      _countRegisteredRows('events') >= 10;
+  }
+
   function register() {
     if (typeof global.P === 'undefined' || !global.P || !Array.isArray(global.P.scenarios)) {
       setTimeout(register, 200);
@@ -2134,7 +2151,10 @@
     }
     var existingIdx = global.P.scenarios.findIndex(function (s) { return s.id === SID; });
     var existing = existingIdx >= 0 ? global.P.scenarios[existingIdx] : null;
-    if (existing && existing._version === SCENARIO_VERSION) return; // 同版本，跳过
+    if (existing && existing._version === SCENARIO_VERSION && _hasCompleteRegisteredPayload()) return; // 同版本，跳过
+    if (existing && existing._version === SCENARIO_VERSION) {
+      console.warn('[scenario] incomplete cached payload detected; rebuilding ' + SID);
+    }
     // 清除旧版本残留（旧 scenario + 关联的 chars/facs/parties/classes/variables/events/relations/items）
     if (existing) {
       global.P.scenarios.splice(existingIdx, 1);
@@ -5166,14 +5186,6 @@
     scenario._version = SCENARIO_VERSION;
     global.P.scenarios.push(scenario);
 
-    // 强制持久化——覆盖 localStorage 中的旧 P（editor 侧）
-    try {
-      if (typeof global.saveP === 'function') global.saveP();
-      else if (typeof global.localStorage !== 'undefined') {
-        global.localStorage.setItem('tianming_P', JSON.stringify(global.P));
-      }
-    } catch(e) { /* 静默 */ }
-
     // ═══════════════════════════════════════════════════════════════════
     // § 2. 人物——46 位
     // ═══════════════════════════════════════════════════════════════════
@@ -6863,6 +6875,13 @@
       if (!e.type) e.type = e.category || 'scripted';
       global.P.events.push(e);
     });
+
+    try {
+      if (typeof global.saveP === 'function') global.saveP();
+      else if (typeof global.localStorage !== 'undefined') {
+        global.localStorage.setItem('tianming_P', JSON.stringify(global.P));
+      }
+    } catch(e) { /* silent */ }
 
     console.log('[scenario] 天启七年·九月（v2 扩充版）已注册，sid=' + SID + '，人物' + chars.length + '·势力' + facs.length + '·党派' + parties.length + '·阶层' + classes.length + '·变量' + variables.length + '·关系' + relations.length + '·事件' + events.length);
   }

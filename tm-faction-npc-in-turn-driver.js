@@ -23,6 +23,39 @@
   'use strict';
 
   function _safeNum(v) { return (typeof v === 'number' && isFinite(v)) ? v : 0; }
+  function _arr(v) { return Array.isArray(v) ? v : []; }
+  function _normFactionName(v) { return String(v == null ? '' : v).replace(/\s+/g, '').trim(); }
+  function _isMarkedPlayerFaction(f) {
+    return !!(f && (f.isPlayer || f.playerControlled || f.controlledBy === 'player' || f.controller === 'player' || f.controlType === 'player'));
+  }
+  function _resolvePlayerFactionNames() {
+    var G = global.GM || {};
+    var P0 = global.P || {};
+    var names = [];
+    function push(v) {
+      var s = String(v == null ? '' : v).trim();
+      var k = _normFactionName(s);
+      if (s && names.map(_normFactionName).indexOf(k) < 0) names.push(s);
+    }
+    var pi = P0.playerInfo || {};
+    push(pi.factionName);
+    push(P0.playerFactionName);
+    push(P0.playerFaction);
+    push(G.playerFactionName);
+    push(G.playerFaction);
+    if (G.playerInfo) push(G.playerInfo.factionName);
+    _arr(G.facs).forEach(function(f){ if (_isMarkedPlayerFaction(f)) push(f.name); });
+    _arr(G.chars).forEach(function(c){
+      if (c && (c.isPlayer || c.playerControlled || c.controlledBy === 'player')) push(c.faction || c.factionName || c.ownerFaction);
+    });
+    return names;
+  }
+  function _isPlayerFaction(f, playerFactionNames) {
+    if (!f) return false;
+    if (_isMarkedPlayerFaction(f)) return true;
+    var k = _normFactionName(f.name);
+    return !!k && _arr(playerFactionNames).some(function(n){ return _normFactionName(n) === k; });
+  }
 
   var DEFAULTS = {
     inTurnFirstDelayMs: 30000,    // 30s 后第一次
@@ -65,9 +98,9 @@
   // 选 1 个 NPC fac (按 derivedStrength 加权随机·已跑 fac 不重复)
   function _pickOneFac(turn) {
     if (!global.GM || !Array.isArray(global.GM.facs)) return null;
-    var playerFacName = (global.P && global.P.playerInfo && global.P.playerInfo.factionName) || '';
+    var playerFacNames = _resolvePlayerFactionNames();
     var npcs = global.GM.facs.filter(function(f){
-      if (!f || !f.name || f.isPlayer || f.name === playerFacName) return false;
+      if (!f || !f.name || _isPlayerFaction(f, playerFacNames)) return false;
       // 已在本回合 in-turn 跑过 → skip
       if (Array.isArray(f._inTurnLlmRanTurns) && f._inTurnLlmRanTurns.indexOf(turn) >= 0) return false;
       if (global.TM && global.TM.FactionNpcLlmDecision && typeof global.TM.FactionNpcLlmDecision.hasRunThisTurn === 'function'
@@ -166,6 +199,8 @@
     triggerNow: triggerNow,
     _runOneInTurn: _runOneInTurn,
     _pickOneFac: _pickOneFac,
+    _resolvePlayerFactionNames: _resolvePlayerFactionNames,
+    _isPlayerFaction: _isPlayerFaction,
     DEFAULTS: DEFAULTS
   };
 

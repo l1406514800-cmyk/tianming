@@ -19,6 +19,37 @@
   'use strict';
 
   function _safeNum(v) { return (typeof v === 'number' && isFinite(v)) ? v : 0; }
+  function _arr(v) { return Array.isArray(v) ? v : []; }
+  function _normFactionName(v) { return String(v == null ? '' : v).replace(/\s+/g, '').trim(); }
+  function _isMarkedPlayerFaction(f) {
+    return !!(f && (f.isPlayer || f.playerControlled || f.controlledBy === 'player' || f.controller === 'player' || f.controlType === 'player'));
+  }
+  function _resolvePlayerFactionNames() {
+    var G = global.GM || {};
+    var P0 = global.P || {};
+    var names = [];
+    function push(v) {
+      var s = String(v == null ? '' : v).trim();
+      var k = _normFactionName(s);
+      if (s && names.map(_normFactionName).indexOf(k) < 0) names.push(s);
+    }
+    var pi = P0.playerInfo || {};
+    push(pi.factionName);
+    push(P0.playerFactionName);
+    push(P0.playerFaction);
+    push(G.playerFactionName);
+    push(G.playerFaction);
+    if (G.playerInfo) push(G.playerInfo.factionName);
+    _arr(G.facs).forEach(function(f){ if (_isMarkedPlayerFaction(f)) push(f.name); });
+    _arr(G.chars).forEach(function(c){ if (c && (c.isPlayer || c.playerControlled || c.controlledBy === 'player')) push(c.faction || c.factionName || c.ownerFaction); });
+    return names;
+  }
+  function _isPlayerFaction(f, playerFactionNames) {
+    if (!f) return false;
+    if (_isMarkedPlayerFaction(f)) return true;
+    var k = _normFactionName(f.name);
+    return !!k && _arr(playerFactionNames).some(function(n){ return _normFactionName(n) === k; });
+  }
 
   function _isEnabled() {
     if (!global.TM || !global.TM.FactionNpcSettings) return false;
@@ -66,10 +97,10 @@
     if (!_isEnabled()) return { skipped: true, reason: 'AI precision off or no key' };
     if (typeof global.GM === 'undefined' || !Array.isArray(global.GM.facs)) return { skipped: true, reason: 'no GM' };
     var maxPerTurn = (global.TM.FactionNpcSettings && global.TM.FactionNpcSettings.maxPerTurn()) || 8;
-    var playerFacName = (global.P && global.P.playerInfo && global.P.playerInfo.factionName) || '';
+    var playerFacNames = _resolvePlayerFactionNames();
 
     var npcs = global.GM.facs
-      .filter(function(f){ return f && f.name && !f.isPlayer && f.name !== playerFacName; })
+      .filter(function(f){ return f && f.name && !_isPlayerFaction(f, playerFacNames); })
       .sort(function(a, b){
         var sa = (a.derivedStrength && a.derivedStrength.value) || 0;
         var sb = (b.derivedStrength && b.derivedStrength.value) || 0;
@@ -106,8 +137,8 @@
     if (typeof global.GM === 'undefined' || !Array.isArray(global.GM.facs)) return { skipped: true, reason: 'no GM' };
     var fac = global.GM.facs.find(function(x){ return x && x.name === facName; });
     if (!fac) return { skipped: true, reason: 'fac not found' };
-    var playerFacName = (global.P && global.P.playerInfo && global.P.playerInfo.factionName) || '';
-    if (fac.isPlayer || fac.name === playerFacName) return { skipped: true, reason: 'player faction' };
+    var playerFacNames = _resolvePlayerFactionNames();
+    if (_isPlayerFaction(fac, playerFacNames)) return { skipped: true, reason: 'player faction' };
 
     var tasks = [];
     var lastMem = (Array.isArray(fac.npcMemorials) && fac.npcMemorials.length > 0) ? fac.npcMemorials[fac.npcMemorials.length - 1] : null;

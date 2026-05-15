@@ -18,6 +18,37 @@
   'use strict';
 
   function _safeNum(v) { return (typeof v === 'number' && isFinite(v)) ? v : 0; }
+  function _arr(v) { return Array.isArray(v) ? v : []; }
+  function _normFactionName(v) { return String(v == null ? '' : v).replace(/\s+/g, '').trim(); }
+  function _isMarkedPlayerFaction(f) {
+    return !!(f && (f.isPlayer || f.playerControlled || f.controlledBy === 'player' || f.controller === 'player' || f.controlType === 'player'));
+  }
+  function _resolvePlayerFactionNames() {
+    var G = global.GM || {};
+    var P0 = global.P || {};
+    var names = [];
+    function push(v) {
+      var s = String(v == null ? '' : v).trim();
+      var k = _normFactionName(s);
+      if (s && names.map(_normFactionName).indexOf(k) < 0) names.push(s);
+    }
+    var pi = P0.playerInfo || {};
+    push(pi.factionName);
+    push(P0.playerFactionName);
+    push(P0.playerFaction);
+    push(G.playerFactionName);
+    push(G.playerFaction);
+    if (G.playerInfo) push(G.playerInfo.factionName);
+    _arr(G.facs).forEach(function(f){ if (_isMarkedPlayerFaction(f)) push(f.name); });
+    _arr(G.chars).forEach(function(c){ if (c && (c.isPlayer || c.playerControlled || c.controlledBy === 'player')) push(c.faction || c.factionName || c.ownerFaction); });
+    return names;
+  }
+  function _isPlayerFaction(f, playerFactionNames) {
+    if (!f) return false;
+    if (_isMarkedPlayerFaction(f)) return true;
+    var k = _normFactionName(f.name);
+    return !!k && _arr(playerFactionNames).some(function(n){ return _normFactionName(n) === k; });
+  }
 
   function _runFiscalCycle(fac) {
     var de = fac.derivedEconomy;
@@ -57,12 +88,12 @@
     var GM = global.GM;
     if (!Array.isArray(GM.facs)) return null;
     var turn = _safeNum(GM.turn) || 1;
-    var playerFacName = (global.P && global.P.playerInfo && global.P.playerInfo.factionName) || '';
+    var playerFacNames = _resolvePlayerFactionNames();
 
     var totalRun = 0;
     GM.facs.forEach(function(fac) {
       if (!fac || !fac.name) return;
-      if (fac.isPlayer || fac.name === playerFacName) return;
+      if (_isPlayerFaction(fac, playerFacNames)) return;
       if (!fac.derivedEconomy) return;
 
       var rec = _runFiscalCycle(fac);

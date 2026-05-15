@@ -75,6 +75,47 @@
   function _tail(a, n) { a = _arr(a); return a.slice(Math.max(0, a.length - n)); }
   function _head(a, n) { a = _arr(a); return a.slice(0, n); }
 
+  function _normFactionName(v) {
+    return String(v == null ? '' : v).replace(/\s+/g, '').trim();
+  }
+
+  function _isMarkedPlayerFaction(f) {
+    return !!(f && (f.isPlayer || f.playerControlled || f.controlledBy === 'player' || f.controller === 'player' || f.controlType === 'player'));
+  }
+
+  function _resolvePlayerFactionNames() {
+    var G = global.GM || {};
+    var P0 = global.P || {};
+    var names = [];
+    function push(v) {
+      var s = String(v == null ? '' : v).trim();
+      var k = _normFactionName(s);
+      if (s && names.map(_normFactionName).indexOf(k) < 0) names.push(s);
+    }
+    var pi = P0.playerInfo || {};
+    push(pi.factionName);
+    push(P0.playerFactionName);
+    push(P0.playerFaction);
+    push(G.playerFactionName);
+    push(G.playerFaction);
+    if (G.playerInfo) push(G.playerInfo.factionName);
+    _arr(G.facs).forEach(function(f){ if (_isMarkedPlayerFaction(f)) push(f.name); });
+    _arr(G.chars).forEach(function(c){
+      if (c && (c.isPlayer || c.playerControlled || c.controlledBy === 'player')) push(c.faction || c.factionName || c.ownerFaction);
+    });
+    return names;
+  }
+
+  function _isPlayerFactionName(name, playerFactionNames) {
+    var k = _normFactionName(name);
+    if (!k) return false;
+    return _arr(playerFactionNames).some(function(n){ return _normFactionName(n) === k; });
+  }
+
+  function _isPlayerFaction(f, playerFactionNames) {
+    return !!(f && (_isMarkedPlayerFaction(f) || _isPlayerFactionName(f.name, playerFactionNames)));
+  }
+
   function _pushSection(lines, title, bodyLines) {
     bodyLines = _arr(bodyLines).filter(function(x){ return !!x; });
     if (bodyLines.length > 0) {
@@ -348,10 +389,10 @@
   function buildRecentTrajectoryContextForSc16(opts) {
     opts = opts || {};
     var G = global.GM || {};
-    var playerFacName = (global.P && global.P.playerInfo && global.P.playerInfo.factionName) || '';
+    var playerFacNames = _resolvePlayerFactionNames();
     var maxFactions = Math.max(1, opts.maxFactions || 12);
     var maxChars = Math.max(1000, opts.maxChars || 6000);
-    var rows = _arr(G.facs).filter(function(f){ return f && f.name && !f.isPlayer && f.name !== playerFacName; }).map(function(f) {
+    var rows = _arr(G.facs).filter(function(f){ return f && f.name && !_isPlayerFaction(f, playerFacNames); }).map(function(f) {
       var traj = _formatFactionTrajectory(f);
       var news = _formatPrecisionNewsForFac(f, 5);
       var strength = (f.derivedStrength && f.derivedStrength.value) || f.strength || 0;
@@ -550,10 +591,10 @@
   function buildFactionAdminSummaryForSc16(opts) {
     opts = opts || {};
     var G = global.GM || {};
-    var playerFacName = (global.P && global.P.playerInfo && global.P.playerInfo.factionName) || '';
+    var playerFacNames = _resolvePlayerFactionNames();
     var maxFactions = Math.max(1, opts.maxFactions || 16);
     var maxChars = Math.max(1000, opts.maxChars || 8000);
-    var rows = _arr(G.facs).filter(function(f){ return f && f.name && !f.isPlayer && f.name !== playerFacName; }).slice(0, maxFactions);
+    var rows = _arr(G.facs).filter(function(f){ return f && f.name && !_isPlayerFaction(f, playerFacNames); }).slice(0, maxFactions);
     var lines = [];
     lines.push('\n[FACTION_ADMIN_HIERARCHY]');
     lines.push('  Current runtime province-level territory ledger for non-player factions. Use this as the map board when reasoning about expansion, defense, logistics, tax base, and diplomacy. If territory changed this turn, trust GM.adminHierarchy over scenario opening data.');
@@ -944,8 +985,8 @@
     if (typeof global.GM === 'undefined') return { skipped: true, reason: 'no GM' };
     var fac = global.GM.facs.find(function(x){ return x && x.name === facName; });
     if (!fac) return { skipped: true, reason: 'fac not found' };
-    var playerFacName = (global.P && global.P.playerInfo && global.P.playerInfo.factionName) || '';
-    if (fac.isPlayer || fac.name === playerFacName) return { skipped: true, reason: 'player faction' };
+    var playerFacNames = _resolvePlayerFactionNames();
+    if (_isPlayerFaction(fac, playerFacNames)) return { skipped: true, reason: 'player faction' };
     var ledgerRun = _beginLedgerRun(fac.name, opts);
     if (!ledgerRun.ok) return { skipped: true, reason: ledgerRun.reason, turn: ledgerRun.turn, currentTurn: ledgerRun.currentTurn };
     var ledgerToken = ledgerRun.token;
@@ -980,9 +1021,9 @@
     var batchTurn = _safeNum(opts.turn) || _currentTurn();
     var source = opts.source || 'eager';
     var maxPerTurn = (global.TM.FactionNpcSettings && global.TM.FactionNpcSettings.maxPerTurn()) || 8;
-    var playerFacName = (global.P && global.P.playerInfo && global.P.playerInfo.factionName) || '';
+    var playerFacNames = _resolvePlayerFactionNames();
     var npcs = global.GM.facs
-      .filter(function(f){ return f && f.name && !f.isPlayer && f.name !== playerFacName; })
+      .filter(function(f){ return f && f.name && !_isPlayerFaction(f, playerFacNames); })
       .filter(function(f){ return !hasRunThisTurn(f.name, batchTurn); })
       .sort(function(a, b){
         var sa = (a.derivedStrength && a.derivedStrength.value) || 0;
@@ -1008,12 +1049,14 @@
     _formatOwnAdminHierarchy: _formatOwnAdminHierarchy,
     hasRunThisTurn: hasRunThisTurn,
     countRunsThisTurn: countRunsThisTurn,
+    _resolvePlayerFactionNames: _resolvePlayerFactionNames,
+    _isPlayerFaction: _isPlayerFaction,
     _validateDecision: _validateDecision,
     _applyDecision: _applyDecision,
     _isEnabled: _isEnabled
   };
 
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { decideFor: decideFor, decideAll: decideAll, hasRunThisTurn: hasRunThisTurn, countRunsThisTurn: countRunsThisTurn, buildRecentTrajectoryContextForSc16: buildRecentTrajectoryContextForSc16, buildFactionAdminSummaryForSc16: buildFactionAdminSummaryForSc16 };
+    module.exports = { decideFor: decideFor, decideAll: decideAll, hasRunThisTurn: hasRunThisTurn, countRunsThisTurn: countRunsThisTurn, buildRecentTrajectoryContextForSc16: buildRecentTrajectoryContextForSc16, buildFactionAdminSummaryForSc16: buildFactionAdminSummaryForSc16, _resolvePlayerFactionNames: _resolvePlayerFactionNames, _isPlayerFaction: _isPlayerFaction };
   }
 })(typeof window !== 'undefined' ? window : (typeof global !== 'undefined' ? global : globalThis));

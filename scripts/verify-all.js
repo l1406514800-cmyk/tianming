@@ -28,6 +28,7 @@ const checks = [
   { name: 'ref-check', file: 'ref-check.js', estSec: 1, expectExit: 0 },
   { name: 'find-orphans', file: 'find-orphans.js', estSec: 1, expectExit: 0 },
   { name: 'official-scenario', file: 'official-scenario-smoke.js', estSec: 1, expectExit: 0 },
+  { name: 'tianqi-cache-recovery', file: 'smoke-tianqi-official-cache-recovery.js', estSec: 1, expectExit: 0 },
   { name: 'faction-relations', file: 'smoke-faction-relations.js', estSec: 1, expectExit: 0 },
   { name: 'faction-index', file: 'smoke-faction-index.js', estSec: 1, expectExit: 0 },
   { name: 'faction-index-e2e', file: 'smoke-faction-index-e2e.js', estSec: 1, expectExit: 0 },

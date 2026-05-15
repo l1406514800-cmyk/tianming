@@ -50,12 +50,15 @@ assert(sec2[0] >= 100 && sec2[0] <= 360, 'section 2 marker in ai module near set
 assert(sec3[0] >= 240 && sec3[0] <= 560, 'section 3 marker in ai module after infra, actual L' + sec3[0]);
 
 const sec5 = findLines(followupText, /\u00a75\s*sc15-sc27\s*/).filter(function(line) { return line > 25; });
+const followupRunHead = findLines(followupText, /ns\.run\s*=\s*async\s+function\s*\(ctx\)/);
 const sec4 = findLines(applyText, /\u00a74\s*sc1\s*/).filter(function(line) { return line > 25; });
 assert(sec4.length === 1, 'section 4 marker appears once in tm-endturn-apply.js, count=' + sec4.length);
 assert(sec5.length === 1, 'section 5 marker appears once in tm-endturn-followup.js, count=' + sec5.length);
+assert(followupRunHead.length === 1, 'followup run head appears once in tm-endturn-followup.js, count=' + followupRunHead.length);
 assert(sec4[0] >= 40 && sec4[0] <= 80, 'section 4 marker in apply module near writeBack head, actual L' + sec4[0]);
-// 2026-05-08: followup has shared JSON/text normalization helpers above ns.run.
-assert(sec5[0] >= 80 && sec5[0] <= 220, 'section 5 marker in followup module near run head, actual L' + sec5[0]);
+// 2026-05-15: followup can grow shared helpers before ns.run.
+assert(sec5[0] > followupRunHead[0] && sec5[0] - followupRunHead[0] <= 120,
+  'section 5 marker in followup module near run head, actual L' + sec5[0] + ', run L' + followupRunHead[0]);
 
 assert(aiInferLines.length >= 200 && aiInferLines.length <= 280,
   'ai-infer line count after P7-zeta 200-280, actual ' + aiInferLines.length);
@@ -63,8 +66,8 @@ assert(aiLines.length >= 2600 && aiLines.length <= 3050,
   'tm-endturn-ai.js line count after P7-delta 2600-3050, actual ' + aiLines.length);
 assert(applyLines.length >= 4550 && applyLines.length <= 4850,
   'tm-endturn-apply.js line count after P7-epsilon 4550-4850, actual ' + applyLines.length);
-assert(followupLines.length >= 2200 && followupLines.length <= 2520,
-  'tm-endturn-followup.js line count after P7-zeta 2200-2520, actual ' + followupLines.length);
+assert(followupLines.length >= 2200 && followupLines.length <= 2700,
+  'tm-endturn-followup.js line count after P7-zeta 2200-2700, actual ' + followupLines.length);
 assert(/ns\.setupInfra\s*=/.test(aiText), 'tm-endturn-ai.js exposes setupInfra');
 assert(/ns\.runMain\s*=/.test(aiText), 'tm-endturn-ai.js exposes runMain');
 assert(/TM\.Endturn\.AI\.subcalls\.runMain\s*\(ctx\s*(,\s*async\s+function\s*\(\)\s*\{)?/.test(aiInferSrc), 'ai-infer bridge calls runMain(ctx)');

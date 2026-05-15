@@ -59,11 +59,14 @@ const followupModulePath = path.join(ROOT, 'tm-endturn-followup.js');
 assert(fs.existsSync(followupModulePath), 'tm-endturn-followup.js exists');
 const followupModuleText = fs.readFileSync(followupModulePath, 'utf8');
 const followupModuleLines = followupModuleText.split('\n');
+const runHeadInFollowup = followupModuleLines.findIndex(function(line) { return /ns\.run\s*=\s*async\s+function\s*\(ctx\)/.test(line); }) + 1;
 const sec5InFollowup = followupModuleLines.findIndex(function(line) { return /\u00a75\s*sc15-sc27\s*/.test(line); }) + 1;
+assert(runHeadInFollowup > 0, 'followup ns.run marker exists');
 assert(sec5InFollowup > 0, 'section 5 marker remains in followup module');
-// 2026-05-08: followup gained shared JSON/text normalization helpers before ns.run.
-// Keep the marker near the run head, while behavior/topology is locked by smoke-endturn-followup.
-assert(sec5InFollowup >= 80 && sec5InFollowup <= 220, 'section 5 marker near followup run head, actual L' + sec5InFollowup);
+// 2026-05-15: followup can grow shared helpers before ns.run.
+// Keep the marker close to the run head, while behavior/topology is locked by smoke-endturn-followup.
+assert(sec5InFollowup > runHeadInFollowup && sec5InFollowup - runHeadInFollowup <= 120,
+  'section 5 marker near followup run head, actual L' + sec5InFollowup + ', run L' + runHeadInFollowup);
 
 assert(aiInferLines.length >= 200 && aiInferLines.length <= 280,
   'ai-infer line count after P7-zeta is 200-280, actual ' + aiInferLines.length);
@@ -77,8 +80,8 @@ const applyModulePath = path.join(ROOT, 'tm-endturn-apply.js');
 assert(fs.existsSync(applyModulePath), 'tm-endturn-apply.js exists');
 const applyModuleLines = fs.readFileSync(applyModulePath, 'utf8').split('\n').length;
 assert(applyModuleLines >= 4550 && applyModuleLines <= 4850, 'tm-endturn-apply.js line count 4550-4850, actual ' + applyModuleLines);
-assert(followupModuleLines.length >= 2200 && followupModuleLines.length <= 2520,
-  'tm-endturn-followup.js line count 2200-2520, actual ' + followupModuleLines.length);
+assert(followupModuleLines.length >= 2200 && followupModuleLines.length <= 2700,
+  'tm-endturn-followup.js line count 2200-2700, actual ' + followupModuleLines.length);
 
 // P7-eta·tm-endturn-record.js: 文件存在·finalize export·sanitize 留 ai-infer·suggestions 优先 ctx.record
 const recordModulePath = path.join(ROOT, 'tm-endturn-record.js');

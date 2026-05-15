@@ -280,6 +280,10 @@ function bindRuntimeMapState(sourceMap) {
 }
 
 function findMapRegion(mapData, regionRef) {
+  if (arguments.length === 1 && (!mapData || !Array.isArray(mapData.regions))) {
+    regionRef = mapData;
+    mapData = null;
+  }
   mapData = mapData || getLiveMapData();
   if (!mapData || !Array.isArray(mapData.regions)) return null;
   return mapData.regions.find(function(region) {

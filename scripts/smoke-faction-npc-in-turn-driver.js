@@ -111,6 +111,17 @@ async function main() {
     qijuHistory: []
   };
   assert(driver._pickOneFac(7) === null, 'pickOneFac must skip fac.isPlayer even when player faction name mismatches');
+  ctx.P.playerInfo.factionName = '';
+  ctx.GM = {
+    turn: 7,
+    playerFaction: 'PlayerByGM',
+    facs: [
+      { name: 'PlayerByGM', derivedStrength: { value: 999 } },
+      { name: 'NpcOnly', derivedStrength: { value: 1 } }
+    ],
+    qijuHistory: []
+  };
+  assert(driver._pickOneFac(7).name === 'NpcOnly', 'pickOneFac must skip GM.playerFaction even without fac.isPlayer');
   ctx.GM = normalGM;
   ctx.P.playerInfo.factionName = normalPlayerFactionName;
 

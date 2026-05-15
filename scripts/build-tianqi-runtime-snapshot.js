@@ -38,7 +38,7 @@ function main() {
   });
 
   const snapshot = {
-    version: '2026-05-15-portraits',
+    version: '2026-05-15-prefectures',
     sid: SID,
     sourceFile: path.relative(repoRoot, loaded.file).replace(/\\/g, '/'),
     scenario,
@@ -105,6 +105,14 @@ function main() {
         global.localStorage.setItem('tianming_P', JSON.stringify(global.P));
       }
     } catch (_) {}
+  }
+
+  global.TM_TIANQI_APPLY_OFFICIAL_RUNTIME_SNAPSHOT = applySnapshot;
+  if (typeof global.addEventListener === 'function') {
+    global.addEventListener('tm:p-restored', function() {
+      attempts = 0;
+      applySnapshot();
+    });
   }
 
   applySnapshot();

@@ -1151,11 +1151,61 @@ function saveP(){
       _hasFullData: true // 标记：完整数据在IndexedDB
     };
     localStorage.setItem('tm_P_lite', JSON.stringify(lite));
+    localStorage.removeItem('tm_P');
   } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'saveP] localStorage骨架写入失败:') : console.warn('[saveP] localStorage骨架写入失败:', e); }
   // 3. 桌面端额外保存
   if (window.tianming && window.tianming.isDesktop) {
     window.tianming.autoSave(P).catch(function(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'saveP] desktop failed:') : console.warn('[saveP] desktop failed:', e); });
   }
+}
+
+function _tmCountSidRowsInProject(project, key, sid) {
+  var arr = project && project[key];
+  if (!Array.isArray(arr)) return 0;
+  var n = 0;
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i] && arr[i].sid === sid) n++;
+  }
+  return n;
+}
+
+function _tmIsIncompleteOfficialProject(project) {
+  var sid = 'sc-tianqi7-1627';
+  var scenarios = project && project.scenarios;
+  if (!Array.isArray(scenarios)) return false;
+  var found = false;
+  for (var i = 0; i < scenarios.length; i++) {
+    if (scenarios[i] && scenarios[i].id === sid) { found = true; break; }
+  }
+  if (!found) return false;
+  return _tmCountSidRowsInProject(project, 'characters', sid) < 30 ||
+    _tmCountSidRowsInProject(project, 'factions', sid) < 5 ||
+    _tmCountSidRowsInProject(project, 'variables', sid) < 10;
+}
+
+function _tmApplyMachinePrefsFromProject(project) {
+  if (!project) return;
+  if (project.ai) P.ai = project.ai;
+  if (project.conf) {
+    if (!P.conf) P.conf = {};
+    for (var k in project.conf) {
+      if (project.conf.hasOwnProperty(k)) P.conf[k] = project.conf[k];
+    }
+  }
+}
+
+function _tmEmitPRestored(source) {
+  try {
+    if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+    var ev;
+    if (typeof CustomEvent === 'function') ev = new CustomEvent('tm:p-restored', { detail: { source: source } });
+    else {
+      ev = document.createEvent('Event');
+      ev.initEvent('tm:p-restored', false, false);
+      ev.detail = { source: source };
+    }
+    window.dispatchEvent(ev);
+  } catch(_) {}
 }
 
 // 启动时恢复P（三层恢复：localStorage骨架 → IndexedDB完整 → 桌面端autoSave）
@@ -1166,16 +1216,22 @@ function saveP(){
     var s = localStorage.getItem('tm_P');
     if (s) {
       var saved = JSON.parse(s);
-      for (var key in saved) {
-        if (saved.hasOwnProperty(key)) P[key] = saved[key];
-      }
-      console.log('[restoreP] 从localStorage(tm_P)恢复, scenarios:', P.scenarios.length);
-      // 迁移：旧格式存在则写入IndexedDB并清理
-      if (typeof TM_SaveDB !== 'undefined') {
-        TM_SaveDB.saveProject(deepClone(P)).then(function() {
-          try { localStorage.removeItem('tm_P'); } catch(e) {}
-          console.log('[restoreP] 已迁移tm_P到IndexedDB');
-        });
+      if (_tmIsIncompleteOfficialProject(saved)) {
+        _tmApplyMachinePrefsFromProject(saved);
+        try { localStorage.removeItem('tm_P'); } catch(_){}
+        console.warn('[restoreP] skipped incomplete official scenario cache from tm_P');
+      } else {
+        for (var key in saved) {
+          if (saved.hasOwnProperty(key)) P[key] = saved[key];
+        }
+        console.log('[restoreP] 从localStorage(tm_P)恢复, scenarios:', P.scenarios.length);
+        // 迁移：旧格式存在则写入IndexedDB并清理
+        if (typeof TM_SaveDB !== 'undefined') {
+          TM_SaveDB.saveProject(deepClone(P)).then(function() {
+            try { localStorage.removeItem('tm_P'); } catch(e) {}
+            console.log('[restoreP] 已迁移tm_P到IndexedDB');
+          });
+        }
       }
     } else {
       // 新格式：从lite骨架恢复API配置 (R153 包内 try·防嵌套被外层 catch 误吞)
@@ -1193,6 +1249,12 @@ function saveP(){
   if (typeof TM_SaveDB !== 'undefined') {
     TM_SaveDB.loadProject().then(function(fullP) {
       if (fullP && fullP.scenarios) {
+        if (_tmIsIncompleteOfficialProject(fullP)) {
+          _tmApplyMachinePrefsFromProject(fullP);
+          console.warn('[restoreP] skipped incomplete official scenario project from IndexedDB');
+          _tmEmitPRestored('indexeddb-incomplete-skip');
+          return;
+        }
         for (var key in fullP) {
           if (fullP.hasOwnProperty(key)) P[key] = fullP[key];
         }
@@ -1201,6 +1263,7 @@ function saveP(){
         if (typeof showScnManage === 'function' && document.querySelector('.scn-page.show')) {
           showScnManage();
         }
+        _tmEmitPRestored('indexeddb');
       }
     }).catch(function(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'restoreP] IndexedDB恢复失败:') : console.warn('[restoreP] IndexedDB恢复失败:', e); });
   }
@@ -1215,6 +1278,7 @@ function saveP(){
           }
         }
         console.log('[restoreP] 从desktop autoSave补充恢复');
+        _tmEmitPRestored('desktop-autosave');
       }
     }).catch(function(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'restoreP] desktop恢复失败:') : console.warn('[restoreP] desktop恢复失败:', e); });
   }

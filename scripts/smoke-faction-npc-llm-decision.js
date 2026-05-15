@@ -122,6 +122,18 @@ async function playerIsPlayerGuardTest() {
   var batch = await fld.decideAll({ source: 'eager' });
   assert(batch.results.every(function(r){ return r.fac !== 'PlayerMarked'; }), 'decideAll must exclude fac.isPlayer even when player faction name mismatches');
   assert(!ctx.GM.facs[0]._lastLlmRationale, 'isPlayer faction should not receive LLM trajectory');
+
+  ctx.P.playerInfo.factionName = '';
+  ctx.GM.playerFaction = 'PlayerByGM';
+  ctx.GM.facs = [
+    { name: 'PlayerByGM', derivedStrength: { value: 999 }, treasury: { money: 1000000 } },
+    { name: 'NpcByGMNeighbor', derivedStrength: { value: 10 }, treasury: { money: 1000000 } }
+  ];
+  ctx.GM._npcFactionLlmLedger = null;
+  var gmDirect = await fld.decideFor('PlayerByGM');
+  assert(gmDirect && gmDirect.skipped && gmDirect.reason === 'player faction', 'decideFor must skip GM.playerFaction even without fac.isPlayer');
+  var gmBatch = await fld.decideAll({ source: 'eager', turn: 6 });
+  assert(gmBatch.results.every(function(r){ return r.fac !== 'PlayerByGM'; }), 'decideAll must exclude GM.playerFaction even without fac.isPlayer');
   console.log('[player-isPlayer-guard] assertions pass');
 }
 

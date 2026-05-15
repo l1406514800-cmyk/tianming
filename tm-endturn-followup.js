@@ -78,6 +78,93 @@
     return { actor: actor, text: text };
   }
 
+  function _tmNormFactionName(v) {
+    return String(v == null ? "" : v).replace(/\s+/g, "").trim();
+  }
+
+  function _tmPlayerFactionNameList(v) {
+    var raw = Array.isArray(v) ? v : [v];
+    var out = [];
+    raw.forEach(function(x) {
+      var s = String(x == null ? "" : x).trim();
+      var k = _tmNormFactionName(s);
+      if (s && out.map(_tmNormFactionName).indexOf(k) < 0) out.push(s);
+    });
+    return out;
+  }
+
+  function _tmIsMarkedPlayerFaction(f) {
+    return !!(f && (f.isPlayer || f.playerControlled || f.controlledBy === "player" || f.controller === "player" || f.controlType === "player"));
+  }
+
+  function _tmResolvePlayerFactionNamesForAi(G, P0) {
+    G = G || global.GM || {};
+    P0 = P0 || global.P || {};
+    var names = [];
+    function push(v) {
+      var s = String(v == null ? "" : v).trim();
+      var k = _tmNormFactionName(s);
+      if (s && names.map(_tmNormFactionName).indexOf(k) < 0) names.push(s);
+    }
+    var pi = P0.playerInfo || {};
+    push(pi.factionName);
+    push(P0.playerFactionName);
+    push(P0.playerFaction);
+    push(G.playerFactionName);
+    push(G.playerFaction);
+    if (G.playerInfo) push(G.playerInfo.factionName);
+    (Array.isArray(G.facs) ? G.facs : []).forEach(function(f) {
+      if (_tmIsMarkedPlayerFaction(f)) push(f.name);
+    });
+    (Array.isArray(G.chars) ? G.chars : []).forEach(function(c) {
+      if (c && (c.isPlayer || c.playerControlled || c.controlledBy === "player")) push(c.faction || c.factionName || c.ownerFaction);
+    });
+    return names;
+  }
+
+  function _tmResolvePlayerFactionNameForAi(G, P0) {
+    return _tmResolvePlayerFactionNamesForAi(G, P0)[0] || "";
+  }
+
+  function _tmIsPlayerFactionNameForAi(name, playerFactionName) {
+    var k = _tmNormFactionName(name);
+    if (!k) return false;
+    return _tmPlayerFactionNameList(playerFactionName).some(function(n) { return _tmNormFactionName(n) === k; });
+  }
+
+  function _tmIsPlayerFactionForAi(f, playerFactionName) {
+    return !!(f && (_tmIsMarkedPlayerFaction(f) || _tmIsPlayerFactionNameForAi(f.name, playerFactionName)));
+  }
+
+  function _tmFilterSc16PlayerOutputs(p16, playerFactionName) {
+    if (!p16 || typeof p16 !== "object") return p16;
+    var names = _tmPlayerFactionNameList(playerFactionName);
+    if (!names.length) return p16;
+    var removedActions = 0;
+    var removedDiplomacy = 0;
+    if (Array.isArray(p16.faction_actions)) {
+      p16.faction_actions = p16.faction_actions.filter(function(fa) {
+        var actor = _tmFirstText(fa && fa.faction, fa && fa.name, fa && fa.actor, fa && fa.from, fa && fa.source, fa && fa.initiator);
+        if (_tmIsPlayerFactionNameForAi(actor, names)) { removedActions++; return false; }
+        return true;
+      });
+    }
+    if (Array.isArray(p16.diplomatic_shifts)) {
+      p16.diplomatic_shifts = p16.diplomatic_shifts.filter(function(ds) {
+        var actor = _tmFirstText(ds && ds.from, ds && ds.actor, ds && ds.faction, ds && ds.source, ds && ds.initiator);
+        if (_tmIsPlayerFactionNameForAi(actor, names)) { removedDiplomacy++; return false; }
+        return true;
+      });
+    }
+    p16._playerFactionGuard = {
+      playerFactionName: names[0],
+      playerFactionNames: names,
+      removedFactionActions: removedActions,
+      removedDiplomaticShifts: removedDiplomacy
+    };
+    return p16;
+  }
+
   function _tmDetectModelFamily(model, fallbackFamily) {
     if (model && typeof ModelAdapter !== "undefined" && ModelAdapter.detectFamily) {
       try { return ModelAdapter.detectFamily(model); } catch(_) {}
@@ -101,6 +188,11 @@
     ctx.results.sc_consolidate = r.subcallConsolidate || ctx.results.sc_consolidate || null;
     return ctx.results;
   }
+
+  ns._resolvePlayerFactionNamesForAi = _tmResolvePlayerFactionNamesForAi;
+  ns._resolvePlayerFactionNameForAi = _tmResolvePlayerFactionNameForAi;
+  ns._isPlayerFactionForAi = _tmIsPlayerFactionForAi;
+  ns._filterSc16PlayerOutputs = _tmFilterSc16PlayerOutputs;
 
   ns.run = async function(ctx) {
     ensureGroups(ctx);
@@ -625,12 +717,16 @@
       function(){ return _runSubcall('sc16', '势力推演', 'full', async function() {
       showLoading("\u52BF\u529B\u81EA\u4E3B\u63A8\u6F14",63);
       try {
+        var _playerFacNames16 = _tmResolvePlayerFactionNamesForAi(GM, P);
         var tp16 = '\u57FA\u4E8E\u672C\u56DE\u5408\u5C40\u52BF\uFF0C\u63A8\u6F14\u6BCF\u4E2A\u975E\u73A9\u5BB6\u52BF\u529B\u7684\u81EA\u4E3B\u884C\u52A8\uFF1A\n';
         tp16 += '\u65F6\u653F\u8BB0\uFF1A' + (shizhengji||'').substring(0,500) + '\n';
         (GM.facs||[]).forEach(function(f) {
-          if (f.isPlayer) return;
+          if (_tmIsPlayerFactionForAi(f, _playerFacNames16)) return;
           tp16 += f.name + ' \u5B9E\u529B' + (f.strength||50) + (f.leader?' \u9996\u9886:'+f.leader:'') + (f.goal?' \u76EE\u6807:'+f.goal:'') + (f.attitude?' \u6001\u5EA6:'+f.attitude:'') + '\n';
         });
+        if (_playerFacNames16.length) {
+          tp16 += '\n【玩家势力控制边界】' + _playerFacNames16.join('、') + '由玩家亲自控制；玩家势力不得作为行动发起方，不要为它生成 faction_actions，也不要以它作为 diplomatic_shifts.from。NPC 可以把玩家势力作为 target/to。\n';
+        }
         if (GM.factionRelations && GM.factionRelations.length > 0) {
           tp16 += '\u52BF\u529B\u5173\u7CFB\uFF1A' + GM.factionRelations.map(function(r){return r.from+'\u2192'+r.to+' '+r.type+'('+r.value+')';}).join('\uFF1B') + '\n';
         }
@@ -668,7 +764,7 @@
           }
         } catch(_npcPrecision16Err) { try { _dbg('[sc16 precision history] fail:', _npcPrecision16Err); } catch(_){} }
         tp16 += '\n\u8BF7\u8FD4\u56DEJSON\uFF1A{"faction_actions":[{"faction":"\u52BF\u529B\u540D","action":"\u5177\u4F53\u884C\u52A8(50\u5B57)","target":"\u5BF9\u8C01","motive":"\u52A8\u673A","impact":"\u5F71\u54CD"}],"diplomatic_shifts":[{"from":"","to":"","old_relation":"","new_relation":"","reason":""}],"territorial_changes":"\u9886\u571F\u53D8\u5316\u63CF\u8FF0(100\u5B57)","power_balance_shift":"\u529B\u91CF\u5BF9\u6BD4\u53D8\u5316(100\u5B57)"}\n';
-        tp16 += '\u6BCF\u4E2A\u52BF\u529B\u90FD\u5E94\u6709\u884C\u52A8\u3002\u5305\u62EC\u6218\u4E89\u3001\u8054\u76DF\u3001\u8D38\u6613\u3001\u5185\u90E8\u6574\u5408\u3001\u6269\u5F20\u3001\u9632\u5FA1\u7B49\u3002';
+        tp16 += '只为上述非玩家势力生成行动；玩家势力不得作为行动发起方。每个非玩家势力都应有行动。包括战争、联盟、贸易、内部整合、扩张、防御等。';
         var _sc16Body = {model:P.ai.model||"gpt-4o", messages:[{role:"system",content:_maybeCacheSys(sysP)},{role:"user",content:tp16}], temperature:P.ai.temp||0.8, max_tokens:_tok(8000)};
         if (_modelFamily === 'openai') _sc16Body.response_format = { type: 'json_object' };
         var _sc16Call = await _callFollowupAI(_sc16Body, { id: 'sc16', label: '势力行动', priority: 'normal' });
@@ -678,6 +774,7 @@
           if (_p16Parse && _p16Parse.raw) c16 = _p16Parse.raw;
           var p16 = _p16Parse ? _p16Parse.parsed : null;
           if (p16) {
+            p16 = _tmFilterSc16PlayerOutputs(p16, _playerFacNames16);
             if (p16.faction_actions && Array.isArray(p16.faction_actions)) {
               p16.faction_actions.forEach(function(fa) { if (fa.faction && fa.action) addEB('\u52BF\u529B\u52A8\u6001', fa.faction + '：' + fa.action); });
             }
@@ -966,8 +1063,9 @@
       _queuePostTurnSubcall('sc19', function(){ return _runSubcall('sc19', '新实体丰化', 'lite', async function() {
         try {
           var _RETRY_WINDOW = 3; // 失败后 3 回合内可重试
+          var _playerFacNames19 = _tmResolvePlayerFactionNamesForAi(GM, P);
           var _sparseFacs = (GM.facs||[]).filter(function(f) {
-            return f._createdTurn != null && (GM.turn - f._createdTurn) <= _RETRY_WINDOW && !f._enriched && !f.isPlayer;
+            return f._createdTurn != null && (GM.turn - f._createdTurn) <= _RETRY_WINDOW && !f._enriched && !_tmIsPlayerFactionForAi(f, _playerFacNames19);
           });
           var _sparseClasses = (GM.classes||[]).filter(function(c) {
             return c._emergeTurn != null && (GM.turn - c._emergeTurn) <= _RETRY_WINDOW && !c._enriched;
