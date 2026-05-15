@@ -440,13 +440,28 @@
     }
     if (typeof delta !== 'number') return { ok: false };
     if (typeof global.AuthorityEngines !== 'undefined') {
-      global.AuthorityEngines.adjustHuangwei(source, delta, (ctx && ctx.reason) || '');
+      global.AuthorityEngines.adjustHuangwei(source, delta, (ctx && ctx.reason) || source || '\u7687\u5a01\u4e8b\u4ef6');
     }
     return { ok: true, delta: delta };
   }
 
   // 自动侦测触发器（v2：只保留"客观事实反馈"，删除 Math.random 概率触发）
   // 祥瑞/天象/朝贡等非必然发生的事件 —— 由 AI 推演看情况自己决定，不再硬 roll
+  function _autoAuthorityEventDue(scope, key, cooldownTurns) {
+    var G = global.GM;
+    if (!G) return false;
+    var turn = Number(G.turn || 0);
+    var span = Math.max(1, Number(cooldownTurns || 1));
+    if (!G._authorityAutoEventTurns || typeof G._authorityAutoEventTurns !== 'object') {
+      G._authorityAutoEventTurns = {};
+    }
+    var fullKey = scope + ':' + key;
+    var last = Number(G._authorityAutoEventTurns[fullKey]);
+    if (isFinite(last) && turn - last < span) return false;
+    G._authorityAutoEventTurns[fullKey] = turn;
+    return true;
+  }
+
   function _autoDetectHuangweiEvents(ctx, mr) {
     var G = global.GM;
     var hw = G.huangwei;
@@ -457,18 +472,26 @@
       G._turnBattleResults.forEach(function(b) {
         if (b._hwChecked) return;
         b._hwChecked = true;
-        if (b.win) triggerHuangweiEvent('militaryVictory', { personallyLed: b.personallyLed, foreign: b.enemyType === 'foreign' });
-        else triggerHuangweiEvent('militaryDefeat', {});
+        if (b.win) triggerHuangweiEvent('militaryVictory', { personallyLed: b.personallyLed, foreign: b.enemyType === 'foreign', reason: '\u519b\u4e8b\u6377\u62a5' });
+        else triggerHuangweiEvent('militaryDefeat', { reason: '\u519b\u4e8b\u5931\u5229' });
       });
     }
     // 都城沦陷（具体事实）
     if (G._capitalFallen && !hw._capitalFallSignaled) {
       hw._capitalFallSignaled = true;
-      triggerHuangweiEvent('capitalFall', {});
+      triggerHuangweiEvent('capitalFall', { reason: '\u90fd\u57ce\u6ca6\u9677' });
     }
     // 抗疏（已发生的抗疏数量，客观数据）
     var recentAbductions = (G._abductions || []).filter(function(a) { return (G.turn - a.turn) < _turnsForMonthsLocal(3); });
-    if (recentAbductions.length > 2) triggerHuangweiEvent('memorialObjection', {});
+    if (recentAbductions.length > 2) {
+      var objectionKey = recentAbductions.map(function(a) {
+        return a.id || a.name || a.turn || '';
+      }).join('|') || String(recentAbductions.length);
+      if (hw._memorialObjectionAbductionKey !== objectionKey) {
+        hw._memorialObjectionAbductionKey = objectionKey;
+        triggerHuangweiEvent('memorialObjection', { reason: '\u8fd1\u671f\u6297\u758f\u9891\u53d1' });
+      }
+    }
     // ── 已删除 ──
     //   · Math.random 祥瑞 / 天象 硬概率 —— 改由 AI 看局面自己产出
     //   · 朝贡按月 1 号硬触发 —— 改由 AI 看外交状态自己产出

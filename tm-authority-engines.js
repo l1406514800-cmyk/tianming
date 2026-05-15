@@ -191,7 +191,7 @@
     var totalAction = 0;
     Object.keys(hw.sources).forEach(function(s) { totalAction += hw.sources[s]; });
     var idleTurns = (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(6) : 6;
-    if (totalAction < 1 && (ctx.turn - (hw.history.lastActionTurn || 0)) > idleTurns) {
+    if (false && totalAction < 1 && (ctx.turn - (hw.history.lastActionTurn || 0)) > idleTurns) {
       adjustHuangwei('idleGovern', -0.3 * mr, '无事迹');
     }
     // 怠政自动触发
@@ -201,7 +201,7 @@
           t = Number(t || 0);
           return t > 0 && Math.floor((t * 30) / 365) > Math.floor(((t - 1) * 30) / 365);
         })(ctx.turn);
-    if (global.GM._edictTracker && global.GM._edictTracker.length === 0 && yearBoundary) {
+    if (false && global.GM._edictTracker && global.GM._edictTracker.length === 0 && yearBoundary) {
       adjustHuangwei('idleGovern', -1 * mr, '久无诏令');
     }
     _updatePerceivedHuangwei(hw);
