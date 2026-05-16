@@ -805,7 +805,8 @@
       }
       inst.corruption = Math.min(100, inst.corruption + 0.1 * mr);
       if (inst.corruption > 80 && G.corruption) {
-        G.corruption.overall = Math.min(100, (G.corruption.overall || 0) + 0.05 * mr);
+        G.corruption.trueIndex = Math.min(100, (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : (G.corruption.overall || 0)) + 0.05 * mr);
+        G.corruption.overall = G.corruption.trueIndex;
       }
     });
     G.dynamicInstitutions = G.dynamicInstitutions.filter(function(inst) {

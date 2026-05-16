@@ -540,7 +540,9 @@ async function _finalizeStageAndAdvance(exam, slot) {
 function _adjustHuangwei(delta, reason) {
   try {
     if (GM.huangwei && typeof GM.huangwei === 'object') {
-      GM.huangwei.value = Math.max(0, Math.min(100, (GM.huangwei.value || 50) + delta));
+      var old = (typeof GM.huangwei.index === 'number') ? GM.huangwei.index : (typeof GM.huangwei.value === 'number' ? GM.huangwei.value : 50);
+      GM.huangwei.index = Math.max(0, Math.min(100, old + delta));
+      GM.huangwei.value = GM.huangwei.index;
       if (typeof addEB === 'function') addEB('皇威', (delta > 0 ? '+' : '') + delta + '·' + (reason || ''));
     }
   } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}

@@ -46,6 +46,17 @@
     catch(e) { return null; }
   }
 
+  function _metricValue(v, keys, fallback) {
+    if (typeof v === 'number' && isFinite(v)) return v;
+    if (v && typeof v === 'object') {
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (typeof v[k] === 'number' && isFinite(v[k])) return v[k];
+      }
+    }
+    return fallback;
+  }
+
   /** 从 GM 提取摘要（不深拷贝整对象，只抽关键指标） */
   function _extractSummary() {
     var G = (typeof GM !== 'undefined') ? GM : {};
@@ -91,11 +102,12 @@
     }
 
     // 权威
-    if (G.authority) {
+    if (G.authority || G.huangquan !== undefined || G.huangwei !== undefined || G.minxin !== undefined) {
+      var authority = G.authority || {};
       summary.authority = {
-        huangquan: (typeof G.authority.huangquan === 'number') ? G.authority.huangquan : (G.authority.huangquan && G.authority.huangquan.value) || 0,
-        huangwei: (typeof G.authority.huangwei === 'number') ? G.authority.huangwei : (G.authority.huangwei && G.authority.huangwei.value) || 0,
-        minxin: (typeof G.authority.minxin === 'number') ? G.authority.minxin : (G.authority.minxin && G.authority.minxin.value) || 0
+        huangquan: _metricValue(G.huangquan !== undefined ? G.huangquan : authority.huangquan, ['index', 'value', 'trueIndex'], 0),
+        huangwei: _metricValue(G.huangwei !== undefined ? G.huangwei : authority.huangwei, ['index', 'value', 'trueIndex'], 0),
+        minxin: _metricValue(G.minxin !== undefined ? G.minxin : authority.minxin, ['trueIndex', 'index', 'value'], 0)
       };
     }
 

@@ -1255,6 +1255,20 @@
     try { processIncidentalSources(mr); } catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'neitang-p2] incidental:') : console.error('[neitang-p2] incidental:', e); }
     try { applyRoyalClanPressure(mr); }   catch(e) { (window.TM && TM.errors && TM.errors.capture) ? TM.errors.capture(e, 'neitang-p2] royalClan:') : console.error('[neitang-p2] royalClan:', e); }
 
+    function isNeitangMoneyPath(path) {
+      return path === 'neitang.money' || path === 'neicang.money';
+    }
+    function syncCashMirrors() {
+      if (GM.guoku && typeof GM.guoku.balance === 'number') {
+        GM.guoku.money = GM.guoku.balance;
+        if (GM.guoku.ledgers && GM.guoku.ledgers.money) GM.guoku.ledgers.money.stock = GM.guoku.balance;
+      }
+      if (GM.neitang && typeof GM.neitang.balance === 'number') {
+        GM.neitang.money = GM.neitang.balance;
+        if (GM.neitang.ledgers && GM.neitang.ledgers.money) GM.neitang.ledgers.money.stock = GM.neitang.balance;
+      }
+    }
+
     // 应用被重定向的税收
     if (GM.neitang._redirectedThisMonth && GM.neitang._redirectedThisMonth > 0) {
       GM.neitang.balance += GM.neitang._redirectedThisMonth;
@@ -1270,10 +1284,10 @@
         if (tr.mode === 'fixed') amt = (tr.amount || 0) * mr;
         else if (tr.mode === 'percent') amt = (tr.percent || 0) * ((GM.guoku && GM.guoku.monthlyIncome) || 0) * mr;
         if (amt > 0 && GM.guoku && GM.guoku.balance > amt) {
-          if (tr.from === 'guoku.money' && tr.to === 'neicang.money') {
+          if (tr.from === 'guoku.money' && isNeitangMoneyPath(tr.to)) {
             GM.guoku.balance -= amt;
             GM.neitang.balance += amt;
-          } else if (tr.from === 'neicang.money' && tr.to === 'guoku.money') {
+          } else if (isNeitangMoneyPath(tr.from) && tr.to === 'guoku.money') {
             if (GM.neitang.balance > amt) {
               GM.neitang.balance -= amt;
               GM.guoku.balance += amt;
@@ -1282,6 +1296,7 @@
         }
       }
     });
+    syncCashMirrors();
   };
 
   // ═════════════════════════════════════════════════════════════

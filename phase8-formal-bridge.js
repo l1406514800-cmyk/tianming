@@ -8861,6 +8861,19 @@
     document.body.appendChild(fly);
   }
 
+  function refreshArmyFlyout(){
+    var fly = document.getElementById('tm-army-detail-flyout');
+    if (!fly) return false;
+    var army = rightFindArmy(state.selectedArmy) || rightArmyList()[0];
+    if (!army) {
+      rightCloseArmyFlyout();
+      return false;
+    }
+    state.selectedArmy = rightArmyKey(army, rightArmyList().indexOf(army));
+    fly.innerHTML = '<div class="tm-army-detail-head"><b>部队详情</b><button type="button" data-army-close="1">×</button></div>' + renderRightArmyDetailCard(army);
+    return true;
+  }
+
   function rightSelectArmy(data){
     var key = data && data.id;
     var army = rightFindArmy(key);
@@ -9131,6 +9144,21 @@
     panel.classList.add('show', 'tm-right-expanded');
     var drawer = document.getElementById('drawerRight');
     if (drawer) drawer.classList.remove('open');
+  }
+
+  function refreshActivePanel(){
+    var slot = state.activeSlot;
+    if (!slot || !renderers[slot]) return false;
+    var panel = document.getElementById('rpanel');
+    if (!panel || !panel.classList.contains('show')) return false;
+    var host = panelHost();
+    if (!host) return false;
+    var title = panel.querySelector('#rp-title');
+    if (title) title.textContent = titles[slot] || '国事';
+    host.innerHTML = '<div class="tmrp tmrp-formal tmf-panel" data-panel="' + esc(slot) + '">' + renderers[slot]() + '</div>';
+    bindRightPanelActions(host);
+    if (slot === 'army') refreshArmyFlyout();
+    return true;
   }
 
   function closeRightDrawer(){
@@ -9781,6 +9809,7 @@
     ensureChrome: ensureFormalChrome,
     renderMap: renderFormalMap,
     refreshMapData: refreshMapFromRuntime,
+    refreshPanel: refreshActivePanel,
     getLiveMap: getMapData,
     findFaction: findFaction,
     pin: pinPerson,
@@ -9826,6 +9855,7 @@
       markPinnedCards();
       updateRailBadges();
       renderEventFeed();
+      refreshActivePanel();
       renderFormalMapSoon();
     }
   };

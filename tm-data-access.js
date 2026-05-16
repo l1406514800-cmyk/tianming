@@ -39,6 +39,26 @@
 
   function _G() { return typeof GM !== 'undefined' ? GM : {}; }
   function _P() { return typeof P !== 'undefined' ? P : {}; }
+  function _armyTroopCount(a) {
+    if (!a) return 0;
+    var v = a.soldiers;
+    if (v == null) v = a.troops;
+    if (v == null) v = a.size;
+    if (v == null) v = a.strength;
+    if (v == null) v = a.initialTroops;
+    v = Number(v);
+    return isFinite(v) ? Math.max(0, Math.round(v)) : 0;
+  }
+  function _readMetricValue(v, keys, fallback) {
+    if (typeof v === 'number' && isFinite(v)) return v;
+    if (v && typeof v === 'object') {
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (typeof v[k] === 'number' && isFinite(v[k])) return v[k];
+      }
+    }
+    return fallback;
+  }
 
   // ============================================================
   // DA.chars — 角色访问
@@ -378,7 +398,7 @@
     totalTroops: function(facName) {
       return DA.armies.all().reduce(function(s, a){
         if (facName && a.faction !== facName) return s;
-        return s + (a && a.troops || 0);
+        return s + _armyTroopCount(a);
       }, 0);
     },
     activeWars: function() { return _G().activeWars || []; },
@@ -409,18 +429,27 @@
   // DA.authority — 权威系统（皇权/皇威/民心）
   // ============================================================
   DA.authority = {
-    get: function() { return _G().authority || {}; },
+    get: function() {
+      var G = _G();
+      var legacy = G.authority || {};
+      var out = {};
+      Object.keys(legacy).forEach(function(k){ out[k] = legacy[k]; });
+      if (G.huangquan !== undefined) out.huangquan = G.huangquan;
+      if (G.huangwei !== undefined) out.huangwei = G.huangwei;
+      if (G.minxin !== undefined) out.minxin = G.minxin;
+      return out;
+    },
     huangquan: function() {
       var a = DA.authority.get();
-      return typeof a.huangquan === 'number' ? a.huangquan : (a.huangquan && a.huangquan.value) || 50;
+      return _readMetricValue(a.huangquan, ['index', 'value', 'trueIndex'], 50);
     },
     huangwei: function() {
       var a = DA.authority.get();
-      return typeof a.huangwei === 'number' ? a.huangwei : (a.huangwei && a.huangwei.value) || 50;
+      return _readMetricValue(a.huangwei, ['index', 'value', 'trueIndex'], 50);
     },
     minxin: function() {
       var a = DA.authority.get();
-      return typeof a.minxin === 'number' ? a.minxin : (a.minxin && a.minxin.value) || 50;
+      return _readMetricValue(a.minxin, ['trueIndex', 'index', 'value'], 50);
     },
     powerMinister: function() {
       return DA.authority.get().powerMinister || null;

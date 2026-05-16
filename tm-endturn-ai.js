@@ -1851,8 +1851,14 @@
             var _v = _fCtx.variables;
             if (_v.huangwei)  tp1 += '\n  皇威：真 ' + Math.round((_v.huangwei.index||0)) + ' / 视 ' + Math.round(_v.huangwei.perceivedIndex||_v.huangwei.index||0) + ' · ' + (_v.huangwei.phase||'') + (_v.huangwei.tyrantSyndrome?' · 暴君症候活':'') + (_v.huangwei.lostCrisis?' · 失威危机活':'');
             if (_v.huangquan) tp1 += '\n  皇权：' + Math.round((_v.huangquan.index||0)) + ' · ' + (_v.huangquan.phase||'') + (_v.huangquan.powerMinister?' · 权臣 '+ _v.huangquan.powerMinister.name:'');
-            if (_v.minxin)    tp1 += '\n  民心：真 ' + Math.round((_v.minxin.index||0)) + ' / 视 ' + Math.round(_v.minxin.perceivedIndex||_v.minxin.index||0) + ' · ' + (_v.minxin.phase||'');
-            if (_v.corruption) tp1 += '\n  吏治：真 ' + Math.round((_v.corruption.index||0)) + ' / 视 ' + Math.round(_v.corruption.perceivedIndex||_v.corruption.index||0);
+            if (_v.minxin) {
+              var _mxTrue = (_v.minxin.trueIndex != null) ? _v.minxin.trueIndex : ((_v.minxin.index != null) ? _v.minxin.index : (_v.minxin.value || 0));
+              tp1 += '\n  民心：真 ' + Math.round(_mxTrue) + ' / 视 ' + Math.round(_v.minxin.perceivedIndex||_mxTrue||0) + ' · ' + (_v.minxin.phase||'');
+            }
+            if (_v.corruption) {
+              var _corrTrue = (_v.corruption.trueIndex != null) ? _v.corruption.trueIndex : ((_v.corruption.overall != null) ? _v.corruption.overall : ((_v.corruption.index != null) ? _v.corruption.index : (_v.corruption.value || 0)));
+              tp1 += '\n  吏治：真 ' + Math.round(_corrTrue) + ' / 视 ' + Math.round(_v.corruption.perceivedIndex||_corrTrue||0);
+            }
             if (_v.guoku)     tp1 += '\n  帑廪：钱 ' + Math.round((_v.guoku.money||0)/10000) + ' 万两 · 粮 ' + Math.round((_v.guoku.grain||0)/10000) + ' 万石 · 布 ' + Math.round((_v.guoku.cloth||0)/10000) + ' 万匹 · 月入 ' + Math.round((GM.guoku && GM.guoku.monthlyIncome||0)/10000) + ' 万';
             if (_v.neitang)   tp1 += '\n  内帑：钱 ' + Math.round((_v.neitang.money||0)/10000) + ' 万两 · 粮 ' + Math.round((GM.neitang && GM.neitang.grain||0)/10000) + ' 万石 · 布 ' + Math.round((GM.neitang && GM.neitang.cloth||0)/10000) + ' 万匹 · 皇庄 ' + Math.round(_v.neitang.huangzhuangAcres||0) + ' 亩';
             // 本回合税收级联摘要（帮助 AI 了解自然结算已完成什么）

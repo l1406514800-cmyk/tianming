@@ -115,12 +115,14 @@ load('tm-migration.js');
 load('tm-ai-schema.js');
 load('tm-ai-output-validator.js');
 load('tm-ai-change-applier.js');
+load('tm-data-access.js');
 
 const EC = context.TM.EngineConstants;
 const MS = context.MilitarySystems;
 check(EC, 'EngineConstants missing');
 check(MS, 'MilitarySystems missing');
 check(context.TM.MilitarySystems === MS, 'MilitarySystems TM alias missing');
+check(context.DA && context.DA.armies, 'DataAccess armies facade missing');
 
 const endturnSource = readEndturnSource();
 check(endturnSource.indexOf('MilitarySystems.getMilitarySystems(GM)') >= 0, 'sc18 should inject militarySystems catalog context');
@@ -138,12 +140,78 @@ check(endturnSource.indexOf('lastInteractionMemory/recognitionState') >= 0, 'sc0
 const militarySource = fs.readFileSync(path.join(ROOT, 'tm-military.js'), 'utf8');
 const renderSource = fs.readFileSync(path.join(ROOT, 'tm-endturn-render.js'), 'utf8');
 const applierSource = fs.readFileSync(path.join(ROOT, 'tm-ai-change-applier.js'), 'utf8');
+const phase8FormalSource = fs.readFileSync(path.join(ROOT, 'phase8-formal-bridge.js'), 'utf8');
 check(militarySource.indexOf('a.armyType') >= 0, 'syncMilitarySources should preserve scenario armyType buckets');
 check(renderSource.indexOf("['军','势力','统帅','驻地'") >= 0, 'military risk table should show faction column');
 check(renderSource.indexOf('欠饷≥3月') >= 0, 'military risk warning should use 欠饷 wording');
 check(applierSource.indexOf('function applyAIArmyChange') >= 0, 'AI applier should expose shared army writeback helper');
 check(applierSource.indexOf('military_changes') >= 0 && applierSource.indexOf('army_changes') >= 0,
   'AI applier should consume both military_changes and army_changes');
+check(phase8FormalSource.indexOf('function refreshActivePanel') >= 0 &&
+      phase8FormalSource.indexOf('function refreshArmyFlyout') >= 0 &&
+      phase8FormalSource.indexOf('refreshPanel: refreshActivePanel') >= 0 &&
+      phase8FormalSource.indexOf('refreshActivePanel();') >= 0,
+  'phase8 formal refresh should redraw the active right panel');
+
+let militaryRefreshHits = 0;
+let formalBridgeRefreshHits = 0;
+const realSyncMilitarySources = context.syncMilitarySources;
+context.syncMilitarySources = function(G) {
+  check(G === context.GM, 'military refresh should receive live GM');
+  militaryRefreshHits++;
+  if (typeof realSyncMilitarySources === 'function') return realSyncMilitarySources(G);
+  return undefined;
+};
+context.renderTopBarVars = function() { militaryRefreshHits++; };
+context.syncArmiesToMap = function() { militaryRefreshHits++; };
+context.renderMap = function() { militaryRefreshHits++; };
+context.TMPhase8FormalBridge = {
+  refresh() {
+    militaryRefreshHits++;
+    formalBridgeRefreshHits++;
+  }
+};
+context.GM = {
+  turn: 7,
+  chars: [],
+  facs: [],
+  armies: [{
+    id: 'army_liaodong',
+    name: '辽东军',
+    faction: '明朝廷',
+    commander: '旧将',
+    commanderName: '旧将',
+    general: '旧将',
+    soldiers: 12000,
+    size: 12000,
+    strength: 12000
+  }]
+};
+const commanderSwap = context.applyAIArmyChange(
+  { name: '辽东军', commander: '新将', reason: '改任主将' },
+  { source: 'smoke.army.commander' }
+);
+check(commanderSwap && commanderSwap.ok && commanderSwap.changed, 'existing army commander change should be applied');
+checkEq(context.GM.armies[0].commander, '新将', 'army.commander should update on existing army');
+checkEq(context.GM.armies[0].commanderName, '新将', 'army commanderName alias should stay live');
+checkEq(context.GM.armies[0].general, '新将', 'army general alias should stay live');
+check(militaryRefreshHits >= 4, 'army commander change should refresh military views');
+check(formalBridgeRefreshHits >= 1, 'army commander change should refresh phase8 formal bridge');
+check(context.GM._turnReport.some(function(r) {
+  return r && r.type === 'military' && r.field === 'commander' && r.old === '旧将' && r.new === '新将';
+}), 'army commander change should be recorded in turn report');
+
+context.GM = {
+  armies: [
+    { name:'soldiers', faction:'A', soldiers:10 },
+    { name:'troops', faction:'A', troops:20 },
+    { name:'size', faction:'B', size:30 },
+    { name:'strength', faction:'A', strength:40 },
+    { name:'initial', faction:'A', initialTroops:50 }
+  ]
+};
+checkEq(context.DA.armies.totalTroops(), 150, 'DA.armies.totalTroops should read live army troop aliases');
+checkEq(context.DA.armies.totalTroops('A'), 120, 'DA.armies.totalTroops should filter faction with live aliases');
 
 const saveLifecycleSource = fs.readFileSync(path.join(ROOT, 'tm-save-lifecycle.js'), 'utf8');
 check(saveLifecycleSource.indexOf('EngineMigration.run(GM);') >= 0, 'save lifecycle should run engine migration');

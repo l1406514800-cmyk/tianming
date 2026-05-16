@@ -18,6 +18,30 @@
     return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
   }
 
+  function _readCorruptionIndex(G, fallback) {
+    var c = G && G.corruption;
+    if (typeof c === 'number' && isFinite(c)) return c;
+    if (!c || typeof c !== 'object') return fallback;
+    if (typeof c.trueIndex === 'number' && isFinite(c.trueIndex)) return c.trueIndex;
+    if (typeof c.overall === 'number' && isFinite(c.overall)) return c.overall;
+    if (typeof c.index === 'number' && isFinite(c.index)) return c.index;
+    return fallback;
+  }
+
+  function _readProvincialCorruption(G) {
+    var c = G && G.corruption;
+    if (!c || typeof c !== 'object') return undefined;
+    var sub = c.subDepts && c.subDepts.provincial;
+    if (sub && typeof sub.true === 'number' && isFinite(sub.true)) return sub.true;
+    var by = c.byDept && c.byDept.provincial;
+    if (typeof by === 'number' && isFinite(by)) return by;
+    if (by && typeof by === 'object') {
+      if (typeof by.true === 'number' && isFinite(by.true)) return by.true;
+      if (typeof by.overall === 'number' && isFinite(by.overall)) return by.overall;
+    }
+    return undefined;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  事件总线
   // ═══════════════════════════════════════════════════════════════════
@@ -107,8 +131,8 @@
     if (!G.population) return;
     var P = G.population;
     // §G.1 户口 ← 腐败：胥吏勒索 → 隐户率
-    var corr = G.corruption && G.corruption.overall || 30;
-    var provCorr = G.corruption && G.corruption.byDept && G.corruption.byDept.provincial;
+    var corr = _readCorruptionIndex(G, 30);
+    var provCorr = _readProvincialCorruption(G);
     if (provCorr !== undefined && provCorr > 60) {
       // 每月隐户率 +0.01%
       var hidInc = Math.floor((P.national.households || 0) * 0.0001 * (provCorr - 60) / 40 * mr);
@@ -155,14 +179,14 @@
     if (!G.huangwei || !G.corruption || !G.guoku) return;
     var hwIdx = G.huangwei.index || 50;
     var hwPhase = hwIdx >= 90 ? 'tyrant' : hwIdx >= 70 ? 'majesty' : hwIdx >= 50 ? 'normal' : hwIdx >= 30 ? 'decline' : 'lost';
-    var corr = G.corruption.overall || 30;
+    var corr = _readCorruptionIndex(G, 30);
     // 按三段分化：威严→抑腐、暴君→隐匿、失威→公开漏
     var leakRate = 0;
     var extraLoss = 0;
     if (hwPhase === 'majesty') {
       // 威严段抑腐：腐败实际影响衰减
       leakRate = corr / 100 * 0.015;
-      if (typeof G.corruption === 'object') G.corruption.overall = Math.max(0, corr - 0.05 * mr);
+      if (typeof G.corruption === 'object') { G.corruption.trueIndex = Math.max(0, corr - 0.05 * mr); G.corruption.overall = G.corruption.trueIndex; }
     } else if (hwPhase === 'tyrant') {
       // 暴君段隐匿：腐败被粉饰，实际漏损更高
       leakRate = corr / 100 * 0.035;
@@ -221,7 +245,7 @@
         if (global.addEB) global.addEB('破产', '驿站倒塌，政令滞');
     } },
     { id:4, name:'腐败激增',    effect:function(G){
-        if (G.corruption && typeof G.corruption === 'object') G.corruption.overall = Math.min(100, (G.corruption.overall||30) + 10);
+        if (G.corruption && typeof G.corruption === 'object') { G.corruption.trueIndex = Math.min(100, (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : (G.corruption.overall||30)) + 10); G.corruption.overall = G.corruption.trueIndex; }
         if (global.addEB) global.addEB('破产', '官吏苟且，腐败暴涨');
     } },
     { id:5, name:'边军哗变',    effect:function(G){
@@ -297,7 +321,7 @@
     var hq = G.huangquan && G.huangquan.index;
     var mx = G.minxin && G.minxin.trueIndex;
     var mxP = G.minxin && G.minxin.perceivedIndex;
-    var corr = G.corruption && G.corruption.overall;
+    var corr = _readCorruptionIndex(G, undefined);
     if (hw !== undefined) lines.push('【皇威】' + Math.round(hw) + (G.huangwei.phase ? '（' + G.huangwei.phase + '）' : ''));
     if (hq !== undefined) lines.push('【皇权】' + Math.round(hq) + (G.huangquan.phase ? '（' + G.huangquan.phase + '）' : ''));
     if (mx !== undefined) lines.push('【民心】' + Math.round(mx) + (mxP !== undefined && Math.abs(mxP-mx)>5 ? '（感知 ' + Math.round(mxP) + '）' : ''));

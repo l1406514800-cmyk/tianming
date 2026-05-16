@@ -105,7 +105,8 @@
     }
     // 全国贪腐下降少许
     if (G.corruption && typeof G.corruption === 'object') {
-      G.corruption.overall = Math.max(0, (G.corruption.overall || 30) - 2);
+      G.corruption.trueIndex = Math.max(0, (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : (G.corruption.overall || 30)) - 2);
+      G.corruption.overall = G.corruption.trueIndex;
     }
     // 若该 region 的地方官存在 → 可能下狱
     var localGov = (G.chars || []).find(function(c){return c.alive !== false && c.region === audit.region && (c.officialTitle||'').match(/知|总督|巡抚|刺史/);});

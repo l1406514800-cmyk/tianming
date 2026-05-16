@@ -40,6 +40,7 @@ const checks = [
   { name: 'topbar-fiscal-consistency', file: 'smoke-topbar-fiscal-consistency.js', estSec: 1, expectExit: 0 },
   { name: 'endturn-console-regressions', file: 'smoke-endturn-console-regressions.js', estSec: 1, expectExit: 0 },
   { name: 'wentian-hardchange', file: 'smoke-wentian-hardchange.js', estSec: 1, expectExit: 0 },
+  { name: 'ai-core-path-aliases', file: 'smoke-ai-core-path-aliases.js', estSec: 1, expectExit: 0 },
   { name: 'faction-relations', file: 'smoke-faction-relations.js', estSec: 1, expectExit: 0 },
   { name: 'faction-index', file: 'smoke-faction-index.js', estSec: 1, expectExit: 0 },
   { name: 'faction-index-e2e', file: 'smoke-faction-index-e2e.js', estSec: 1, expectExit: 0 },

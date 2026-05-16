@@ -32,6 +32,28 @@
     return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
   }
 
+  function _corrIndex(G) {
+    var c = G && G.corruption;
+    if (typeof c === 'number') return c;
+    if (!c || typeof c !== 'object') return 30;
+    if (typeof c.trueIndex === 'number') return c.trueIndex;
+    if (typeof c.overall === 'number') return c.overall;
+    if (typeof c.index === 'number') return c.index;
+    return 30;
+  }
+
+  function _setCorrIndex(G, value) {
+    if (!G || !G.corruption || typeof G.corruption !== 'object') return;
+    var next = Math.max(0, Math.min(100, Number(value) || 0));
+    G.corruption.trueIndex = next;
+    G.corruption.overall = next;
+    if (G.corruption.perceivedIndex === undefined) G.corruption.perceivedIndex = next;
+  }
+
+  function _addCorrIndex(G, delta) {
+    _setCorrIndex(G, _corrIndex(G) + (Number(delta) || 0));
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  P0-5 · 民心 byRegion / byClass 矩阵 — 扩展初始化
   // ═══════════════════════════════════════════════════════════════════
@@ -310,7 +332,7 @@
     if (G.minxin && G.minxin.perceivedIndex > G.minxin.trueIndex) {
       ts.hiddenDamage.unreportedMinxinDrop = (ts.hiddenDamage.unreportedMinxinDrop || 0) + (G.minxin.perceivedIndex - G.minxin.trueIndex) * 0.1 * mr;
     }
-    if (G.corruption && (G.corruption.overall || 0) > 40) {
+    if (G.corruption && _corrIndex(G) > 40) {
       ts.hiddenDamage.concealedCorruption = (ts.hiddenDamage.concealedCorruption || 0) + 0.5 * mr;
     }
     if (hw.drains.memorialObjection > 0) {
@@ -329,7 +351,7 @@
     var G = global.GM;
     if (G.minxin) G.minxin.trueIndex = Math.max(0, G.minxin.trueIndex - (ts.hiddenDamage.unreportedMinxinDrop || 0));
     if (G.corruption && typeof G.corruption === 'object') {
-      G.corruption.overall = Math.min(100, (G.corruption.overall || 30) + (ts.hiddenDamage.concealedCorruption || 0));
+      _addCorrIndex(G, ts.hiddenDamage.concealedCorruption || 0);
     }
     if (global.addEB) global.addEB('皇威', '暴君觉醒！颂圣破产，隐伤兑现（皇威 -25）');
     ts.hiddenDamage = {};
@@ -837,7 +859,7 @@
     // 户口 → 腐败（冗员多则腐败增）
     if (G.population && G.population.byCategory && G.population.byCategory.ruhu && G.corruption && typeof G.corruption === 'object') {
       var ruhu = G.population.byCategory.ruhu.mouths || 0;
-      if (ruhu > 1000000) G.corruption.overall = Math.min(100, G.corruption.overall + 0.03 * mr);
+      if (ruhu > 1000000) _addCorrIndex(G, 0.03 * mr);
     }
     // 户口 → 皇权（大人口需强管制）
     if (G.population && G.population.national && G.population.national.mouths > 200000000) {
@@ -845,7 +867,7 @@
     }
 
     // 腐败 → 皇威（贪腐官绅横行 → 皇威损）
-    var corruptLevel = G.corruption && typeof G.corruption === 'object' ? G.corruption.overall : 30;
+    var corruptLevel = _corrIndex(G);
     if (_allowPassiveAuthorityLinkage() && corruptLevel > 70 && typeof global.AuthorityEngines !== 'undefined') {
       global.AuthorityEngines.adjustHuangwei('lostVirtueRumor', -0.1 * mr, '贪腐横行');
     }
@@ -856,7 +878,7 @@
     }
     // 民心 → 腐败（高民心 → 举报多 → 腐败曝光）
     if (G.minxin && G.minxin.trueIndex > 80 && G.corruption && typeof G.corruption === 'object') {
-      G.corruption.overall = Math.max(0, G.corruption.overall - 0.05 * mr);
+      _addCorrIndex(G, -0.05 * mr);
     }
 
     // 皇权 → 帑廪（强皇权 → 税收效率高）
@@ -886,7 +908,7 @@
     }
     // 皇威 → 腐败（失威段 → 腐败公开化）
     if (G.huangwei && G.huangwei.phase === 'lost' && G.corruption && typeof G.corruption === 'object') {
-      G.corruption.overall = Math.min(100, G.corruption.overall + 0.1 * mr);
+      _addCorrIndex(G, 0.1 * mr);
     }
     // 皇威 → 皇权（威远 → 诏令更易推行，等效皇权提升）
     if (_allowPassiveAuthorityLinkage() && G.huangwei && G.huangwei.index > 85 && G.huangquan) {

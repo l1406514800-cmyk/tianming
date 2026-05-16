@@ -3785,7 +3785,8 @@ function _ty3_phase15_scanAndSpawnTopics() {
       }
     }
   });
-  var minXin = (typeof GM.minxin === 'number') ? GM.minxin : (GM.minxin && GM.minxin.value);
+  var minXin = (typeof GM.minxin === 'number') ? GM.minxin :
+    (GM.minxin && (typeof GM.minxin.trueIndex === 'number' ? GM.minxin.trueIndex : GM.minxin.value));
   if (typeof minXin === 'number' && minXin <= 30) {
     var prop3 = _ty3_pickProposer({ fallbackTitle: '\u6237\u90E8|\u6C11\u653F|censor' });
     var t3 = { topic: '\u6C11\u5FC3\u4F4E\u8FF7\u00B7\u8BAE\u8D48\u6D4E\u4E0E\u5B89\u629A', from: 'ty3-spawn-popular-unrest', turn: GM.turn, minxin: minXin };

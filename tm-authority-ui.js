@@ -110,7 +110,10 @@
     else G.huangquan = preset.hq;
     if (typeof G.minxin === 'object') G.minxin.trueIndex = preset.mx;
     else G.minxin = preset.mx;
-    if (G.corruption && typeof G.corruption === 'object') G.corruption.overall = preset.corr;
+    if (G.corruption && typeof G.corruption === 'object') {
+      G.corruption.trueIndex = preset.corr;
+      G.corruption.overall = preset.corr;
+    }
     return { ok: true, preset: preset };
   }
 

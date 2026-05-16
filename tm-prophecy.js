@@ -203,7 +203,7 @@
     hw.index = Math.max(0, hw.index + (eff.hwDelta || -20));
     if (eff.exposeHidden) {
       if (G.minxin) G.minxin.trueIndex = Math.max(0, G.minxin.trueIndex - (ts.hiddenDamage.unreportedMinxinDrop || 0));
-      if (G.corruption && typeof G.corruption === 'object') G.corruption.overall = Math.min(100, (G.corruption.overall || 30) + (ts.hiddenDamage.concealedCorruption || 0));
+      if (G.corruption && typeof G.corruption === 'object') { G.corruption.trueIndex = Math.min(100, (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : (G.corruption.overall || 30)) + (ts.hiddenDamage.concealedCorruption || 0)); G.corruption.overall = G.corruption.trueIndex; }
       ts.hiddenDamage = {};
       ts.flatteryMemorialRatio = 0;
     }
@@ -447,7 +447,7 @@
       r._investigated = true;
       // 查访可能发现真实原因
       r._realCause = (G.vars && G.vars.disasterLevel > 0.3) ? '灾荒' :
-                     (G.corruption && G.corruption.overall > 55) ? '贪官' :
+                     (G.corruption && (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall) > 55) ? '贪官' :
                      (G.population && G.population.corvee && G.population.corvee.recentDeaths > 5000) ? '苛役' : '税重';
       if (global.addEB) global.addEB('民变', '御史查访 ' + (r.region || '某地') + '，果为 ' + r._realCause);
       return { ok: true, cause: r._realCause };

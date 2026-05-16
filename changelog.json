@@ -3,6 +3,48 @@
   "entries": [
     {
       "date": "2026-05-16",
+      "module": "军务系统·动态部队数据",
+      "title": "修正军队统帅等字段读写脱节，换将后新 UI 会立即刷新",
+      "items": [
+        {
+          "what": "已有部队现在会正确接收 commander / commanderName / general / leader / newCommander 等统帅变更，并同步回 GM.armies 的 live 字段。",
+          "why": "避免诏令、朝议或 AI 写回已改任主将，但军队对象仍停在剧本初始死字段，导致军务界面和后续推演继续读旧将。"
+        },
+        {
+          "what": "正式新 UI 的右侧军务面板和部队详情浮层会在军队数据变化后重绘。",
+          "why": "避免玩家已经更换将领或调整军队后，面板打开状态下仍显示旧 HTML。"
+        },
+        {
+          "what": "统一军队兵力统计别名，totalTroops 会读取 soldiers / troops / size / strength / initialTroops。",
+          "why": "减少不同军队来源字段不一致造成的兵力统计不动、统计偏低或看似死数值的问题。"
+        },
+        {
+          "what": "新增军队换将与兵力别名回归 smoke，并纳入 verify-all 覆盖。",
+          "why": "锁住已有部队换将必须写入 live 存档、刷新军务 UI、记录回合报告的行为。"
+        }
+      ]
+    },
+    {
+      "date": "2026-05-16",
+      "module": "全局数值口径·AI写回审计",
+      "title": "统一核心变量旧字段别名，减少影子字段与读数错位",
+      "items": [
+        {
+          "what": "回合推演 AI 的 changes / anyPathChanges 现在会把 vars.皇威.value、minxin.value、corruption.overall、guoku.balance 等旧口径归一到真实运行字段。",
+          "why": "避免 AI 已经写回但写到影子字段，导致顶部栏、史记弹窗、后续推演读取不到。"
+        },
+        {
+          "what": "朝议、天议、编年长期效果、皇权皇威联动、事件总线与腐败联动改为优先读写 trueIndex / index，并同步 overall/value 兼容字段。",
+          "why": "避免类似“腐败/吏治、民心、皇威发生变化但实际主数值不动”的隐性问题。"
+        },
+        {
+          "what": "新增 ai-core-path-aliases smoke 并纳入 verify-all。",
+          "why": "持续检查 AI 写回不会创建 GM.vars 影子容器，且财政、民心、腐败、皇威等核心变量能同步到正式字段。"
+        }
+      ]
+    },
+    {
+      "date": "2026-05-16",
       "module": "朝议系统·御前会议",
       "title": "修正本回合朝议次数已满时御前会议无法召开的入口误拦截",
       "items": [

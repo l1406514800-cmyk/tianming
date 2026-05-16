@@ -639,7 +639,8 @@
           var v = typeof G.corruption.byDept[d] === 'object' ? (G.corruption.byDept[d].true || G.corruption.byDept[d].overall) : G.corruption.byDept[d];
           if (v !== undefined && !isNaN(v)) { deptSum += v; deptCnt++; }
         });
-        G.corruption.overall = deptCnt > 0 ? deptSum / deptCnt : avgProvCorr;
+        G.corruption.trueIndex = deptCnt > 0 ? deptSum / deptCnt : avgProvCorr;
+        G.corruption.overall = G.corruption.trueIndex;
       }
     }
 

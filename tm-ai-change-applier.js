@@ -67,6 +67,100 @@
     return { parent: parent, key: lastKey, exists: parent[lastKey] !== undefined, value: parent[lastKey] };
   }
 
+  function _normalizeCoreVarPath(path) {
+    var p = String(path || '').trim().replace(/\s+/g, '');
+    p = p.replace(/\[(\d+)\]/g, '.$1');
+    p = p.replace(/^(GM|gm)\./, '');
+    p = p.replace(/^(vars|variables|var|变量|變量|七变量|七變量)\./i, '');
+    var aliases = {
+      '皇权': 'huangquan.index',
+      '皇权.value': 'huangquan.index',
+      '皇权.index': 'huangquan.index',
+      '皇權': 'huangquan.index',
+      '皇權.value': 'huangquan.index',
+      '皇權.index': 'huangquan.index',
+      '皇威': 'huangwei.index',
+      '皇威.value': 'huangwei.index',
+      '皇威.index': 'huangwei.index',
+      '民心': 'minxin.trueIndex',
+      '民心.value': 'minxin.trueIndex',
+      '民心.index': 'minxin.trueIndex',
+      'minxin.value': 'minxin.trueIndex',
+      'minxin.index': 'minxin.trueIndex',
+      '吏治': 'corruption.trueIndex',
+      '吏治.value': 'corruption.trueIndex',
+      '吏治.index': 'corruption.trueIndex',
+      '腐败': 'corruption.trueIndex',
+      '腐败.value': 'corruption.trueIndex',
+      '腐败.index': 'corruption.trueIndex',
+      '腐败.overall': 'corruption.trueIndex',
+      '腐敗': 'corruption.trueIndex',
+      '腐敗.value': 'corruption.trueIndex',
+      '腐敗.index': 'corruption.trueIndex',
+      '腐敗.overall': 'corruption.trueIndex',
+      'corruption.value': 'corruption.trueIndex',
+      'corruption.index': 'corruption.trueIndex',
+      'corruption.overall': 'corruption.trueIndex',
+      'huangquan.value': 'huangquan.index',
+      'huangwei.value': 'huangwei.index',
+      '国库': 'guoku.money',
+      '國庫': 'guoku.money',
+      '帑廪': 'guoku.money',
+      '帑廩': 'guoku.money',
+      '白银': 'guoku.money',
+      '银两': 'guoku.money',
+      'guoku.balance': 'guoku.money',
+      'neicang': 'neitang.money',
+      'neicang.money': 'neitang.money',
+      'neicang.balance': 'neitang.money',
+      '内帑': 'neitang.money',
+      '內帑': 'neitang.money',
+      'neitang.balance': 'neitang.money'
+    };
+    return aliases[p] || p;
+  }
+
+  function _syncCoreVarSideEffects(path, value, meta) {
+    var G = global.GM;
+    if (!G) return;
+    meta = meta || {};
+    var n = Number(value);
+    var hasNumber = isFinite(n);
+    if (path === 'guoku.money' && G.guoku) {
+      G.guoku.balance = G.guoku.money;
+      if (G.guoku.ledgers && G.guoku.ledgers.money) G.guoku.ledgers.money.stock = G.guoku.money;
+    }
+    if (path === 'neitang.money' && G.neitang) {
+      G.neitang.balance = G.neitang.money;
+      if (G.neitang.ledgers && G.neitang.ledgers.money) G.neitang.ledgers.money.stock = G.neitang.money;
+    }
+    if (path === 'huangquan.index' && G.huangquan && typeof G.huangquan === 'object') {
+      G.huangquan.value = G.huangquan.index;
+    }
+    if (path === 'huangwei.index' && G.huangwei && typeof G.huangwei === 'object') {
+      G.huangwei.value = G.huangwei.index;
+    }
+    if (path === 'minxin.trueIndex' && G.minxin && typeof G.minxin === 'object') {
+      G.minxin.value = G.minxin.trueIndex;
+      if (G.minxin.perceivedIndex === undefined && hasNumber) G.minxin.perceivedIndex = n;
+    }
+    if (path === 'corruption.trueIndex' && G.corruption && typeof G.corruption === 'object') {
+      G.corruption.overall = G.corruption.trueIndex;
+      if (G.corruption.perceivedIndex === undefined && hasNumber) G.corruption.perceivedIndex = n;
+      if (G.corruption.subDepts && hasNumber) {
+        Object.keys(G.corruption.subDepts).forEach(function(k) {
+          var d = G.corruption.subDepts[k];
+          if (!d || typeof d !== 'object') return;
+          if (meta.op === 'delta' && isFinite(Number(meta.delta))) d.true = Math.max(0, Math.min(100, (Number(d.true) || 0) + Number(meta.delta)));
+          else d.true = n;
+        });
+      }
+    } else if (/^corruption\.subDepts\.[^.]+\.true$/.test(path) &&
+      global.CorruptionEngine && typeof global.CorruptionEngine.syncIndexFromSubDepts === 'function') {
+      try { global.CorruptionEngine.syncIndexFromSubDepts(meta.reason || 'AI腐败部门调整'); } catch(_) {}
+    }
+  }
+
   // 七变量核心路径标签（纳入原史记 GM.turnChanges.variables 展示机制）
   var _VAR_PATH_LABELS = {
     'guoku.money': '国库·银',
@@ -84,7 +178,7 @@
     'minxin.trueIndex': '民心',
     'minxin.perceivedIndex': '民心·视',
     'corruption.overall': '腐败',
-    'corruption.trueIndex': '腐败·真',
+    'corruption.trueIndex': '腐败',
     'corruption.perceivedIndex': '腐败·视',
     'population.national.mouths': '人口',
     'population.national.households': '户数',
@@ -244,6 +338,7 @@
   }
 
   function _applyPathDelta(obj, path, delta, reason) {
+    path = _normalizeCoreVarPath(path);
     var r = _resolvePath(obj, path);
     if (!r.parent) {
       console.warn('[ai-applier] path not found:', path);
@@ -261,11 +356,13 @@
     }
     var old = typeof r.value === 'number' ? r.value : 0;
     r.parent[r.key] = old + delta;
+    _syncCoreVarSideEffects(path, r.parent[r.key], { op: 'delta', delta: delta, reason: reason });
     _recordToTurnChanges(path, old, r.parent[r.key], reason);
-    return { ok: true, old: old, new: r.parent[r.key], delta: delta, reason: reason };
+    return { ok: true, path: path, old: old, new: r.parent[r.key], delta: delta, reason: reason };
   }
 
   function _applyPathSet(obj, path, value, reason) {
+    path = _normalizeCoreVarPath(path);
     var pathKey = String(path || '').replace(/^GM\./, '');
     var r = _resolvePath(obj, path);
     if (!r.parent) {
@@ -277,9 +374,10 @@
         cur = cur[keys[i]];
       }
       cur[keys[keys.length-1]] = value;
+      _syncCoreVarSideEffects(path, value, { op: 'set', reason: reason });
       _recordToTurnChanges(path, undefined, value, reason);
       if (pathKey === 'armies' && Array.isArray(value)) _refreshMilitaryViews(obj);
-      return { ok: true, old: undefined, new: value, reason: reason };
+      return { ok: true, path: path, old: undefined, new: value, reason: reason };
     }
     var old = r.value;
     if (/^chars\.[^.]+\.loyalty$/.test(String(path)) && typeof global.setCharacterLoyalty === 'function') {
@@ -293,9 +391,10 @@
       return { ok: true, old: loySet.oldValue, new: loySet.newValue, reason: reason };
     }
     r.parent[r.key] = value;
+    _syncCoreVarSideEffects(path, value, { op: 'set', reason: reason });
     _recordToTurnChanges(path, old, value, reason);
     if (pathKey === 'armies' && Array.isArray(value)) _refreshMilitaryViews(obj);
-    return { ok: true, old: old, new: value, reason: reason };
+    return { ok: true, path: path, old: old, new: value, reason: reason };
   }
 
   function _applyPathPush(obj, path, value) {
@@ -447,6 +546,54 @@
     try { if (typeof global.renderTopBarVars === 'function') global.renderTopBarVars(); } catch(_) {}
     try { if (typeof global.syncArmiesToMap === 'function') global.syncArmiesToMap(); } catch(_) {}
     try { if (typeof global.renderMap === 'function') global.renderMap(); } catch(_) {}
+    try {
+      if (global.TMPhase8FormalBridge && typeof global.TMPhase8FormalBridge.refresh === 'function') {
+        global.TMPhase8FormalBridge.refresh();
+      }
+    } catch(_) {}
+  }
+
+  function _armyCommanderField(change) {
+    if (!change || typeof change !== 'object') return null;
+    var keys = ['commander', 'commanderName', 'general', 'leader', 'newCommander', 'newGeneral', 'chiefCommander'];
+    for (var i = 0; i < keys.length; i += 1) {
+      if (Object.prototype.hasOwnProperty.call(change, keys[i]) && change[keys[i]] != null) {
+        return String(change[keys[i]] || '').trim();
+      }
+    }
+    return null;
+  }
+
+  function _armyCurrentCommander(army) {
+    if (!army) return '';
+    var keys = ['commander', 'commanderName', 'general', 'leader'];
+    for (var i = 0; i < keys.length; i += 1) {
+      var v = army[keys[i]];
+      if (v != null && String(v).trim()) return String(v).trim();
+    }
+    return '';
+  }
+
+  function _syncArmyCommanderAliases(army, commander, oldCommander) {
+    if (!army) return false;
+    commander = String(commander || '').trim();
+    var changed = false;
+    ['commander', 'commanderName', 'general'].forEach(function(k) {
+      if (army[k] !== commander) {
+        army[k] = commander;
+        changed = true;
+      }
+    });
+    if (Object.prototype.hasOwnProperty.call(army, 'leader')) {
+      var leader = String(army.leader || '').trim();
+      if (!leader || leader === oldCommander || leader === commander) {
+        if (army.leader !== commander) {
+          army.leader = commander;
+          changed = true;
+        }
+      }
+    }
+    return changed;
   }
 
   function applyAIArmyChange(change, opts) {
@@ -463,6 +610,7 @@
     var delta = _armyChangeDelta(change);
     var army = _findArmyForAIChange(G, name);
     var reason = change.reason || change.rationale || opts.reason || 'AI推演';
+    var commanderInput = _armyCommanderField(change);
     var changed = false;
     var created = false;
 
@@ -488,7 +636,7 @@
         controlLevel: _clampNum(change.controlLevel != null ? change.controlLevel : 60, 0, 100),
         location: change.location || change.garrison || change.region || change.province || change.destination || '',
         garrison: change.garrison || change.location || change.region || change.province || change.destination || '',
-        commander: change.commander || '',
+        commander: commanderInput || '',
         equipment: Array.isArray(change.equipment) ? change.equipment : [],
         composition: Array.isArray(change.composition) ? change.composition : [{ type: armyType, count: delta }],
         state: change.state || 'garrison',
@@ -497,6 +645,7 @@
         _aiCreated: true,
         _createdTurn: G.turn || 0
       };
+      if (commanderInput) _syncArmyCommanderAliases(army, commanderInput, '');
       G.armies.push(army);
       if (factionName) {
         try {
@@ -514,6 +663,20 @@
       G._turnReport.push({ type:'military', armyName:name, field:'soldiers', old:0, new:delta, delta:delta, created:true, reason:reason, source:opts.source || '', turn:G.turn||0 });
       if (typeof global.addEB === 'function') global.addEB('军事', '新建' + name + '·' + delta + '兵' + (reason ? '：' + reason : ''));
     } else {
+      if (commanderInput !== null) {
+        var oldCommander = _armyCurrentCommander(army);
+        var aliasesChanged = _syncArmyCommanderAliases(army, commanderInput, oldCommander);
+        if (aliasesChanged) {
+          if (oldCommander !== commanderInput && typeof opts.recordChange === 'function') {
+            opts.recordChange('military', army.name || name, 'commander', oldCommander, commanderInput, reason);
+          }
+          if (oldCommander !== commanderInput) {
+            G._turnReport.push({ type:'military', armyName:army.name || name, field:'commander', old:oldCommander, new:commanderInput, reason:reason, source:opts.source || '', turn:G.turn||0 });
+            if (typeof global.addEB === 'function') global.addEB('\u519b\u4e8b', (army.name || name) + '\u6539\u4efb\u4e3b\u5c06: ' + (commanderInput || '\u672a\u7f6e') + (reason ? '; ' + reason : ''));
+          }
+          changed = true;
+        }
+      }
       if (delta) {
         var oldS = Math.max(0, Math.round(Number(army.soldiers || army.size || army.strength || 0) || 0));
         var newS = Math.max(0, oldS + delta);
@@ -1128,7 +1291,7 @@
         applied.changes++;
         G._turnReport.push({
           type: 'change',
-          path: ch.path,
+          path: result.path || ch.path,
           old: result.old,
           new: result.new,
           delta: ch.delta,
@@ -1788,7 +1951,7 @@
       }
       if (result && result.ok) {
         anyPathCount++;
-        G._turnReport.push({ type:'anyPath', path: apc.path, op: apc.op||'set', old: result.old, new: result.new, reason: apc.reason, turn: G.turn||0 });
+        G._turnReport.push({ type:'anyPath', path: result.path || apc.path, op: apc.op||'set', old: result.old, new: result.new, reason: apc.reason, turn: G.turn||0 });
       } else {
         applied.failed.push({ anyPath: apc.path, reason: result && result.reason });
       }

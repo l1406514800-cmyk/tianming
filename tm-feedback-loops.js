@@ -21,7 +21,7 @@
     var hw = G.huangwei.index;
     var hq = G.huangquan.index;
     var mx = G.minxin.trueIndex;
-    var corr = G.corruption && G.corruption.overall || 30;
+    var corr = G.corruption && (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall) || 30;
     // 四件都好
     var isEnlightened = hw >= 70 && hw < 90 && hq >= 50 && hq <= 75 && mx >= 65 && corr < 35;
     if (!isEnlightened) { G._enlightenedStreak = 0; return; }
@@ -36,8 +36,9 @@
       if (hw < 88) global.AuthorityEngines.adjustHuangwei('benevolence', 0.2 * mr);
     }
     // 腐败缓降
-    if (G.corruption && typeof G.corruption === 'object' && G.corruption.overall > 10) {
-      G.corruption.overall = Math.max(5, G.corruption.overall - 0.3 * mr);
+    if (G.corruption && typeof G.corruption === 'object' && corr > 10) {
+      G.corruption.trueIndex = Math.max(5, corr - 0.3 * mr);
+      G.corruption.overall = G.corruption.trueIndex;
     }
     // 帑廪略加
     if (G.guoku && G._taxEfficiencyMult && G._taxEfficiencyMult > 0.8) {
@@ -53,7 +54,7 @@
     var hw = G.huangwei.index;
     var hq = G.huangquan.index;
     var mx = G.minxin.trueIndex;
-    var corr = G.corruption && G.corruption.overall || 30;
+    var corr = G.corruption && (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall) || 30;
     var isCollapsing = hw <= 30 && hq <= 35 && mx <= 30 && corr >= 65;
     if (!isCollapsing) { G._collapseStreak = 0; return; }
     G._collapseStreak = (G._collapseStreak || 0) + 1;
@@ -63,7 +64,7 @@
       global.AuthorityEngines.adjustMinxin('taxation', -0.4 * mr, '末世崩溃链');
       global.AuthorityEngines.adjustHuangwei('capitalFall', -0.3 * mr);
     }
-    if (G.corruption && typeof G.corruption === 'object') G.corruption.overall = Math.min(100, G.corruption.overall + 0.5 * mr);
+    if (G.corruption && typeof G.corruption === 'object') { G.corruption.trueIndex = Math.min(100, corr + 0.5 * mr); G.corruption.overall = G.corruption.trueIndex; }
     // 帑廪流失
     if (G.guoku) G.guoku.money = Math.max(0, G.guoku.money - Math.floor((G.guoku.annualIncome || 10000000) * 0.003 * mr / 12));
     if (G._collapseStreak === 3 && global.addEB) global.addEB('末世', '风雨飘摇，气数将尽');
@@ -74,7 +75,7 @@
     var G = global.GM;
     if (!G.huangwei || !G.corruption || !G.guoku) return;
     var tyrant = G.huangwei.tyrantSyndrome && G.huangwei.tyrantSyndrome.active;
-    var corr = G.corruption.overall || 30;
+    var corr = (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall) || 30;
     var lowTreasury = (G.guoku.money || 0) < (G.guoku.annualIncome || 10000000) * 0.1;
     if (!(tyrant && corr > 55 && lowTreasury)) { G._leakageActive = false; return; }
     G._leakageActive = true;
@@ -85,7 +86,8 @@
     // 民心受损
     if (typeof global.AuthorityEngines !== 'undefined') global.AuthorityEngines.adjustMinxin('taxation', -0.2 * mr, '浮收扰民');
     // 腐败加剧
-    G.corruption.overall = Math.min(100, corr + 0.2 * mr);
+    G.corruption.trueIndex = Math.min(100, corr + 0.2 * mr);
+    G.corruption.overall = G.corruption.trueIndex;
     if (global.addEB && Math.random() < 0.1) global.addEB('漏损', '浮收蚕食，本月损 ' + loss + ' 钱');
   }
 

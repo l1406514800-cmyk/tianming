@@ -312,7 +312,7 @@ async function _cc3_buildAgendaFromGM() {
     // 注入财政/战争/党争/起居等真实游戏状态·议程 AI 据此生成相关议题
     try {
       const gk = (typeof GM !== 'undefined' && GM.guoku) || {};
-      const nc = (typeof GM !== 'undefined' && GM.neicang) || {};
+      const nc = (typeof GM !== 'undefined' && (GM.neitang || GM.neicang)) || {};
       const finParts = [];
       if (typeof gk.money === 'number') finParts.push('帑银 ' + Math.round(gk.money));
       if (typeof gk.grain === 'number') finParts.push('粮 ' + Math.round(gk.grain));
@@ -326,7 +326,10 @@ async function _cc3_buildAgendaFromGM() {
       if (typeof GM !== 'undefined') {
         if (typeof GM.partyStrife === 'number') meterParts.push('党争 ' + Math.round(GM.partyStrife));
         if (typeof GM.unrest === 'number')      meterParts.push('民变 ' + Math.round(GM.unrest));
-        const corr = (GM.corruption && typeof GM.corruption.index === 'number') ? GM.corruption.index : (typeof GM.corruption === 'number' ? GM.corruption : null);
+        const corr = (GM.corruption && typeof GM.corruption.trueIndex === 'number') ? GM.corruption.trueIndex :
+          (GM.corruption && typeof GM.corruption.overall === 'number') ? GM.corruption.overall :
+          (GM.corruption && typeof GM.corruption.index === 'number') ? GM.corruption.index :
+          (typeof GM.corruption === 'number' ? GM.corruption : null);
         if (corr != null) meterParts.push('腐败 ' + Math.round(corr));
       }
       if (meterParts.length) prompt += '\n【乱政指数】' + meterParts.join('·') + '·高党争易生弹劾·高民变易生地方告急·高腐败易生科道严劾';
@@ -643,7 +646,7 @@ function _cc3_buildSystemPromptVariable() {
   // 财政状况（帑廪/内帑/积粮/布）
   if (typeof GM !== 'undefined') {
     const gk = GM.guoku || {};
-    const nc = GM.neicang || {};
+    const nc = GM.neitang || GM.neicang || {};
     const finParts = [];
     if (typeof gk.money === 'number')  finParts.push('帑银 ' + Math.round(gk.money) + ' 两');
     if (typeof gk.grain === 'number')  finParts.push('粮 ' + Math.round(gk.grain) + ' 石');
@@ -666,6 +669,8 @@ function _cc3_buildSystemPromptVariable() {
     if (typeof GM.partyStrife === 'number') meterParts.push('党争 ' + Math.round(GM.partyStrife));
     if (typeof GM.unrest === 'number')      meterParts.push('民变指数 ' + Math.round(GM.unrest));
     if (typeof GM.corruption === 'number')  meterParts.push('腐败 ' + Math.round(GM.corruption));
+    else if (GM.corruption && typeof GM.corruption.trueIndex === 'number') meterParts.push('腐败 ' + Math.round(GM.corruption.trueIndex));
+    else if (GM.corruption && typeof GM.corruption.overall === 'number') meterParts.push('腐败 ' + Math.round(GM.corruption.overall));
     else if (GM.corruption && typeof GM.corruption.index === 'number') meterParts.push('腐败 ' + Math.round(GM.corruption.index));
   }
   if (meterParts.length) s += '【乱政】' + meterParts.join('·') + '\n';

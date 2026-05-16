@@ -18,6 +18,28 @@
 (function(global) {
   'use strict';
 
+  function _corrIndex(G) {
+    var c = G && G.corruption;
+    if (typeof c === 'number') return c;
+    if (!c || typeof c !== 'object') return 30;
+    if (typeof c.trueIndex === 'number') return c.trueIndex;
+    if (typeof c.overall === 'number') return c.overall;
+    if (typeof c.index === 'number') return c.index;
+    return 30;
+  }
+
+  function _setCorrIndex(G, value) {
+    if (!G || !G.corruption || typeof G.corruption !== 'object') return;
+    var next = Math.max(0, Math.min(100, Number(value) || 0));
+    G.corruption.trueIndex = next;
+    G.corruption.overall = next;
+    if (G.corruption.perceivedIndex === undefined) G.corruption.perceivedIndex = next;
+  }
+
+  function _addCorrIndex(G, delta) {
+    _setCorrIndex(G, _corrIndex(G) + (Number(delta) || 0));
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  皇威 HUANGWEI — 五段语义
   // ═══════════════════════════════════════════════════════════════════
@@ -112,7 +134,7 @@
     var corruptMult = 1;
     var G = global.GM;
     if (G && G.corruption && typeof G.corruption === 'object') {
-      var corr = G.corruption.overall || 0;
+      var corr = _corrIndex(G);
       corruptMult = 1 + corr / 200;
     }
     if (t >= 90) {
@@ -583,7 +605,7 @@
     var G = global.GM;
     // 腐败高 → 感知偏正面（虚报）
     var corruptLevel = 0;
-    if (G.corruption && G.corruption.overall !== undefined) corruptLevel = G.corruption.overall;
+    if (G.corruption) corruptLevel = _corrIndex(G);
     else if (typeof G.corruption === 'number') corruptLevel = G.corruption;
     var distortion = corruptLevel / 100 * 15; // 最多高估 15 点
     mx.perceivedIndex = Math.min(100, mx.trueIndex + distortion);
@@ -686,7 +708,7 @@
     // 帑廪 → 腐败（紧时腐败敛财）
     if (guokuMoney < 50000 && G.corruption) {
       if (typeof G.corruption === 'object' && G.corruption.overall !== undefined) {
-        G.corruption.overall = Math.min(100, G.corruption.overall + 0.1 * mr);
+        _addCorrIndex(G, 0.1 * mr);
       }
     }
     // 帑廪 → 民心（充盈时民心升）
@@ -709,7 +731,7 @@
     if (neitangMoney > 3000000) adjustHuangwei('grandCeremony', 0.02 * mr);
     // 内帑 → 腐败（宗室奢靡促腐败）
     if (neitangMoney > 5000000 && G.corruption && typeof G.corruption === 'object') {
-      G.corruption.overall = Math.min(100, (G.corruption.overall || 30) + 0.05 * mr);
+      _addCorrIndex(G, 0.05 * mr);
     }
 
     // ── 户口 → 其他 ──
@@ -728,7 +750,7 @@
     }
 
     // ── 腐败 → 其他 ──
-    var corruptOverall = (G.corruption && G.corruption.overall) || (typeof G.corruption === 'number' ? G.corruption : 30);
+    var corruptOverall = _corrIndex(G);
     // 腐败 → 帑廪（税收漏损）
     if (corruptOverall > 40 && G.guoku) {
       var loss = Math.max(0, (corruptOverall - 40)) * 1000 * mr / 12;
@@ -767,7 +789,7 @@
     if (hq) {
       // 皇权 → 腐败（强时可镇压）
       if (hq.index > 75 && G.corruption && typeof G.corruption === 'object') {
-        G.corruption.overall = Math.max(0, G.corruption.overall - 0.1 * mr);
+        _addCorrIndex(G, -0.1 * mr);
       }
       // 皇权 → 皇威（强皇权 → 诏令执行，威增）
       if (_allowPassiveAuthorityLinkage() && hq.index > 70) adjustHuangwei('structuralReform', 0.05 * mr);

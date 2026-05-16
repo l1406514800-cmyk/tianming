@@ -196,7 +196,7 @@
     if (!G || !varsObj) return;
     var scale = (typeof scaleFactor === 'number') ? scaleFactor : 1.0;
     var keyMap = {
-      '民心': 'minxin.value',
+      '民心': 'minxin.trueIndex',
       '帑廪': 'tanglian.silver',
       '党争': 'partyStrife',
       '皇威': 'huangwei.index',
