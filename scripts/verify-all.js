@@ -33,6 +33,7 @@ const checks = [
   { name: 'phase8-office-standalone', file: 'smoke-phase8-office-standalone.js', estSec: 1, expectExit: 0 },
   { name: 'formal-edict-portrait', file: 'smoke-formal-edict-portrait.js', estSec: 1, expectExit: 0 },
   { name: 'formal-edict-polish-scope', file: 'smoke-formal-edict-polish-scope.js', estSec: 1, expectExit: 0 },
+  { name: 'formal-runtime-chrome-throttle', file: 'smoke-formal-runtime-chrome-throttle.js', estSec: 1, expectExit: 0 },
   { name: 'audio-bgm', file: 'smoke-audio-bgm.js', estSec: 1, expectExit: 0 },
   { name: 'wendui-active-audience', file: 'smoke-wendui-active-audience.js', estSec: 1, expectExit: 0 },
   { name: 'topbar-fiscal-consistency', file: 'smoke-topbar-fiscal-consistency.js', estSec: 1, expectExit: 0 },
@@ -67,6 +68,7 @@ const checks = [
   { name: 'guoku-init-from-dynasty', file: 'smoke-guoku-init-from-dynasty.js', estSec: 1, expectExit: 0 },
   { name: 'guoku-enact-reform', file: 'smoke-guoku-enact-reform.js', estSec: 1, expectExit: 0 },
   { name: 'guoku-loan-and-bankruptcy', file: 'smoke-guoku-loan-and-bankruptcy.js', estSec: 1, expectExit: 0 },
+  { name: 'economy-env-huangquan', file: 'smoke-economy-env-huangquan.js', estSec: 1, expectExit: 0 },
   // R8 (2026-05-04) corruption LAYERED OVERRIDE chain smoke (Codex own)
   { name: 'corruption-tick', file: 'smoke-corruption-tick-full-pass.js', estSec: 1, expectExit: 0 },
   { name: 'corruption-detect', file: 'smoke-corruption-detection-event.js', estSec: 1, expectExit: 0 },

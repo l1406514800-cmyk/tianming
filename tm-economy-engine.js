@@ -1508,10 +1508,7 @@
         if (_mxV < 80) global._adjAuthority('minxin', 0.1 * mr);
       }
     }
-    // 承载力不足 → 皇权下降
-    if (E.nationalLoad > 1.2 && global._adjAuthority) {
-      global._adjAuthority('huangquan', -(E.nationalLoad - 1.2) * 0.3 * mr, '\u751f\u6001\u627f\u8f7d\u529b\u4e0d\u8db3', { source:'economy-national-load' });
-    }
+    // 承载力不足只通过人口、地方不稳和民心反馈，不直接改写皇权。
   }
 
   // ═══════════════════════════════════════════════════════════════════

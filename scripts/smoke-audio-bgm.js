@@ -78,11 +78,14 @@ context.TM_BGM_TRACKS.forEach(track => {
   assert(fs.existsSync(path.join(ROOT, track.src)), 'BGM file missing: ' + track.src);
 });
 
-vm.runInContext(fs.readFileSync(path.join(ROOT, 'tm-audio-theme.js'), 'utf8'), context, { filename: 'tm-audio-theme.js' });
+const audioThemeSource = fs.readFileSync(path.join(ROOT, 'tm-audio-theme.js'), 'utf8');
+vm.runInContext(audioThemeSource, context, { filename: 'tm-audio-theme.js' });
 
 assert(context.AudioSystem, 'AudioSystem missing');
 assert(typeof context.AudioSystem.playDefaultBgm === 'function', 'playDefaultBgm missing');
+assert(typeof context.AudioSystem.autoEnsureBgmPlaying === 'function', 'autoEnsureBgmPlaying missing');
 assert(typeof context.AudioSystem.renderShellPanelHtml === 'function', 'renderShellPanelHtml missing');
+assert(audioThemeSource.includes('bgmFailureCooldownMs: 3 * 60 * 1000'), 'BGM load failure cooldown should be 3 minutes');
 
 storage.set('tianming_audio_settings', JSON.stringify({
   sfxVolume: 0.5,
@@ -94,12 +97,12 @@ storage.set('tianming_audio_settings', JSON.stringify({
   bgmPlaylistVersion: 'old-playlist'
 }));
 
-context.AudioSystem.init();
+context.GameHooks.run('startGame:after');
+context.GameHooks.run('enterGame:after');
 assert(context.AudioSystem.loopMode === 'sequence', 'AudioSystem should migrate stale playlist settings to sequence loop mode');
 assert(context.AudioSystem.currentTrackId === context.TM_BGM_TRACKS[0].id, 'AudioSystem should reset stale current track to first bundled theme');
-context.AudioSystem.playDefaultBgm();
 
-assert(played.length === 1, 'default BGM should call Audio.play once');
+assert(played.length === 1, 'startGame/enterGame auto BGM hooks should only call Audio.play once');
 assert(played[0].src === context.TM_BGM_TRACKS[0].src, 'default BGM should use first configured track');
 assert(played[0].loop === false, 'sequence mode should advance tracks instead of looping one audio element');
 assert(Math.abs(played[0].volume - context.AudioSystem.bgmVolume) < 0.001, 'BGM volume should sync to audio element');
@@ -108,6 +111,7 @@ assert(typeof created[0].onerror === 'function', 'BGM should install load error 
 created[0].onerror();
 context.AudioSystem.playDefaultBgm();
 assert(played.length === 1, 'recently failed BGM track should be cooled down instead of retried');
+assert(context.AudioSystem.bgmFailureCooldownMs === 180000, 'BGM failure cooldown should be exactly 3 minutes');
 assert(JSON.parse(storage.get('tianming_audio_settings')).bgmPlaylistVersion === context.TM_BGM_PLAYLIST_VERSION, 'saved settings should include current playlist version');
 
 const html = context.AudioSystem.renderShellPanelHtml();

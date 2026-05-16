@@ -68,7 +68,7 @@ var AudioSystem = {
   bgmUrl: '',
   bgmLoading: false,
   bgmFailedAt: {},
-  bgmFailureCooldownMs: 60 * 1000,
+  bgmFailureCooldownMs: 3 * 60 * 1000,
   autoBgmAttemptedAt: 0,
   autoBgmAttemptGapMs: 60 * 1000,
   playlist: [],
@@ -206,12 +206,16 @@ var AudioSystem = {
       if (this.bgm) {
         this.bgm.pause();
         this.bgm = null;
+        this.bgmUrl = '';
+        this.bgmLoading = false;
       }
 
       if (url) {
         var self = this;
         var audio = new Audio(url);
         this.bgm = audio;
+        this.bgmUrl = url;
+        this.bgmLoading = true;
         audio.preload = 'none';
         audio.volume = this.bgmVolume;
         audio.loop = this.loopMode === 'single' || (this.playlist || []).length <= 1;
@@ -220,14 +224,22 @@ var AudioSystem = {
           self.bgmFailedAt[url] = Date.now();
           try { audio.pause(); } catch(_) {}
           if (self.bgm === audio) self.bgm = null;
+          if (self.bgmUrl === url) self.bgmUrl = '';
+          self.bgmLoading = false;
           _dbg('[BGM] load failed; cooling down track:', url);
         };
         audio.onended = function() {
           if (self.loopMode !== 'single') self.nextTrack();
         };
-        audio.play().catch(function(e) {
-          _dbg('背景音乐播放失败（可能需要用户交互）:', e);
-        });
+        var playPromise = audio.play();
+        if (playPromise && typeof playPromise.then === 'function') {
+          playPromise.then(function(){ self.bgmLoading = false; }).catch(function(e) {
+            self.bgmLoading = false;
+            _dbg('背景音乐播放失败（可能需要用户交互）:', e);
+          });
+        } else {
+          self.bgmLoading = false;
+        }
         return true;
       }
     } catch (e) {
@@ -251,10 +263,23 @@ var AudioSystem = {
     return this.playTrack(track.id);
   },
 
-  ensureBgmPlaying: function() {
+  ensureBgmPlaying: function(opts) {
+    opts = opts || {};
     if (!this.bgmEnabled) return false;
+    if (opts.auto) {
+      var now = Date.now();
+      if (this.autoBgmAttemptedAt && now - this.autoBgmAttemptedAt >= 0 && now - this.autoBgmAttemptedAt < this.autoBgmAttemptGapMs) {
+        return false;
+      }
+      this.autoBgmAttemptedAt = now;
+    }
+    if (this.bgmLoading) return true;
     if (this.bgm && !this.bgm.paused) return true;
     return this.playDefaultBgm();
+  },
+
+  autoEnsureBgmPlaying: function(reason) {
+    return this.ensureBgmPlaying({ auto: true, reason: reason || '' });
   },
 
   nextTrack: function() {
@@ -277,6 +302,8 @@ var AudioSystem = {
       this.bgm.pause();
       this.bgm = null;
     }
+    this.bgmUrl = '';
+    this.bgmLoading = false;
   },
 
   // 设置音效音量
@@ -467,10 +494,12 @@ function updateBgmVolume(value) {
 // 在游戏启动时初始化音频系统
 GameHooks.on('startGame:after', function() {
   AudioSystem.init();
+  AudioSystem.autoEnsureBgmPlaying('startGame');
 });
 
 GameHooks.on('enterGame:after', function() {
   if (!AudioSystem.playlist || !AudioSystem.playlist.length) AudioSystem.init();
+  AudioSystem.autoEnsureBgmPlaying('enterGame');
 });
 
 // 在关键操作时播放音效
