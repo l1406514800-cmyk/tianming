@@ -96,6 +96,147 @@ function _isAtCapital(ch) {
   return (typeof _isSameLocation === 'function') ? _isSameLocation(loc, playerLoc) : (loc === playerLoc);
 }
 
+function _cyRankLabels() {
+  if (typeof RANK_HIERARCHY !== 'undefined' && Array.isArray(RANK_HIERARCHY) && RANK_HIERARCHY.length) {
+    return RANK_HIERARCHY.map(function(r) { return r && r.label; }).filter(function(v) { return !!v; });
+  }
+  return [
+    '\u6b63\u4e00\u54c1', '\u4ece\u4e00\u54c1', '\u6b63\u4e8c\u54c1', '\u4ece\u4e8c\u54c1',
+    '\u6b63\u4e09\u54c1', '\u4ece\u4e09\u54c1', '\u6b63\u56db\u54c1', '\u4ece\u56db\u54c1',
+    '\u6b63\u4e94\u54c1', '\u4ece\u4e94\u54c1', '\u6b63\u516d\u54c1', '\u4ece\u516d\u54c1',
+    '\u6b63\u4e03\u54c1', '\u4ece\u4e03\u54c1', '\u6b63\u516b\u54c1', '\u4ece\u516b\u54c1',
+    '\u6b63\u4e5d\u54c1', '\u4ece\u4e5d\u54c1'
+  ];
+}
+
+function _cyRankLabelFromLevel(level) {
+  var n = Number(level);
+  if (!isFinite(n)) return '';
+  if (n <= 0) n = 1;
+  if (typeof RANK_HIERARCHY !== 'undefined' && Array.isArray(RANK_HIERARCHY)) {
+    for (var i = 0; i < RANK_HIERARCHY.length; i++) {
+      if (RANK_HIERARCHY[i] && Number(RANK_HIERARCHY[i].level) === n) return RANK_HIERARCHY[i].label || '';
+    }
+  }
+  return _cyRankLabels()[n - 1] || '';
+}
+
+function _cyExtractRankLabel(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value === 'number') return _cyRankLabelFromLevel(value);
+  var text = String(value || '').trim();
+  if (!text) return '';
+  if (/^\d+$/.test(text)) return _cyRankLabelFromLevel(parseInt(text, 10));
+  var labels = _cyRankLabels();
+  for (var i = 0; i < labels.length; i++) {
+    if (labels[i] && text.indexOf(labels[i]) >= 0) return labels[i];
+  }
+  return '';
+}
+
+function _cyRankLevelOf(rank) {
+  if (!rank) return 99;
+  if (typeof getRankLevel === 'function') {
+    var lv = getRankLevel(rank);
+    if (lv !== 99) return lv;
+  }
+  var labels = _cyRankLabels();
+  for (var i = 0; i < labels.length; i++) {
+    if (labels[i] && String(rank).indexOf(labels[i]) >= 0) return i + 1;
+  }
+  return 99;
+}
+
+function _cyPositionHolders(pos) {
+  if (!pos) return [];
+  if (typeof _offMigratePosition === 'function') {
+    try { _offMigratePosition(pos); } catch(e) { try { window.TM && TM.errors && TM.errors.captureSilent(e, 'tm-chaoyi-rank'); } catch(_) {} }
+  }
+  if (typeof _offAllHolders === 'function') {
+    try { return _offAllHolders(pos) || []; } catch(e2) { try { window.TM && TM.errors && TM.errors.captureSilent(e2, 'tm-chaoyi-rank'); } catch(_) {} }
+  }
+  var arr = [];
+  if (pos.holder) arr.push(pos.holder);
+  if (Array.isArray(pos.additionalHolders)) arr = arr.concat(pos.additionalHolders);
+  if (Array.isArray(pos.actualHolders)) {
+    pos.actualHolders.forEach(function(h) {
+      var nm = h && (h.name || h);
+      if (nm && arr.indexOf(nm) < 0) arr.push(nm);
+    });
+  }
+  return arr;
+}
+
+function _cyFallbackRankByTitle(ch) {
+  var title = [ch.officialTitle, ch.title, ch.position, ch.office, ch.role].filter(function(v) { return !!v; }).join(' ');
+  if (!title) return '';
+  var pairs = [
+    [/(\u9996\u8f85|\u5927\u5b66\u58eb|\u5c1a\u4e66|\u603b\u7763|\u90fd\u7763|\u603b\u5175)/, '\u6b63\u4e8c\u54c1'],
+    [/(\u4f8d\u90ce|\u5de1\u629a|\u526f\u5c06|\u5e03\u653f\u4f7f|\u6309\u5bdf\u4f7f)/, '\u6b63\u4e09\u54c1'],
+    [/(\u5fa1\u53f2|\u7ed9\u4e8b\u4e2d|\u77e5\u5e9c|\u53c2\u5c06)/, '\u6b63\u56db\u54c1'],
+    [/(\u90ce\u4e2d|\u4e3b\u4e8b|\u540c\u77e5|\u901a\u5224)/, '\u6b63\u4e94\u54c1'],
+    [/(\u77e5\u53bf|\u53bf\u4ee4|\u8bad\u5bfc|\u5178\u53f2)/, '\u6b63\u4e03\u54c1']
+  ];
+  for (var i = 0; i < pairs.length; i++) {
+    if (pairs[i][0].test(title)) return pairs[i][1];
+  }
+  return '';
+}
+
+// Shared rank resolver used by court/tinyi/yuqian modules.
+function _cyGetRank(ch) {
+  if (!ch) return '';
+  if (typeof ch === 'string') ch = (typeof findCharByName === 'function' && findCharByName(ch)) || { name: ch };
+
+  var best = '';
+  function consider(value) {
+    var rank = _cyExtractRankLabel(value);
+    if (!rank) return;
+    if (!best || _cyRankLevelOf(rank) < _cyRankLevelOf(best)) best = rank;
+  }
+
+  consider(ch.rank);
+  consider(ch.officialRank);
+  consider(ch.rankText);
+  consider(ch.rankLabel);
+  consider(ch.officeRank);
+  consider(ch.rankLevel);
+  if (ch.officeRef) {
+    consider(ch.officeRef.rank);
+    consider(ch.officeRef.rankLevel);
+  }
+
+  var name = ch.name || ch.characterName || '';
+  if (name && typeof _findPositionByCharName === 'function') {
+    try {
+      var hit = _findPositionByCharName(name);
+      if (hit && hit.pos) consider(hit.pos.rank);
+    } catch(e) { try { window.TM && TM.errors && TM.errors.captureSilent(e, 'tm-chaoyi-rank'); } catch(_) {} }
+  }
+
+  if (name && typeof GM !== 'undefined' && GM && GM.officeTree) {
+    (function walk(nodes) {
+      if (!Array.isArray(nodes)) return;
+      for (var i = 0; i < nodes.length; i++) {
+        var n = nodes[i];
+        if (!n) continue;
+        (n.positions || []).forEach(function(pos) {
+          var holders = _cyPositionHolders(pos);
+          if (holders.indexOf(name) >= 0) consider(pos.rank);
+        });
+        if (n.subs) walk(n.subs);
+      }
+    })(GM.officeTree);
+  }
+
+  consider(ch.officialTitle);
+  consider(ch.title);
+  if (best) return best;
+  return _cyFallbackRankByTitle(ch);
+}
+
+if (typeof window !== 'undefined') window._cyGetRank = _cyGetRank;
+
 function showChaoyiSetup(){
   var body=_$("cy-body");var footer=_$("cy-footer");
   body.innerHTML = '<div style="padding:1.5rem 1rem;">'

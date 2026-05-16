@@ -18,8 +18,56 @@
 // ============================================================
 
 // 史记列表（带分页+搜索+导出）
-// 史记列表（带分页+搜索+导出）
-var _sjlPage=0,_sjlKw='',_sjlPageSize=8,_sjlYrFilter='',_sjlTypeFilter='';
+// 史官档案默认不裁掉旧回合；玩家可手动改为分页。
+var _sjlPage=0,_sjlKw='',_sjlPageSize='all',_sjlYrFilter='',_sjlTypeFilter='';
+function _sjlPageSizeNum(total){
+  if (_sjlPageSize === 'all') return Math.max(1, total || 1);
+  var n = parseInt(_sjlPageSize, 10);
+  return isFinite(n) && n > 0 ? n : 50;
+}
+function _sjlTrimText(text, limit){
+  text = String(text || '').replace(/\s+/g, ' ').trim();
+  if (!text) return '';
+  limit = limit || 360;
+  return text.length > limit ? text.slice(0, limit) + '……' : text;
+}
+function _sjlRecordPreview(sj){
+  var parts = [];
+  if (sj.shilu) parts.push('<div class="sj-preview-line shilu"><span>实录</span>' + escHtml(_sjlTrimText(sj.shilu, 420)) + '</div>');
+  if (sj.shizhengji) parts.push('<div class="sj-preview-line szj"><span>时政</span>' + escHtml(_sjlTrimText(sj.shizhengji, 420)) + '</div>');
+  if (!parts.length && sj.zhengwen) parts.push('<div class="sj-preview-line"><span>政文</span>' + escHtml(_sjlTrimText(sj.zhengwen, 420)) + '</div>');
+  return parts.join('');
+}
+function _sjlRecordHtml(sj){
+  if (!sj) return '';
+  if (sj.html) return sj.html;
+  var html = '';
+  if (sj.shilu) {
+    html += '<div class="tr-section shilu">'
+      + '<div class="tr-section-hdr"><span class="lab">实 录</span><span class="meta">起居注官实录 · 正史体</span></div>'
+      + '<div class="tr-shilu"><div class="tr-shilu-seal">史官</div>' + escHtml(sj.shilu) + '</div>'
+      + '</div>';
+  }
+  if (sj.shizhengji) {
+    html += '<div class="tr-section szj"><div class="tr-section-hdr"><span class="lab">时 政 记</span><span class="meta">朝政纪要体</span></div>';
+    if (sj.szjTitle) html += '<div class="tr-szj-title">' + escHtml(sj.szjTitle) + '</div>';
+    html += '<div class="tr-szj-content"><p>' + escHtml(sj.shizhengji).replace(/\n+/g, '</p><p>') + '</p></div>';
+    if (sj.szjSummary || sj.turnSummary) html += '<div class="tr-szj-summary">' + escHtml(sj.szjSummary || sj.turnSummary) + '</div>';
+    html += '</div>';
+  }
+  if (sj.zhengwen) {
+    html += '<div class="tr-section"><div class="tr-section-hdr"><span class="lab">政 文</span><span class="meta">推演正文</span></div>'
+      + '<div class="tr-szj-content"><p>' + escHtml(sj.zhengwen).replace(/\n+/g, '</p><p>') + '</p></div></div>';
+  }
+  if (sj.houren) {
+    html += '<div class="tr-section houren"><div class="tr-section-hdr"><span class="lab">后 人 戏 说</span><span class="meta">稗官野史 · 参考不可尽信</span></div>'
+      + '<div class="tr-houren-box">' + escHtml(sj.houren) + '</div></div>';
+  }
+  return html || escHtml(sj.shizhengji || sj.shilu || sj.turnSummary || '');
+}
+function _sjlRecordHtmlByIdx(idx){
+  return _sjlRecordHtml(GM.shijiHistory && GM.shijiHistory[idx]);
+}
 function renderShijiList(){
   var el=_$("shiji-list");if(!el)return;
   var all=(GM.shijiHistory||[]).slice().reverse();
@@ -75,10 +123,11 @@ function renderShijiList(){
   if (typeFilter) filtered = filtered.filter(function(sj){ return !!_sjTypes(sj)[typeFilter]; });
 
   var total=filtered.length;
-  var pages=Math.ceil(total/_sjlPageSize)||1;
+  var pageSize = _sjlPageSizeNum(total);
+  var pages=Math.ceil(total/pageSize)||1;
   if(_sjlPage>=pages)_sjlPage=pages-1;
   if(_sjlPage<0)_sjlPage=0;
-  var slice=filtered.slice(_sjlPage*_sjlPageSize,(_sjlPage+1)*_sjlPageSize);
+  var slice=filtered.slice(_sjlPage*pageSize,(_sjlPage+1)*pageSize);
 
   // 工具栏
   var h = '<div class="sj-tools">';
@@ -101,6 +150,13 @@ function renderShijiList(){
     {k:'event', l:'\u2605 \u4EBA\u4E8B'}
   ].map(function(t){ return '<option value="' + t.k + '"' + (typeFilter===t.k?' selected':'') + '>' + t.l + '</option>'; }).join('');
   h += '<select class="sj-filter" onchange="_sjlTypeFilter=this.value;_sjlPage=0;renderShijiList()">' + typeOpts + '</select>';
+  var sizeOpts = [
+    {v:'all', l:'全部'},
+    {v:'20', l:'20回/页'},
+    {v:'50', l:'50回/页'},
+    {v:'100', l:'100回/页'}
+  ].map(function(o){ return '<option value="' + o.v + '"' + (String(_sjlPageSize)===o.v?' selected':'') + '>' + o.l + '</option>'; }).join('');
+  h += '<select class="sj-filter" onchange="_sjlPageSize=this.value;_sjlPage=0;renderShijiList()">' + sizeOpts + '</select>';
   h += '<button class="sj-export" onclick="_sjlExport()">\u5BFC \u51FA \u5168 \u53F2</button>';
   h += '<span class="sj-stat">\u5171 <span class="n">' + (GM.shijiHistory||[]).length + '</span> \u56DE \u00B7 \u663E <span class="n">' + total + '</span> \u56DE</span>';
   h += '</div>';
@@ -133,7 +189,7 @@ function renderShijiList(){
       var sumText = sj.turnSummary || sj.szjSummary || (sj.shizhengji||'').split(/[\u3002\uFF01\n]/)[0] || '';
       var titleText = sj.szjTitle || '';
 
-      h += '<div class="' + cardCls + '" onclick="showTurnResult(GM.shijiHistory[' + idx + '].html,' + idx + ')">';
+      h += '<div class="' + cardCls + '" onclick="showTurnResult(_sjlRecordHtmlByIdx(' + idx + '),' + idx + ')">';
       // 左：回合号
       h += '<div class="sj-turn-col">';
       h += '<div class="sj-turn-no"><span class="n">' + sj.turn + '</span>\u56DE</div>';
@@ -143,7 +199,9 @@ function renderShijiList(){
       // 中：摘要
       h += '<div class="sj-body-col">';
       if (titleText) h += '<div><span class="sj-szj-title">' + escHtml(titleText) + '</span></div>';
-      h += '<div class="sj-sum">' + escHtml(sumText || sj.shizhengji || '') + '</div>';
+      h += '<div class="sj-sum">' + escHtml(sumText || sj.shizhengji || sj.shilu || '') + '</div>';
+      var previewHtml = _sjlRecordPreview(sj);
+      if (previewHtml) h += '<div class="sj-record-preview">' + previewHtml + '</div>';
       // tags
       var tags = [];
       if (types.war) tags.push({cls:'war', l:'\u6218\u4E8B'});
@@ -198,7 +256,16 @@ function _sjlExtractDeltas(sj) {
   return badges;
 }
 function _sjlExport(){
-  var txt=(GM.shijiHistory||[]).map(function(sj){return '[T'+sj.turn+'] '+sj.time+'\n'+(sj.shizhengji||'');}).join('\n\n---\n\n');
+  var txt=(GM.shijiHistory||[]).map(function(sj){
+    var out = '[T'+sj.turn+'] '+(sj.time||'');
+    if (sj.szjTitle) out += '\n【' + sj.szjTitle + '】';
+    if (sj.turnSummary) out += '\n总曰：' + sj.turnSummary;
+    if (sj.shilu) out += '\n\n【实录】\n' + sj.shilu;
+    if (sj.shizhengji) out += '\n\n【时政记】\n' + sj.shizhengji;
+    if (sj.zhengwen) out += '\n\n【政文】\n' + sj.zhengwen;
+    if (sj.houren) out += '\n\n【后人戏说】\n' + sj.houren;
+    return out;
+  }).join('\n\n---\n\n');
   if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){toast('已复制');}).catch(function(){_sjlDownload(txt);});}
   else _sjlDownload(txt);
 }

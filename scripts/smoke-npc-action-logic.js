@@ -21,10 +21,11 @@ function load(ctx, rel) {
 
 async function main() {
   const chars = [
-    { id: 'c1', name: 'ZhangSan', alive: true, loyalty: 65, ambition: 82, intelligence: 75, integrity: 80, officialTitle: 'Minister', location: 'Capital' },
-    { id: 'c2', name: 'LiSi', alive: true, loyalty: 50, ambition: 40, intelligence: 55, integrity: 45, officialTitle: 'Clerk', location: 'Capital' },
+    { id: 'c1', name: 'ZhangSan', alive: true, loyalty: 65, ambition: 82, intelligence: 75, integrity: 80, officialTitle: 'Minister', location: 'Capital', faction: 'Ming', party: 'CourtBloc' },
+    { id: 'c2', name: 'LiSi', alive: true, loyalty: 50, ambition: 40, intelligence: 55, integrity: 45, officialTitle: 'Clerk', location: 'Capital', faction: 'Ming', party: 'CourtBloc' },
     { id: 'c3', name: 'GeneralWang', alive: true, loyalty: 58, ambition: 65, valor: 88, troops: 1000, officialTitle: 'General', location: 'Frontier' },
-    { id: 'c4', name: 'RemoteZhao', alive: true, loyalty: 72, ambition: 35, intelligence: 70, officialTitle: 'Governor', location: 'Liaodong' }
+    { id: 'c4', name: 'RemoteZhao', alive: true, loyalty: 72, ambition: 35, intelligence: 70, officialTitle: 'Governor', location: 'Liaodong', faction: 'Ming' },
+    { id: 'c5', name: 'QianRival', alive: true, loyalty: 45, ambition: 77, intelligence: 72, officialTitle: 'Censor', location: 'Capital', faction: 'Ming', party: 'RivalBloc' }
   ];
   const events = [];
   let lastPrompt = '';
@@ -63,12 +64,15 @@ async function main() {
       memorials: [],
       letters: [],
       _pendingNpcLetters: [],
+      _pendingNpcCorrespondence: [],
       _pendingAudiences: [],
+      _npcActionLedger: [],
       _capital: 'Capital',
       officeTree: [
         { name: 'Court', positions: [
           { name: 'Minister', holder: 'ZhangSan', rank: '2' },
-          { name: 'Clerk', holder: 'LiSi', rank: '7' }
+          { name: 'Clerk', holder: 'LiSi', rank: '7' },
+          { name: 'Censor', holder: 'QianRival', rank: '5' }
         ] },
         { name: 'Army', positions: [
           { name: 'General', holder: 'GeneralWang', rank: '3' }
@@ -131,6 +135,12 @@ async function main() {
     'court NPC should receive petition candidate');
   assert(courtCandidates.some(function(c) { return c.behaviorType === 'conspire'; }),
     'ambitious court NPC should receive conspire candidate');
+  assert(courtCandidates.some(function(c) { return c.behaviorType === 'conspire' && c.target === 'LiSi'; }),
+    'conspire candidate should target a concrete ally instead of a generic label');
+  assert(courtCandidates.some(function(c) { return c.behaviorType === 'private_correspondence' && c.target === 'LiSi'; }),
+    'ambitious NPC should receive private NPC-to-NPC correspondence with a concrete ally');
+  assert(courtCandidates.some(function(c) { return (c.behaviorType === 'obstruct' || c.behaviorType === 'slander') && c.target === 'QianRival'; }),
+    'rivalry candidate should target a concrete political rival');
   assert(militaryCandidates.some(function(c) { return c.behaviorType === 'train_troops'; }),
     'military NPC should receive train_troops candidate');
   assert(remoteCandidates.some(function(c) { return c.behaviorType === 'send_letter'; }),
@@ -141,6 +151,17 @@ async function main() {
     'military NPC should receive request_funds candidate');
   assert(courtCandidates.every(function(c) { return typeof c.score === 'number' && c.score > 0; }),
     'candidate actions should carry positive motivation scores');
+
+  const savedMemorials = ctx.GM.memorials;
+  ctx.GM.memorials = Array.from({ length: 12 }, function(_, i) {
+    return { id: 'busy-' + i, from: 'Busy' + i, status: 'pending_review', reviewed: false };
+  });
+  const pressureCourtCandidates = ctx._buildNpcActionCandidates(chars[0], behaviorContext);
+  assert(!pressureCourtCandidates.some(function(c) { return c.behaviorType === 'petition'; }),
+    'busy memorial queue should suppress low-priority new petition candidates');
+  assert(pressureCourtCandidates.some(function(c) { return c.behaviorType === 'private_correspondence'; }),
+    'busy court-facing queue should not suppress NPC-to-NPC private correspondence');
+  ctx.GM.memorials = savedMemorials;
 
   await ctx.executeNpcBehaviors();
 
@@ -156,6 +177,19 @@ async function main() {
     'supplemental NPC decision should leave a readable NPC event');
   assert(/actionId/.test(lastPrompt) && /npcact/.test(lastPrompt),
     'batch NPC prompt should expose actionId candidate action cards');
+  assert(ctx.GM._npcActionLedger.some(function(x) { return x.actor === 'ZhangSan' && x.behaviorType === 'petition'; }),
+    'executed NPC action should be recorded in structured action ledger');
+  assert(!ctx._buildNpcActionCandidates(chars[0], behaviorContext).some(function(c) { return c.behaviorType === 'petition'; }),
+    'same NPC action type should cool down after it has just executed');
+  const repeatPetitionOk = ctx._executeNormalizedNpcDecision({
+    actor: 'ZhangSan',
+    behaviorType: 'petition',
+    target: '朝廷',
+    action: 'Repeat petition',
+    shouldExecute: true
+  }, chars[0], behaviorContext);
+  assert(repeatPetitionOk === false,
+    'direct repeated NPC action should be rejected while cooldown is active');
 
   const directOk = ctx._executeNormalizedNpcDecision({
     actor: 'ZhangSan',
@@ -187,6 +221,16 @@ async function main() {
   }, chars[2], behaviorContext);
   assert(fundsOk === true && ctx.GM.memorials.length === memorialsBeforeFunds + 1,
     'request_funds behavior should materialize as memorial');
+
+  const corrOk = ctx._executeNormalizedNpcDecision({
+    actor: 'ZhangSan',
+    behaviorType: 'private_correspondence',
+    target: 'LiSi',
+    action: 'Coordinate privately with LiSi',
+    shouldExecute: true
+  }, chars[0], behaviorContext);
+  assert(corrOk === true && ctx.GM._pendingNpcCorrespondence.some(function(x) { return x.from === 'ZhangSan' && x.to === 'LiSi'; }),
+    'private_correspondence behavior should enqueue NPC-to-NPC correspondence');
 
   console.log('[smoke-npc-action-logic] PASS ' + passed + ' assertions');
 }

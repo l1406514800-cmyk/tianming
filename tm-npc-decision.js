@@ -576,6 +576,7 @@ NpcBehaviorRegistry.register('seek_audience', function(npc, target, d, ctx) { ex
 NpcBehaviorRegistry.register('request_funds', function(npc, target, d, ctx) { executeRequestFundsBehavior(npc, target, d, ctx); });
 NpcBehaviorRegistry.register('obstruct', function(npc, target, d, ctx) { executeObstructBehavior(npc, target, d, ctx); });
 NpcBehaviorRegistry.register('slander', function(npc, target, d, ctx) { executeSlanderBehavior(npc, target, d, ctx); });
+NpcBehaviorRegistry.register('private_correspondence', function(npc, target, d, ctx) { executePrivateCorrespondenceBehavior(npc, target, d, ctx); });
 
 // ===== 执行层 =====
 
@@ -777,6 +778,10 @@ function _scoreNpcActionCandidate(candidate, npc, context) {
     var capital = GM._capital || '京师';
     score += npc.location && npc.location !== capital ? 12 : 2;
     score += Math.max(0, intel - 45) * 0.1;
+  } else if (candidate.behaviorType === 'private_correspondence') {
+    score += Math.max(0, ambition - 55) * 0.25;
+    score += Math.max(0, intel - 50) * 0.12;
+    score += Math.max(0, 70 - loyalty) * 0.08;
   } else if (candidate.behaviorType === 'seek_audience') {
     score += npc.location && npc.location !== (GM._capital || '京师') ? 8 : 4;
     score += Math.max(0, (npc.stress || 0) - 40) * 0.2;
@@ -793,6 +798,8 @@ function _scoreNpcActionCandidate(candidate, npc, context) {
 function _makeNpcActionCandidate(npc, type, target, intent, baseScore) {
   var candidate = {
     id: _npcActionUid(npc, type, target),
+    actor: npc && npc.name || '',
+    name: npc && npc.name || '',
     behaviorType: type,
     target: target || '',
     intent: intent || type,
@@ -802,15 +809,160 @@ function _makeNpcActionCandidate(npc, type, target, intent, baseScore) {
   return candidate;
 }
 
+function _npcLiveCharacters() {
+  return Array.isArray(GM.chars) ? GM.chars.filter(function(ch) {
+    return ch && ch.alive !== false && ch.name;
+  }) : [];
+}
+
+function _npcHasRealParty(npc) {
+  var party = String(npc && npc.party || '').trim();
+  return !!party && party !== '\u65E0\u515A\u6D3E' && party.toLowerCase() !== 'none';
+}
+
+function _npcHasRealFaction(npc) {
+  var faction = String(npc && npc.faction || npc && npc.factionName || '').trim();
+  return !!faction && faction.toLowerCase() !== 'none';
+}
+
+function _npcSameFaction(a, b) {
+  var af = String(a && (a.faction || a.factionName) || '').trim();
+  var bf = String(b && (b.faction || b.factionName) || '').trim();
+  return !!af && af === bf;
+}
+
+function _npcTargetSort(a, b) {
+  return (b.score || 0) - (a.score || 0) || String(a.ch.name).localeCompare(String(b.ch.name));
+}
+
+function _selectNpcActionTarget(npc, type, context) {
+  if (!npc || !npc.name) return '';
+  var people = _npcLiveCharacters().filter(function(ch) { return ch.name !== npc.name && !ch.isPlayer; });
+  if (!people.length) return '';
+  var actorOffice = findNpcOffice(npc.name);
+
+  if (type === 'conspire') {
+    var allies = people.map(function(ch) {
+      var score = 0;
+      if (_npcHasRealParty(npc) && ch.party === npc.party) score += 40;
+      if (_npcSameFaction(npc, ch)) score += 15;
+      if (npc.location && ch.location === npc.location) score += 8;
+      if (findNpcOffice(ch.name)) score += 6;
+      score += Math.max(0, (ch.ambition || 50) - 50) * 0.1;
+      score += Math.max(0, 75 - (ch.loyalty || 50)) * 0.05;
+      return { ch: ch, score: score };
+    }).filter(function(item) { return item.score > 0; }).sort(_npcTargetSort);
+    return allies[0] ? allies[0].ch.name : '';
+  }
+
+  if (type === 'private_correspondence') {
+    var contacts = people.map(function(ch) {
+      var score = 0;
+      if (_npcHasRealParty(npc) && ch.party === npc.party) score += 36;
+      if (_npcSameFaction(npc, ch)) score += 14;
+      if (npc.location && ch.location === npc.location) score += 10;
+      if (findNpcOffice(ch.name)) score += 6;
+      score += Math.max(0, (ch.intelligence || 50) - 50) * 0.08;
+      score += Math.max(0, 75 - (ch.loyalty || 50)) * 0.04;
+      return { ch: ch, score: score };
+    }).filter(function(item) { return item.score > 0; }).sort(_npcTargetSort);
+    return contacts[0] ? contacts[0].ch.name : '';
+  }
+
+  if (type === 'obstruct' || type === 'slander') {
+    var rivals = people.map(function(ch) {
+      var score = 0;
+      if (_npcHasRealParty(npc) && _npcHasRealParty(ch) && ch.party !== npc.party) score += 35;
+      if (_npcSameFaction(npc, ch)) score += 12;
+      if (actorOffice) {
+        var office = findNpcOffice(ch.name);
+        if (office && office.deptName === actorOffice.deptName) score += 12;
+      }
+      if (findNpcOffice(ch.name)) score += 6;
+      score += Math.max(0, (ch.ambition || 50) - 55) * 0.15;
+      score += Math.max(0, (ch.intelligence || 50) - 55) * 0.08;
+      return { ch: ch, score: score };
+    }).filter(function(item) { return item.score > 0; }).sort(_npcTargetSort);
+    return rivals[0] ? rivals[0].ch.name : '';
+  }
+
+  return '';
+}
+
+function _npcActionCooldownTurns(type) {
+  var map = {
+    petition: 2,
+    conspire: 2,
+    train_troops: 1,
+    send_letter: 2,
+    private_correspondence: 2,
+    seek_audience: 2,
+    request_funds: 3,
+    obstruct: 2,
+    slander: 2
+  };
+  return map[type] || 1;
+}
+
+function _getNpcActionLedger() {
+  if (!Array.isArray(GM._npcActionLedger)) GM._npcActionLedger = [];
+  return GM._npcActionLedger;
+}
+
+function _isNpcActionCoolingDown(npc, type, target, context, actionId) {
+  if (!npc || !type || type === 'none') return false;
+  var turn = Number(GM.turn || 0);
+  var cooldown = _npcActionCooldownTurns(type);
+  var ledger = _getNpcActionLedger();
+  return ledger.some(function(item) {
+    if (!item || item.actor !== npc.name || item.behaviorType !== type) return false;
+    if (actionId && item.actionId && item.actionId === actionId) return true;
+    if (String(item.target || '') !== String(target || '')) return false;
+    var age = turn - Number(item.turn || 0);
+    return age >= 0 && age < cooldown;
+  });
+}
+
+function _recordNpcActionLedger(npc, decision) {
+  if (!npc || !decision || !decision.behaviorType || decision.behaviorType === 'none') return;
+  var ledger = _getNpcActionLedger();
+  var turn = GM.turn || 0;
+  var exists = ledger.some(function(item) {
+    return item && item.turn === turn && item.actor === npc.name && item.behaviorType === decision.behaviorType && String(item.target || '') === String(decision.target || '');
+  });
+  if (!exists) {
+    ledger.push({
+      turn: turn,
+      actor: npc.name,
+      behaviorType: decision.behaviorType,
+      target: decision.target || '',
+      intent: decision.intent || '',
+      actionId: decision.actionId || '',
+      source: 'npc-autonomy'
+    });
+  }
+  if (ledger.length > 200) ledger.splice(0, ledger.length - 200);
+}
+
+function _npcPendingMemorialCount() {
+  return Array.isArray(GM.memorials) ? GM.memorials.filter(function(m) {
+    return m && (m.status === 'pending_review' || m.reviewed === false || (!m.status && !m.reviewed));
+  }).length : 0;
+}
+
 function _buildNpcActionCandidates(npc, context) {
   if (!npc || npc.alive === false) return [];
   var candidates = [];
   var capital = GM._capital || '京师';
-  if (hasOffice(npc.name) || npc.officialTitle || npc.title) {
+  var memorialQueueBusy = _npcPendingMemorialCount() >= 10;
+  if (!memorialQueueBusy && (hasOffice(npc.name) || npc.officialTitle || npc.title)) {
     candidates.push(_makeNpcActionCandidate(npc, 'petition', '朝廷', '上奏陈事，请求朝廷裁断', 18));
   }
   if ((npc.ambition || 50) >= 70 || ((npc.loyalty || 50) < 40 && (npc.ambition || 50) >= 55)) {
-    candidates.push(_makeNpcActionCandidate(npc, 'conspire', '同党', '暗中串联，试探同道', 16));
+    var allyTarget = _selectNpcActionTarget(npc, 'conspire', context) || '同党';
+    candidates.push(_makeNpcActionCandidate(npc, 'conspire', allyTarget, '暗中串联，试探同道', 16));
+    var contactTarget = _selectNpcActionTarget(npc, 'private_correspondence', context) || allyTarget;
+    candidates.push(_makeNpcActionCandidate(npc, 'private_correspondence', contactTarget, '私下通书，互探局势', 14));
   }
   if (_hasMilitaryCommand(npc)) {
     candidates.push(_makeNpcActionCandidate(npc, 'train_troops', npc.name, '整训所部，申严军纪', 20));
@@ -824,9 +976,13 @@ function _buildNpcActionCandidates(npc, context) {
     candidates.push(_makeNpcActionCandidate(npc, 'seek_audience', '天子', '压力积重，请求面圣陈情', 13));
   }
   if ((npc.ambition || 50) >= 75 && (npc.loyalty || 50) < 70) {
-    candidates.push(_makeNpcActionCandidate(npc, 'obstruct', '政敌', '私下拖延阻挠不利己之事', 11));
-    candidates.push(_makeNpcActionCandidate(npc, 'slander', '政敌', '散布微词，试探朝局风向', 10));
+    var rivalTarget = _selectNpcActionTarget(npc, 'obstruct', context) || '政敌';
+    candidates.push(_makeNpcActionCandidate(npc, 'obstruct', rivalTarget, '私下拖延阻挠不利己之事', 11));
+    candidates.push(_makeNpcActionCandidate(npc, 'slander', rivalTarget, '散布微词，试探朝局风向', 10));
   }
+  candidates = candidates.filter(function(c) {
+    return !_isNpcActionCoolingDown(npc, c.behaviorType, c.target, context, c.id);
+  });
   candidates.sort(function(a, b) { return b.score - a.score; });
   return candidates;
 }
@@ -938,6 +1094,29 @@ function executeSendLetterBehavior(npc, target, decision, context) {
   });
   addEB('书信', npc.name + '遣人送出书信。');
   _npcRemember(npc.name, '遣信上闻：' + _npcShortText(decision.intent, '', 50), '平', 5, '天子');
+}
+
+function executePrivateCorrespondenceBehavior(npc, target, decision, context) {
+  var list = _npcEnsureArray(GM, '_pendingNpcCorrespondence');
+  var to = target || decision.to || decision.targetName || '';
+  list.push({
+    id: _npcGeneratedId('npc-corr', npc),
+    from: npc.name,
+    to: to,
+    target: to,
+    subjectLine: decision.title || decision.subject || decision.intent || '私下通信',
+    content: decision.content || decision.privateMotiv || decision.intent || '私下通书，互探局势。',
+    intent: decision.intent || '私下通信',
+    visibility: 'private',
+    turn: GM.turn,
+    _npcAutonomous: true,
+    _actionId: decision.actionId || ''
+  });
+  if (typeof AffinityMap !== 'undefined' && to) {
+    try { AffinityMap.add(npc.name, to, 3, '私下通信'); } catch (_) {}
+  }
+  addEB('私信', npc.name + '私下致书' + (to ? '·' + to : ''));
+  _npcRemember(npc.name, '私下通信：' + _npcShortText(decision.intent, to, 50), '密', 5, to || '同僚');
 }
 
 function executeSeekAudienceBehavior(npc, target, decision, context) {
@@ -1057,6 +1236,8 @@ function _normalizeNpcBehaviorType(type) {
     train_troops: 'train_troops',
     sendLetter: 'send_letter',
     send_letter: 'send_letter',
+    privateCorrespondence: 'private_correspondence',
+    private_correspondence: 'private_correspondence',
     seekAudience: 'seek_audience',
     seek_audience: 'seek_audience',
     requestFunds: 'request_funds',
@@ -1111,7 +1292,12 @@ function _executeNormalizedNpcDecision(rawDecision, fallbackNpc, context) {
     _dbg('[NPC] ' + npc.name + ' 行为 ' + decision.behaviorType + ' 与性格矛盾，降级为观望');
     return false;
   }
+  if (_isNpcActionCoolingDown(npc, decision.behaviorType, decision.target, context, decision.actionId)) {
+    _dbg('[NPC] ' + npc.name + ' 行为 ' + decision.behaviorType + ' 正在冷却，跳过重复执行');
+    return false;
+  }
   NpcBehaviorRegistry.execute(npc, decision, context);
+  _recordNpcActionLedger(npc, decision);
   addEB('NPC行为', npc.name + '：' + decision.intent);
   _markNpcDecisionHandled(npc.name);
   return true;
@@ -1339,7 +1525,7 @@ async function batchNpcDecisions(npcs, context) {
     }
   });
 
-  prompt += '\n为每人返回JSON数组：[{"name":"角色名","actionId":"候选行动id，优先填写","behaviorType":"appoint|dismiss|reward|punish|declare_war|request_loyalty|reform|petition|conspire|train_troops|send_letter|seek_audience|request_funds|obstruct|slander|none","target":"对象","intent":"意图描述20字","shouldExecute":true,"publicReason":"对外说辞/冠冕堂皇的理由15字","privateMotiv":"真实内心动机15字","innerThought":"内心独白15字"}]\n';
+  prompt += '\n为每人返回JSON数组：[{"name":"角色名","actionId":"候选行动id，优先填写","behaviorType":"appoint|dismiss|reward|punish|declare_war|request_loyalty|reform|petition|conspire|train_troops|send_letter|private_correspondence|seek_audience|request_funds|obstruct|slander|none","target":"对象","intent":"意图描述20字","shouldExecute":true,"publicReason":"对外说辞/冠冕堂皇的理由15字","privateMotiv":"真实内心动机15字","innerThought":"内心独白15字"}]\n';
   prompt += '\u6CE8\u610F\uFF1A\n';
   prompt += '\u2022 \u4F18\u5148\u4ECE ActionCards \u4E2D\u9009 actionId\uFF1B\u53EA\u6709 ActionCards \u4E0D\u8DB3\u4EE5\u8868\u8FBE\u65F6\uFF0C\u624D\u76F4\u63A5\u5199 behaviorType\u3002\n';
   prompt += '\u2022 \u6BCF\u4E2A\u89D2\u8272\u662F\u72EC\u7ACB\u7684\u4EBA\uFF0C\u6709\u81EA\u5DF1\u7684\u559C\u6012\u54C0\u4E50\u3001\u6069\u6028\u60C5\u4EC7\uFF0C\u4E0D\u56F4\u7ED5\u73A9\u5BB6\u3002\n';

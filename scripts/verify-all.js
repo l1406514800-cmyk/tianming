@@ -32,6 +32,7 @@ const checks = [
   { name: 'start-game-data-integrity', file: 'smoke-start-game-data-integrity.js', estSec: 20, expectExit: 0 },
   { name: 'phase8-office-standalone', file: 'smoke-phase8-office-standalone.js', estSec: 1, expectExit: 0 },
   { name: 'phase8-map-live-panels', file: 'smoke-phase8-map-live-panels.js', estSec: 1, expectExit: 0 },
+  { name: 'shiji-history-ui', file: 'smoke-shiji-history-ui.js', estSec: 1, expectExit: 0 },
   { name: 'formal-edict-portrait', file: 'smoke-formal-edict-portrait.js', estSec: 1, expectExit: 0 },
   { name: 'formal-edict-polish-scope', file: 'smoke-formal-edict-polish-scope.js', estSec: 1, expectExit: 0 },
   { name: 'formal-runtime-chrome-throttle', file: 'smoke-formal-runtime-chrome-throttle.js', estSec: 1, expectExit: 0 },
