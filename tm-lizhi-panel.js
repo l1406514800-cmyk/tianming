@@ -108,7 +108,7 @@ function renderCorruptionPanel() {
   if (!body) return;
 
   var c = GM.corruption || {};
-  var trueIdx = c.trueIndex || 0;
+  var trueIdx = typeof c.trueIndex === 'number' ? c.trueIndex : (typeof c.overall === 'number' ? c.overall : 0);
   var perc = c.perceivedIndex !== undefined ? c.perceivedIndex : trueIdx;
   var sup = (c.supervision || {}).level || 0;
   var visibility = getCorrVisibility();

@@ -1999,9 +1999,10 @@
           } catch(_e){}
           // ── 腐败 6 部门 ──
           try {
-            if (GM.corruption && GM.corruption.byDept) {
-              var dp = Object.keys(GM.corruption.byDept).map(function(d){
-                var v = GM.corruption.byDept[d];
+            if (GM.corruption && (GM.corruption.byDept || GM.corruption.subDepts)) {
+              var deptSource = GM.corruption.byDept || GM.corruption.subDepts || {};
+              var dp = Object.keys(deptSource).map(function(d){
+                var v = deptSource[d];
                 if (typeof v === 'object') v = v.true || v.overall;
                 return d + Math.round(v||0);
               }).join('·');

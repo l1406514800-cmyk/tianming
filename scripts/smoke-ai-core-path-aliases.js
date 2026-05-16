@@ -31,6 +31,7 @@ const GM = {
     trueIndex: 70,
     overall: 70,
     perceivedIndex: 65,
+    byDept: {},
     subDepts: {
       central: { true: 70 },
       fiscal: { true: 70 }
@@ -71,7 +72,9 @@ const result = context.applyAITurnChanges({
   ],
   anyPathChanges: [
     { path: 'GM.neitang.balance', op: 'set', value: 1200, reason: 'balance alias' },
-    { path: 'corruption.subDepts.fiscal.true', op: 'delta', value: 10, reason: 'subdept sync' }
+    { path: 'neicang.money', op: 'delta', value: 300, reason: 'legacy neicang alias' },
+    { path: 'corruption.subDepts.fiscal.true', op: 'delta', value: 10, reason: 'subdept sync' },
+    { path: 'corruption.byDept.palace', op: 'set', value: 80, reason: 'legacy byDept sync' }
   ]
 });
 
@@ -85,10 +88,12 @@ assert(GM.huangwei.value === 45, 'huangwei compatibility value should sync');
 assert(GM.minxin.trueIndex === 50, 'minxin alias should write trueIndex');
 assert(GM.minxin.value === 50, 'minxin compatibility value should sync');
 assert(GM.guoku.money === 1000 && GM.guoku.balance === 1000 && GM.guoku.ledgers.money.stock === 1000, 'guoku balance alias should sync money/balance/ledger');
-assert(GM.neitang.money === 1200 && GM.neitang.balance === 1200 && GM.neitang.ledgers.money.stock === 1200, 'neitang balance alias should sync money/balance/ledger');
+assert(GM.neitang.money === 1500 && GM.neitang.balance === 1500 && GM.neitang.ledgers.money.stock === 1500, 'neitang/neicang aliases should sync money/balance/ledger');
 assert(GM.corruption.subDepts.central.true === 25, 'global corruption set should distribute to subdept central');
 assert(GM.corruption.subDepts.fiscal.true === 35, 'subdept corruption delta should apply after global set');
-assert(GM.corruption.trueIndex === 30 && GM.corruption.overall === 30, 'subdept corruption write should resync global trueIndex/overall');
+assert(GM.corruption.subDepts.imperial.true === 80, 'legacy byDept palace write should mirror to imperial subdept');
+assert(GM.corruption.byDept.fiscal === 35 && GM.corruption.byDept.palace === 80, 'subdept and byDept corruption mirrors should stay aligned');
+assert(Math.abs(GM.corruption.trueIndex - (140 / 3)) < 0.000001 && Math.abs(GM.corruption.overall - (140 / 3)) < 0.000001, 'department corruption writes should resync global trueIndex/overall');
 assert(!GM.vars, 'AI applier should not create GM.vars shadow container for core variables');
 
 const paths = GM._turnReport.filter((r) => r && (r.type === 'change' || r.type === 'anyPath')).map((r) => r.path);

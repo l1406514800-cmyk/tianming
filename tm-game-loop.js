@@ -1930,6 +1930,7 @@ function _wtNormalizeHardChangePath(path) {
     '白银': 'guoku.money',
     '银两': 'guoku.money',
     '银': 'guoku.money',
+    'guoku.balance': 'guoku.money',
     '粮': 'guoku.grain',
     '粮食': 'guoku.grain',
     '布': 'guoku.cloth',
@@ -1938,6 +1939,14 @@ function _wtNormalizeHardChangePath(path) {
     '内帑.value': 'neitang.money',
     '内帑.money': 'neitang.money',
     '內帑': 'neitang.money',
+    '內帑.value': 'neitang.money',
+    '內帑.money': 'neitang.money',
+    '内藏': 'neitang.money',
+    '內藏': 'neitang.money',
+    'neicang': 'neitang.money',
+    'neicang.money': 'neitang.money',
+    'neicang.balance': 'neitang.money',
+    'neitang.balance': 'neitang.money',
     '皇权': 'huangquan.index',
     '皇权.value': 'huangquan.index',
     '皇权.index': 'huangquan.index',
@@ -1981,7 +1990,30 @@ function _wtSyncHardChangeSideEffects(parts, newVal) {
   var key = parts.join('.');
   var numeric = Number(newVal);
   var hasNumber = !isNaN(numeric);
-  if (key === 'guoku.money' && GM.guoku) GM.guoku.balance = GM.guoku.money;
+  function syncCorruptionDeptIndex() {
+    if (!GM.corruption || typeof GM.corruption !== 'object') return;
+    if (typeof CorruptionEngine !== 'undefined' && CorruptionEngine && typeof CorruptionEngine.syncIndexFromSubDepts === 'function') {
+      try { CorruptionEngine.syncIndexFromSubDepts('问天·腐败部门调整'); return; } catch(_) {}
+    }
+    var vals = [];
+    Object.keys(GM.corruption.subDepts || {}).forEach(function(k) {
+      var d = GM.corruption.subDepts[k];
+      var v = d && typeof d === 'object' ? d.true : d;
+      if (typeof v === 'number' && isFinite(v)) vals.push(v);
+    });
+    if (!vals.length) return;
+    var sum = vals.reduce(function(a, b){ return a + b; }, 0);
+    GM.corruption.trueIndex = sum / vals.length;
+    GM.corruption.overall = GM.corruption.trueIndex;
+  }
+  if (key === 'guoku.money' && GM.guoku) {
+    GM.guoku.balance = GM.guoku.money;
+    if (GM.guoku.ledgers && GM.guoku.ledgers.money) GM.guoku.ledgers.money.stock = GM.guoku.money;
+  }
+  if (key === 'neitang.money' && GM.neitang) {
+    GM.neitang.balance = GM.neitang.money;
+    if (GM.neitang.ledgers && GM.neitang.ledgers.money) GM.neitang.ledgers.money.stock = GM.neitang.money;
+  }
   if (key === 'huangquan.index' && GM.huangquan && typeof GM.huangquan === 'object') {
     _wtSetNumericIfPossible(GM.huangquan, 'index', GM.huangquan.index);
   }
@@ -2011,6 +2043,23 @@ function _wtSyncHardChangeSideEffects(parts, newVal) {
         }
       });
     }
+  }
+  var subDeptMatch = key.match(/^corruption\.subDepts\.([^.]+)\.true$/);
+  if (subDeptMatch && GM.corruption && typeof GM.corruption === 'object' && hasNumber) {
+    var subDept = subDeptMatch[1];
+    var byDeptMirror = { imperial: 'palace' }[subDept] || subDept;
+    if (!GM.corruption.byDept) GM.corruption.byDept = {};
+    GM.corruption.byDept[byDeptMirror] = numeric;
+    syncCorruptionDeptIndex();
+  }
+  var byDeptMatch = key.match(/^corruption\.byDept\.([^.]+)$/);
+  if (byDeptMatch && GM.corruption && typeof GM.corruption === 'object' && hasNumber) {
+    var byDept = byDeptMatch[1];
+    var subDeptMirror = { palace: 'imperial' }[byDept] || byDept;
+    if (!GM.corruption.subDepts) GM.corruption.subDepts = {};
+    if (!GM.corruption.subDepts[subDeptMirror]) GM.corruption.subDepts[subDeptMirror] = {};
+    GM.corruption.subDepts[subDeptMirror].true = numeric;
+    syncCorruptionDeptIndex();
   }
 }
 

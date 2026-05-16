@@ -385,17 +385,18 @@
     var corr = G.corruption;
     var body = '<div style="max-width:720px;font-family:inherit;">';
     body += '<div style="font-size:1.0rem;color:var(--gold-300);margin-bottom:0.6rem;">吏治之察</div>';
-    var overall = (typeof corr === 'object') ? (corr.overall || 0) : corr;
+    var overall = (typeof corr === 'object') ? (typeof corr.trueIndex === 'number' ? corr.trueIndex : (typeof corr.overall === 'number' ? corr.overall : 0)) : corr;
     body += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">';
     body += '<div style="padding:10px;background:var(--bg-2);"><div style="font-size:0.74rem;">真值</div><div style="font-size:1.4rem;color:var(--vermillion-300);">' + Math.round(overall) + '</div></div>';
     body += '<div style="padding:10px;background:var(--bg-2);"><div style="font-size:0.74rem;">感知</div><div style="font-size:1.4rem;color:var(--gold-300);">' + Math.round(corr.perceived || overall) + '</div></div>';
     body += '</div>';
     // 6 部门
-    if (corr.byDept) {
+    if (corr.byDept || corr.subDepts) {
       body += '<div style="font-size:0.82rem;color:var(--gold-400);margin-bottom:4px;">六部门</div>';
       body += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:0.72rem;margin-bottom:10px;">';
       ['central','provincial','military','fiscal','judicial','imperial'].forEach(function(d) {
-        var v = corr.byDept[d];
+        var v = corr.byDept && corr.byDept[d];
+        if (v === undefined && corr.subDepts && corr.subDepts[d]) v = corr.subDepts[d].true;
         if (v !== undefined) {
           var c = v >= 60 ? 'var(--vermillion-400)' : v >= 40 ? 'var(--gold-400)' : 'var(--celadon-300)';
           body += '<div style="padding:6px;background:var(--bg-2);color:' + c + ';">' + d + ' ' + Math.round(v) + '</div>';

@@ -1651,8 +1651,176 @@
     return c;
   }
 
+  function regionKeyNorm(v){
+    return String(v === undefined || v === null ? '' : v).trim().replace(/\s+/g, '').toLowerCase();
+  }
+
+  function pushUniqueValue(list, value){
+    if (value === undefined || value === null || value === '') return;
+    var text = String(value);
+    if (list.indexOf(text) < 0) list.push(text);
+  }
+
+  function regionNameKeys(r){
+    var data = Object.assign({}, (r && r.admin) || {}, (r && r.data) || {});
+    var out = [];
+    [
+      r && r.id,
+      r && r.name,
+      r && r.title,
+      r && r.officialName,
+      r && r.sourceId,
+      r && r.mapRegionId,
+      r && r.adminBinding,
+      data.id,
+      data.name,
+      data.title,
+      data.officialName,
+      data.province,
+      data.provinceName,
+      data.adminName,
+      data.regionName
+    ].forEach(function(v){ pushUniqueValue(out, v); });
+    return out;
+  }
+
+  function plainObject(v){
+    return v && typeof v === 'object' && !Array.isArray(v) ? v : {};
+  }
+
+  function hasValue(v){
+    return v !== undefined && v !== null && v !== '';
+  }
+
+  function assignKnown(target){
+    for (var i = 1; i < arguments.length; i += 1) {
+      var src = arguments[i];
+      if (!src || typeof src !== 'object') continue;
+      Object.keys(src).forEach(function(k){
+        if (hasValue(src[k])) target[k] = src[k];
+      });
+    }
+    return target;
+  }
+
+  function regionMatchFields(node, objectKey){
+    if (!node || typeof node !== 'object') return [objectKey];
+    return [
+      objectKey,
+      node.id,
+      node.sid,
+      node.key,
+      node.name,
+      node.title,
+      node.officialName,
+      node.province,
+      node.provinceName,
+      node.adminName,
+      node.regionName,
+      node.mapRegionId,
+      node.sourceId,
+      node.adminBinding
+    ];
+  }
+
+  function findLiveProvinceStats(r){
+    var stats = window.GM && GM.provinceStats;
+    if (!stats) return null;
+    var keys = regionNameKeys(r);
+    var wanted = keys.map(regionKeyNorm).filter(Boolean);
+    if (!wanted.length) return null;
+    if (!Array.isArray(stats) && typeof stats === 'object') {
+      for (var i = 0; i < keys.length; i += 1) {
+        if (stats[keys[i]] && typeof stats[keys[i]] === 'object') return Object.assign({ _provinceKey: keys[i] }, stats[keys[i]]);
+      }
+    }
+    var rows = Array.isArray(stats) ? stats.map(function(x){ return { key: '', value: x }; }) : Object.keys(stats).map(function(k){ return { key: k, value: stats[k] }; });
+    for (var j = 0; j < rows.length; j += 1) {
+      var value = rows[j].value;
+      if (!value || typeof value !== 'object') continue;
+      var fields = regionMatchFields(value, rows[j].key).map(regionKeyNorm).filter(Boolean);
+      if (fields.some(function(x){ return wanted.indexOf(x) >= 0; })) return Object.assign({ _provinceKey: rows[j].key }, value);
+    }
+    return null;
+  }
+
+  function findLiveAdminDivision(r){
+    var wanted = regionNameKeys(r).map(regionKeyNorm).filter(Boolean);
+    if (!wanted.length) return null;
+    var roots = [];
+    if (window.GM && GM.adminHierarchy) roots.push(GM.adminHierarchy);
+    if (window.P && P.adminHierarchy) roots.push(P.adminHierarchy);
+    var found = null;
+    var seen = [];
+    function walk(node, objectKey){
+      if (found || !node || typeof node !== 'object') return;
+      if (seen.indexOf(node) >= 0) return;
+      seen.push(node);
+      if (Array.isArray(node)) {
+        node.forEach(function(item){ walk(item, objectKey); });
+        return;
+      }
+      var fields = regionMatchFields(node, objectKey).map(regionKeyNorm).filter(Boolean);
+      if (fields.some(function(x){ return wanted.indexOf(x) >= 0; })) {
+        found = objectKey && !node.name ? Object.assign({ name: objectKey }, node) : node;
+        return;
+      }
+      Object.keys(node).forEach(function(k){
+        if (found) return;
+        var child = node[k];
+        if (!child || typeof child !== 'object') return;
+        if (wanted.indexOf(regionKeyNorm(k)) >= 0) {
+          found = Object.assign({ name: k }, child);
+          return;
+        }
+        walk(child, k);
+      });
+    }
+    roots.forEach(function(root){ walk(root, ''); });
+    return found;
+  }
+
+  function liveOwnerFromProvinceMap(r){
+    var map = window.GM && GM._provinceToFaction;
+    if (!map || typeof map !== 'object') return '';
+    var keys = regionNameKeys(r);
+    for (var i = 0; i < keys.length; i += 1) {
+      if (hasValue(map[keys[i]])) return map[keys[i]];
+    }
+    var wanted = keys.map(regionKeyNorm).filter(Boolean);
+    var hit = Object.keys(map).find(function(k){ return wanted.indexOf(regionKeyNorm(k)) >= 0; });
+    return hit && hasValue(map[hit]) ? map[hit] : '';
+  }
+
+  function ownerFromRecord(record){
+    if (!record || typeof record !== 'object') return '';
+    return firstValue(
+      record.currentOwner,
+      record.controller,
+      record.owner,
+      record.currentOwnerKey,
+      record.controllerKey,
+      record.ownerKey,
+      record.factionId,
+      record.factionKey,
+      record.factionName,
+      record.power,
+      record.realm
+    );
+  }
+
+  function liveRegionOwner(r, liveStats, liveDivision){
+    return firstValue(
+      liveOwnerFromProvinceMap(r),
+      ownerFromRecord(liveStats || findLiveProvinceStats(r)),
+      ownerFromRecord(liveDivision || findLiveAdminDivision(r))
+    );
+  }
+
   function ownerKey(r){
     if (!r) return '';
+    var liveOwner = liveRegionOwner(r);
+    if (liveOwner) return String(liveOwner);
     var data = Object.assign({}, r.admin || {}, r.data || {});
     return String(r.currentOwner || r.controller || r.owner || r.currentOwnerKey || r.controllerKey || r.ownerKey || r.factionId || data.factionId || data.groupKey || '');
   }
@@ -1744,9 +1912,9 @@
     merged.mapFactionId = mapId || '';
     merged.runtimeFactionId = liveId || '';
     merged.stableOwnerKey = stableKey || mapId || merged.ownerKey || '';
-    merged.label = firstValue(mapFaction && mapFaction.label, liveFaction && liveFaction.label, liveFaction && liveFaction.name, merged.label, merged.name);
-    merged.name = firstValue(liveFaction && liveFaction.name, mapFaction && mapFaction.name, mapFaction && mapFaction.label, merged.name, merged.label);
-    merged.short = firstValue(mapFaction && mapFaction.short, liveFaction && liveFaction.short, merged.short, merged.label, merged.name);
+    merged.label = firstValue(liveFaction && liveFaction.label, liveFaction && liveFaction.name, mapFaction && mapFaction.label, merged.label, merged.name);
+    merged.name = firstValue(liveFaction && liveFaction.name, liveFaction && liveFaction.label, mapFaction && mapFaction.name, mapFaction && mapFaction.label, merged.name, merged.label);
+    merged.short = firstValue(liveFaction && liveFaction.short, mapFaction && mapFaction.short, merged.short, merged.label, merged.name);
     merged.color = firstValue(liveFaction && liveFaction.color, mapFaction && mapFaction.color, mapFaction && mapFaction.line, merged.color);
     merged.line = firstValue(liveFaction && liveFaction.line, mapFaction && mapFaction.line, mapFaction && mapFaction.color, merged.line);
     merged._mapFaction = mapFaction || null;
@@ -1781,10 +1949,11 @@
   }
 
   function regionColor(r){
-    var data = Object.assign({}, (r && r.admin) || {}, (r && r.data) || {});
-    if (state.mapMode === 'tax') return heatColor((data.fiscalDetail && data.fiscalDetail.actualRevenue) || r.tax || r.development, 0, 3000000, ['#6f8a72','#b8994c','#c65b3d']);
-    if (state.mapMode === 'mood') return heatColor(data.minxinLocal || r.mood || r.prosperity, 20, 85, ['#b94a3c','#b69650','#6f9f88']);
-    if (state.mapMode === 'army') return heatColor(r.troops || data.garrison || data.armyPressure || r.armyPressure, 0, 250000, ['#7b8467','#b98e4c','#b6533f']);
+    var b = regionBundle(r);
+    var data = b.data || {};
+    if (state.mapMode === 'tax') return heatColor(firstValue(b.fiscal.actualRevenue, r && r.tax, r && r.development), 0, 3000000, ['#6f8a72','#b8994c','#c65b3d']);
+    if (state.mapMode === 'mood') return heatColor(firstValue(data.minxinLocal, r && r.mood, r && r.prosperity), 20, 85, ['#b94a3c','#b69650','#6f9f88']);
+    if (state.mapMode === 'army') return heatColor(firstValue(data.garrison, b.army.troops, data.armyPressure, r && r.troops, r && r.armyPressure), 0, 250000, ['#7b8467','#b98e4c','#b6533f']);
     var f = findFaction(ownerKey(r), r.factionName || r.ownerName);
     return (f && (f.color || f.line)) || r.factionColor || r.color || '#b7914f';
   }
@@ -2663,12 +2832,124 @@
   }
 
   function regionBundle(r){
-    var data = Object.assign({}, (r && r.admin) || {}, (r && r.data) || {});
-    var pop = data.populationDetail && typeof data.populationDetail === 'object' ? data.populationDetail : {};
-    var fiscal = data.fiscalDetail && typeof data.fiscalDetail === 'object' ? data.fiscalDetail : {};
-    var treasury = data.publicTreasuryInit && typeof data.publicTreasuryInit === 'object' ? data.publicTreasuryInit : {};
-    var army = data.armyDetail && typeof data.armyDetail === 'object' ? data.armyDetail : {};
-    return { data: data, pop: pop, fiscal: fiscal, treasury: treasury, army: army };
+    var base = Object.assign({}, (r && r.admin) || {}, (r && r.data) || {});
+    var liveDivision = findLiveAdminDivision(r);
+    var liveStats = findLiveProvinceStats(r);
+    var data = assignKnown({}, base, liveDivision, liveStats);
+    var liveOwner = liveRegionOwner(r, liveStats, liveDivision);
+    if (hasValue(liveOwner)) {
+      data.owner = liveOwner;
+      data.factionName = liveOwner;
+      data.ownerName = liveOwner;
+    }
+    var pop = assignKnown({},
+      plainObject(base.populationDetail),
+      plainObject(liveDivision && liveDivision.populationDetail),
+      plainObject(liveStats && liveStats.populationDetail),
+      plainObject(liveStats && liveStats.population)
+    );
+    if (hasValue(liveDivision && liveDivision.population) && typeof liveDivision.population !== 'object') pop.mouths = liveDivision.population;
+    if (hasValue(liveStats && liveStats.population) && typeof liveStats.population !== 'object') pop.mouths = liveStats.population;
+    if (hasValue(liveStats && liveStats.households)) pop.households = liveStats.households;
+    [
+      ['ding', 'ding', 'dingCount'],
+      ['fugitives', 'fugitives', 'escapedHouseholds', 'escapedPopulation'],
+      ['hiddenCount', 'hiddenCount', 'hiddenHouseholds', 'hiddenPopulation']
+    ].forEach(function(row){
+      var target = row[0];
+      for (var i = 1; i < row.length; i += 1) {
+        var key = row[i];
+        var value = firstValue(liveStats && liveStats[key], liveDivision && liveDivision[key]);
+        if (hasValue(value)) {
+          pop[target] = value;
+          break;
+        }
+      }
+    });
+    if (hasValue(pop.mouths)) data.population = pop.mouths;
+    var fiscal = assignKnown({},
+      plainObject(base.fiscalDetail),
+      plainObject(liveDivision && liveDivision.fiscalDetail),
+      plainObject(liveStats && liveStats.fiscalDetail)
+    );
+    [
+      ['actualRevenue', 'taxRevenue', 'revenue', 'actualRevenue'],
+      ['claimedRevenue', 'claimedRevenue', 'expectedRevenue'],
+      ['remittedToCenter', 'remittedToCenter', 'remitToCenter'],
+      ['retainedBudget', 'retainedBudget', 'retainedLocal'],
+      ['compliance', 'compliance', 'taxCompliance'],
+      ['skimmingRate', 'skimmingRate', 'corruptionSkimRate'],
+      ['autonomy', 'fiscalAutonomy', 'autonomy'],
+      ['taxBurden', 'taxBurden']
+    ].forEach(function(row){
+      var target = row[0];
+      for (var i = 1; i < row.length; i += 1) {
+        var key = row[i];
+        var value = firstValue(liveStats && liveStats[key], liveDivision && liveDivision[key]);
+        if (hasValue(value)) {
+          fiscal[target] = value;
+          break;
+        }
+      }
+    });
+    if (hasValue(fiscal.actualRevenue)) data.taxRevenue = fiscal.actualRevenue;
+    var treasury = assignKnown({},
+      plainObject(base.publicTreasuryInit),
+      plainObject(liveDivision && liveDivision.publicTreasuryInit),
+      plainObject(liveStats && liveStats.publicTreasuryInit),
+      plainObject(liveStats && liveStats.treasury)
+    );
+    ['money','silver','grain','cloth','horse'].forEach(function(k){
+      var value = firstValue(liveStats && liveStats[k], liveDivision && liveDivision[k]);
+      if (hasValue(value)) treasury[k] = value;
+    });
+    var economy = assignKnown({},
+      plainObject(base.economyBase),
+      plainObject(liveDivision && liveDivision.economyBase),
+      plainObject(liveStats && liveStats.economyBase)
+    );
+    [
+      'farmland',
+      'commerceVolume',
+      'commerceCoefficient',
+      'saltProduction',
+      'mineralProduction',
+      'horseProduction',
+      'fishingProduction',
+      'imperialFarmland',
+      'postRelays',
+      'roadQuality',
+      'kejuQuota'
+    ].forEach(function(k){
+      var value = firstValue(liveStats && liveStats[k], liveDivision && liveDivision[k]);
+      if (hasValue(value)) economy[k] = value;
+    });
+    if (hasValue(liveStats && liveStats.imperialAssets) || hasValue(liveDivision && liveDivision.imperialAssets)) {
+      economy.imperialAssets = assignKnown({}, plainObject(economy.imperialAssets), plainObject(liveDivision && liveDivision.imperialAssets), plainObject(liveStats && liveStats.imperialAssets));
+    }
+    var army = assignKnown({},
+      plainObject(base.armyDetail),
+      plainObject(liveDivision && liveDivision.armyDetail),
+      plainObject(liveStats && liveStats.armyDetail)
+    );
+    var troops = firstValue(liveStats && liveStats.soldiers, liveStats && liveStats.troops, liveStats && liveStats.garrison, liveStats && liveStats.strength, liveDivision && liveDivision.garrison, liveDivision && liveDivision.troops);
+    if (hasValue(troops)) {
+      army.troops = troops;
+      data.garrison = troops;
+    }
+    var minxin = firstValue(liveStats && liveStats.minxin, liveStats && liveStats.mood, liveStats && liveStats.stability, liveDivision && liveDivision.minxinLocal, liveDivision && liveDivision.minxin);
+    if (hasValue(minxin)) data.minxinLocal = minxin;
+    var corruption = firstValue(liveStats && liveStats.corruption, liveStats && liveStats.corruptionLocal, liveDivision && liveDivision.corruptionLocal, liveDivision && liveDivision.corruption);
+    if (hasValue(corruption)) {
+      data.corruptionLocal = corruption;
+      data.corruption = corruption;
+    }
+    data.populationDetail = pop;
+    data.fiscalDetail = fiscal;
+    data.publicTreasuryInit = treasury;
+    data.economyBase = economy;
+    data.armyDetail = army;
+    return { data: data, pop: pop, fiscal: fiscal, treasury: treasury, army: army, liveStats: liveStats, liveDivision: liveDivision };
   }
 
   function regionTitle(r){
@@ -2678,7 +2959,7 @@
 
   function regionLevel(r){
     var data = regionBundle(r).data;
-    return [firstValue(data.regionType, r && r.type, data.level, r && r.level, '政区'), ownerName(r)].filter(Boolean).join(' · ');
+    return [firstValue(data.regionType, data.level, r && r.type, r && r.level, '政区'), ownerName(r)].filter(Boolean).join(' · ');
   }
 
   function regionIdentity(r){
@@ -2702,7 +2983,7 @@
       if (claimed > 0 && actual >= 0) return Math.max(0, Math.min(100, Math.round(actual / claimed * 100)));
       return actual ? Math.min(100, Math.round(actual / 30000)) : 50;
     }
-    if (mode === 'army') return firstValue(r && r.armyPressure, b.data.armyPressure, b.data.garrison, r && r.troops, 50);
+    if (mode === 'army') return firstValue(b.data.armyPressure, b.data.garrison, b.army.troops, r && r.armyPressure, r && r.troops, 50);
     if (mode === 'office') {
       var c = Number(firstValue(b.data.corruptionLocal, b.data.corruption, 50));
       return isFinite(c) ? Math.max(0, Math.min(100, 100 - c)) : 50;
@@ -2747,7 +3028,7 @@
     var note = meta.note;
     if (mode === 'mood') value = firstValue(b.data.minxinLocal, r && r.mood, '未记');
     else if (mode === 'tax') value = firstValue(b.fiscal.actualRevenue, r && r.tax, '未记');
-    else if (mode === 'army') value = firstValue(r && r.troops, b.data.garrison, b.data.armyPressure, '未记');
+    else if (mode === 'army') value = firstValue(b.data.garrison, b.army.troops, b.data.armyPressure, r && r.troops, '未记');
     else if (mode === 'office') value = firstValue(b.data.governor, b.data.officialPosition, b.data.corruptionLocal, '未记');
     else if (mode === 'owner') value = ownerName(r);
     else value = firstValue(regionTitle(r), ownerName(r));
@@ -2772,7 +3053,7 @@
     var rows = [
       ['户', firstValue(b.data.population, b.pop.mouths, b.pop.households, r && r.population), '户口 / 丁册'],
       ['赋', firstValue(b.fiscal.actualRevenue, b.fiscal.claimedRevenue, r && r.tax), '实征 / 应征'],
-      ['兵', firstValue(r && r.troops, b.data.garrison, b.army.troops), '驻军 / 军压']
+      ['兵', firstValue(b.data.garrison, b.army.troops, r && r.troops), '驻军 / 军压']
     ];
     return '<div class="pp-dev-triplet">' + rows.map(function(row){
       return '<div class="pp-dev-chip"><i>' + esc(row[0]) + '</i><b>' + esc(ppValue(row[1])) + '</b><span>' + esc(row[2]) + '</span><em>读数</em></div>';
@@ -2902,6 +3183,7 @@
         ['合规率', pctValue(b.fiscal.compliance)],
         ['截留率', pctValue(b.fiscal.skimmingRate)],
         ['财政自主', b.fiscal.autonomy],
+        ['税负', firstValue(b.fiscal.taxBurden, data.taxBurden)],
         ['税级', data.taxLevel],
         ['地方银', b.treasury.money],
         ['地方粮', b.treasury.grain],
@@ -2909,8 +3191,8 @@
       ], true) + ppFacilities(r);
     } else if (mode === 'army') {
       body = ppZone('军务态势', [
-        ['驻军', firstValue(r && r.troops, data.garrison, b.army.troops)],
-        ['军压', firstValue(r && r.armyPressure, data.armyPressure)],
+        ['驻军', firstValue(data.garrison, b.army.troops, r && r.troops)],
+        ['军压', firstValue(data.armyPressure, r && r.armyPressure)],
         ['城防', firstValue(data.fortification, b.army.fortification)],
         ['主将', firstValue(data.commander, b.army.commander)],
         ['边警', firstValue(data.borderRisk, data.warRisk)],
@@ -2948,7 +3230,7 @@
         ['当前控制', ownerName(r)],
         ['势力键', key],
         ['法理归属', firstValue(data.dejureOwner, ownerName(r))],
-        ['实际控制键', firstValue(r && r.controllerKey, data.controllerKey, key)],
+        ['实际控制键', firstValue(data.controllerKey, r && r.controllerKey, key)],
         ['地图势力 ID', firstValue(f.mapFactionId, key)],
         ['运行态势力 ID', f.runtimeFactionId],
         ['核心 / 边缘', firstValue(data.coreStatus, data.borderStatus)],
@@ -2966,7 +3248,7 @@
       Object.keys(b.data.tags).forEach(function(k){ if (b.data.tags[k]) tags.push(k); });
     }
     return [
-      '<section class="pp-admin-brief wide"><div class="pp-admin-seal">' + esc(regionTitle(r).slice(0, 1)) + '</div><div><b>' + esc(firstValue(b.data.officialPosition, b.data.regionType, r && r.type, '地方政区')) + '</b><p class="pp-admin-desc">' + esc(firstValue(b.data.description, r && r.description, '此地尚无专门叙述，但会随剧本地图数据、地方财政、军务和人物任职动态更新。')) + '</p></div></section>',
+      '<section class="pp-admin-brief wide"><div class="pp-admin-seal">' + esc(regionTitle(r).slice(0, 1)) + '</div><div><b>' + esc(firstValue(b.data.officialPosition, b.data.regionType, b.data.level, r && r.type, '地方政区')) + '</b><p class="pp-admin-desc">' + esc(firstValue(b.data.description, r && r.description, '此地尚无专门叙述，但会随剧本地图数据、地方财政、军务和人物任职动态更新。')) + '</p></div></section>',
       ppDevTriplet(r),
       '<div class="pp-seal-grid wide">' + [
         ppStatusSeal('mood', '民情', r),
@@ -2992,8 +3274,8 @@
         ['地方粮', b.treasury.grain]
       ]),
       ppZone('军务 · 城防', [
-        ['驻军', firstValue(r && r.troops, b.data.garrison, b.army.troops)],
-        ['军压', firstValue(r && r.armyPressure, b.data.armyPressure)],
+        ['驻军', firstValue(b.data.garrison, b.army.troops, r && r.troops)],
+        ['军压', firstValue(b.data.armyPressure, r && r.armyPressure)],
         ['城防', firstValue(b.data.fortification, b.army.fortification)],
         ['主将', firstValue(b.data.commander, b.army.commander)],
         ['边警', firstValue(b.data.borderRisk, b.data.warRisk)],
@@ -3028,7 +3310,7 @@
     var children = Array.isArray(b.data.children) ? b.data.children : [];
     var tagList = ppTagNames(b.data.tags);
     return [
-      '<section class="pp-admin-brief wide"><div class="pp-admin-head"><div class="pp-admin-seal"><b>' + esc(regionTitle(r).slice(0, 1)) + '</b><span>' + esc(firstValue(b.data.level, r && r.level, '政区')) + '</span></div><div><div class="pp-admin-title"><span>' + esc(regionTitle(r)) + '</span><small>' + esc(firstValue(r && r.id, b.data.id, '未记 ID')) + '</small></div><p class="pp-admin-desc">' + esc(firstValue(b.data.description, r && r.description, '此地暂无专门叙述，但会随剧本地图数据、地方财政、军务和人物任职动态更新。')) + '</p><div class="pp-badge-row">' + [firstValue(b.data.regionType, r && r.type), firstValue(b.data.officialPosition, b.data.governor), ownerName(r)].concat(tagList).filter(Boolean).slice(0, 9).map(function(x, i){ return '<span class="' + (i === 2 ? 'good' : '') + '">' + esc(ppValue(x)) + '</span>'; }).join('') + '</div></div></div></section>',
+      '<section class="pp-admin-brief wide"><div class="pp-admin-head"><div class="pp-admin-seal"><b>' + esc(regionTitle(r).slice(0, 1)) + '</b><span>' + esc(firstValue(b.data.level, r && r.level, '政区')) + '</span></div><div><div class="pp-admin-title"><span>' + esc(regionTitle(r)) + '</span><small>' + esc(firstValue(r && r.id, b.data.id, '未记 ID')) + '</small></div><p class="pp-admin-desc">' + esc(firstValue(b.data.description, r && r.description, '此地暂无专门叙述，但会随剧本地图数据、地方财政、军务和人物任职动态更新。')) + '</p><div class="pp-badge-row">' + [firstValue(b.data.regionType, b.data.level, r && r.type), firstValue(b.data.officialPosition, b.data.governor), ownerName(r)].concat(tagList).filter(Boolean).slice(0, 9).map(function(x, i){ return '<span class="' + (i === 2 ? 'good' : '') + '">' + esc(ppValue(x)) + '</span>'; }).join('') + '</div></div></div></section>',
       '<div class="pp-ledger-grid wide">' +
         ppLedger('在编人口', firstValue(b.data.population, b.pop.mouths, r && r.population), '官方剧本口径') +
         ppLedger('黄册户口', b.pop.households, '丁 ' + ppValue(b.pop.ding)) +
@@ -3068,14 +3350,15 @@
         ['留用地方', b.fiscal.retainedBudget],
         ['合规率', pctValue(b.fiscal.compliance)],
         ['截留率', pctValue(b.fiscal.skimmingRate)],
+        ['税负', firstValue(b.fiscal.taxBurden, b.data.taxBurden)],
         ['地方银', b.treasury.money],
         ['地方粮', b.treasury.grain],
         ['地方布', b.treasury.cloth],
         ['税级', b.data.taxLevel]
       ]),
       ppZone('军务 · 城防', [
-        ['驻军', firstValue(r && r.troops, b.data.garrison, b.army.troops)],
-        ['军压', firstValue(r && r.armyPressure, b.data.armyPressure)],
+        ['驻军', firstValue(b.data.garrison, b.army.troops, r && r.troops)],
+        ['军压', firstValue(b.data.armyPressure, r && r.armyPressure)],
         ['城防', firstValue(b.data.fortification, b.army.fortification)],
         ['主将', firstValue(b.data.commander, b.army.commander)],
         ['边警', firstValue(b.data.borderRisk, b.data.warRisk)],
@@ -3223,7 +3506,7 @@
       ]),
       ppZone('军务 · 财赋', [
         ['军力', firstValue(f.militaryStrength, f.strength, f.army, f.score)],
-        ['经济', firstValue(f.economy, f.wealth, f.finance)],
+        ['经济', firstValue(runtimeFactionValue(f, 'economy'), runtimeFactionValue(f, 'wealth'), f.economy, f.wealth, f.finance)],
         ['粮饷', firstValue(f.supply, f.grain, f.pay)],
         ['动员', firstValue(f.mobilization, f.manpower)],
         ['风险', firstValue(f.risk, f.risks)],
@@ -3249,7 +3532,7 @@
 
   function factionRegionTokens(r){
     var b = regionBundle(r);
-    return factionTokens(null, ownerKey(r), firstValue(r && r.factionName, r && r.ownerName, b.data.factionName, b.data.ownerName, b.data.dejureOwner));
+    return factionTokens(null, ownerKey(r), firstValue(b.data.factionName, b.data.ownerName, b.data.dejureOwner, r && r.factionName, r && r.ownerName));
   }
 
   function factionOwnsRegion(r, key, f){
@@ -3269,6 +3552,36 @@
     return Math.round(vals.reduce(function(a, b){ return a + b; }, 0) / vals.length);
   }
 
+  function factionIndexEntry(f, key){
+    var api = window.TM && TM.FactionIndex;
+    if (!api || typeof api.getOrRebuild !== 'function') return null;
+    var names = [];
+    function add(v){
+      if (v === undefined || v === null || v === '') return;
+      var s = String(v);
+      if (names.indexOf(s) < 0) names.push(s);
+    }
+    add(f && f.name);
+    add(f && f.label);
+    add(f && f.scenarioFactionName);
+    add(f && f.runtimeFactionId);
+    add(f && f.stableOwnerKey);
+    add(f && f.mapFactionId);
+    add(key);
+    for (var i = 0; i < names.length; i += 1) {
+      try {
+        var entry = api.getOrRebuild(names[i]);
+        if (entry) return entry;
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  function runtimeFactionValue(f, key){
+    var live = f && f._runtimeFaction;
+    return live && hasValue(live[key]) ? live[key] : undefined;
+  }
+
   function factionProfile(f, key, region){
     f = f || {};
     key = key || f.stableOwnerKey || f.mapFactionId || f.id || '';
@@ -3277,7 +3590,11 @@
     var pop = sumFactionValues(regions, function(b, r){ return firstValue(b.data.population, b.pop.mouths, r && r.population, 0); });
     var revenue = sumFactionValues(regions, function(b){ return firstValue(b.fiscal.actualRevenue, 0); });
     var grain = sumFactionValues(regions, function(b){ return firstValue(b.treasury.grain, 0); });
-    var troops = sumFactionValues(regions, function(b, r){ return firstValue(r && r.troops, b.data.garrison, b.army.troops, 0); }) || Number(firstValue(f.militaryStrength, f.strength, 0));
+    var indexEntry = factionIndexEntry(f, key);
+    var indexMetrics = (indexEntry && indexEntry.metrics) || {};
+    var indexedTroops = Number(indexMetrics.totalSoldiers);
+    var regionTroops = sumFactionValues(regions, function(b, r){ return firstValue(b.data.garrison, b.army.troops, r && r.troops, 0); });
+    var troops = firstValue(indexMetrics.armyCount > 0 && isFinite(indexedTroops) ? indexedTroops : '', regionTroops || '', f.militaryStrength, f.strength, 0);
     var avgMood = avgFactionValue(regions, function(b, r){ return firstValue(b.data.minxinLocal, r && r.mood); });
     var avgCorr = avgFactionValue(regions, function(b){ return firstValue(b.data.corruptionLocal, b.data.corruption); });
     var threats = [];
@@ -3293,7 +3610,7 @@
         else if (v && resources.indexOf(v) < 0) resources.push(v);
       });
     });
-    return { f: f, key: key, regions: regions, sample: sample, pop: pop, revenue: revenue, grain: grain, troops: troops, avgMood: avgMood, avgCorr: avgCorr, threats: threats, resources: resources };
+    return { f: f, key: key, regions: regions, sample: sample, pop: pop, revenue: revenue, grain: grain, troops: troops, avgMood: avgMood, avgCorr: avgCorr, threats: threats, resources: resources, indexEntry: indexEntry, indexMetrics: indexMetrics };
   }
 
   function factionLeaderCards(f){
@@ -3325,7 +3642,7 @@
       ppLedger('首脑', firstValue(f.leader, f.leaderName, f.ruler, f.scenarioFactionName), '运行态势力字段') +
       ppLedger('首府', firstValue(f.capital, f.home, p.sample && regionTitle(p.sample)), '政治中心') +
       ppLedger('控制地块', p.regions.length + ' 块', p.regions.slice(0, 3).map(regionTitle).join('、')) +
-      ppLedger('总人口', firstValue(f.population, p.pop), '势力/地块聚合') +
+      ppLedger('总人口', firstValue(p.regions.length ? p.pop : '', runtimeFactionValue(f, 'population'), f.population), '势力/地块聚合') +
       ppLedger('总兵力', p.troops, '势力/地块聚合') +
       ppLedger('实收财赋', p.revenue, '所辖地块合计') +
       ppLedger('粮储', p.grain, '所辖地块合计') +
@@ -3350,7 +3667,7 @@
     }
     if (tab === 'military') {
       return '<div class="pp-tab-detail">' + ppZone('军务与战略', [
-        ['总兵力', firstValue(f.militaryStrength, p.troops)],
+        ['总兵力', firstValue(p.troops, runtimeFactionValue(f, 'militaryStrength'), f.militaryStrength)],
         ['军力构成', f.militaryBreakdown],
         ['战争状态', f.warState],
         ['动员', firstValue(f.mobilization, f.manpower)],
@@ -3362,8 +3679,8 @@
     }
     if (tab === 'finance') {
       return '<div class="pp-tab-detail">' + ledger + ppZone('财赋与国力', [
-        ['经济', firstValue(f.economy, f.wealth, p.revenue)],
-        ['库藏', firstValue(f.treasury, p.revenue)],
+        ['经济', firstValue(runtimeFactionValue(f, 'economy'), runtimeFactionValue(f, 'wealth'), p.revenue, f.economy, f.wealth)],
+        ['库藏', firstValue(runtimeFactionValue(f, 'treasury'), p.revenue, f.treasury)],
         ['经济结构', f.economicStructure],
         ['经济政策', f.economicPolicy],
         ['公共舆情', f.publicOpinion],
@@ -3400,12 +3717,13 @@
   }
 
   function factionPanelRowsV2(f, key, region){
-    var regions = factionRegions(key);
-    var sample = region || regions[0] || null;
-    var pop = sumFactionValues(regions, function(b, r){ return firstValue(b.data.population, b.pop.mouths, r && r.population, 0); });
-    var revenue = sumFactionValues(regions, function(b){ return firstValue(b.fiscal.actualRevenue, 0); });
-    var grain = sumFactionValues(regions, function(b){ return firstValue(b.treasury.grain, 0); });
-    var troops = sumFactionValues(regions, function(b, r){ return firstValue(r && r.troops, b.data.garrison, b.army.troops, 0); }) || Number(firstValue(f.militaryStrength, f.strength, 0));
+    var profile = factionProfile(f, key, region);
+    var regions = profile.regions;
+    var sample = profile.sample;
+    var pop = profile.pop;
+    var revenue = profile.revenue;
+    var grain = profile.grain;
+    var troops = profile.troops;
     var name = firstValue(f.label, f.name, f.scenarioFactionName, sample && ownerName(sample), key);
     var territoryRows = regions.map(function(r){
       var b = regionBundle(r);
@@ -3421,11 +3739,11 @@
         ppLedger('首脑', firstValue(f.leader, f.leaderName, f.ruler, f.scenarioFactionName), '势力首领') +
         ppLedger('首府', firstValue(f.capital, f.home, sample && regionTitle(sample)), '政治中心') +
         ppLedger('控制地块', regions.length + ' 块', regions.slice(0, 3).map(regionTitle).join('、')) +
-        ppLedger('总人口', firstValue(f.population, pop), '剧本/地块聚合') +
+        ppLedger('总人口', firstValue(regions.length ? pop : '', runtimeFactionValue(f, 'population'), f.population), '剧本/地块聚合') +
         ppLedger('总兵力', troops, '剧本/地块聚合') +
-        ppLedger('国势', firstValue(f.strength, f.score), '综合实力') +
-        ppLedger('府库', firstValue(f.treasury, revenue), '银粮布马') +
-        ppLedger('经济', firstValue(f.economy, revenue), '经济基础') +
+        ppLedger('国势', firstValue(runtimeFactionValue(f, 'strength'), runtimeFactionValue(f, 'score'), f.strength, f.score), '综合实力') +
+        ppLedger('府库', firstValue(runtimeFactionValue(f, 'treasury'), revenue, f.treasury), '银粮布马') +
+        ppLedger('经济', firstValue(runtimeFactionValue(f, 'economy'), revenue, f.economy), '经济基础') +
         ppLedger('粮储', grain, '地块府库合计') +
       '</div>',
       ppFieldChips([
@@ -3447,12 +3765,12 @@
         ['长期目标', firstValue(f.goal, f.longTermStrategy, f.agenda)]
       ]),
       ppZone('军务 · 财赋', [
-        ['军力', firstValue(f.militaryStrength, f.strength, f.army, troops)],
+        ['军力', firstValue(troops, runtimeFactionValue(f, 'militaryStrength'), f.militaryStrength, f.strength, f.army)],
         ['军力分解', f.militaryBreakdown],
         ['战争状态', f.warState],
-        ['经济', firstValue(f.economy, f.wealth, revenue)],
+        ['经济', firstValue(runtimeFactionValue(f, 'economy'), runtimeFactionValue(f, 'wealth'), revenue, f.economy, f.wealth)],
         ['经济结构', f.economicStructure],
-        ['府库', firstValue(f.treasury, revenue)],
+        ['府库', firstValue(runtimeFactionValue(f, 'treasury'), revenue, f.treasury)],
         ['动员', firstValue(f.mobilization, f.manpower)],
         ['风险', firstValue(f.openingProblems, f.risk, f.risks)]
       ]),
@@ -3529,7 +3847,7 @@
   function openFactionDossier(key, region){
     var map = getMapData() || {};
     var f = findFaction(key, region && (region.factionName || region.ownerName)) || {};
-    var r = region || ((map.regions || []).find(function(x){ return ownerKey(x) === key; }) || null);
+    var r = region || factionControlledRegions(key, f)[0] || ((map.regions || []).find(function(x){ return ownerKey(x) === key; }) || null);
     key = key || (r && ownerKey(r)) || '';
     var name = firstValue(f.label, f.name, f.scenarioFactionName, r && ownerName(r), key, '未名势力');
     state.mapFactionTab = state.mapFactionTab || 'overview';
@@ -9819,10 +10137,25 @@
       var r = findRegion(id);
       if (r) openRegionDossier(r);
     },
+    openRegionTab: function(id, tab){
+      var value = MAP_MODE_META[tab] ? tab : 'overview';
+      state.mapPanelTab = value;
+      if (value !== 'overview') state.mapMode = value;
+      var r = findRegion(id);
+      if (r) openRegionDossier(r);
+    },
     focusRegion: function(id){ focusRegion(id, true); },
     openFactionByKey: function(key){
       var map = getMapData();
-      var r = map && map.regions ? map.regions.find(function(x){ return ownerKey(x) === key; }) : null;
+      var f = findFaction(key);
+      var r = map && map.regions ? (map.regions.find(function(x){ return factionOwnsRegion(x, key, f); }) || map.regions.find(function(x){ return ownerKey(x) === key; })) : null;
+      openFactionDossier(key, r);
+    },
+    openFactionTab: function(key, tab){
+      state.mapFactionTab = MAP_FACTION_TABS.some(function(t){ return t[0] === tab; }) ? tab : 'overview';
+      var map = getMapData();
+      var f = findFaction(key);
+      var r = map && map.regions ? (map.regions.find(function(x){ return factionOwnsRegion(x, key, f); }) || map.regions.find(function(x){ return ownerKey(x) === key; })) : null;
       openFactionDossier(key, r);
     },
     personAction: function(id, action){

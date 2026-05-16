@@ -138,7 +138,7 @@
     var subt = document.getElementById('minxin-subtitle');
     if (!body) return;
     var G = global.GM || {}; var m = G.minxin || {};
-    var trueIdx = m.trueIndex || 60;
+    var trueIdx = typeof m.trueIndex === 'number' ? m.trueIndex : (typeof m.index === 'number' ? m.index : (typeof m.value === 'number' ? m.value : 60));
     var perc = m.perceivedIndex !== undefined ? m.perceivedIndex : trueIdx;
     if (subt) subt.textContent = '真 ' + Math.round(trueIdx) + ' · 视 ' + Math.round(perc) + ' · ' + _esc(m.phase||'peaceful');
     var html = '';
@@ -831,7 +831,7 @@
     var subt = document.getElementById('minxin-subtitle');
     if (!body) return;
     var G = global.GM || {}; var m = G.minxin || {};
-    var trueIdx = m.trueIndex || 60;
+    var trueIdx = typeof m.trueIndex === 'number' ? m.trueIndex : (typeof m.index === 'number' ? m.index : (typeof m.value === 'number' ? m.value : 60));
     var perc = m.perceivedIndex !== undefined ? m.perceivedIndex : trueIdx;
     var phase = m.phase || 'peaceful';
     if (subt) subt.textContent = '真 ' + Math.round(trueIdx) + ' · 视 ' + Math.round(perc) + ' · ' + (MX_PHASE_NAMES[phase]||phase);
@@ -1731,7 +1731,10 @@
 
     // § 粉饰公式五段表
     var idx = w.index || 50;
-    var corr = (G.corruption && typeof G.corruption === 'object' ? G.corruption.overall : 0) || 0;
+    var corrObj = G.corruption;
+    var corr = (corrObj && typeof corrObj === 'object')
+      ? (typeof corrObj.trueIndex === 'number' ? corrObj.trueIndex : (typeof corrObj.overall === 'number' ? corrObj.overall : 0))
+      : (typeof corrObj === 'number' ? corrObj : 0);
     var corrMult = 1 + corr / 200;
     var powder = [
       { seg:'暴君（≥90）', add:8, note:'奏疏 90% 颂圣，perceived 高估' },

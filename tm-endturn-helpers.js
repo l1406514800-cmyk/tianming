@@ -893,7 +893,8 @@ SettlementPipeline.register('stateCoupling', '状态耦合', function() {
       var condResult = TM.safeEval(rule.if, {
         GM: GM,
         taxPressure: GM.taxPressure || 0,
-        corruption: (GM.corruption || {}).trueIndex || 0,
+        corruption: (GM.corruption && typeof GM.corruption.trueIndex === 'number') ? GM.corruption.trueIndex :
+          (GM.corruption && typeof GM.corruption.overall === 'number' ? GM.corruption.overall : 0),
         borderThreat: GM.borderThreat || 0,
         eraState: GM.eraState || {}
       });

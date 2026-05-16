@@ -19,6 +19,16 @@
     return (typeof global.turnsForMonths === 'function') ? global.turnsForMonths(months) : months;
   }
 
+  function _corruptionIndex(G) {
+    var c = G && G.corruption;
+    if (typeof c === 'number' && isFinite(c)) return c;
+    if (!c || typeof c !== 'object') return 30;
+    if (typeof c.trueIndex === 'number' && isFinite(c.trueIndex)) return c.trueIndex;
+    if (typeof c.overall === 'number' && isFinite(c.overall)) return c.overall;
+    if (typeof c.index === 'number' && isFinite(c.index)) return c.index;
+    return 30;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  11 类奏疏反向触发规则
   // ═══════════════════════════════════════════════════════════════════
@@ -32,7 +42,7 @@
       drafter:'户部尚书', typeKey:'huji_reform', subject:'请整饬黄册清查逃户' },
     { id:'border_alert',    name:'边警告急疏',     test:function(G){ return G.activeWars && G.activeWars.length > 0; },
       drafter:'兵部尚书', typeKey:'military_reform', subject:'请拨饷增兵以御边' },
-    { id:'corruption_clean',name:'整饬吏治疏',     test:function(G){ return G.corruption && G.corruption.overall > 55; },
+    { id:'corruption_clean',name:'整饬吏治疏',     test:function(G){ return _corruptionIndex(G) > 55; },
       drafter:'御史大夫', typeKey:'office_reform', subject:'请严惩墨吏正肃纲纪' },
     { id:'annex_critical',  name:'均田抑兼并疏',   test:function(G){ return G.landAnnexation && G.landAnnexation.concentration > 0.6; },
       drafter:'户部尚书', typeKey:'huji_reform', subject:'请均田以抑兼并' },

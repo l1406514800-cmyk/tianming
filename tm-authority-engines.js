@@ -863,9 +863,9 @@
   // ═══════════════════════════════════════════════════════════════════
 
   // 兼容旧代码的 getter/setter（读取时返回数字，写入时走结构化）
-  function getHuangweiValue() { var G = global.GM; if (!G) return 50; return (G.huangwei && typeof G.huangwei === 'object') ? (G.huangwei.index || 50) : (G.huangwei || 50); }
-  function getHuangquanValue() { var G = global.GM; if (!G) return 50; return (G.huangquan && typeof G.huangquan === 'object') ? (G.huangquan.index || 50) : (G.huangquan || 50); }
-  function getMinxinValue() { var G = global.GM; if (!G) return 60; return (G.minxin && typeof G.minxin === 'object') ? (G.minxin.trueIndex || 60) : (G.minxin || 60); }
+  function getHuangweiValue() { var G = global.GM; if (!G) return 50; return (G.huangwei && typeof G.huangwei === 'object') ? (typeof G.huangwei.index === 'number' ? G.huangwei.index : 50) : (typeof G.huangwei === 'number' ? G.huangwei : 50); }
+  function getHuangquanValue() { var G = global.GM; if (!G) return 50; return (G.huangquan && typeof G.huangquan === 'object') ? (typeof G.huangquan.index === 'number' ? G.huangquan.index : 50) : (typeof G.huangquan === 'number' ? G.huangquan : 50); }
+  function getMinxinValue() { var G = global.GM; if (!G) return 60; return (G.minxin && typeof G.minxin === 'object') ? (typeof G.minxin.trueIndex === 'number' ? G.minxin.trueIndex : 60) : (typeof G.minxin === 'number' ? G.minxin : 60); }
 
   // 通用调节（兼容对象或数字形式，供旧代码调用）
   global._adjAuthority = function(name, delta, reason, opts) {
@@ -880,7 +880,7 @@
       G[name] = Math.max(0, Math.min(100, v + delta));
     } else if (typeof v === 'object') {
       var key = name === 'minxin' ? 'trueIndex' : 'index';
-      v[key] = Math.max(0, Math.min(100, (v[key] || 50) + delta));
+      v[key] = Math.max(0, Math.min(100, (typeof v[key] === 'number' ? v[key] : 50) + delta));
     }
   };
 

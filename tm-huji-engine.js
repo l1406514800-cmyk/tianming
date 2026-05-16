@@ -625,7 +625,11 @@
       global.GM.guoku.money -= cost;
       P.meta.lastRegistrationTurn = ctx.turn || 0;
       // 更新准确度——腐败降低
-      var corrupt = (global.GM.corruption && global.GM.corruption.overall) || 30;
+      var corrObj = global.GM.corruption;
+      var corrRaw = corrObj && typeof corrObj === 'object'
+        ? (typeof corrObj.trueIndex === 'number' ? corrObj.trueIndex : corrObj.overall)
+        : corrObj;
+      var corrupt = typeof corrRaw === 'number' && isFinite(corrRaw) ? corrRaw : 30;
       P.meta.registrationAccuracy = Math.max(0.5, 1.0 - corrupt / 100 * 0.5);
       // 发现隐户（部分）
       var discovered = Math.round(P.hiddenCount * 0.3);

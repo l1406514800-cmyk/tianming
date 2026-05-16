@@ -65,14 +65,14 @@
     if (Object.keys(mx.byRegion || {}).length === 0) {
       (global.GM.regions || []).forEach(function(r) {
         if (!r || !r.id) return;
-        mx.byRegion[r.id] = { index: mx.trueIndex || 60, trend: 'stable', factors: {} };
+        mx.byRegion[r.id] = { index: typeof mx.trueIndex === 'number' ? mx.trueIndex : 60, trend: 'stable', factors: {} };
       });
     }
     // byClass（对齐 HujiDeepFill.SOCIAL_CLASSES）
     if (Object.keys(mx.byClass || {}).length === 0) {
       var classes = ['imperial','gentry_high','gentry_mid','scholar','merchant','landlord','peasant_self','peasant_tenant','craftsman','debased','clergy','slave'];
       classes.forEach(function(c) {
-        mx.byClass[c] = { index: mx.trueIndex || 60, trend: 'stable', factors: {} };
+        mx.byClass[c] = { index: typeof mx.trueIndex === 'number' ? mx.trueIndex : 60, trend: 'stable', factors: {} };
       });
     }
   }

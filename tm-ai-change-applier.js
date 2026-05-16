@@ -126,6 +126,22 @@
     meta = meta || {};
     var n = Number(value);
     var hasNumber = isFinite(n);
+    function syncCorruptionDeptIndex() {
+      if (!G.corruption || typeof G.corruption !== 'object') return;
+      if (global.CorruptionEngine && typeof global.CorruptionEngine.syncIndexFromSubDepts === 'function') {
+        try { global.CorruptionEngine.syncIndexFromSubDepts(meta.reason || 'AI腐败部门调整'); return; } catch(_) {}
+      }
+      var vals = [];
+      Object.keys(G.corruption.subDepts || {}).forEach(function(k) {
+        var d = G.corruption.subDepts[k];
+        var v = d && typeof d === 'object' ? d.true : d;
+        if (typeof v === 'number' && isFinite(v)) vals.push(v);
+      });
+      if (!vals.length) return;
+      var sum = vals.reduce(function(a, b){ return a + b; }, 0);
+      G.corruption.trueIndex = sum / vals.length;
+      G.corruption.overall = G.corruption.trueIndex;
+    }
     if (path === 'guoku.money' && G.guoku) {
       G.guoku.balance = G.guoku.money;
       if (G.guoku.ledgers && G.guoku.ledgers.money) G.guoku.ledgers.money.stock = G.guoku.money;
@@ -155,9 +171,23 @@
           else d.true = n;
         });
       }
-    } else if (/^corruption\.subDepts\.[^.]+\.true$/.test(path) &&
-      global.CorruptionEngine && typeof global.CorruptionEngine.syncIndexFromSubDepts === 'function') {
-      try { global.CorruptionEngine.syncIndexFromSubDepts(meta.reason || 'AI腐败部门调整'); } catch(_) {}
+    }
+    var subDeptMatch = path.match(/^corruption\.subDepts\.([^.]+)\.true$/);
+    if (subDeptMatch && G.corruption && typeof G.corruption === 'object') {
+      var subDept = subDeptMatch[1];
+      var byDeptMirror = { imperial: 'palace' }[subDept] || subDept;
+      if (!G.corruption.byDept) G.corruption.byDept = {};
+      if (hasNumber) G.corruption.byDept[byDeptMirror] = n;
+      syncCorruptionDeptIndex();
+    }
+    var byDeptMatch = path.match(/^corruption\.byDept\.([^.]+)$/);
+    if (byDeptMatch && G.corruption && typeof G.corruption === 'object' && hasNumber) {
+      var byDept = byDeptMatch[1];
+      var subDeptMirror = { palace: 'imperial' }[byDept] || byDept;
+      if (!G.corruption.subDepts) G.corruption.subDepts = {};
+      if (!G.corruption.subDepts[subDeptMirror]) G.corruption.subDepts[subDeptMirror] = {};
+      G.corruption.subDepts[subDeptMirror].true = n;
+      syncCorruptionDeptIndex();
     }
   }
 
@@ -4003,7 +4033,7 @@
     if (!v) return null;
     if (typeof v === 'number') return { value: v };
     return {
-      index: v.index || v.trueIndex || v.overall,
+      index: v.index !== undefined ? v.index : (v.trueIndex !== undefined ? v.trueIndex : v.overall),
       perceivedIndex: v.perceivedIndex,
       phase: v.phase,
       subDims: v.subDims,

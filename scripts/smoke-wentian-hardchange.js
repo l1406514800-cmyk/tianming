@@ -17,7 +17,8 @@ assert(start >= 0 && end > start, 'Wentian hard-change helper block missing');
 const context = {
   console,
   GM: {
-    guoku: { money: 100, balance: 100 },
+    guoku: { money: 100, balance: 100, ledgers: { money: { stock: 100 } } },
+    neitang: { money: 50, balance: 50, ledgers: { money: { stock: 50 } } },
     huangquan: { index: 50 },
     huangwei: { index: 60, subDims: { court: { value: 60 }, military: { value: 60 } } },
     minxin: { trueIndex: 45 },
@@ -25,6 +26,7 @@ const context = {
       trueIndex: 70,
       overall: 70,
       perceivedIndex: 65,
+      byDept: {},
       subDepts: {
         central: { true: 70, perceived: 64 },
         fiscal: { true: 72 }
@@ -49,6 +51,8 @@ assert(context._wtNormalizeHardChangePath('vars.皇权.value') === 'huangquan.in
 assert(context._wtNormalizeHardChangePath('vars.皇威.value') === 'huangwei.index', '皇威 vars alias should target real huangwei index');
 assert(context._wtNormalizeHardChangePath('vars.腐败.value') === 'corruption.trueIndex', '腐败 vars alias should target real corruption index');
 assert(context._wtNormalizeHardChangePath('chars[0].loyalty') === 'chars.0.loyalty', 'bracket index path should normalize');
+assert(context._wtNormalizeHardChangePath('guoku.balance') === 'guoku.money', 'guoku balance alias should target money');
+assert(context._wtNormalizeHardChangePath('neicang.money') === 'neitang.money', 'legacy neicang alias should target neitang money');
 
 assert(context._wtApplyHardChange('vars.皇权.value', 'set', '88') === true, '皇权 alias hard change should apply');
 assert(context.GM.huangquan.index === 88, '皇权 should write GM.huangquan.index');
@@ -63,6 +67,16 @@ assert(context.GM.corruption.trueIndex === 25, '腐败 should write trueIndex');
 assert(context.GM.corruption.overall === 25, '腐败 should sync overall compatibility field');
 assert(context.GM.corruption.subDepts.central.true === 25, '腐败 global direct set should sync sub dept true value');
 assert(context.GM.corruption.subDepts.fiscal.true === 25, '腐败 global direct set should sync all sub dept true values');
+
+assert(context._wtApplyHardChange('guoku.balance', 'add', 900) === true, 'guoku balance alias hard change should apply');
+assert(context.GM.guoku.money === 1000 && context.GM.guoku.balance === 1000 && context.GM.guoku.ledgers.money.stock === 1000, 'guoku hard change should sync money/balance/ledger');
+
+assert(context._wtApplyHardChange('neicang.money', 'set', 1200) === true, 'neicang alias hard change should apply');
+assert(context.GM.neitang.money === 1200 && context.GM.neitang.balance === 1200 && context.GM.neitang.ledgers.money.stock === 1200, 'neitang hard change should sync money/balance/ledger');
+
+assert(context._wtApplyHardChange('corruption.byDept.palace', 'set', 80) === true, 'legacy byDept hard change should apply');
+assert(context.GM.corruption.subDepts.imperial.true === 80, 'byDept palace hard change should mirror to imperial subdept');
+assert(Math.abs(context.GM.corruption.trueIndex - (130 / 3)) < 0.000001, 'byDept hard change should resync corruption trueIndex without engine');
 
 assert(context._wtApplyHardChange('chars[0].loyalty', 'set', 99) === true, 'character bracket path should apply');
 assert(context.GM.chars[0].loyalty === 99, 'character bracket path should write the indexed character');

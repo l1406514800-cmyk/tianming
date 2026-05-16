@@ -104,9 +104,13 @@
       global._adjAuthority('huangquan', -0.1 * mr, '\u73af\u653f\u4e8b\u52a1\u8fc7\u591a\u7275\u5236\u4e2d\u67a2', { source:'environment-active-policies' });
     }
     // 9.5 腐败对环政效率的折损
-    if (G.corruption && G.corruption.overall > 50 && E.activePolicies) {
+    var corr = G.corruption && typeof G.corruption === 'object'
+      ? (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall)
+      : G.corruption;
+    if (typeof corr !== 'number' || !isFinite(corr)) corr = 30;
+    if (corr > 50 && E.activePolicies) {
       // 腐败高 → 实际疤痕减速减半
-      E._corruptionEcoLoss = (G.corruption.overall - 50) / 100;
+      E._corruptionEcoLoss = (corr - 50) / 100;
     } else {
       E._corruptionEcoLoss = 0;
     }

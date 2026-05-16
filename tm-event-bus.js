@@ -245,7 +245,7 @@
         if (global.addEB) global.addEB('破产', '驿站倒塌，政令滞');
     } },
     { id:4, name:'腐败激增',    effect:function(G){
-        if (G.corruption && typeof G.corruption === 'object') { G.corruption.trueIndex = Math.min(100, (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : (G.corruption.overall||30)) + 10); G.corruption.overall = G.corruption.trueIndex; }
+        if (G.corruption && typeof G.corruption === 'object') { G.corruption.trueIndex = Math.min(100, _readCorruptionIndex(G, 30) + 10); G.corruption.overall = G.corruption.trueIndex; }
         if (global.addEB) global.addEB('破产', '官吏苟且，腐败暴涨');
     } },
     { id:5, name:'边军哗变',    effect:function(G){

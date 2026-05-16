@@ -304,10 +304,11 @@
     var topLevel = getTopLevelDivisions(adminHierarchy, 'player');
     var nationalMouths = G.population && G.population.national && G.population.national.mouths || 50000000;
     var nationalHouseholds = G.population && G.population.national && G.population.national.households || 10000000;
-    var avgMx = G.minxin && G.minxin.trueIndex || 60;
-    var avgCorr = G.corruption && (typeof G.corruption === 'object'
+    var avgMx = G.minxin && typeof G.minxin.trueIndex === 'number' ? G.minxin.trueIndex : 60;
+    var avgCorrRaw = G.corruption && (typeof G.corruption === 'object'
       ? (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall)
-      : G.corruption) || 30;
+      : G.corruption);
+    var avgCorr = typeof avgCorrRaw === 'number' && isFinite(avgCorrRaw) ? avgCorrRaw : 30;
 
     // 首次均分（若区划没初始值）
     topLevel.forEach(function(div, idx) {
@@ -438,9 +439,16 @@
       });
       var avgDelta = sumDelta / arr.length;
       var current = G.corruption.byDept[d];
-      current = typeof current === 'object' ? (current.true || current.overall || 30) : (current || 30);
+      current = typeof current === 'object'
+        ? (typeof current.true === 'number' ? current.true : (typeof current.overall === 'number' ? current.overall : 30))
+        : (typeof current === 'number' ? current : 30);
       // 缓慢朝目标靠拢（0.05/tick）
-      G.corruption.byDept[d] = Math.max(0, Math.min(100, current + avgDelta * 0.05));
+      var next = Math.max(0, Math.min(100, current + avgDelta * 0.05));
+      G.corruption.byDept[d] = next;
+      if (!G.corruption.subDepts) G.corruption.subDepts = {};
+      var subDept = { palace: 'imperial' }[d] || d;
+      if (!G.corruption.subDepts[subDept]) G.corruption.subDepts[subDept] = {};
+      G.corruption.subDepts[subDept].true = next;
     });
   }
 
@@ -610,9 +618,10 @@
       if (typeof G.minxin === 'object') {
         G.minxin.trueIndex = avgMx;
         // 感知值按腐败粉饰
-        var corrForPerc = (typeof G.corruption === 'object'
+        var corrForPercRaw = (typeof G.corruption === 'object'
           ? (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall)
-          : G.corruption) || 30;
+          : G.corruption);
+        var corrForPerc = typeof corrForPercRaw === 'number' && isFinite(corrForPercRaw) ? corrForPercRaw : 30;
         G.minxin.perceivedIndex = Math.min(100, avgMx + (corrForPerc / 100) * 10);
       }
     }
@@ -643,7 +652,10 @@
         // overall = 6 部门平均
         var deptSum = 0, deptCnt = 0;
         Object.keys(G.corruption.byDept || {}).forEach(function(d) {
-          var v = typeof G.corruption.byDept[d] === 'object' ? (G.corruption.byDept[d].true || G.corruption.byDept[d].overall) : G.corruption.byDept[d];
+          var deptVal = G.corruption.byDept[d];
+          var v = typeof deptVal === 'object'
+            ? (typeof deptVal.true === 'number' ? deptVal.true : deptVal.overall)
+            : deptVal;
           if (v !== undefined && !isNaN(v)) { deptSum += v; deptCnt++; }
         });
         G.corruption.trueIndex = deptCnt > 0 ? deptSum / deptCnt : avgProvCorr;

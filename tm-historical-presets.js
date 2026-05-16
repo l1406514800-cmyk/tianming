@@ -321,7 +321,10 @@
     var G = global.GM;
     if (!G.population || !G.population.corvee) return 0;
     var burden = (G.population.corvee.annualCorveeDays || 30) / 30;
-    var corruptLevel = (G.corruption && (G.corruption.overall || G.corruption.trueIndex)) || 30;
+    var corruptRaw = G.corruption && typeof G.corruption === 'object'
+      ? (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall)
+      : G.corruption;
+    var corruptLevel = typeof corruptRaw === 'number' && isFinite(corruptRaw) ? corruptRaw : 30;
     var hwVal = (typeof global.AuthorityEngines !== 'undefined' && global.AuthorityEngines.getHuangweiValue) ? global.AuthorityEngines.getHuangweiValue() : 50;
     var unrest = G.unrest || 30;
     var wars = (G.activeWars || []).length;

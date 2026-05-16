@@ -624,7 +624,10 @@
   function computeTaxEvasion(G) {
     if (!G.landAnnexation) return 0;
     var annexation = G.landAnnexation.concentration || 0.3;
-    var corruption = G.corruption && G.corruption.overall || 30;
+    var corrRaw = G.corruption && typeof G.corruption === 'object'
+      ? (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall)
+      : G.corruption;
+    var corruption = typeof corrRaw === 'number' && isFinite(corrRaw) ? corrRaw : 30;
     var auditLoose = 1 - (G.auditSystem && G.auditSystem.strength || 0.5);
     // 越兼并/贪腐/审计松，越易评估
     var evasionRate = 0;

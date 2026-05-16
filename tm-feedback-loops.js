@@ -10,6 +10,16 @@
 (function(global) {
   'use strict';
 
+  function _corruptionIndex(G, fallback) {
+    var c = G && G.corruption;
+    if (typeof c === 'number' && isFinite(c)) return c;
+    if (!c || typeof c !== 'object') return fallback;
+    if (typeof c.trueIndex === 'number' && isFinite(c.trueIndex)) return c.trueIndex;
+    if (typeof c.overall === 'number' && isFinite(c.overall)) return c.overall;
+    if (typeof c.index === 'number' && isFinite(c.index)) return c.index;
+    return fallback;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  E1 · 明君回路（正反馈）
   // ═══════════════════════════════════════════════════════════════════
@@ -21,7 +31,7 @@
     var hw = G.huangwei.index;
     var hq = G.huangquan.index;
     var mx = G.minxin.trueIndex;
-    var corr = G.corruption && (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall) || 30;
+    var corr = _corruptionIndex(G, 30);
     // 四件都好
     var isEnlightened = hw >= 70 && hw < 90 && hq >= 50 && hq <= 75 && mx >= 65 && corr < 35;
     if (!isEnlightened) { G._enlightenedStreak = 0; return; }
@@ -54,7 +64,7 @@
     var hw = G.huangwei.index;
     var hq = G.huangquan.index;
     var mx = G.minxin.trueIndex;
-    var corr = G.corruption && (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall) || 30;
+    var corr = _corruptionIndex(G, 30);
     var isCollapsing = hw <= 30 && hq <= 35 && mx <= 30 && corr >= 65;
     if (!isCollapsing) { G._collapseStreak = 0; return; }
     G._collapseStreak = (G._collapseStreak || 0) + 1;
@@ -75,7 +85,7 @@
     var G = global.GM;
     if (!G.huangwei || !G.corruption || !G.guoku) return;
     var tyrant = G.huangwei.tyrantSyndrome && G.huangwei.tyrantSyndrome.active;
-    var corr = (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall) || 30;
+    var corr = _corruptionIndex(G, 30);
     var lowTreasury = (G.guoku.money || 0) < (G.guoku.annualIncome || 10000000) * 0.1;
     if (!(tyrant && corr > 55 && lowTreasury)) { G._leakageActive = false; return; }
     G._leakageActive = true;

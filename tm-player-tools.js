@@ -418,7 +418,11 @@
     if (G.environment && G.environment.nationalLoad > 1.3) {
       issues.push({ type: 'eco_overload', drafter: '工部尚书', urgency: 'high', content: '天地承载几竭，宜息大工' });
     }
-    if (G.corruption && G.corruption.overall > 70) {
+    var corrRaw = G.corruption && typeof G.corruption === 'object'
+      ? (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall)
+      : G.corruption;
+    var corr = typeof corrRaw === 'number' && isFinite(corrRaw) ? corrRaw : 30;
+    if (corr > 70) {
       issues.push({ type: 'corruption_urgent', drafter: '御史大夫', urgency: 'high', content: '吏治大坏，请整肃朝纲' });
     }
     // 选 1 条入奏

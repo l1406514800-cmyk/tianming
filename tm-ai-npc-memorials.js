@@ -135,10 +135,11 @@
       if (mn < 100000) obs.push('国库告罄：银 ' + Math.round(mn/10000) + ' 万两');
     }
     // 腐败 6 部门
-    if (G.corruption && G.corruption.byDept) {
+    if (G.corruption && (G.corruption.byDept || G.corruption.subDepts)) {
       var hi = [];
-      Object.keys(G.corruption.byDept).forEach(function(d){
-        var v = G.corruption.byDept[d];
+      var deptSource = G.corruption.byDept || G.corruption.subDepts || {};
+      Object.keys(deptSource).forEach(function(d){
+        var v = deptSource[d];
         if (typeof v === 'object') v = v.true || v.overall;
         if (typeof v === 'number' && v > 60) hi.push(d + '=' + Math.round(v));
       });

@@ -15,7 +15,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>天命 · AI历史模拟</title>
-<link rel="stylesheet" href="styles.css?v=2026043001">
+<link rel="stylesheet" href="styles.css?v=20260516-home-redesign">
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script src="map-converter.js"></script>
 <script src="map-integration.js"></script>
@@ -28,55 +28,85 @@
 <!-- 启动界面 -->
 <div id="launch">
   <div class="home-stage">
-    <!-- 左右楹联（竖排古诗） -->
     <div class="home-ylian l">天行健 · 君子以自强不息<span class="s">—— 周易</span></div>
     <div class="home-ylian r">地势坤 · 君子以厚德载物<span class="s">—— 周易</span></div>
-    <!-- 四角装饰 -->
-    <div class="corner-flower tl"><svg viewBox="0 0 100 100"><path d="M 5 5 L 50 5 M 5 5 L 5 50 M 5 5 L 35 35 M 15 5 L 15 25 M 5 15 L 25 15 M 30 5 Q 35 15, 30 30" stroke="rgba(184,154,83,0.7)" stroke-width="1" fill="none"/><circle cx="10" cy="10" r="2" fill="rgba(192,64,48,0.7)"/></svg></div>
-    <div class="corner-flower tr"><svg viewBox="0 0 100 100"><path d="M 5 5 L 50 5 M 5 5 L 5 50 M 5 5 L 35 35 M 15 5 L 15 25 M 5 15 L 25 15 M 30 5 Q 35 15, 30 30" stroke="rgba(184,154,83,0.7)" stroke-width="1" fill="none"/><circle cx="10" cy="10" r="2" fill="rgba(192,64,48,0.7)"/></svg></div>
-    <!-- 主轴 -->
-    <div class="home-axis">
-      <div class="home-deco-top"></div>
-      <div class="home-title lt-title" id="lt-title">天　命</div>
-      <div class="home-seal-wrap">
-        <span class="home-seal-lbl">奉 天 承 运 皇 帝 　诏 曰 ：</span>
-        <div class="home-seal">玺</div>
+
+    <section class="home-main" aria-label="天命主菜单">
+      <header class="home-axis">
+        <div class="home-seal-wrap">
+          <span class="home-seal-lbl">奉 天 承 运 皇 帝　诏 曰</span>
+        </div>
+        <div class="home-title-row">
+          <h1 class="home-title lt-title" id="lt-title">天　命</h1>
+          <div class="home-seal" aria-hidden="true">玺</div>
+        </div>
+        <div class="home-sub">AI　历　史　模　拟　推　演</div>
+      </header>
+
+      <div class="home-menu" aria-label="主要入口">
+        <button class="home-card c-new" id="btn-new-game">
+          <span class="home-card-icon"><span id="_ico_new">卷</span></span>
+          <span class="home-card-copy">
+            <span class="home-card-cn">开　卷</span>
+            <span class="home-card-ti">开 始 新 游 戏</span>
+            <span class="home-card-desc">选择剧本，载入世界，敕定天命。保留正式页面的剧本选择入口。</span>
+          </span>
+          <span class="home-card-key" id="_home_meta_new">Enter</span>
+        </button>
+        <button class="home-card c-load" id="btn-load-save">
+          <span class="home-card-icon"><span id="_ico_load">续</span></span>
+          <span class="home-card-copy">
+            <span class="home-card-cn">续　卷</span>
+            <span class="home-card-ti">读 取 存 档</span>
+            <span class="home-card-desc">读取存档，启封卷宗，承续推演；对应正式游戏的存档管理。</span>
+          </span>
+          <span class="home-card-key" id="_home_meta_load">Ctrl+L</span>
+        </button>
+        <button class="home-card c-edit" id="btn-editor" title="打开剧本编辑器（editor.html）：修改剧本结构、人物初始配置、势力关系等。此处开的是外部编辑器；游戏内的临时修改走开局后的设置面板。">
+          <span class="home-card-icon"><span id="_ico_edit">著</span></span>
+          <span class="home-card-copy">
+            <span class="home-card-cn">著　卷</span>
+            <span class="home-card-ti">创 作 新 剧 本</span>
+            <span class="home-card-desc">进入剧本编辑器，撰写时代、人物、势力与规则。</span>
+          </span>
+          <span class="home-card-key">Ctrl+E</span>
+        </button>
+        <button class="home-card c-set" id="btn-settings">
+          <span class="home-card-icon"><span id="_ico_set">典</span></span>
+          <span class="home-card-copy">
+            <span class="home-card-cn">典　章</span>
+            <span class="home-card-ti">游 戏 设 置</span>
+            <span class="home-card-desc">游戏设置、API、字数、文风、音声与偏好调度。</span>
+          </span>
+          <span class="home-card-key">Ctrl+,</span>
+        </button>
       </div>
-      <div class="home-sub">AI  历  史  模  拟  推  演</div>
-      <div class="home-div"></div>
-    </div>
-    <!-- 4 菜单卡（保留原按钮 id 以绑事件） -->
-    <div class="home-menu">
-      <button class="home-card c-new" id="btn-new-game">
-        <div class="home-card-hd"><div class="home-card-icon"><span id="_ico_new">卷</span></div>
-          <div><div class="home-card-cn">开　卷</div><div class="home-card-ti">开 始 新 游 戏</div></div></div>
-        <div class="home-card-desc">选择剧本 · 载入世界 · 敕定天命</div>
-        <div class="home-card-meta"><span id="_home_meta_new">官方 · 自定义剧本</span><span>↵</span></div>
-      </button>
-      <button class="home-card c-load" id="btn-load-save">
-        <div class="home-card-hd"><div class="home-card-icon"><span id="_ico_load">续</span></div>
-          <div><div class="home-card-cn">续　卷</div><div class="home-card-ti">读 取 存 档</div></div></div>
-        <div class="home-card-desc">启封卷宗 · 抄录副本 · 承续推演</div>
-        <div class="home-card-meta"><span id="_home_meta_load"><span class="mt-dot"></span>卷宗目录</span><span>Ctrl+L</span></div>
-      </button>
-      <button class="home-card c-edit" id="btn-editor" title="打开剧本编辑器（editor.html）：修改剧本结构、人物初始配置、势力关系等。此处开的是外部编辑器；游戏内的临时修改走开局后的设置面板。">
-        <div class="home-card-hd"><div class="home-card-icon"><span id="_ico_edit">著</span></div>
-          <div><div class="home-card-cn">著　卷</div><div class="home-card-ti">创 作 新 剧 本</div></div></div>
-        <div class="home-card-desc">开炉鼓铸 · 立言成卷 · 遗之后人</div>
-        <div class="home-card-meta"><span>编辑器</span><span>Ctrl+E</span></div>
-      </button>
-      <button class="home-card c-set" id="btn-settings">
-        <div class="home-card-hd"><div class="home-card-icon"><span id="_ico_set">典</span></div>
-          <div><div class="home-card-cn">典　章</div><div class="home-card-ti">游 戏 设 置</div></div></div>
-        <div class="home-card-desc">API · 字数 · 文风 · 音声</div>
-        <div class="home-card-meta"><span>偏好调度</span><span>Ctrl+,</span></div>
-      </button>
-    </div>
-    <!-- 近事一行书简（读取存档索引填充） -->
-    <div class="home-recent" id="home-recent">
-      <span class="rh">〘 近 事 〙</span>
-      <span class="r-empty" id="home-recent-empty">未 见 封 卷 · 启 新 纪 元</span>
-    </div>
+
+      <aside class="home-side" aria-label="近事与案具">
+        <section class="home-panel">
+          <div class="home-panel-title"><strong>近　事</strong><span>最近三卷</span></div>
+          <div class="home-recent" id="home-recent">
+            <div class="r-empty" id="home-recent-empty">未 见 封 卷 · 启 新 纪 元</div>
+          </div>
+          <div class="home-state-grid">
+            <div class="home-state"><span>节令</span><b>春分</b></div>
+            <div class="home-state"><span>世态</span><b>太平</b></div>
+            <div class="home-state"><span>剧本源</span><b>官方 / 自定</b></div>
+            <div class="home-state"><span>地图</span><b>可载入</b></div>
+          </div>
+        </section>
+
+        <section class="home-panel home-tools-panel">
+          <div class="home-panel-title"><strong>案　具</strong><span>底栏职能上移</span></div>
+          <div class="home-tools">
+            <button type="button" onclick="if(window.TM_Changelog)TM_Changelog.show();" title="查看更新公告">邸报</button>
+            <button type="button" onclick="window._loadMapEditorJSON&&window._loadMapEditorJSON();" title="载入 map-editor 导出的 JSON·装入 P.map·开卷时复用">载图</button>
+            <button type="button" onclick="alert('帮助系统待接入');">帮助</button>
+            <button type="button" onclick="document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));">退出</button>
+          </div>
+        </section>
+      </aside>
+    </section>
     <script>
     (function fillHomeRecent(){
       try{
@@ -86,13 +116,14 @@
         var host = document.getElementById('home-recent'); if(!host) return;
         var empty = document.getElementById('home-recent-empty'); if(empty) empty.remove();
         arr.forEach(function(s){
-          var span = document.createElement('span');
+          var span = document.createElement('div');
           span.className = 'r-item';
           var isAuto = s._slot==='slot_0';
           var seal = isAuto ? '自' : '封';
           var label = (s.eraName||s.date||'') + (s.turn?(' 第'+s.turn+'回'):'');
           if (!label.trim()) label = s.name || '案卷';
-          span.innerHTML = '<span class="r-seal">'+seal+'</span>' + label;
+          var meta = s.name || (isAuto ? '自动存档' : '手动存档');
+          span.innerHTML = '<span class="r-seal">'+seal+'</span><span><span class="r-name">'+label+'</span><span class="r-meta">'+meta+'</span></span>';
           host.appendChild(span);
         });
       }catch(e){}
@@ -139,8 +170,8 @@
     <div class="f-ver">天 命　v0.9-β</div>
     <div class="f-mid" id="home-foot-mid">春 分<span class="dot">◆</span>太 平<span class="dot">◆</span>河 清 海 晏</div>
     <div class="f-right">
-      <span class="lt-dibao-btn" style="cursor:pointer;" onclick="if(window.TM_Changelog)TM_Changelog.show();" title="查看更新公告"><kbd>📜</kbd> 邸 报<span class="tm-cl-dot" id="tm-cl-dot" style="display:none;"></span></span>
-      <span class="lt-dibao-btn" style="cursor:pointer;" onclick="window._loadMapEditorJSON&&window._loadMapEditorJSON();" title="载入 map-editor 导出的 JSON·装入 P.map·开卷时复用"><kbd>📐</kbd> 载图</span>
+      <span class="lt-dibao-btn" style="cursor:pointer;" onclick="if(window.TM_Changelog)TM_Changelog.show();" title="查看更新公告"><kbd>报</kbd> 邸 报<span class="tm-cl-dot" id="tm-cl-dot" style="display:none;"></span></span>
+      <span class="lt-dibao-btn" style="cursor:pointer;" onclick="window._loadMapEditorJSON&&window._loadMapEditorJSON();" title="载入 map-editor 导出的 JSON·装入 P.map·开卷时复用"><kbd>图</kbd> 载图</span>
       <span><kbd>↵</kbd> 开 卷</span>
       <span><kbd>?</kbd> 帮 助</span>
       <span><kbd>Esc</kbd> 退 出</span>

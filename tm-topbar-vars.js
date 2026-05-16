@@ -254,7 +254,7 @@ function _renderHukou() {
 
 function _renderLizhi() {
   var c = GM.corruption || {};
-  var trueIdx = c.trueIndex || 0;
+  var trueIdx = typeof c.trueIndex === 'number' ? c.trueIndex : (typeof c.overall === 'number' ? c.overall : 0);
   var perc = c.perceivedIndex !== undefined ? c.perceivedIndex : trueIdx;
   // 吏治段位（腐败高=吏治差）
   var phase = '';
@@ -292,7 +292,7 @@ function _renderLizhi() {
 
 function _renderMinxin() {
   var m = GM.minxin || {};
-  var trueIdx = m.trueIndex || 0;
+  var trueIdx = typeof m.trueIndex === 'number' ? m.trueIndex : (typeof m.index === 'number' ? m.index : (typeof m.value === 'number' ? m.value : 0));
   var perc = m.perceivedIndex !== undefined ? m.perceivedIndex : trueIdx;
   var phase = trueIdx < 20 ? 'revolt' :
               trueIdx < 40 ? 'thievery' :
@@ -1056,7 +1056,7 @@ function _renderHukouFullPanel() {
 // ── 吏治（腐败）──
 function _renderLizhiFullPanel() {
   var c = GM.corruption || {}; var h = '';
-  var trueIdx = c.trueIndex || 0;
+  var trueIdx = typeof c.trueIndex === 'number' ? c.trueIndex : (typeof c.overall === 'number' ? c.overall : 0);
   var perc = c.perceivedIndex !== undefined ? c.perceivedIndex : trueIdx;
   h += '<div style="font-size:0.82rem;color:var(--gold-400);margin-bottom:0.3rem;">吏治（腐败真伪对比）</div>';
   h += '<div style="font-size:0.82rem;">真实浊度：' + Math.round(trueIdx) + ' / 100 · 朝廷视野：' + Math.round(perc) + '（差额 ' + Math.round(perc-trueIdx) + '）</div>';
@@ -1071,7 +1071,7 @@ function _renderLizhiFullPanel() {
 // ── 民心：包含民变+谶纬+天象 ──
 function _renderMinxinFullPanel() {
   var m = GM.minxin || {}; var h = '';
-  var trueIdx = m.trueIndex || 0;
+  var trueIdx = typeof m.trueIndex === 'number' ? m.trueIndex : (typeof m.index === 'number' ? m.index : (typeof m.value === 'number' ? m.value : 0));
   var perc = m.perceivedIndex !== undefined ? m.perceivedIndex : trueIdx;
   h += '<div style="font-size:0.82rem;color:var(--gold-400);margin-bottom:0.3rem;">民心真伪</div>';
   h += '<div style="font-size:0.82rem;">真实：' + Math.round(trueIdx) + ' / 100 · 朝廷视野：' + Math.round(perc) + '</div>';

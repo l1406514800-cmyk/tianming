@@ -3,6 +3,25 @@
   "entries": [
     {
       "date": "2026-05-16",
+      "module": "核心字段口径·UI与推演同步",
+      "title": "补齐旧字段别名和真实字段同步，减少数值改了但界面不动的问题",
+      "items": [
+        {
+          "what": "问天硬改、AI写回、数据访问层、顶部变量栏、吏治/民心抽屉等入口统一优先读取正式字段，并兼容旧字段。",
+          "why": "避免皇权、皇威、民心、腐败、帑廪、内帑等数值写入后落在旧路径或影子字段，导致UI、推演提示和后续系统读取不一致。"
+        },
+        {
+          "what": "补齐 guoku.balance、neicang.money、neitang.balance、corruption.byDept.*、corruption.subDepts.* 等路径的互相同步。",
+          "why": "让旧剧本、旧AI输出、问天控制台和新UI都能指向同一份真实运行数据。"
+        },
+        {
+          "what": "新增 core-ui-field-reads、扩展 ai-core-path-aliases / wentian-hardchange，并纳入 verify-all。",
+          "why": "持续检查核心字段不会被写成 GM.vars 等影子容器，也不会因 0 值被默认值覆盖。"
+        }
+      ]
+    },
+    {
+      "date": "2026-05-16",
       "module": "军务系统·动态部队数据",
       "title": "修正军队统帅等字段读写脱节，换将后新 UI 会立即刷新",
       "items": [

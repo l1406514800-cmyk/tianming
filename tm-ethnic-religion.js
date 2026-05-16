@@ -572,7 +572,10 @@
       G.population.military._conscriptEfficiency = Math.max(0.3, (G.population.military._conscriptEfficiency || 1.0) - 0.1 * mr);
     }
     // §G.8 腐败 → 隐户加速
-    var corr = G.corruption && G.corruption.overall || 30;
+    var corrRaw = G.corruption && typeof G.corruption === 'object'
+      ? (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall)
+      : G.corruption;
+    var corr = typeof corrRaw === 'number' && isFinite(corrRaw) ? corrRaw : 30;
     if (corr > 60 && G.population.byClass && G.population.byClass.landlord) {
       G.population.byClass.landlord.harboredHidden = (G.population.byClass.landlord.harboredHidden || 0) + Math.floor((G.population.national.mouths||0) * 0.0003 * (corr-60)/40 * mr);
     }

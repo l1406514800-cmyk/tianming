@@ -39,7 +39,7 @@
     var G = global.GM;
     if (!G.minxin) return null;
     if (!G.minxin.prophecy) G.minxin.prophecy = { intensity: 0, pendingTriggers: [] };
-    var mxLow = (G.minxin.trueIndex || 60) < 40;
+    var mxLow = (typeof G.minxin.trueIndex === 'number' ? G.minxin.trueIndex : (typeof G.minxin.value === 'number' ? G.minxin.value : 60)) < 40;
     var crisisOn = (G.huangwei && G.huangwei.lostAuthorityCrisis && G.huangwei.lostAuthorityCrisis.active) ||
                    (G.huangquan && G.huangquan.powerMinister);
     var pool = PROPHECY_LIBRARY.filter(function(p) {
@@ -73,7 +73,7 @@
   function _tianrenGanying(ctx, mr) {
     var G = global.GM;
     if (!G.minxin) return;
-    var mx = G.minxin.trueIndex || 60;
+    var mx = typeof G.minxin.trueIndex === 'number' ? G.minxin.trueIndex : (typeof G.minxin.value === 'number' ? G.minxin.value : 60);
     var criticalDisaster = G.vars && G.vars.disasterLevel > 0.5;
     // 民心骤降
     var priorMx = G._priorMxForGanying || mx;
@@ -203,7 +203,7 @@
     hw.index = Math.max(0, hw.index + (eff.hwDelta || -20));
     if (eff.exposeHidden) {
       if (G.minxin) G.minxin.trueIndex = Math.max(0, G.minxin.trueIndex - (ts.hiddenDamage.unreportedMinxinDrop || 0));
-      if (G.corruption && typeof G.corruption === 'object') { G.corruption.trueIndex = Math.min(100, (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : (G.corruption.overall || 30)) + (ts.hiddenDamage.concealedCorruption || 0)); G.corruption.overall = G.corruption.trueIndex; }
+      if (G.corruption && typeof G.corruption === 'object') { G.corruption.trueIndex = Math.min(100, (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : (typeof G.corruption.overall === 'number' ? G.corruption.overall : 30)) + (ts.hiddenDamage.concealedCorruption || 0)); G.corruption.overall = G.corruption.trueIndex; }
       ts.hiddenDamage = {};
       ts.flatteryMemorialRatio = 0;
     }

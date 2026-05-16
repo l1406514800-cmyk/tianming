@@ -53,6 +53,16 @@
     return baseYear + Math.floor(((turn || 1) - 1) * dpv / 365);
   }
 
+  function _corruptionIndex(G, fallback) {
+    var c = G && G.corruption;
+    if (typeof c === 'number' && isFinite(c)) return c;
+    if (!c || typeof c !== 'object') return fallback;
+    if (typeof c.trueIndex === 'number' && isFinite(c.trueIndex)) return c.trueIndex;
+    if (typeof c.overall === 'number' && isFinite(c.overall)) return c.overall;
+    if (typeof c.index === 'number' && isFinite(c.index)) return c.index;
+    return fallback;
+  }
+
   // ═══════════════════════════════════════════════════════════════════
   //  模块 E · 阶层联动 — 10 阶层
   // ═══════════════════════════════════════════════════════════════════
@@ -344,7 +354,7 @@
     if (!P) return 0;
     // 五因子
     var burdenFactor = P.corvee ? Math.min(0.3, ((P.corvee.annualCorveeDays || 30) / 30 - 1) * 0.5) : 0;
-    var corruptionFactor = (G.corruption && G.corruption.overall) ? G.corruption.overall / 500 : 0.05;
+    var corruptionFactor = _corruptionIndex(G, 25) / 500;
     var enforcementFactor = (G.huangquan || 50) < 40 ? 0.05 : 0;
     var safetyFactor = (G.unrest || 30) > 60 ? 0.08 : 0;
     var opportunityFactor = (G.activeWars && G.activeWars.length > 0) ? 0.05 : 0.02;
@@ -802,7 +812,7 @@
     var triggers = [
       { cond: G.population && G.population.fugitives > 500000, type:'huji_reform', drafter:'户部尚书', subject:'清查逃户奏' },
       { cond: G.environment && G.environment.nationalLoad > 1.3, type:'corvee_reform', drafter:'工部尚书', subject:'请减徭役疏' },
-      { cond: G.corruption && G.corruption.overall > 60, type:'office_reform', drafter:'御史大夫', subject:'请整饬吏治疏' },
+      { cond: _corruptionIndex(G, 30) > 60, type:'office_reform', drafter:'御史大夫', subject:'请整饬吏治疏' },
       { cond: G.guoku && G.guoku.money < 50000 && G.turn > 0, type:'tax_reform', drafter:'户部尚书', subject:'请加税助军疏' },
       { cond: G.landAnnexation && G.landAnnexation.concentration > 0.65, type:'huji_reform', drafter:'御史大夫', subject:'请均田抑兼并疏' }
     ];

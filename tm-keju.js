@@ -336,7 +336,7 @@ function _adjustHuangquan(delta, reason) {
     }
     if (GM.huangquan && typeof GM.huangquan === 'object') {
       var key = typeof GM.huangquan.index === 'number' ? 'index' : 'value';
-      GM.huangquan[key] = Math.max(0, Math.min(100, (GM.huangquan[key] || 50) + delta));
+      GM.huangquan[key] = Math.max(0, Math.min(100, (typeof GM.huangquan[key] === 'number' ? GM.huangquan[key] : 50) + delta));
       if (typeof addEB === 'function') addEB('\u7687\u6743', (delta > 0 ? '+' : '') + delta + '\u00B7' + (reason || ''));
     }
   } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
@@ -346,7 +346,7 @@ function _adjustHuangquan(delta, reason) {
 function _adjustMinxin(delta, reason) {
   try {
     if (GM.minxin && typeof GM.minxin === 'object') {
-      GM.minxin.trueIndex = Math.max(0, Math.min(100, (GM.minxin.trueIndex || 50) + delta));
+      GM.minxin.trueIndex = Math.max(0, Math.min(100, (typeof GM.minxin.trueIndex === 'number' ? GM.minxin.trueIndex : 50) + delta));
       if (typeof addEB === 'function') addEB('\u6C11\u5FC3', (delta > 0 ? '+' : '') + delta + '\u00B7' + (reason || ''));
     }
   } catch(e){try{window.TM&&TM.errors&&TM.errors.captureSilent(e,'tm-chaoyi-keju');}catch(_){}}
@@ -1058,4 +1058,3 @@ async function startKejuReform(){
     toast('❌ 改革失败');
   }
 }
-

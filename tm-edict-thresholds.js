@@ -330,7 +330,9 @@
   function _tickCorruptionCartel(ctx, mr) {
     var G = global.GM;
     if (!G.corruption) return;
-    var overall = (typeof G.corruption === 'object') ? G.corruption.overall : G.corruption;
+    var overall = (typeof G.corruption === 'object')
+      ? (typeof G.corruption.trueIndex === 'number' ? G.corruption.trueIndex : G.corruption.overall)
+      : G.corruption;
     if (overall < TM_THRESHOLDS.CORRUPTION_CARTEL_FORM) {
       if (G._corruptionCartel) delete G._corruptionCartel;
       return;
